@@ -1,0 +1,20 @@
+README.md
+  s_5de1d97d420649::t_72f8f04c1fbb90 1-52
+  s_5de1d97d420649::t_46c297d6dd5f0f 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "e960183b91913007d7e170600d659efd87909a19",
+  "prompts": {},
+  "sessions": {
+    "s_5de1d97d420649": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f06adf50-7355-4cdb-aeb6-7319db48709d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
