@@ -1,0 +1,60 @@
+{
+  "skill_name": "decisions",
+  "evals": [
+    {
+      "id": 0,
+      "name": "record-new-tooling-decision",
+      "prompt": "CI는 GitHub Actions에서 xcodebuild test로 돌리기로 결정했어. Xcode Cloud도 검토했는데 지금 팀 규모(1인)에 비해 비용이 과하고, 워크플로우를 코드로 관리하기도 GitHub Actions 쪽이 나아서. 이 결정 기록해줘.",
+      "expected_output": "references/에 오늘 날짜(20260712_) 프리픽스의 신규 결정 문서가 생성되고, 결정·근거·기각된 대안(Xcode Cloud)이 기록되며, SKILL.md 인덱스에 등재된다. 기존 결정 문서는 수정되지 않는다.",
+      "files": [],
+      "assertions": [
+        "references/에 '20260712_' 프리픽스(오늘 결정일)를 가진 신규 결정 문서가 생성되었다",
+        "결정 내용(GitHub Actions + xcodebuild test)과 근거(1인 팀 비용, 워크플로우 코드 관리)가 기록되었다",
+        "기각된 대안(Xcode Cloud)과 기각 이유가 기록되었다",
+        "SKILL.md의 Decision Index 테이블에 새 문서가 등재되었다 (날짜, 제목, 설명, 유효한 링크)",
+        "기존 결정 문서(20260712_* 시드 6건)는 단 한 글자도 수정되지 않았다"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "supersede-ax-timeout-decision",
+      "prompt": "전략 디스패처의 AX 감지 타임아웃을 3ms에서 5ms로 늘리기로 결정했어. 저사양 인텔 맥에서 3ms로는 정상적인 앱도 타임아웃돼서 Keyboard 전략으로 잘못 폴백되는 오탐이 많았거든. 이 결정 기록해줘.",
+      "expected_output": "신규 결정 문서(20260712_, 5ms + 근거)가 생성되어 기존 3ms 결정을 supersede하고, 옛 문서는 상단 Superseded 마킹 1줄 외 본문 불변, 인덱스에서 옛 문서 제거·새 문서 등재. architecture의 strategy-dispatch/reentrancy-and-safety reference가 5ms 최종 상태로 갱신되고 낡은 3ms가 남지 않는다.",
+      "files": [],
+      "assertions": [
+        "신규 결정 문서가 '20260712_' 프리픽스로 생성되고, 5ms 값과 변경 근거(저사양 인텔 맥 오폴백/오탐)를 담고 있다",
+        "신규 문서가 기존 20260712_ax-probe-hard-timeout-3ms.md를 supersede함을 명시한다",
+        "옛 결정 문서(20260712_ax-probe-hard-timeout-3ms.md)는 상단의 Superseded 마킹 1줄 추가 외에 본문이 변경되지 않았다",
+        "decisions SKILL.md 인덱스에서 옛 3ms 문서가 제거되고 새 문서가 등재되었다",
+        "architecture 스킬의 strategy-dispatch.md와 reentrancy-and-safety.md가 5ms 최종 상태로 갱신되었고, 낡은 3ms 언급이 남아있지 않다 (mermaid 다이어그램 포함)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "ambiguous-partial-supersede",
+      "prompt": "force-text 계열도 이제 자동 감지가 선택할 수 있게 바꾸기로 했어. AXRole 거짓말 앱이 생각보다 많아서, key-mapping이 두 번 연속 실패하면 force-text로 자동 폴백하는 휴리스틱을 넣기로 했거든. 이 결정 기록해줘.",
+      "expected_output": "신규 결정 문서가 생성되지만, 옛 20260712_ax-keyboard-strategy-dispatch.md에는 여전히 유효한 결정(라우팅 구조, 두 계열 존재)이 섞여 있으므로 인덱스에서 일방적으로 제거하지 않는다. 애매한 상황임을 인지하고 처리 방침(부분 대체)을 사용자에게 확인하거나, 옛 문서를 인덱스에 유지한 채 새 문서와의 관계를 명시한다.",
+      "files": [],
+      "assertions": [
+        "신규 결정 문서('20260712_' 프리픽스)가 생성되고 force-text 자동 폴백 결정과 근거(AXRole 거짓말 앱, key-mapping 2회 연속 실패 휴리스틱)를 담고 있다",
+        "옛 20260712_ax-keyboard-strategy-dispatch.md가 인덱스에서 일방적으로 제거되지 않았다 (여전히 유효한 라우팅/계열 결정이 남아있으므로)",
+        "옛 문서 본문이 재작성되지 않았다 (전면 Superseded 마킹도 부적절 — 문서 전체가 뒤집힌 것이 아님)",
+        "부분 대체의 애매함을 인지하고 사용자에게 확인을 요청하거나, 최소한 최종 메시지에서 옛 문서 처리 방침과 그 이유를 명시적으로 설명한다",
+        "architecture의 strategy-dispatch.md가 새 자동 폴백 규칙을 반영해 갱신되었다 (force-text '자동 감지 금지' 불변식이 새 결정과 모순되게 남아있지 않음)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "query-past-decision-rationale",
+      "prompt": "왜 모드 엔진을 순수 Swift로 만들기로 했었지? 그때 다른 방법은 검토 안 했어?",
+      "expected_output": "20260712_pure-swift-mode-engine.md에 근거한 답변 — 결정론적 픽스처 테스트, VimAction 생산자 고정과 어댑터 교체 가능성, 기각된 대안(엔진을 앱 타깃 안에 두는 방식)과 기각 이유까지 전달.",
+      "files": [],
+      "assertions": [
+        "순수 Swift 결정의 근거 두 가지(결정론적 픽스처 단위 테스트 가능, VimAction 생산자 고정 + 어댑터 교체 가능성)를 모두 설명한다",
+        "기각된 대안(엔진을 앱 타깃 안에 두고 AX/CGEvent 직접 호출)과 그 기각 이유를 언급한다",
+        "일반론이 아닌 이 프로젝트의 기록된 결정 문서(20260712_pure-swift-mode-engine.md)에 근거해 답한다",
+        "관련 결정 문서만 선별해 읽고, references/ 전체를 무차별로 로드하지 않는다"
+      ]
+    }
+  ]
+}

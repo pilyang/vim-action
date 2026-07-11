@@ -1,0 +1,41 @@
+---
+name: decisions
+description: VimACtion 프로젝트의 기술 결정 히스토리 SSOT — 아키텍처, 툴링, 라이브러리, 빌드/배포, 테스트 전략 등 모든 기술 결정의 기록과 조회. Use this skill whenever a technical decision is made, changed, or reversed ("~하기로 했어", "~로 결정했어", "이 결정 기록해줘", "X 대신 Y로 바꾸자"), and whenever someone asks about a past decision's history or rationale ("왜 X로 결정했었지?", "예전에 어떻게 하기로 했더라?", "이거 언제 바뀐 거야?"). Also use BEFORE overturning or revisiting any existing decision, even if the user doesn't say "decision" explicitly.
+---
+
+# VimACtion 기술 결정 기록 (Decision Log)
+
+이 스킬은 VimACtion의 **기술 결정 히스토리의 단일 소스(SSOT)** 입니다. 결정 문서는 전부 `references/`에 있고, 이 파일은 규칙과 인덱스만 관리합니다.
+
+역할 분담: 이 스킬은 "**언제, 왜** 그렇게 결정했는가"(히스토리)를 담당하고, 결정이 반영된 "**지금** 구조가 어떤가"(최종 상태)는 `architecture` 스킬이 담당합니다. 결정 기록의 진입점은 항상 이 스킬입니다.
+
+## 워크플로우 1 — 결정 기록
+
+새 기술 결정이 생기거나 기존 결정이 바뀌면:
+
+1. **항상 신규 문서를 추가**합니다: `references/` 아래 `yyyymmdd_<kebab-case-title>.md` (`_template.md` 복사). 날짜는 **결정일**이며 반드시 파일명에 포함 — 기록 시점의 날짜는 `date +%Y%m%d`로 확인합니다. 기존 결정 문서는 수정하거나 재작성하지 않습니다. 문서 하나가 결정 하나의 불변 스냅샷이어야, 나중에 "그때 왜 그랬는지"를 있는 그대로 신뢰할 수 있습니다.
+   - **문서 하나 = 결정 하나.** 큰 설계 안에 독립적으로 뒤집힐 수 있는 결정이 여러 개 섞여 있으면 문서를 나눕니다 (예: "전략 디스패치 구조"와 "AX 감지 타임아웃 값"은 별도 문서). 이렇게 해야 나중에 그 결정 하나만 supersede할 수 있고, 나머지 유효한 결정이 함께 폐기되지 않습니다.
+2. **기존 결정을 뒤집는 경우** (supersede):
+   - 새 문서의 `Supersedes` 섹션에 옛 문서를 명시합니다.
+   - 옛 문서에는 **맨 위에 한 줄만** 추가합니다: `> Superseded by [yyyymmdd_새문서.md](yyyymmdd_새문서.md)` — 본문은 그대로 둡니다. 파일을 직접 연 사람도 낡은 결정임을 즉시 알 수 있게 하기 위한 유일한 허용 수정입니다.
+   - 옛 문서가 **뒤집힌 결정만 담고 있다면** (다른 유효한 컨텍스트가 없다면) 아래 인덱스 테이블에서 **제거**합니다.
+   - 옛 문서에 아직 유효한 다른 결정·컨텍스트가 섞여 있어 제거 여부가 **애매하다면, 임의로 판단하지 말고 사용자에게 확인**합니다 (마킹·인덱스 제거를 보류하고 상황을 설명한 뒤 질문). 잘못 제거하면 유효한 결정이 컨텍스트에서 사라지고, 잘못 남기면 낡은 값이 계속 주입됩니다 — 문서 하나 = 결정 하나 원칙을 지켰다면 이 애매함 자체가 드뭅니다.
+3. **인덱스 테이블을 반드시 갱신**합니다. 인덱스에 없는 문서는 다음 작업자의 컨텍스트에 주입되지 않습니다 — 이것이 폐기된 결정이 새 작업을 오염시키지 않게 하는 메커니즘입니다. 반대로, 인덱스를 빼먹으면 유효한 결정도 없는 것이 됩니다.
+4. **구조·아키텍처에 영향이 있는 결정이면, 같은 플로우에서 `architecture` 스킬의 해당 reference(최종 상태)도 갱신**합니다. 결정 문서는 "왜 바뀌었는가"를, architecture reference는 "바뀐 결과가 무엇인가"를 담습니다. 여기서 갱신을 빼먹으면 두 스킬이 서로 다른 구조를 말하게 됩니다.
+
+기록하지 않는 것: 사소하거나 코드만 봐도 자명한 선택. 결정 문서의 가치는 코드에서 역추적할 수 없는 맥락(근거, 기각된 대안)에 있습니다.
+
+## 워크플로우 2 — 결정 조회
+
+과거 결정의 경위·근거를 물으면 아래 인덱스에서 관련 항목을 찾아 **해당 문서만** 읽습니다. 전부 읽지 마세요. 인덱스에 없는(폐기된) 문서는 "그때 왜 그렇게 했다가 바뀌었는지" 같은 히스토리 조사가 목적일 때만 `references/` 디렉토리에서 직접 찾아 읽습니다.
+
+## Decision Index
+
+| Date | Title | Short Description | Reference |
+|---|---|---|---|
+| 2026-07-12 | 단일 이벤트 탭 파이프라인 | 키 입력 진입점을 단일 CGEventTap으로 고정, 해석(엔진)과 실행(어댑터) 분리 | [20260712_single-event-tap-pipeline.md](references/20260712_single-event-tap-pipeline.md) |
+| 2026-07-12 | 순수 Swift 모드 엔진 | 모드 엔진을 macOS 의존성 없는 별도 SPM 타깃으로 | [20260712_pure-swift-mode-engine.md](references/20260712_pure-swift-mode-engine.md) |
+| 2026-07-12 | AX/Keyboard 전략 디스패치 | 앱별 프로파일 + AX 자동 감지로 전략 선택, force-text는 명시 선택 전용 | [20260712_ax-keyboard-strategy-dispatch.md](references/20260712_ax-keyboard-strategy-dispatch.md) |
+| 2026-07-12 | AX 감지 하드 타임아웃 3ms | 자동 감지 AX 탐지에 3ms 하드 캡, 타임아웃 시 key-mapping 폴백 | [20260712_ax-probe-hard-timeout-3ms.md](references/20260712_ax-probe-hard-timeout-3ms.md) |
+| 2026-07-12 | 합성 이벤트 마커와 안전장치 | userData 마커 + 단일 ActionExecutor로 무한 루프 방지, 안전장치는 별도 탭 | [20260712_synthetic-event-marker-and-failsafe.md](references/20260712_synthetic-event-marker-and-failsafe.md) |
+| 2026-07-12 | YAML 3계층 설정 | Yams 기반 YAML, 번들 기본값→사용자→앱별 3계층, 파일 감시 자동 리로드 | [20260712_yaml-three-layer-config.md](references/20260712_yaml-three-layer-config.md) |

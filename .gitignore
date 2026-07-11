@@ -7,4 +7,4 @@ DerivedData/
 .DS_Store
 
 # skill eval workspace (skill-creator artifacts)
-.claude/skills/project-context-workspace/
+.claude/skills/*-workspace/

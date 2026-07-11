@@ -1,18 +1,10 @@
 # 시스템 개요
 
-- **Status**: accepted
-- **Date**: 2026-07-12
+- **Last updated**: 2026-07-12
 
-## 결정
+## 현재 구조
 
-키 입력은 단일 `CGEventTap`으로만 진입하고, 순수 Swift 모드 엔진이 이를 추상 `VimAction`으로 해석하며, 전략 디스패처가 앱/요소별로 Accessibility 실행과 Keyboard(합성 이벤트) 실행 중 하나를 선택한다.
-
-## 근거 (왜)
-
-- 진입점을 하나로 고정하면 그 아래 전체가 순수 Swift로 유지되어 단위 테스트가 가능하다.
-- "동작 해석(엔진)"과 "동작 실행(어댑터)"을 분리하면 `VimAction`을 생성하는 곳은 하나, 소비하는 어댑터는 교체 가능한 둘이 되어 두 전략 모델을 다루기 쉽다.
-
-## 상세
+키 입력은 단일 `CGEventTap`(kCGSessionEventTap)으로만 진입하고, 순수 Swift 모드 엔진이 이를 추상 `VimAction`으로 해석하며, 전략 디스패처가 앱/요소별로 Accessibility 실행과 Keyboard(합성 이벤트) 실행 중 하나를 선택한다.
 
 ```mermaid
 graph LR
@@ -41,6 +33,17 @@ graph LR
 | ActionExecutor | 모든 출력(AX 쓰기, 이벤트 게시)의 단일 통로. 재진입 마커 강제 | [reentrancy-and-safety.md](reentrancy-and-safety.md) |
 | 프로파일 로더 | YAML 계층 설정 로드/감시 | [profiles-and-config.md](profiles-and-config.md) |
 | 앱 셸 | 메뉴바 `NSStatusItem`(모드 글리프), SwiftUI 설정 창, 온보딩 | — |
+
+## 불변식·계약
+
+- 키 입력 진입점은 메인 `CGEventTap` 하나뿐이다 (안전장치 탭은 예외 — 가로채기가 아닌 킬 스위치 전용).
+- 해석(엔진)과 실행(어댑터)은 분리되어 있으며, `VimAction` 생산자는 엔진 하나다.
+
+## 근거 요약
+
+진입점을 하나로 고정하면 그 아래 전체가 순수 Swift로 유지되어 단위 테스트가 가능하고, 해석/실행을 분리하면 두 전략 어댑터를 교체 가능한 소비자로 둘 수 있다.
+
+- 관련 결정: [20260712_single-event-tap-pipeline.md](../../decisions/references/20260712_single-event-tap-pipeline.md)
 
 ## 관련
 

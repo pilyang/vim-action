@@ -1,22 +1,8 @@
 {
-  "skill_name": "project-context",
+  "skill_name": "architecture",
   "evals": [
     {
       "id": 0,
-      "name": "record-dispatch-timeout-decision",
-      "prompt": "전략 디스패처의 AX 감지 타임아웃을 3ms에서 5ms로 늘리기로 결정했어. 저사양 인텔 맥에서 3ms로는 정상적인 앱도 타임아웃돼서 Keyboard 전략으로 잘못 폴백되는 오탐이 많았거든. 이 결정 기록해줘.",
-      "expected_output": "기존 strategy-dispatch reference가 갱신되고(새 파일 남발 없이), 5ms 값과 변경 근거(저사양 기기 오탐)가 기록되며, SKILL.md 인덱스가 유효하게 유지된다.",
-      "files": [],
-      "assertions": [
-        "기존 strategy-dispatch reference 파일이 갱신되었다 (관련 주제인데 별도의 새 결정 파일을 남발하지 않음)",
-        "새 타임아웃 값 5ms와 변경 근거(저사양 인텔 맥에서의 오폴백/오탐)가 모두 기록되었다",
-        "이전 값이 3ms였고 결정이 변경되었다는 사실이 기록에서 드러난다",
-        "reference 문서 내 3ms 언급이 모두 일관되게 갱신되었다 (mermaid 다이어그램 포함, 낡은 3ms가 남아있지 않음)",
-        "SKILL.md 인덱스 테이블이 여전히 유효하다 (깨진 링크 없음, 필요 시 short-description 갱신)"
-      ]
-    },
-    {
-      "id": 1,
       "name": "implement-mode-engine-hjkl",
       "prompt": "모드 엔진용 SPM 타깃을 만들고, Normal 모드에서 h/j/k/l 이동 처리를 구현해줘. 단위 테스트도 같이 작성해줘.",
       "expected_output": "macOS 프레임워크 import가 전혀 없는 순수 Swift SPM 타깃. Key 입력을 받아 추상 VimAction을 반환하는 계약을 따르고, AX 호출이나 CGEvent 합성이 엔진에 없다. 픽스처 기반 단위 테스트 포함.",
@@ -30,7 +16,7 @@
       ]
     },
     {
-      "id": 2,
+      "id": 1,
       "name": "explain-reentrancy",
       "prompt": "우리가 합성한 키 이벤트도 결국 CGEventTap에 다시 잡힐 텐데, 무한 루프가 안 도는 이유가 뭐야? 그리고 구현할 때 뭘 조심해야 해?",
       "expected_output": "userData 재진입 마커(eventSourceUserData)로 탭이 합성 이벤트를 재해석 없이 통과시킨다는 설명, 모든 게시가 단일 ActionExecutor를 거쳐 마커 불변식이 강제된다는 점, 마커 누락이 무한 루프의 주원인이라는 주의사항.",
@@ -42,5 +28,6 @@
         "일반론이 아닌 이 프로젝트의 기록된 결정에 근거해 답한다 (프로젝트 reference 문서와 일치하는 메커니즘 설명)"
       ]
     }
-  ]
+  ],
+  "note": "이전 eval 0(record-dispatch-timeout-decision)은 결정 기록 시나리오로, decisions 스킬의 supersede-ax-timeout-decision eval로 이관됨."
 }

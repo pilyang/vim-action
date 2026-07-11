@@ -1,19 +1,10 @@
 # 전략 디스패치
 
-- **Status**: accepted
-- **Date**: 2026-07-12
+- **Last updated**: 2026-07-12
 
-## 결정
+## 현재 구조
 
 엔진에서 온 각 `VimAction`은 전략 디스패처가 앱별 프로파일과 AX 자동 감지(하드 타임아웃 3ms)를 통해 **Accessibility 어댑터** 또는 **Keyboard 어댑터** 중 하나로 라우팅한다. Keyboard 어댑터는 `key-mapping`(요소 인식, 선호 폴백)과 `force-text`(요소 감지 우회, 최후 수단) 두 계열을 가진다.
-
-## 근거 (왜)
-
-- AX 텍스트 프로토콜을 올바르게 구현하는 앱에서는 AX가 정밀하지만, **너무 많은 앱이 지원한다고 거짓말**하기 때문에 자동 감지와 Keyboard 폴백이 필요하다.
-- AX 감지에 하드 타임아웃(3ms)을 두는 이유: 응답 없는 AX 호출이 이벤트 탭 전체를 멈추게 하면 안 된다.
-- `force-text`는 `AXRole`마저 거짓말하는 앱을 위한 것이므로 **프로파일에서 명시적으로만 선택**하고 자동 감지로는 절대 선택하지 않는다 — 요소 감지를 버리는 비용이 크기 때문.
-
-## 상세
 
 ### 선택 플로우 (VimAction마다 실행)
 
@@ -49,7 +40,18 @@ flowchart TD
 
 `(bundleID, focusedRole, selectedRange)` 튜플을 캐싱해 키 입력마다 AX를 재탐지하지 않는다. 캐시 무효화 시점: 포커스 변경 시(`AXObserver`의 `kAXFocusedUIElementChangedNotification`, `NSWorkspace`의 앱 활성화 알림), 그리고 캐럿을 이동시킨 것으로 알려진 Keyboard 전략 동작 후.
 
-### 미결 질문 (결정 시 이 파일 갱신)
+## 불변식·계약
+
+- AX 자동 감지는 하드 타임아웃(3ms)을 절대 초과하지 않는다 — 응답 없는 AX 호출이 이벤트 탭 전체를 멈추게 하면 안 된다.
+- `force-text`는 프로파일에서 명시적으로만 선택하며, 자동 감지가 선택하는 일은 없다.
+
+## 근거 요약
+
+올바른 AX 앱에서는 AX가 정밀하지만 너무 많은 앱이 AX 지원을 거짓말하므로, 자동 감지 + Keyboard 폴백의 이중 전략이 필요하다.
+
+- 관련 결정: [20260712_ax-keyboard-strategy-dispatch.md](../../decisions/references/20260712_ax-keyboard-strategy-dispatch.md)
+
+## 미결 질문 (결정 시 decisions에 기록 후 이 파일 갱신)
 
 - 일회성 Accessibility → Keyboard 다운그레이드 수정 키 (kindaVim의 `fn` 방식) — 채택 여부와 키 선택.
 - "AX 거짓말" 감지 휴리스틱 (왕복 테스트, 번들 거부 목록) — `strategy: auto` 신뢰 전 결정.
