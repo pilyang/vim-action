@@ -1,0 +1,39 @@
+CLAUDE.md
+  s_a002c09bc1f237::t_4966a4a327e012 1-6
+.claude/skills/project-context/references/mode-engine.md
+  s_a002c09bc1f237::t_b12f8163d68699 1-33
+.claude/skills/project-context/references/reentrancy-and-safety.md
+  s_a002c09bc1f237::t_3bde426d41eeed 1-46
+.claude/skills/project-context/references/profiles-and-config.md
+  s_a002c09bc1f237::t_d666dec5af11b0 1-46
+.claude/skills/project-context/references/_template.md
+  s_a002c09bc1f237::t_f706ee59e7879c 1-25
+.claude/skills/project-context/evals/evals.json
+  s_a002c09bc1f237::t_1225c5936cb92b 1-8,17-22,31-36,44-46
+  s_a002c09bc1f237::t_47f139af6f0b64 9-16,23-30,37-43
+.gitignore
+  s_a002c09bc1f237::t_ec05cd7604bbaa 1-10
+.claude/skills/project-context/references/system-overview.md
+  s_a002c09bc1f237::t_09023f28f9db1b 1-48
+.claude/skills/project-context/references/strategy-dispatch.md
+  s_a002c09bc1f237::t_641cb16db76a3f 1-63
+.claude/skills/project-context/SKILL.md
+  s_a002c09bc1f237::t_d49138ecc84e7b 1-2,4-39
+  s_a002c09bc1f237::t_b036b8d9dc21ab 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "8f785ca7e97d650e81831db5c9959a1e71e56475",
+  "prompts": {},
+  "sessions": {
+    "s_a002c09bc1f237": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d1a7c517-6a63-413f-b7d4-7f4908bb1538",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
