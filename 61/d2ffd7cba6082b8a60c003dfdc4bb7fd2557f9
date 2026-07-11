@@ -1,0 +1,94 @@
+CLAUDE.md
+  s_a002c09bc1f237::t_4966a4a327e012 1-4
+  s_a79f9bcacb7253::t_4880b613060232 5-6
+.claude/skills/architecture/references/mode-engine.md
+  s_a002c09bc1f237::t_b12f8163d68699 1-2,4,6,8-15,28-31
+  s_a79f9bcacb7253::t_dea7c12d8470a7 3-26
+  s_a79f9bcacb7253::t_7921abb37fd3c9 27
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_a002c09bc1f237::t_3bde426d41eeed 1-2,4,6-10,11-33,46-49
+  s_a79f9bcacb7253::t_25d0994685c362 3-44
+  s_a79f9bcacb7253::t_ea60654dc97582 45
+.claude/skills/architecture/references/profiles-and-config.md
+  s_a002c09bc1f237::t_d666dec5af11b0 1-2,4,6,8-34,46-49
+  s_a79f9bcacb7253::t_6e6b9c1ed54aba 3-44
+  s_a79f9bcacb7253::t_f93acf99bf22e9 45
+.claude/skills/architecture/evals/evals.json
+  s_a002c09bc1f237::t_1225c5936cb92b 1,3-5,6-8,17-18,20-22,30,33
+  s_a002c09bc1f237::t_47f139af6f0b64 9-16,23-29
+  s_a79f9bcacb7253::t_6458de13621060 2-32
+.gitignore
+  s_a002c09bc1f237::t_ec05cd7604bbaa 1-9
+  s_a79f9bcacb7253::t_0d248ba62abed5 10
+.claude/skills/architecture/references/system-overview.md
+  s_a002c09bc1f237::t_09023f28f9db1b 1-2,4,6,8-36,48-51
+  s_a79f9bcacb7253::t_e58ceb1ef2e081 3-46
+  s_a79f9bcacb7253::t_e426b8b0dfd763 47
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_a002c09bc1f237::t_641cb16db76a3f 1-2,4,6-8,9-42,55-65
+  s_a79f9bcacb7253::t_54524ba434acc2 3-54
+.claude/skills/architecture/SKILL.md
+  s_a79f9bcacb7253::t_0c6401ffbbbfd2 1-30
+.claude/skills/decisions/references/20260712_ax-keyboard-strategy-dispatch.md
+  s_a79f9bcacb7253::t_745bedbcc3c237 12
+  s_a79f9bcacb7253::t_9c007bcde3ed26 7
+  s_a79f9bcacb7253::t_22681594b1bee9 1-6,8-11,13-23
+.claude/skills/decisions/references/20260712_yaml-three-layer-config.md
+  s_a79f9bcacb7253::t_ac56e3b528182e 1-17
+.claude/skills/decisions/evals/evals.json
+  s_a79f9bcacb7253::t_50488b95e22bd2 33-46
+  s_a79f9bcacb7253::t_79c4cba9fbefa2 1-32,47-60
+.claude/skills/decisions/references/_template.md
+  s_a79f9bcacb7253::t_f422cb190a7505 1-28
+.claude/skills/decisions/SKILL.md
+  s_a79f9bcacb7253::t_7527425a9754b6 1-16,18-20,23-37,40-41
+  s_a79f9bcacb7253::t_769615fa5df384 38-39
+  s_a79f9bcacb7253::t_0b7f00ab5aa79e 17
+  s_a79f9bcacb7253::t_4c9e5dd016a0a1 21-22
+.claude/skills/decisions/references/20260712_single-event-tap-pipeline.md
+  s_a79f9bcacb7253::t_c93906bd496a7b 1-17
+.claude/skills/architecture/references/_template.md
+  s_a79f9bcacb7253::t_1a87ca555bdf4e 3-22
+  s_a79f9bcacb7253::t_516ab5f392ecc0 23
+.claude/skills/decisions/references/20260712_synthetic-event-marker-and-failsafe.md
+  s_a79f9bcacb7253::t_53cd442a026065 1-23
+.claude/skills/decisions/references/20260712_ax-probe-hard-timeout-3ms.md
+  s_a79f9bcacb7253::t_600f3872c7cc81 1-17
+.claude/skills/decisions/references/20260712_pure-swift-mode-engine.md
+  s_a79f9bcacb7253::t_281abda84d7821 1-21
+README.md
+  s_5de1d97d420649::t_72f8f04c1fbb90 1-52
+  s_5de1d97d420649::t_46c297d6dd5f0f 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "61d2ffd7cba6082b8a60c003dfdc4bb7fd2557f9",
+  "prompts": {},
+  "sessions": {
+    "s_5de1d97d420649": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f06adf50-7355-4cdb-aeb6-7319db48709d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_a002c09bc1f237": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d1a7c517-6a63-413f-b7d4-7f4908bb1538",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_a79f9bcacb7253": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b972b664-9ec4-4ce2-93c0-d660ff8ef9ea",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
