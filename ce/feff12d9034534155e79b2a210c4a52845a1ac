@@ -1,0 +1,43 @@
+VimAction/ContentView.swift
+  s_bd23240b882d73::t_d880529deb47f4 1-24
+VimAction/VimActionApp.swift
+  s_bd23240b882d73::t_d880529deb47f4 1-21
+VimActionUITests/VimActionUITests.swift
+  s_bd23240b882d73::t_d880529deb47f4 1-43
+.claude/skills/plans/SKILL.md
+  s_bd23240b882d73::t_b35f705431cf51 3,6
+VimAction.xcodeproj/project.pbxproj
+  s_bd23240b882d73::t_d880529deb47f4 1-591
+.claude/skills/decisions/references/20260712_single-core-spm-package.md
+  s_bd23240b882d73::t_b35f705431cf51 23
+VimActionUITests/VimActionUITestsLaunchTests.swift
+  s_bd23240b882d73::t_d880529deb47f4 1-35
+.claude/skills/decisions/SKILL.md
+  s_bd23240b882d73::t_b35f705431cf51 3,6,8
+VimActionTests/VimActionTests.swift
+  s_bd23240b882d73::t_d880529deb47f4 1-19
+README.md
+  s_bd23240b882d73::t_d880529deb47f4 34-38
+CLAUDE.md
+  s_bd23240b882d73::t_d880529deb47f4 1
+.claude/skills/architecture/SKILL.md
+  s_bd23240b882d73::t_b35f705431cf51 3,6,8
+VimAction.xcodeproj/xcuserdata/pilyang.xcuserdatad/xcschemes/xcschememanagement.plist
+  s_bd23240b882d73::t_18f04c485e422a 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "cefeff12d9034534155e79b2a210c4a52845a1ac",
+  "prompts": {},
+  "sessions": {
+    "s_bd23240b882d73": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8245eaef-a3a2-4860-976c-204dd6d8b77f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
