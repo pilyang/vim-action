@@ -1,4 +1,4 @@
-# VimACtion
+# VimAction
 
 macOS 메뉴바 백그라운드 앱 — 시스템 전역 Vim 키바인딩 (Swift/SwiftUI, Xcode).
 

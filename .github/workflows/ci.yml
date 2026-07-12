@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  engine-tests:
+    name: Engine tests (VimActionCore)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run swift test
+        run: swift test --package-path Packages/VimActionCore
+
+  app-build:
+    name: App build (xcodebuild)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build app target
+        run: >
+          xcodebuild build
+          -project VimAction.xcodeproj
+          -scheme VimAction
+          -destination 'platform=macOS'
+          CODE_SIGNING_ALLOWED=NO

@@ -1,13 +1,13 @@
 //
-//  VimACtionUITests.swift
-//  VimACtionUITests
+//  VimActionUITests.swift
+//  VimActionUITests
 //
 //  Created by 양재필 on 7/12/26.
 //
 
 import XCTest
 
-final class VimACtionUITests: XCTestCase {
+final class VimActionUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

@@ -1,13 +1,13 @@
 //
-//  VimACtionUITestsLaunchTests.swift
-//  VimACtionUITests
+//  VimActionUITestsLaunchTests.swift
+//  VimActionUITests
 //
 //  Created by 양재필 on 7/12/26.
 //
 
 import XCTest
 
-final class VimACtionUITestsLaunchTests: XCTestCase {
+final class VimActionUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

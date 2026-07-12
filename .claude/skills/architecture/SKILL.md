@@ -1,11 +1,11 @@
 ---
 name: architecture
-description: VimACtion 프로젝트의 현재 아키텍처·구조(최종 상태) 컨텍스트 로드 및 유지용 스킬. Use this skill BEFORE any VimACtion code work — like implementing or modifying the event tap, mode engine, strategy dispatcher, AX/keyboard adapters, action executor, profile loader, settings UI, or tests — and whenever the current structure is questioned ("구조가 어떻게 되지?", "이 컴포넌트 책임이 뭐지?", "왜 이렇게 되어있지?"). Also use when creating new SPM targets, adding dependencies, or choosing between implementation approaches, even if the user doesn't mention "architecture" explicitly. (결정의 기록·변경·번복은 decisions 스킬이 진입점 — 거기서 이 스킬의 최종 상태 갱신까지 이어집니다.)
+description: VimAction 프로젝트의 현재 아키텍처·구조(최종 상태) 컨텍스트 로드 및 유지용 스킬. Use this skill BEFORE any VimAction code work — like implementing or modifying the event tap, mode engine, strategy dispatcher, AX/keyboard adapters, action executor, profile loader, settings UI, or tests — and whenever the current structure is questioned ("구조가 어떻게 되지?", "이 컴포넌트 책임이 뭐지?", "왜 이렇게 되어있지?"). Also use when creating new SPM targets, adding dependencies, or choosing between implementation approaches, even if the user doesn't mention "architecture" explicitly. (결정의 기록·변경·번복은 decisions 스킬이 진입점 — 거기서 이 스킬의 최종 상태 갱신까지 이어집니다.)
 ---
 
-# VimACtion 아키텍처 (현재 구조)
+# VimAction 아키텍처 (현재 구조)
 
-이 스킬은 VimACtion 구조의 **현재 최종 상태**의 단일 소스(SSOT)입니다. 상세 내용은 전부 `references/` 파일에 있고, 이 파일은 규칙과 인덱스만 관리합니다.
+이 스킬은 VimAction 구조의 **현재 최종 상태**의 단일 소스(SSOT)입니다. 상세 내용은 전부 `references/` 파일에 있고, 이 파일은 규칙과 인덱스만 관리합니다.
 
 역할 분담: 이 스킬은 "**지금** 구조가 어떤가"를 담당합니다. "언제, 왜 그렇게 결정했는가"(히스토리)는 `decisions` 스킬이 담당하며, **결정의 기록·변경은 `decisions` 스킬이 진입점**입니다.
 

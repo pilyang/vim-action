@@ -6,43 +6,47 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FE33333333333333333333E3 /* VimEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FE22222222222222222222E2 /* VimEngine */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B52D10AE3002939F008FEE9F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = B52D10983002939E008FEE9F /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = B52D109F3002939E008FEE9F;
-			remoteInfo = VimACtion;
+			remoteInfo = VimAction;
 		};
 		B52D10B83002939F008FEE9F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = B52D10983002939E008FEE9F /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = B52D109F3002939E008FEE9F;
-			remoteInfo = VimACtion;
+			remoteInfo = VimAction;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		B52D10A03002939E008FEE9F /* VimACtion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VimACtion.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B52D10AD3002939F008FEE9F /* VimACtionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VimACtionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B52D10B73002939F008FEE9F /* VimACtionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VimACtionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B52D10A03002939E008FEE9F /* VimAction.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VimAction.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B52D10AD3002939F008FEE9F /* VimActionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VimActionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B52D10B73002939F008FEE9F /* VimActionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VimActionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		B52D10A23002939E008FEE9F /* VimACtion */ = {
+		B52D10A23002939E008FEE9F /* VimAction */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VimACtion;
+			path = VimAction;
 			sourceTree = "<group>";
 		};
-		B52D10B03002939F008FEE9F /* VimACtionTests */ = {
+		B52D10B03002939F008FEE9F /* VimActionTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VimACtionTests;
+			path = VimActionTests;
 			sourceTree = "<group>";
 		};
-		B52D10BA3002939F008FEE9F /* VimACtionUITests */ = {
+		B52D10BA3002939F008FEE9F /* VimActionUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VimACtionUITests;
+			path = VimActionUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FE33333333333333333333E3 /* VimEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,9 +80,9 @@
 		B52D10973002939E008FEE9F = {
 			isa = PBXGroup;
 			children = (
-				B52D10A23002939E008FEE9F /* VimACtion */,
-				B52D10B03002939F008FEE9F /* VimACtionTests */,
-				B52D10BA3002939F008FEE9F /* VimACtionUITests */,
+				B52D10A23002939E008FEE9F /* VimAction */,
+				B52D10B03002939F008FEE9F /* VimActionTests */,
+				B52D10BA3002939F008FEE9F /* VimActionUITests */,
 				B52D10A13002939E008FEE9F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -85,9 +90,9 @@
 		B52D10A13002939E008FEE9F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B52D10A03002939E008FEE9F /* VimACtion.app */,
-				B52D10AD3002939F008FEE9F /* VimACtionTests.xctest */,
-				B52D10B73002939F008FEE9F /* VimACtionUITests.xctest */,
+				B52D10A03002939E008FEE9F /* VimAction.app */,
+				B52D10AD3002939F008FEE9F /* VimActionTests.xctest */,
+				B52D10B73002939F008FEE9F /* VimActionUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,9 +100,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B52D109F3002939E008FEE9F /* VimACtion */ = {
+		B52D109F3002939E008FEE9F /* VimAction */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B52D10C13002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimACtion" */;
+			buildConfigurationList = B52D10C13002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimAction" */;
 			buildPhases = (
 				B52D109C3002939E008FEE9F /* Sources */,
 				B52D109D3002939E008FEE9F /* Frameworks */,
@@ -108,18 +113,19 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				B52D10A23002939E008FEE9F /* VimACtion */,
+				B52D10A23002939E008FEE9F /* VimAction */,
 			);
-			name = VimACtion;
+			name = VimAction;
 			packageProductDependencies = (
+				FE22222222222222222222E2 /* VimEngine */,
 			);
-			productName = VimACtion;
-			productReference = B52D10A03002939E008FEE9F /* VimACtion.app */;
+			productName = VimAction;
+			productReference = B52D10A03002939E008FEE9F /* VimAction.app */;
 			productType = "com.apple.product-type.application";
 		};
-		B52D10AC3002939F008FEE9F /* VimACtionTests */ = {
+		B52D10AC3002939F008FEE9F /* VimActionTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B52D10C43002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimACtionTests" */;
+			buildConfigurationList = B52D10C43002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimActionTests" */;
 			buildPhases = (
 				B52D10A93002939F008FEE9F /* Sources */,
 				B52D10AA3002939F008FEE9F /* Frameworks */,
@@ -131,18 +137,18 @@
 				B52D10AF3002939F008FEE9F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				B52D10B03002939F008FEE9F /* VimACtionTests */,
+				B52D10B03002939F008FEE9F /* VimActionTests */,
 			);
-			name = VimACtionTests;
+			name = VimActionTests;
 			packageProductDependencies = (
 			);
-			productName = VimACtionTests;
-			productReference = B52D10AD3002939F008FEE9F /* VimACtionTests.xctest */;
+			productName = VimActionTests;
+			productReference = B52D10AD3002939F008FEE9F /* VimActionTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		B52D10B63002939F008FEE9F /* VimACtionUITests */ = {
+		B52D10B63002939F008FEE9F /* VimActionUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B52D10C73002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimACtionUITests" */;
+			buildConfigurationList = B52D10C73002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimActionUITests" */;
 			buildPhases = (
 				B52D10B33002939F008FEE9F /* Sources */,
 				B52D10B43002939F008FEE9F /* Frameworks */,
@@ -154,13 +160,13 @@
 				B52D10B93002939F008FEE9F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				B52D10BA3002939F008FEE9F /* VimACtionUITests */,
+				B52D10BA3002939F008FEE9F /* VimActionUITests */,
 			);
-			name = VimACtionUITests;
+			name = VimActionUITests;
 			packageProductDependencies = (
 			);
-			productName = VimACtionUITests;
-			productReference = B52D10B73002939F008FEE9F /* VimACtionUITests.xctest */;
+			productName = VimActionUITests;
+			productReference = B52D10B73002939F008FEE9F /* VimActionUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -186,7 +192,7 @@
 					};
 				};
 			};
-			buildConfigurationList = B52D109B3002939E008FEE9F /* Build configuration list for PBXProject "VimACtion" */;
+			buildConfigurationList = B52D109B3002939E008FEE9F /* Build configuration list for PBXProject "VimAction" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -195,14 +201,17 @@
 			);
 			mainGroup = B52D10973002939E008FEE9F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FE11111111111111111111E1 /* XCLocalSwiftPackageReference "Packages/VimActionCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B52D10A13002939E008FEE9F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				B52D109F3002939E008FEE9F /* VimACtion */,
-				B52D10AC3002939F008FEE9F /* VimACtionTests */,
-				B52D10B63002939F008FEE9F /* VimACtionUITests */,
+				B52D109F3002939E008FEE9F /* VimAction */,
+				B52D10AC3002939F008FEE9F /* VimActionTests */,
+				B52D10B63002939F008FEE9F /* VimActionUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -258,12 +267,12 @@
 /* Begin PBXTargetDependency section */
 		B52D10AF3002939F008FEE9F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = B52D109F3002939E008FEE9F /* VimACtion */;
+			target = B52D109F3002939E008FEE9F /* VimAction */;
 			targetProxy = B52D10AE3002939F008FEE9F /* PBXContainerItemProxy */;
 		};
 		B52D10B93002939F008FEE9F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = B52D109F3002939E008FEE9F /* VimACtion */;
+			target = B52D109F3002939E008FEE9F /* VimAction */;
 			targetProxy = B52D10B83002939F008FEE9F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -405,7 +414,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimACtion;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimAction;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -435,7 +444,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimACtion;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimAction;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -456,14 +465,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimACtionTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimActionTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VimACtion.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VimACtion";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VimAction.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VimAction";
 			};
 			name = Debug;
 		};
@@ -476,14 +485,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimACtionTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimActionTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VimACtion.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VimACtion";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VimAction.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VimAction";
 			};
 			name = Release;
 		};
@@ -494,14 +503,14 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimACtionUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimActionUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = VimACtion;
+				TEST_TARGET_NAME = VimAction;
 			};
 			name = Debug;
 		};
@@ -512,21 +521,21 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimACtionUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.pilyang.VimActionUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = VimACtion;
+				TEST_TARGET_NAME = VimAction;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B52D109B3002939E008FEE9F /* Build configuration list for PBXProject "VimACtion" */ = {
+		B52D109B3002939E008FEE9F /* Build configuration list for PBXProject "VimAction" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B52D10BF3002939F008FEE9F /* Debug */,
@@ -535,7 +544,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B52D10C13002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimACtion" */ = {
+		B52D10C13002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimAction" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B52D10C23002939F008FEE9F /* Debug */,
@@ -544,7 +553,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B52D10C43002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimACtionTests" */ = {
+		B52D10C43002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimActionTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B52D10C53002939F008FEE9F /* Debug */,
@@ -553,7 +562,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B52D10C73002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimACtionUITests" */ = {
+		B52D10C73002939F008FEE9F /* Build configuration list for PBXNativeTarget "VimActionUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B52D10C83002939F008FEE9F /* Debug */,
@@ -563,6 +572,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		FE11111111111111111111E1 /* XCLocalSwiftPackageReference "Packages/VimActionCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/VimActionCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FE22222222222222222222E2 /* VimEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VimEngine;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B52D10983002939E008FEE9F /* Project object */;
 }
