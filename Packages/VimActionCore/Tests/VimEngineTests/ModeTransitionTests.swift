@@ -20,6 +20,12 @@ let modeTransitionFixtures: [KeySequenceFixture] = [
         finalMode: .insert
     ),
     KeySequenceFixture(
+        "Normal에서 매핑 안 된 키는 삼키고 Normal 유지",
+        startMode: .normal,
+        steps: [step(.char("x"), .swallow)],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
         "Esc → i 왕복이면 Insert로 되돌아온다",
         steps: [
             step(.escape, .swallow),

@@ -26,8 +26,13 @@ enum EngineSourceGuard {
 func engineSourcesHaveNoMacOSImports() throws {
     let sourcesDir = EngineSourceGuard.sourcesDirectory(from: #filePath)
 
-    let files = try FileManager.default
-        .contentsOfDirectory(at: sourcesDir, includingPropertiesForKeys: nil)
+    // 하위 폴더로 소스를 나눠도 불변식이 계속 지켜지도록 재귀적으로 열거한다.
+    let enumerator = try #require(
+        FileManager.default.enumerator(at: sourcesDir, includingPropertiesForKeys: nil),
+        "엔진 소스 디렉터리를 열거할 수 없음: \(sourcesDir.path)"
+    )
+    let files = enumerator
+        .compactMap { $0 as? URL }
         .filter { $0.pathExtension == "swift" }
 
     #expect(!files.isEmpty, "엔진 소스 디렉터리에서 .swift 파일을 찾지 못함: \(sourcesDir.path)")
