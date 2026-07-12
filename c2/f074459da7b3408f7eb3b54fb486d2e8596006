@@ -1,0 +1,37 @@
+.claude/skills/decisions/references/20260712_disable-sandbox-developer-id.md
+  s_e13e617cd5bd26::t_c32aba17099dc6 1-21
+.claude/skills/architecture/references/system-overview.md
+  s_e13e617cd5bd26::t_b13d69016d1eb3 51-53
+.claude/skills/plans/SKILL.md
+  s_e13e617cd5bd26::t_603c48e4c85e58 52
+VimAction/SettingsView.swift
+  s_e13e617cd5bd26::t_5d4e1e872215bb 1-27
+VimAction/AppState.swift
+  s_e13e617cd5bd26::t_180cb26b39f3a4 1-25
+.claude/skills/decisions/SKILL.md
+  s_e13e617cd5bd26::t_42aba67723bbce 49
+.claude/skills/plans/references/20260712_mvp-pipeline-phase1.md
+  s_e13e617cd5bd26::t_b160e98076aff3 16,21
+  s_e13e617cd5bd26::t_f2ae85f8f28806 4
+VimAction/VimActionApp.swift
+  s_e13e617cd5bd26::t_d6e6ac18d2f439 12,15-28
+VimAction.xcodeproj/project.pbxproj
+  s_e13e617cd5bd26::t_56c9bdb8003940 438,442
+  s_e13e617cd5bd26::t_d952bfd46a1717 407,411
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "c2f074459da7b3408f7eb3b54fb486d2e8596006",
+  "prompts": {},
+  "sessions": {
+    "s_e13e617cd5bd26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b75e1e68-307e-454b-a7f6-352adffce485",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
