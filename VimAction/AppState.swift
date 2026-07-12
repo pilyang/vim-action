@@ -3,7 +3,7 @@
 //  VimAction
 //
 
-import SwiftUI
+import Observation
 import VimEngine
 
 /// 앱 셸이 관찰하는 UI 상태. 지금은 메뉴바 글리프가 읽는 모드만 보유한다.
@@ -20,6 +20,14 @@ extension Mode {
         switch self {
         case .normal: "n.square.fill"
         case .insert: "i.square"
+        }
+    }
+
+    /// 접근성 레이블 등 사람이 읽는 모드 이름.
+    var displayName: String {
+        switch self {
+        case .normal: "Normal"
+        case .insert: "Insert"
         }
     }
 }
