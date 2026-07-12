@@ -47,7 +47,6 @@ description: VimACtion 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 ## Active Plan Index
 
-(현재 활성 플랜 없음)
-
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
+| 2026-07-12 | 2026-07-12 | MVP 파이프라인 1차 | 모드 엔진 SPM 패키지(이동 키셋 + 픽스처 테스트) → 메뉴바 앱 셸 → CGEventTap 스파이크 검증 | [20260712_mvp-pipeline-phase1.md](references/20260712_mvp-pipeline-phase1.md) |
