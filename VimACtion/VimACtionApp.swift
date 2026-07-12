@@ -6,9 +6,13 @@
 //
 
 import SwiftUI
+import VimEngine
 
 @main
 struct VimACtionApp: App {
+    // 엔진 패키지 링크 검증용 최소 사용. 실제 탭↔엔진 연결은 다음 플랜에서 대체된다.
+    private let engine = VimEngine()
+
     var body: some Scene {
         WindowGroup {
             ContentView()

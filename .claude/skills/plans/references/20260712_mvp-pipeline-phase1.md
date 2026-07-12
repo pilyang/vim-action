@@ -1,7 +1,7 @@
 # MVP 파이프라인 1차 — 모드 엔진 + 이벤트 탭 스파이크
 
 - **생성일**: 2026-07-12
-- **갱신일**: 2026-07-12
+- **갱신일**: 2026-07-12 (엔진 SPM 패키지 스캐폴드 완료)
 
 ## 목표
 
@@ -11,12 +11,11 @@
 
 ## 완료된 것
 
-(아직 없음)
+- [x] **엔진 SPM 패키지 스캐폴드**: `Packages/VimActionCore` 단일 패키지에 `VimEngine` + `VimEngineTests` 타깃 생성. `Key`(base+modifiers 구조체) / `VimAction`·`Motion`(뼈대) / `EventDecision`·`EngineOutput` / `Mode` 타입 계약 정의. 워킹 스켈레톤 동작(Esc→Normal, i→Insert, 일반문자 passthrough) + Swift Testing 픽스처 테스트(`KeySequenceFixture` 코드 테이블, 파라미터라이즈드) + no-macOS-import 가드 테스트. 앱 타깃에 패키지 연결·빌드 검증 완료. 관련 결정: [single-core-spm-package](../../decisions/references/20260712_single-core-spm-package.md), [key-representation-and-fixture-format](../../decisions/references/20260712_key-representation-and-fixture-format.md).
 
 ## 남은 것
 
-- [ ] **엔진 SPM 패키지 스캐폴드**: 저장소 내 로컬 SPM 패키지 생성(macOS 프레임워크 import 금지 불변식 준수), Swift Testing 테스트 타깃 구성, `Key` / `VimAction` / 이벤트 결정(swallow·passthrough·replace) 타입 계약 정의. 앱 타깃에 패키지 연결.
-- [ ] **Normal/Insert 상태 머신 + 이동 키셋**: Esc, i, a / h j k l / w b e / 0 ^ $ / gg G. 픽스처 기반 파라미터라이즈드 테스트로 커버 (키 시퀀스 → 기대 VimAction + 이벤트 결정).
+- [ ] **Normal/Insert 상태 머신 + 이동 키셋**: Esc, i, a / h j k l / w b e / 0 ^ $ / gg G. 스켈레톤의 `handle(_:)`·`Motion`에 케이스를 채우고, `MotionFixtures.swift` 등 키셋 그룹별 픽스처 파일을 추가한다 (키 시퀀스 → 기대 VimAction + 이벤트 결정). 픽스처 파이프라인·타입 계약·패키지 구조는 스캐폴드에서 이미 검증됨 — "추가"만 하면 된다.
 - [ ] **앱 셸 전환**: 템플릿 윈도우 앱을 `LSUIElement` + `NSStatusItem` 메뉴바 백그라운드 앱으로 전환 (설정 창은 뼈대만).
 - [ ] **CGEventTap 스파이크 (본 앱 내)**: 접근성·입력 모니터링 권한 온보딩 플로우, kCGSessionEventTap 설치, 수신 키 이벤트 로그로 동작 검증. 이 코드는 폐기하지 않고 제품 코드 위치에 스켈레톤으로 유지·발전시킨다. 검증 중 아키텍처 결정에 영향 주는 발견(탭이 안 되는 조건, 권한 이슈 등)은 decisions로 기록.
 

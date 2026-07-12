@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FE33333333333333333333E3 /* VimEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FE22222222222222222222E2 /* VimEngine */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B52D10AE3002939F008FEE9F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FE33333333333333333333E3 /* VimEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = VimACtion;
 			packageProductDependencies = (
+				FE22222222222222222222E2 /* VimEngine */,
 			);
 			productName = VimACtion;
 			productReference = B52D10A03002939E008FEE9F /* VimACtion.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = B52D10973002939E008FEE9F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FE11111111111111111111E1 /* XCLocalSwiftPackageReference "Packages/VimActionCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B52D10A13002939E008FEE9F /* Products */;
 			projectDirPath = "";
@@ -563,6 +572,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		FE11111111111111111111E1 /* XCLocalSwiftPackageReference "Packages/VimActionCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/VimActionCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FE22222222222222222222E2 /* VimEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VimEngine;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B52D10983002939E008FEE9F /* Project object */;
 }
