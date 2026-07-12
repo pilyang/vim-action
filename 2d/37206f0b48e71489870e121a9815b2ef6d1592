@@ -1,0 +1,21 @@
+.claude/skills/decisions/SKILL.md
+  s_17428b249ee3e4::t_1f3625b9a152fc 45
+.claude/skills/decisions/references/20260712_github-actions-ci.md
+  s_17428b249ee3e4::t_0edaeddd52eafc 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "2d37206f0b48e71489870e121a9815b2ef6d1592",
+  "prompts": {},
+  "sessions": {
+    "s_17428b249ee3e4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "192d6a62-7a4d-4fda-b598-8e2bdb8f70c0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
