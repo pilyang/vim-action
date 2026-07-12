@@ -1,0 +1,22 @@
+Packages/VimActionCore/Tests/VimEngineTests/ModeTransitionTests.swift
+  s_df4d941d2d4c0d::t_dab0706bbb99f0 23-27
+  s_df4d941d2d4c0d::t_6c5bcbb9db57fa 22
+Packages/VimActionCore/Tests/VimEngineTests/EngineInvariantTests.swift
+  s_df4d941d2d4c0d::t_671d5e1b218a75 29-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "2524e73377152851c0db77b2dc76e4319da50ffb",
+  "prompts": {},
+  "sessions": {
+    "s_df4d941d2d4c0d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9562d398-757e-4098-84ad-242735e4fca5",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
