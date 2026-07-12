@@ -1,0 +1,25 @@
+CLAUDE.md
+  s_fba0dae486648b::t_2661a2ee1b4613 7
+.claude/skills/plans/SKILL.md
+  s_fba0dae486648b::t_3ef13ad755451e 1-53
+.claude/skills/decisions/references/20260712_plans-skill-for-short-term-memory.md
+  s_fba0dae486648b::t_dcc15bc4d3455f 1-26
+.claude/skills/plans/references/_template.md
+  s_fba0dae486648b::t_bd04a9d3556054 1-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "93c9124e6e74af7c15d716da57d256e43e883de7",
+  "prompts": {},
+  "sessions": {
+    "s_fba0dae486648b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0bd453ad-ac23-4f7f-a23e-f42b7d1d2c11",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
