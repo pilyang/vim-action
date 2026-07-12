@@ -33,14 +33,27 @@ let modeTransitionFixtures: [KeySequenceFixture] = [
         ],
         finalMode: .insert
     ),
+    KeySequenceFixture(
+        "Normal에서 a → 커서 한 칸 뒤로 이동하며 Insert 진입",
+        startMode: .normal,
+        steps: [step(.char("a"), .replace([.move(.charRightForAppend)]))],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "Normal에서 I → 줄 첫 비공백으로 이동하며 Insert 진입",
+        startMode: .normal,
+        steps: [step(.char("I"), .replace([.move(.lineFirstNonBlank)]))],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "Normal에서 A → 줄 끝(마지막 문자 뒤)으로 이동하며 Insert 진입",
+        startMode: .normal,
+        steps: [step(.char("A"), .replace([.move(.lineEndForAppend)]))],
+        finalMode: .insert
+    ),
 ]
 
 @Test(arguments: modeTransitionFixtures)
 func modeTransition(_ fixture: KeySequenceFixture) {
-    var engine = VimEngine(mode: fixture.startMode)
-    for (index, step) in fixture.steps.enumerated() {
-        let output = engine.handle(step.key)
-        #expect(output == step.expect, "step \(index) (\(step.key)) 출력 불일치")
-    }
-    #expect(engine.mode == fixture.finalMode, "최종 모드 불일치")
+    expectFixture(fixture)
 }

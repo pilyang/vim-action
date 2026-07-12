@@ -35,3 +35,13 @@ struct KeySequenceFixture: Sendable, CustomTestStringConvertible {
 func step(_ key: Key, _ expect: EngineOutput) -> KeySequenceFixture.Step {
     KeySequenceFixture.Step(key: key, expect: expect)
 }
+
+/// 픽스처 하나를 실행해 각 스텝의 출력과 최종 모드를 검증한다.
+func expectFixture(_ fixture: KeySequenceFixture, sourceLocation: SourceLocation = #_sourceLocation) {
+    var engine = VimEngine(mode: fixture.startMode)
+    for (index, step) in fixture.steps.enumerated() {
+        let output = engine.handle(step.key)
+        #expect(output == step.expect, "step \(index) (\(step.key)) 출력 불일치", sourceLocation: sourceLocation)
+    }
+    #expect(engine.mode == fixture.finalMode, "최종 모드 불일치", sourceLocation: sourceLocation)
+}

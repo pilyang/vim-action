@@ -19,9 +19,14 @@ graph LR
 
 - 관련 결정: [20260712_single-core-spm-package.md](../../decisions/references/20260712_single-core-spm-package.md)
 
-현재 구성 (스켈레톤):
+현재 구성:
 
-- `VimEngine`: `struct VimEngine`(`handle(_:) -> EngineOutput`, `private(set) var mode`, 시작 모드 `.insert`), 타입 `Key`/`VimAction`·`Motion`/`EventDecision`·`EngineOutput`/`Mode`. 스켈레톤 동작은 모드 전환(Insert에서 Esc→Normal, Normal에서 i→Insert)과 통과뿐이며, 이동 키셋 케이스는 다음 마일스톤에서 `handle(_:)`과 `Motion`에 채운다.
+- `VimEngine`: `struct VimEngine`(`handle(_:) -> EngineOutput`, `private(set) var mode`, 시작 모드 `.insert`), 타입 `Key`/`VimAction`·`Motion`/`EventDecision`·`EngineOutput`/`Mode`. 내부 상태는 `mode`와 멀티키 시퀀스용 `pending`(현재 `g` 하나) 둘뿐이다.
+- 구현된 키셋 (1차 이동 최소셋): `Esc, i, a, I, A / h j k l / w b e / 0 ^ $ / gg G`. 편집 키(x, dd 등), 카운트(3w), Visual 모드는 다음 마일스톤.
+- Normal 모드 처리 규칙 (우선순위 순): ① pending 해소 — `gg`만 유효, 무효 연속 키는 둘 다 버리는 no-op, Esc는 pending 취소 → ② 모드 전환 키(i/a/I/A — a/I/A는 진입 이동과 함께 `.replace`) → ③ `g` pending 진입 → ④ 단일 키 모션(`singleKeyMotions` 테이블) → ⑤ 매핑 없는 modifier 조합은 `.passthrough` (시스템 단축키 보존) → ⑥ 그 외 미매핑 키는 `.swallow`.
+- Insert 모드는 Esc(→Normal, 삼킴) 외 전부 `.passthrough`.
+- append 계열은 전용 모션 케이스: `a`→`charRightForAppend`, `A`→`lineEndForAppend` (`l`·`$`는 Vim에서 마지막 문자 위에 멈추고 append는 그 뒤로 가므로 어댑터가 구분해야 함). `I`는 `^`와 목표가 같아 `lineFirstNonBlank` 재사용.
+- 관련 결정: [20260712_pending-invalid-sequence-noop.md](../../decisions/references/20260712_pending-invalid-sequence-noop.md), [20260712_unmapped-modifier-passthrough.md](../../decisions/references/20260712_unmapped-modifier-passthrough.md), [20260712_append-dedicated-motion-cases.md](../../decisions/references/20260712_append-dedicated-motion-cases.md)
 
 ## 불변식·계약
 

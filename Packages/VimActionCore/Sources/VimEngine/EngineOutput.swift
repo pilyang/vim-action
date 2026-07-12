@@ -22,4 +22,8 @@ public struct EngineOutput: Hashable, Sendable {
     public static let passthrough = EngineOutput(decision: .passthrough)
     /// 원본 키를 삼킨다 (동작 없음 — 예: 모드 전환 키).
     public static let swallow = EngineOutput(decision: .swallow)
+    /// 원본 키를 삼키고 `actions`를 대신 실행한다 (예: 모션 키).
+    public static func replace(_ actions: [VimAction]) -> EngineOutput {
+        EngineOutput(decision: .replace, actions: actions)
+    }
 }
