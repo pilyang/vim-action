@@ -1,0 +1,44 @@
+Packages/VimActionCore/Tests/VimEngineTests/ModeTransitionTests.swift
+  s_ce204d2f5dfe8a::t_a7df078515ca80 36-53,58
+.claude/skills/decisions/SKILL.md
+  s_ce204d2f5dfe8a::t_cde6650cae98ea 46-48
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_ce204d2f5dfe8a::t_f7e2ad068b2931 7-8,12-26
+Packages/VimActionCore/Sources/VimEngine/EngineOutput.swift
+  s_ce204d2f5dfe8a::t_367794ba2771e7 25-28
+.claude/skills/decisions/references/20260712_unmapped-modifier-passthrough.md
+  s_ce204d2f5dfe8a::t_e6766aedf2c10b 1-21
+.claude/skills/decisions/references/20260712_append-dedicated-motion-cases.md
+  s_ce204d2f5dfe8a::t_5f01c6f0f056ba 1-21
+.claude/skills/plans/SKILL.md
+  s_ce204d2f5dfe8a::t_30cdb6b9859614 52
+Packages/VimActionCore/Tests/VimEngineTests/MotionFixtures.swift
+  s_ce204d2f5dfe8a::t_6d4be5d76d3703 1-135
+.claude/skills/decisions/references/20260712_pending-invalid-sequence-noop.md
+  s_ce204d2f5dfe8a::t_f1695d6f973bc6 1-22
+.claude/skills/architecture/references/mode-engine.md
+  s_ce204d2f5dfe8a::t_370e2d180fe596 22-29
+Packages/VimActionCore/Tests/VimEngineTests/FixtureSupport.swift
+  s_ce204d2f5dfe8a::t_3e74068268244b 38-47
+.claude/skills/plans/references/20260712_mvp-pipeline-phase1.md
+  s_ce204d2f5dfe8a::t_53d116429fa8b1 15
+  s_ce204d2f5dfe8a::t_0bc5b6cdf68d2e 4
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_ce204d2f5dfe8a::t_367cd7a4d2dccd 6-11,15-16,41-53,55-60,62-67,69-72,74-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "4d04c7b1fcbaab91ac1a75d8a006a6f0a32b93f8",
+  "prompts": {},
+  "sessions": {
+    "s_ce204d2f5dfe8a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bd135c97-3f48-4c82-9df8-e5609c669a7a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
