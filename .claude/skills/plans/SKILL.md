@@ -1,9 +1,9 @@
 ---
 name: plans
-description: VimACtion 프로젝트의 진행 중 작업 플랜(단기 기억) SSOT — 여러 세션에 걸친 작업의 플랜을 기록하고, 다음 세션으로 인계하고, 완료되면 정리합니다. Use this skill whenever a multi-session work plan is created or agreed on ("이 플랜대로 진행하자", "플랜 기록해줘", plan mode 결과를 다음 세션에서 이어갈 때), whenever resuming work ("이어서 하자", "어디까지 했지?", "다음 뭐 하지?", "지난번에 하던 거"), when pausing mid-work ("오늘은 여기까지", "일단 여기서 멈추자"), and BEFORE starting any non-trivial work to check for an in-progress plan it might belong to. This is NOT a planning-method skill — 플랜을 세우는 방법은 다루지 않으며(plan mode 등이 담당), 이미 세워진 플랜의 기억·공유·수명 관리만 담당합니다.
+description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) SSOT — 여러 세션에 걸친 작업의 플랜을 기록하고, 다음 세션으로 인계하고, 완료되면 정리합니다. Use this skill whenever a multi-session work plan is created or agreed on ("이 플랜대로 진행하자", "플랜 기록해줘", plan mode 결과를 다음 세션에서 이어갈 때), whenever resuming work ("이어서 하자", "어디까지 했지?", "다음 뭐 하지?", "지난번에 하던 거"), when pausing mid-work ("오늘은 여기까지", "일단 여기서 멈추자"), and BEFORE starting any non-trivial work to check for an in-progress plan it might belong to. This is NOT a planning-method skill — 플랜을 세우는 방법은 다루지 않으며(plan mode 등이 담당), 이미 세워진 플랜의 기억·공유·수명 관리만 담당합니다.
 ---
 
-# VimACtion 플랜 관리 (Active Plans)
+# VimAction 플랜 관리 (Active Plans)
 
 이 스킬은 **진행 중인 멀티세션 작업의 단기 기억 SSOT**입니다. 플랜 문서는 전부 `references/`에 있고, 이 파일은 규칙과 인덱스만 관리합니다.
 

@@ -31,11 +31,11 @@ macOS 앱마다 텍스트를 노출하는 방식이 크게 다르기 때문에, 
 ## 프로젝트 구조
 
 ```
-VimACtion/
-├── VimACtion/            # 앱 소스 (현재: SwiftUI 템플릿)
-├── VimACtionTests/       # 단위 테스트
-├── VimACtionUITests/     # UI 테스트
-└── VimACtion.xcodeproj   # Xcode 프로젝트
+VimAction/
+├── VimAction/            # 앱 소스 (현재: SwiftUI 템플릿)
+├── VimActionTests/       # 단위 테스트
+├── VimActionUITests/     # UI 테스트
+└── VimAction.xcodeproj   # Xcode 프로젝트
 ```
 
 ## 로드맵

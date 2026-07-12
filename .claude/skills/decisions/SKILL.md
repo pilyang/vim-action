@@ -1,11 +1,11 @@
 ---
 name: decisions
-description: VimACtion 프로젝트의 기술 결정 히스토리 SSOT — 아키텍처, 툴링, 라이브러리, 빌드/배포, 테스트 전략 등 모든 기술 결정의 기록과 조회. Use this skill whenever a technical decision is made, changed, or reversed ("~하기로 했어", "~로 결정했어", "이 결정 기록해줘", "X 대신 Y로 바꾸자"), and whenever someone asks about a past decision's history or rationale ("왜 X로 결정했었지?", "예전에 어떻게 하기로 했더라?", "이거 언제 바뀐 거야?"). Also use BEFORE overturning or revisiting any existing decision, even if the user doesn't say "decision" explicitly.
+description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아키텍처, 툴링, 라이브러리, 빌드/배포, 테스트 전략 등 모든 기술 결정의 기록과 조회. Use this skill whenever a technical decision is made, changed, or reversed ("~하기로 했어", "~로 결정했어", "이 결정 기록해줘", "X 대신 Y로 바꾸자"), and whenever someone asks about a past decision's history or rationale ("왜 X로 결정했었지?", "예전에 어떻게 하기로 했더라?", "이거 언제 바뀐 거야?"). Also use BEFORE overturning or revisiting any existing decision, even if the user doesn't say "decision" explicitly.
 ---
 
-# VimACtion 기술 결정 기록 (Decision Log)
+# VimAction 기술 결정 기록 (Decision Log)
 
-이 스킬은 VimACtion의 **기술 결정 히스토리의 단일 소스(SSOT)** 입니다. 결정 문서는 전부 `references/`에 있고, 이 파일은 규칙과 인덱스만 관리합니다.
+이 스킬은 VimAction의 **기술 결정 히스토리의 단일 소스(SSOT)** 입니다. 결정 문서는 전부 `references/`에 있고, 이 파일은 규칙과 인덱스만 관리합니다.
 
 역할 분담: 이 스킬은 "**언제, 왜** 그렇게 결정했는가"(히스토리)를 담당하고, 결정이 반영된 "**지금** 구조가 어떤가"(최종 상태)는 `architecture` 스킬이 담당합니다. 결정 기록의 진입점은 항상 이 스킬입니다.
 

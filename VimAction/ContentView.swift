@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  VimACtion
+//  VimAction
 //
 //  Created by 양재필 on 7/12/26.
 //
