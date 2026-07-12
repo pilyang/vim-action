@@ -5,7 +5,8 @@
   s_a79f9bcacb7253::t_7527425a9754b6 1-16,18-20,23-37,40-41
 .claude/skills/architecture/references/system-overview.md
   s_a79f9bcacb7253::t_e426b8b0dfd763 47
-  s_a79f9bcacb7253::t_e58ceb1ef2e081 3,5,7,37-46
+  s_a79f9bcacb7253::t_e58ceb1ef2e081 3,3-46,5,7,37-46
+  s_a002c09bc1f237::t_09023f28f9db1b 1-2,4,6,8-36,48-51
 .claude/skills/decisions/references/20260712_synthetic-event-marker-and-failsafe.md
   s_a79f9bcacb7253::t_53cd442a026065 1-23
 .claude/skills/decisions/evals/evals.json
@@ -18,33 +19,41 @@
 .claude/skills/decisions/references/20260712_ax-probe-hard-timeout-3ms.md
   s_a79f9bcacb7253::t_600f3872c7cc81 1-17
 .claude/skills/architecture/references/_template.md
-  s_a79f9bcacb7253::t_1a87ca555bdf4e 3,5,7,14-22
+  s_a79f9bcacb7253::t_1a87ca555bdf4e 3,3-22,5,7,14-22
   s_a79f9bcacb7253::t_516ab5f392ecc0 23
 .claude/skills/architecture/references/profiles-and-config.md
   s_a79f9bcacb7253::t_f93acf99bf22e9 45
-  s_a79f9bcacb7253::t_6e6b9c1ed54aba 3,5,7,35-44
+  s_a79f9bcacb7253::t_6e6b9c1ed54aba 3,3-44,5,7,35-44
+  s_a002c09bc1f237::t_d666dec5af11b0 1-2,4,6,8-34,46-49
 .claude/skills/architecture/references/mode-engine.md
   s_a79f9bcacb7253::t_7921abb37fd3c9 27
-  s_a79f9bcacb7253::t_dea7c12d8470a7 3,5,7,16-26
+  s_a79f9bcacb7253::t_dea7c12d8470a7 3,3-26,5,7,16-26
+  s_a002c09bc1f237::t_b12f8163d68699 1-2,4,6,8-15,28-31
 .claude/skills/decisions/references/20260712_pure-swift-mode-engine.md
   s_a79f9bcacb7253::t_281abda84d7821 1-21
 .claude/skills/architecture/SKILL.md
-  s_a79f9bcacb7253::t_0c6401ffbbbfd2 2-3,6,8,10,12,14,16,18,20,22-23,28-30
+  s_a79f9bcacb7253::t_0c6401ffbbbfd2 1-30,2-3,6,8,10,12,14,16,18,20,22-23,28-30
 .claude/skills/architecture/evals/evals.json
-  s_a79f9bcacb7253::t_6458de13621060 2,19,31-32
+  s_a79f9bcacb7253::t_6458de13621060 2,2-32,19,31-32
+  s_a002c09bc1f237::t_1225c5936cb92b 1,3-5,6-8,17-18,20-22,30,33
+  s_a002c09bc1f237::t_47f139af6f0b64 9-16,23-29
 .claude/skills/architecture/references/strategy-dispatch.md
-  s_a79f9bcacb7253::t_54524ba434acc2 3,5,43-54
+  s_a79f9bcacb7253::t_54524ba434acc2 3,3-54,5,43-54
+  s_a002c09bc1f237::t_641cb16db76a3f 1-2,4,6-8,9-42,55-65
 .claude/skills/decisions/references/20260712_single-event-tap-pipeline.md
   s_a79f9bcacb7253::t_c93906bd496a7b 1-17
 CLAUDE.md
   s_a79f9bcacb7253::t_4880b613060232 5-6
+  s_a002c09bc1f237::t_4966a4a327e012 1-4
 .claude/skills/decisions/references/20260712_yaml-three-layer-config.md
   s_a79f9bcacb7253::t_ac56e3b528182e 1-17
 .gitignore
   s_a79f9bcacb7253::t_0d248ba62abed5 10
+  s_a002c09bc1f237::t_ec05cd7604bbaa 1-9
 .claude/skills/architecture/references/reentrancy-and-safety.md
   s_a79f9bcacb7253::t_ea60654dc97582 45
-  s_a79f9bcacb7253::t_25d0994685c362 3,5,34-44
+  s_a79f9bcacb7253::t_25d0994685c362 3,3-44,5,34-44
+  s_a002c09bc1f237::t_3bde426d41eeed 1-2,4,6-10,11-33,46-49
 .claude/skills/decisions/references/_template.md
   s_a79f9bcacb7253::t_f422cb190a7505 1-28
 ---
@@ -54,6 +63,14 @@ CLAUDE.md
   "base_commit_sha": "72e83fe164d3974eaa0c166f1d6e2bbbf511308c",
   "prompts": {},
   "sessions": {
+    "s_a002c09bc1f237": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d1a7c517-6a63-413f-b7d4-7f4908bb1538",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
     "s_a79f9bcacb7253": {
       "agent_id": {
         "tool": "claude",
