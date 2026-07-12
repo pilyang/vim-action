@@ -1,0 +1,56 @@
+VimAction/SettingsView.swift
+  s_d88f85aea80342::t_026a416205bb00 55-58
+  s_d88f85aea80342::t_1b7abf5cf1c1d8 22-23,25,28,33,36,39,43
+  s_d88f85aea80342::t_799abef76a9410 8,10-11,24,26-27,29-32,34-35,37-38,40-42,47-54,59,64-65
+.claude/skills/decisions/references/20260712_active-tap-ax-only-onboarding.md
+  s_d88f85aea80342::t_0ac4112cd22ce5 1-24
+VimAction/EventTapController.swift
+  s_d88f85aea80342::t_9003e5906810b2 8
+  s_d88f85aea80342::t_5116c487689d20 1-7,9-140
+VimAction/VimActionApp.swift
+  s_d88f85aea80342::t_facbaccc129de6 13-21,33-34,39
+.claude/skills/decisions/references/20260712_main-runloop-tap-attachment.md
+  s_d88f85aea80342::t_ff7a615b58b278 1-22
+VimAction/AccessibilityPermissionMonitor.swift
+  s_d88f85aea80342::t_be359df6841834 1-70
+.claude/skills/plans/SKILL.md
+  s_d88f85aea80342::t_acfe249c13df39 52-53
+VimAction/Logging.swift
+  s_d88f85aea80342::t_6c2b790d3b8a4b 1-19
+.claude/skills/architecture/references/system-overview.md
+  s_d88f85aea80342::t_2c4c9bbecc071b 53-54
+.claude/skills/decisions/SKILL.md
+  s_d88f85aea80342::t_90eda8ad5df12a 50-51
+  s_d88f85aea80342::t_dec0a532961182 52
+.claude/skills/plans/references/20260712_mvp-pipeline-phase1.md
+  s_d88f85aea80342::t_ea076ca5ef9b71 4-5
+  s_d88f85aea80342::t_200ce660d674b5 21,25-29
+  s_d88f85aea80342::t_3c003969959aef 19-20,24
+.claude/skills/decisions/references/20260713_tap-reenable-watchdog-polling.md
+  s_d88f85aea80342::t_7a5202b2a7c6c1 1-28
+.claude/skills/plans/references/20260713_tap-reenable-watchdog.md
+  s_d88f85aea80342::t_287eb868f2b350 1-26
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_d88f85aea80342::t_c058453473093a 31
+VimAction/AppState.swift
+  s_d88f85aea80342::t_00abe76c52a33a 24-26
+  s_d88f85aea80342::t_31bcd9f3efbcfa 39-40
+  s_d88f85aea80342::t_8f1142b3a272c6 9,14-23,27-30,32-38,41
+  s_d88f85aea80342::t_3fdbb0221c14c8 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "79e971067579a0b1801259a1a58a669cc7e12a2f",
+  "prompts": {},
+  "sessions": {
+    "s_d88f85aea80342": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11ce42aa-6545-409f-a42f-5203bae49ae1",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
