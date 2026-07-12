@@ -1,0 +1,63 @@
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_39e7db1b58c40b::t_84489fe137cbfe 1-14
+VimACtion/VimACtionApp.swift
+  s_39e7db1b58c40b::t_ff149af6aa61fc 9,13-15
+.claude/skills/plans/references/20260712_mvp-pipeline-phase1.md
+  s_39e7db1b58c40b::t_1a97f4ed557415 4
+  s_39e7db1b58c40b::t_dc0b34cae2d928 14,18
+Packages/VimActionCore/Sources/VimEngine/Key.swift
+  s_39e7db1b58c40b::t_c1d2b9a203035e 1-46
+Packages/VimActionCore/Tests/VimEngineTests/FixtureSupport.swift
+  s_39e7db1b58c40b::t_528039c475bfc2 1-37
+VimACtion.xcodeproj/project.pbxproj
+  s_39e7db1b58c40b::t_786ae33e11c5e3 575-588
+  s_39e7db1b58c40b::t_c5a57393c71dc8 9-12
+  s_39e7db1b58c40b::t_45010eea8b0716 59
+  s_39e7db1b58c40b::t_1af678e627eb95 120
+  s_39e7db1b58c40b::t_02212c49244e2d 204-206
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_39e7db1b58c40b::t_5308a93c7dce76 1-43
+.claude/skills/decisions/SKILL.md
+  s_39e7db1b58c40b::t_3cc3e773cff3b1 43-44
+Packages/VimActionCore/Sources/VimEngine/EngineOutput.swift
+  s_39e7db1b58c40b::t_abf8c8ed375274 1-25
+.claude/skills/decisions/references/20260712_single-core-spm-package.md
+  s_39e7db1b58c40b::t_b13d878649ce8c 1-23
+Packages/VimActionCore/Package.swift
+  s_39e7db1b58c40b::t_7c6637952b73df 1-13
+Packages/VimActionCore/Tests/VimEngineTests/EngineInvariantTests.swift
+  s_39e7db1b58c40b::t_7b6e081126e68d 26-27
+  s_39e7db1b58c40b::t_ceee7e23531bea 1-25,28-47
+Packages/VimActionCore/Sources/VimEngine/Mode.swift
+  s_39e7db1b58c40b::t_87ae8cb8b6e599 1-5
+.claude/skills/architecture/references/mode-engine.md
+  s_39e7db1b58c40b::t_34ce9bfb0c7471 31
+  s_39e7db1b58c40b::t_a653bd3c17c9fb 16-17,19-25
+  s_39e7db1b58c40b::t_0b80d63573f34c 42
+  s_39e7db1b58c40b::t_04af6729d6cf4a 18
+Packages/VimActionCore/Tests/VimEngineTests/ModeTransitionTests.swift
+  s_39e7db1b58c40b::t_656c59aa576cb0 19
+  s_39e7db1b58c40b::t_280e8b4fcf5ea3 1-18,20-40
+.claude/skills/decisions/references/20260712_key-representation-and-fixture-format.md
+  s_39e7db1b58c40b::t_d9894cd5630a72 1-27
+.claude/skills/plans/SKILL.md
+  s_39e7db1b58c40b::t_6b022ab6fd3a33 52
+.gitignore
+  s_39e7db1b58c40b::t_dddeb1e97586b3 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "cbb255613fe53f031629dc191548d76a9b833ebb",
+  "prompts": {},
+  "sessions": {
+    "s_39e7db1b58c40b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67b0c833-68b1-43b4-816f-ce37bf9c656b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
