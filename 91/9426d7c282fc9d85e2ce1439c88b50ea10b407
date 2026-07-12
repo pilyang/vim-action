@@ -1,0 +1,21 @@
+.github/workflows/ci.yml
+  s_17428b249ee3e4::t_0a733115a7633e 1-36
+VimAction.xcodeproj/xcshareddata/xcschemes/VimAction.xcscheme
+  s_17428b249ee3e4::t_b6e8d38d980a2f 1-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "919426d7c282fc9d85e2ce1439c88b50ea10b407",
+  "prompts": {},
+  "sessions": {
+    "s_17428b249ee3e4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "192d6a62-7a4d-4fda-b598-8e2bdb8f70c0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
