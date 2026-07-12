@@ -1,0 +1,25 @@
+VimAction/SettingsView.swift
+  s_e13e617cd5bd26::t_a59bf99172462d 10-14,18
+VimAction/AppState.swift
+  s_e13e617cd5bd26::t_145b40f2286cfa 6
+  s_e13e617cd5bd26::t_1d2cd398c1bae4 25-32
+VimAction/VimActionApp.swift
+  s_e13e617cd5bd26::t_395d93d3569119 25-27
+  s_e13e617cd5bd26::t_c74d7603ae450d 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "2898bc9c98734f478601ef56eb4b0ef4ddf82713",
+  "prompts": {},
+  "sessions": {
+    "s_e13e617cd5bd26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b75e1e68-307e-454b-a7f6-352adffce485",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
