@@ -5,17 +5,30 @@
 //  Created by 양재필 on 7/12/26.
 //
 
+import AppKit
 import SwiftUI
-import VimEngine
 
 @main
 struct VimActionApp: App {
-    // 엔진 패키지 링크 검증용 최소 사용. 실제 탭↔엔진 연결은 다음 플랜에서 대체된다.
-    private let engine = VimEngine()
+    @State private var appState = AppState()
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        MenuBarExtra {
+            SettingsLink {
+                Text("Preferences…")
+            }
+            Divider()
+            Button("Quit VimAction") {
+                NSApp.terminate(nil)
+            }
+        } label: {
+            // 시각적으로는 아이콘만, VoiceOver에는 안정적인 앱 이름 + 현재 모드를 남긴다.
+            Label("VimAction — \(appState.mode.displayName) 모드", systemImage: appState.mode.menuBarGlyph)
+                .labelStyle(.iconOnly)
+        }
+
+        Settings {
+            SettingsView()
         }
     }
 }

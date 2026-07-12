@@ -48,4 +48,6 @@ graph LR
 ## 관련
 
 - 제품 요구사항: 워크스페이스 `docs/prd.md` (§7.3, §7.4, §9, §10)
-- 엔타이틀먼트: 접근성(필수), 입력 모니터링(최근 macOS 세션 수준 탭에 필수)
+- 앱 셸: `LSUIElement` 메뉴바 백그라운드 앱(SwiftUI `MenuBarExtra` + `Settings` 씬). Dock 아이콘·앱 메뉴 없음.
+- App Sandbox 해제(Developer ID 직접 배포). CGEventTap/AX가 샌드박스 불가하기 때문 — [20260712_disable-sandbox-developer-id.md](../../decisions/references/20260712_disable-sandbox-developer-id.md).
+- 접근성·입력 모니터링은 빌드 엔타이틀먼트가 아니라 런타임 TCC 권한(온보딩에서 요청).

@@ -49,4 +49,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-07-12 | 2026-07-12 | MVP 파이프라인 1차 | 엔진 스캐폴드 ✓ → 이동 키셋 ✓ → 메뉴바 앱 셸 → CGEventTap 스파이크 검증 | [20260712_mvp-pipeline-phase1.md](references/20260712_mvp-pipeline-phase1.md) |
+| 2026-07-12 | 2026-07-12 | MVP 파이프라인 1차 | 엔진 스캐폴드 ✓ → 이동 키셋 ✓ → 메뉴바 앱 셸 ✓ → CGEventTap 스파이크 검증 | [20260712_mvp-pipeline-phase1.md](references/20260712_mvp-pipeline-phase1.md) |
