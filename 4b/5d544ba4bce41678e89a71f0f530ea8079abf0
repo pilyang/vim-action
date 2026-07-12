@@ -1,0 +1,27 @@
+.claude/skills/decisions/references/20260712_swift-testing-for-engine-tests.md
+  s_acc2ab3587ba26::t_a838d254393c19 1-20
+.claude/skills/plans/references/20260712_mvp-pipeline-phase1.md
+  s_acc2ab3587ba26::t_e446101bf2d546 1-31
+.claude/skills/plans/SKILL.md
+  s_acc2ab3587ba26::t_3277208826007b 52
+.claude/skills/decisions/SKILL.md
+  s_acc2ab3587ba26::t_0b28648861337f 42
+.claude/skills/architecture/references/mode-engine.md
+  s_acc2ab3587ba26::t_22681996ff5011 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "4b5d544ba4bce41678e89a71f0f530ea8079abf0",
+  "prompts": {},
+  "sessions": {
+    "s_acc2ab3587ba26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddcb265f-6b83-4c5f-8cdc-f7dd4cf3d583",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
