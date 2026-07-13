@@ -28,7 +28,7 @@ final class AppState {
         }
     }
 
-    /// 뉴바 글리프 — 탭이 안 돌면 흐림/비활성 표시 (PRD §7.7 최소 구현).
+    /// 메뉴바 글리프 — 탭이 안 돌면 흐림/비활성 표시 (PRD §7.7 최소 구현).
     var menuBarGlyph: String {
         eventTap.status == .running ? mode.menuBarGlyph : "square.dashed"
     }
