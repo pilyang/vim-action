@@ -5,7 +5,7 @@
 
 import AppKit
 import ApplicationServices
-import Carbon.HIToolbox
+import Carbon.HIToolbox  // IsSecureEventInputEnabled() 제공 — 제거 시 빌드 실패 (곧 kVK_* 키코드도 사용).
 import Observation
 import os
 
@@ -74,9 +74,9 @@ final class EventTapController {
         if terminationObserver == nil {
             terminationObserver = NotificationCenter.default.addObserver(
                 forName: NSApplication.willTerminateNotification, object: nil, queue: .main
-            ) { _ in
+            ) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    self.stop()
+                    self?.stop()
                 }
             }
         }
@@ -104,10 +104,13 @@ final class EventTapController {
     }
 
     fileprivate func logKeyEvent(type: CGEventType, event: CGEvent) {
+        // 키 입력 로그는 사실상 키로거 — DEBUG 빌드에만 컴파일한다(릴리스 산출물엔 존재하지 않음).
+        // keycode 관찰이 이 스파이크의 목적이라 DEBUG에서는 .public 유지. TODO: 엔진 연결 시 제거.
+        #if DEBUG
         let keycode = event.getIntegerValueField(.keyboardEventKeycode)
         let flags = String(event.flags.rawValue, radix: 16)
-        // TODO: 스파이크 이후 제거/게이팅 — 키 입력 로그는 사실상 키로거.
         Logger.eventTap.debug("\(type == .keyDown ? "keyDown" : "flagsChanged", privacy: .public) keycode=\(keycode, privacy: .public) flags=0x\(flags, privacy: .public)")
+        #endif
     }
 }
 
@@ -123,18 +126,19 @@ private nonisolated func eventTapCallback(
     guard let refcon else { return Unmanaged.passUnretained(event) }
     let controller = Unmanaged<EventTapController>.fromOpaque(refcon).takeUnretainedValue()
 
-    MainActor.assumeIsolated {
+    return MainActor.assumeIsolated { () -> Unmanaged<CGEvent>? in
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
-            // 키 이벤트가 아니다 — 키 필드를 읽으면 쓰레기값. 재활성화만 하고 통과.
+            // 키 이벤트가 아니라 아웃오브밴드 제어 통지 — 반환값은 시스템이 무시한다.
+            // 재활성화만 하고, 이벤트가 흐르지 않음을 드러내려 nil 반환.
             controller.reenableAfterDisable(type: type)
+            return nil
         case .keyDown, .flagsChanged:
             controller.logKeyEvent(type: type, event: event)
         default:
             break
         }
+        // 스파이크: 키 이벤트는 무수정 통과.
+        return Unmanaged.passUnretained(event)
     }
-
-    // 스파이크: 항상 무수정 통과.
-    return Unmanaged.passUnretained(event)
 }
