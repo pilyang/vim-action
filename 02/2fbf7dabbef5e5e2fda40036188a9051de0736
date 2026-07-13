@@ -1,0 +1,19 @@
+VimAction/AppState.swift
+  s_56a119185f3d47::t_8b47fe6d604184 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "022fbf7dabbef5e5e2fda40036188a9051de0736",
+  "prompts": {},
+  "sessions": {
+    "s_56a119185f3d47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "04fdd200-9d0e-45cc-8063-4d0c39854919",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
