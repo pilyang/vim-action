@@ -10,7 +10,15 @@ import SwiftUI
 
 @main
 struct VimActionApp: App {
-    @State private var appState = AppState()
+    @State private var appState: AppState
+
+    /// MenuBarExtra 라벨의 `.onAppear`는 렌더 타이밍에 좌우되고 Settings 씬은 열 때만
+    /// 생성되므로, 앱 시작 부트스트랩은 `App.init`이 결정적 훅이다.
+    init() {
+        let state = AppState()
+        state.bootstrap()
+        _appState = State(initialValue: state)
+    }
 
     var body: some Scene {
         MenuBarExtra {
@@ -22,13 +30,13 @@ struct VimActionApp: App {
                 NSApp.terminate(nil)
             }
         } label: {
-            // 시각적으로는 아이콘만, VoiceOver에는 안정적인 앱 이름 + 현재 모드를 남긴다.
-            Label("VimAction — \(appState.mode.displayName) 모드", systemImage: appState.mode.menuBarGlyph)
+            // 시각적으로는 아이콘만, VoiceOver에는 안정적인 앱 이름 + 현재 상태를 남긴다.
+            Label(appState.menuBarAccessibilityLabel, systemImage: appState.menuBarGlyph)
                 .labelStyle(.iconOnly)
         }
 
         Settings {
-            SettingsView()
+            SettingsView(appState: appState)
         }
     }
 }

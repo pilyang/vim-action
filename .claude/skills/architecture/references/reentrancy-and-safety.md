@@ -28,6 +28,7 @@ sequenceDiagram
 3. **동작별 AX 타임아웃** — 3ms 하드 캡 ([strategy-dispatch.md](strategy-dispatch.md)).
 4. **깔끔한 SIGTERM 처리** — 종료 전 탭 제거, 대롱거리는 탭 방지.
 5. **보안 입력 인식** — `IsSecureEventInputEnabled()`가 true(비밀번호 필드 등)면 가로채기 중단 + 흐릿한 인디케이터.
+6. **탭 자동복구 워치독** — 콜백의 `tapDisabledBy*` 재활성화는 콜백이 전달되지 못하는 완전 정지/장기 스톨에서는 무력하다. 별도 타이머로 `CGEventTapIsEnabled()`를 주기 폴링해 꺼져 있으면 다시 켠다 ([20260713_tap-reenable-watchdog-polling.md](../../decisions/references/20260713_tap-reenable-watchdog-polling.md)).
 
 권한: 접근성 확인은 매 실행 시 `AXIsProcessTrustedWithOptions`로 수행하고, 권한이 없으면 이벤트 탭 설치를 거부한다.
 
