@@ -14,8 +14,12 @@ public struct VimEngine: Sendable {
 
     private var pending: Pending?
 
-    public init(mode: Mode = .insert) {
+    /// 주입된 동작 설정. 기본값(빈 셋)은 기존 동작을 그대로 유지한다.
+    private let configuration: Configuration
+
+    public init(mode: Mode = .insert, configuration: Configuration = Configuration()) {
         self.mode = mode
+        self.configuration = configuration
     }
 
     /// 키 하나를 처리하고 그 결과를 낸다. 필요 시 내부 모드를 전이시킨다.
@@ -69,13 +73,30 @@ public struct VimEngine: Sendable {
 
         // 매핑 없는 modifier 조합(Cmd+C 등)은 시스템 단축키이므로 통과시킨다.
         // modifier 없는 미매핑 키만 삼킨다 (Normal 모드 키가 앱에 새지 않게).
-        return key.modifiers.isEmpty ? .swallow : .passthrough
+        if key.modifiers.isEmpty {
+            return .swallow
+        }
+        if isEscapeCombo(key) {
+            mode = .insert
+        }
+        return .passthrough
     }
 
-    /// pending을 다음 키로 해소한다. 유효한 연속(gg)만 동작하고, Esc를 포함한
-    /// 그 외 키는 no-op으로 삼킨다. `gi`(마지막 삽입 위치로 insert) 같은 실제
-    /// Vim 커맨드도 지원 전까지는 여기서 no-op으로 떨어진다.
-    private func resolve(_ pending: Pending, then key: Key) -> EngineOutput {
+    /// 소비된 pending 접두를 다음 키로 해소한다. `self.pending`은 호출부
+    /// (`handleNormal`)가 진입 시 이미 비웠으므로 어느 경로로 빠지든 pending은
+    /// 남지 않는다 — 여기서 정하는 건 "이번 키로 무엇을 낼지"뿐이다.
+    ///
+    /// - 유효한 연속(`gg`): 해당 모션을 낸다.
+    /// - 탈출 modifier 콤보: Insert로 전이하며 통과시킨다 — `g` 입력 도중이라도
+    ///   시스템 단축키(Spotlight/Raycast 등) 직후 타이핑을 막지 않기 위함.
+    /// - 그 외(Esc 포함): no-op으로 삼키고 Normal에 머문다. `gi`(마지막 삽입
+    ///   위치로 insert) 같은 실제 Vim 커맨드도 지원 전까지는 여기로 떨어진다.
+    private mutating func resolve(_ pending: Pending, then key: Key) -> EngineOutput {
+        if isEscapeCombo(key) {
+            mode = .insert
+            return .passthrough
+        }
+
         switch pending {
         case .g:
             if key == .char("g") {
@@ -83,6 +104,13 @@ public struct VimEngine: Sendable {
             }
             return .swallow
         }
+    }
+
+    /// 탈출 modifier(예: Cmd/Opt)와 교집합이 있는 콤보인지 — Spotlight/Raycast 등
+    /// 시스템 단축키 직후의 타이핑을 막지 않기 위해 이런 콤보는 Insert로 탈출시킨다.
+    /// Normal의 미매핑 콤보 분기와 pending 해소 분기가 같은 판정을 공유한다.
+    private func isEscapeCombo(_ key: Key) -> Bool {
+        !key.modifiers.isDisjoint(with: configuration.normalModeEscapeModifiers)
     }
 
     /// pending 없이 단일 키로 완결되는 모션. `Key`의 Hashable 매칭이라

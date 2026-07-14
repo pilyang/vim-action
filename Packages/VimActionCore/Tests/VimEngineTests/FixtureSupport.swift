@@ -11,6 +11,8 @@ struct KeySequenceFixture: Sendable, CustomTestStringConvertible {
     let name: String
     /// 시작 모드. 생략 시 엔진 기본값(Insert).
     let startMode: Mode
+    /// 주입할 엔진 설정. 생략 시 기본값(모두 off).
+    let configuration: VimEngine.Configuration
     /// 각 키와 그 키를 먹인 직후의 기대 출력.
     let steps: [Step]
     /// 시퀀스를 모두 먹인 뒤의 기대 모드.
@@ -21,9 +23,16 @@ struct KeySequenceFixture: Sendable, CustomTestStringConvertible {
         let expect: EngineOutput
     }
 
-    init(_ name: String, startMode: Mode = .insert, steps: [Step], finalMode: Mode) {
+    init(
+        _ name: String,
+        startMode: Mode = .insert,
+        configuration: VimEngine.Configuration = .init(),
+        steps: [Step],
+        finalMode: Mode
+    ) {
         self.name = name
         self.startMode = startMode
+        self.configuration = configuration
         self.steps = steps
         self.finalMode = finalMode
     }
@@ -38,7 +47,7 @@ func step(_ key: Key, _ expect: EngineOutput) -> KeySequenceFixture.Step {
 
 /// 픽스처 하나를 실행해 각 스텝의 출력과 최종 모드를 검증한다.
 func expectFixture(_ fixture: KeySequenceFixture, sourceLocation: SourceLocation = #_sourceLocation) {
-    var engine = VimEngine(mode: fixture.startMode)
+    var engine = VimEngine(mode: fixture.startMode, configuration: fixture.configuration)
     for (index, step) in fixture.steps.enumerated() {
         let output = engine.handle(step.key)
         #expect(output == step.expect, "step \(index) (\(step.key)) 출력 불일치", sourceLocation: sourceLocation)
