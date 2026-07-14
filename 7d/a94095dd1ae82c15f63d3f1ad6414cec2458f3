@@ -1,0 +1,45 @@
+.claude/skills/plans/SKILL.md
+  s_e8d4474a59db1f::t_f491d212026d56 52
+.claude/skills/plans/references/20260714_engine-tap-wiring.md
+  s_e8d4474a59db1f::t_9ace2ab5a6575b 15
+  s_e8d4474a59db1f::t_c4eb547f88b6c4 26
+  s_e8d4474a59db1f::t_a74eeeba759d66 32-33
+Packages/VimActionCore/Sources/VimEngine/Configuration.swift
+  s_e8d4474a59db1f::t_3b645c68ea3cd9 1-14
+Packages/VimActionCore/Tests/VimEngineTests/FixtureSupport.swift
+  s_e8d4474a59db1f::t_539014b48e2782 50
+  s_e8d4474a59db1f::t_9dca41880923e5 14-15
+  s_e8d4474a59db1f::t_22a08acd389c00 26-32,35
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_e8d4474a59db1f::t_b23a09b97d50d1 17-20,22
+  s_e8d4474a59db1f::t_36aff4600aba19 76-78,80-82,88-91,93-96
+  s_e8d4474a59db1f::t_9e88a55432aefc 92
+  s_e8d4474a59db1f::t_c790f6c2f02e07 106-112
+  s_e8d4474a59db1f::t_bfc05595482f19 79
+Packages/VimActionCore/Tests/VimEngineTests/EscapeModifierFixtures.swift
+  s_e8d4474a59db1f::t_8197f60dd237a4 34
+  s_e8d4474a59db1f::t_11d9c4394d042b 42
+  s_e8d4474a59db1f::t_4a372627e692b7 18
+  s_e8d4474a59db1f::t_14ed3931bcd940 1-17,19-25,27-33,35-41,43-48,50-59,61-69,71-77,79-92
+  s_e8d4474a59db1f::t_138eb4adefb57a 70
+  s_e8d4474a59db1f::t_68be845385b018 49
+  s_e8d4474a59db1f::t_60ebce0b6b15a9 26
+  s_e8d4474a59db1f::t_640f9f788aab12 78
+  s_e8d4474a59db1f::t_652d6fc5232fad 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "7da94095dd1ae82c15f63d3f1ad6414cec2458f3",
+  "prompts": {},
+  "sessions": {
+    "s_e8d4474a59db1f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7ac3ab4c-2aea-4ae0-8525-8656f69d5191",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
