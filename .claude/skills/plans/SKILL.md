@@ -49,4 +49,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-07-14 | 2026-07-14 | 엔진↔탭 연결 + 탭 워치독 (MVP 2차) | 탭→엔진 배선(swallow/passthrough 적용) + CGEvent→Key 번역 + 워치독 + 안전장치(토글·modifier 탈출 옵션). 플랜 승인 완료, 구현 미착수 | [20260714_engine-tap-wiring.md](references/20260714_engine-tap-wiring.md) |
+| 2026-07-14 | 2026-07-14 | 엔진↔탭 연결 + 탭 워치독 (MVP 2차) | 탭→엔진 배선(swallow/passthrough 적용) + CGEvent→Key 번역 + 워치독 + 안전장치(토글·modifier 탈출 옵션). 1/7 완료(엔진 탈출 옵션), 다음은 CGEvent→Key 번역기 | [20260714_engine-tap-wiring.md](references/20260714_engine-tap-wiring.md) |
