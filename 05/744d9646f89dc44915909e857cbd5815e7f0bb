@@ -1,0 +1,33 @@
+.claude/skills/decisions/SKILL.md
+  s_947238f95b7990::t_ced0885ae1c7f4 53
+.claude/skills/decisions/references/20260714_multikey-command-grammar-builder.md
+  s_d0dafe41be5c6f::t_62ba6fdc307834 1-57
+.claude/skills/plans/SKILL.md
+  s_947238f95b7990::t_ced0885ae1c7f4 53
+.claude/skills/plans/references/20260714_multikey-command-builder.md
+  s_d0dafe41be5c6f::t_31e61046c431a1 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "05744d9646f89dc44915909e857cbd5815e7f0bb",
+  "prompts": {},
+  "sessions": {
+    "s_947238f95b7990": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2732ec9-8548-4381-ab1c-47f9714c60a1",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_d0dafe41be5c6f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3fdd659d-f25f-43d0-accc-728a223c2e5d",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
