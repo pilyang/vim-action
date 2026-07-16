@@ -1,0 +1,21 @@
+.claude/skills/plans/references/20260714_engine-tap-wiring.md
+  s_8a504299d6c24d::t_2750d84867f084 16
+  s_8a504299d6c24d::t_7d0394877ebce9 22
+  s_8a504299d6c24d::t_9cd4543cda03d7 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e03f85751d7e32467a67c0b8f1157653581334f0",
+  "prompts": {},
+  "sessions": {
+    "s_8a504299d6c24d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02b4052a-0c75-4e32-8f30-4ce5297a6387",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
