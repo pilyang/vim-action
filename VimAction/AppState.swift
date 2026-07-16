@@ -3,7 +3,9 @@
 //  VimAction
 //
 
+import Foundation
 import Observation
+import os
 import VimEngine
 
 /// 앱 셸이 관찰하는 UI 상태와 전역 컴포넌트(권한 모니터, 이벤트 탭)의 소유자.
@@ -17,6 +19,14 @@ final class AppState {
 
     /// 앱 시작 시 1회: 권한 확인 → 탭 설치 시도, 미허용이면 부여 감지 폴링 시작.
     func bootstrap() {
+        // TEST_HOST로 launch된 단위 테스트 실행 중에는 시동하지 않는다 —
+        // 테스트가 라이브 이벤트 탭을 설치하거나 권한 폴링을 돌리면 안 된다.
+        let env = ProcessInfo.processInfo.environment
+        if env["XCTestConfigurationFilePath"] != nil || env["XCTestSessionIdentifier"] != nil {
+            // 이 변수가 일반 launch에 새어 들어오면 앱이 통째로 비활성이 되므로 흔적을 남긴다.
+            Logger.eventTap.notice("XCTest 환경변수 감지 — bootstrap 생략 (탭 설치·권한 폴링 비활성)")
+            return
+        }
         permissionMonitor.onGranted = { [eventTap] in
             eventTap.startIfPermitted()
         }
