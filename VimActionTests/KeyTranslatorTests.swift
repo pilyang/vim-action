@@ -10,9 +10,6 @@ import VimEngine
 @testable import VimAction
 
 /// 합성 CGEvent(virtualKey + flags) → 기대 `Key` 픽스처.
-///
-/// 전제: 실행 머신의 ASCII-capable 키보드 레이아웃이 QWERTY(ABC/US)다.
-/// Dvorak 등 다른 ASCII 레이아웃 환경에서는 문자 케이스가 실패할 수 있다.
 struct KeyTranslationFixture: Sendable, CustomTestStringConvertible {
     var name: String
     var virtualKey: CGKeyCode
@@ -29,7 +26,9 @@ struct KeyTranslationFixture: Sendable, CustomTestStringConvertible {
     var testDescription: String { name }
 }
 
-let keyTranslationFixtures: [KeyTranslationFixture] = [
+/// 레이아웃과 무관하게 성립하는 케이스 — 특수키는 keycode로 직접 매칭되고,
+/// 화살표/펑션 키는 어느 레이아웃에서든 비출력 문자라 nil이다.
+let layoutInvariantFixtures: [KeyTranslationFixture] = [
     // 1. 특수키 4종 — keycode 기반, modifiers 없음
     .init("Esc → .escape", kVK_Escape, [], .escape),
     .init("Return → .enter", kVK_Return, [], .enter),
@@ -40,7 +39,16 @@ let keyTranslationFixtures: [KeyTranslationFixture] = [
     .init("Cmd+Space → space+[command]", kVK_Space, [.maskCommand], Key(.space, [.command])),
     .init("Cmd+Esc → escape+[command]", kVK_Escape, [.maskCommand], Key(.escape, [.command])),
 
-    // 3. 단순 문자
+    // 3. 번역 불가 → nil (호출측 무조건 통과)
+    .init("Left arrow → nil", kVK_LeftArrow, [], nil),
+    .init("Up arrow → nil", kVK_UpArrow, [], nil),
+    .init("F1 → nil", kVK_F1, [], nil),
+]
+
+/// 문자 키는 현재 ASCII-capable 레이아웃으로 번역되므로, keycode↔문자 짝이
+/// QWERTY 계열 레이아웃에서만 성립한다 — 비-QWERTY 머신에서는 테스트가 skip된다.
+let qwertyCharacterFixtures: [KeyTranslationFixture] = [
+    // 1. 단순 문자
     .init("h", kVK_ANSI_H, [], .char("h")),
     .init("j", kVK_ANSI_J, [], .char("j")),
     .init("k", kVK_ANSI_K, [], .char("k")),
@@ -48,12 +56,12 @@ let keyTranslationFixtures: [KeyTranslationFixture] = [
     .init("w", kVK_ANSI_W, [], .char("w")),
     .init("g", kVK_ANSI_G, [], .char("g")),
 
-    // 4. shift 흡수 — shift는 문자에 반영되고 modifiers에 남지 않는다
+    // 2. shift 흡수 — shift는 문자에 반영되고 modifiers에 남지 않는다
     .init("Shift+4 → $", kVK_ANSI_4, [.maskShift], .char("$")),
     .init("Shift+g → G", kVK_ANSI_G, [.maskShift], .char("G")),
     .init("Shift+6 → ^", kVK_ANSI_6, [.maskShift], .char("^")),
 
-    // 5. modifier는 벗기고 base 문자 추출
+    // 3. modifier는 벗기고 base 문자 추출
     .init("Ctrl+D → d+[control]", kVK_ANSI_D, [.maskControl], .char("d", [.control])),
     .init("Opt+A → a+[option]", kVK_ANSI_A, [.maskAlternate], .char("a", [.option])),
     .init(
@@ -61,25 +69,56 @@ let keyTranslationFixtures: [KeyTranslationFixture] = [
         kVK_ANSI_F, [.maskCommand, .maskAlternate], .char("f", [.command, .option])
     ),
 
-    // 6. shift+modifier 동시 — shift만 문자에 반영, 나머지는 modifiers로
+    // 4. shift+modifier 동시 — shift만 문자에 반영, 나머지는 modifiers로
     .init(
         "Cmd+Shift+G → G+[command]",
         kVK_ANSI_G, [.maskCommand, .maskShift], .char("G", [.command])
     ),
 
-    // 7. 번역 불가 → nil (호출측 무조건 통과)
-    .init("Left arrow → nil", kVK_LeftArrow, [], nil),
-    .init("Up arrow → nil", kVK_UpArrow, [], nil),
-    .init("F1 → nil", kVK_F1, [], nil),
-
-    // 8. caps lock 무시 — base 문자에는 shift만 반영한다
+    // 5. caps lock 무시 — base 문자에는 shift만 반영한다
     .init("CapsLock+j → j", kVK_ANSI_J, [.maskAlphaShift], .char("j")),
 ]
 
+/// 픽스처의 keycode↔문자 짝이 성립하는 QWERTY 계열 레이아웃 ID.
+/// Unicode Hex Input은 문자 배열이 US와 동일하다 (hex 입력은 option 조합 전용).
+private let qwertyLayoutIDs: Set<String> = [
+    "com.apple.keylayout.ABC",
+    "com.apple.keylayout.US",
+    "com.apple.keylayout.UnicodeHexInput",
+]
+
+/// 현재 ASCII-capable 레이아웃이 QWERTY 계열인지 — QWERTY 의존 픽스처의 실행 조건.
+/// TIS API가 메인 스레드를 요구하므로 `@MainActor`에 고정한다.
+@MainActor
+private func isQwertyLayout() -> Bool {
+    guard
+        let inputSource = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?
+            .takeRetainedValue(),
+        let sourceIDRef = TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceID)
+    else { return false }
+    let sourceID = Unmanaged<CFString>.fromOpaque(sourceIDRef).takeUnretainedValue() as String
+    return qwertyLayoutIDs.contains(sourceID)
+}
+
 @MainActor
 struct KeyTranslatorTests {
-    @Test("CGEvent(keyDown) → Key 번역", arguments: keyTranslationFixtures)
-    func translate(_ fixture: KeyTranslationFixture) throws {
+    @Test("CGEvent(keyDown) → Key 번역 — 레이아웃 불변", arguments: layoutInvariantFixtures)
+    func translateLayoutInvariant(_ fixture: KeyTranslationFixture) throws {
+        try assertTranslation(fixture)
+    }
+
+    @Test(
+        "CGEvent(keyDown) → Key 번역 — QWERTY 문자",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        },
+        arguments: qwertyCharacterFixtures
+    )
+    func translateQwertyCharacter(_ fixture: KeyTranslationFixture) throws {
+        try assertTranslation(fixture)
+    }
+
+    private func assertTranslation(_ fixture: KeyTranslationFixture) throws {
         let event = try #require(
             CGEvent(keyboardEventSource: nil, virtualKey: fixture.virtualKey, keyDown: true),
             "합성 CGEvent 생성 실패: \(fixture.name)"
