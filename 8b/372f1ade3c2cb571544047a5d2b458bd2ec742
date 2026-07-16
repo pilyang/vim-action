@@ -1,0 +1,40 @@
+VimActionTests/KeyTranslatorTests.swift
+  s_f5c56d18311577::t_6da6455e2b00c4 1-91
+VimAction.xcodeproj/project.pbxproj
+  s_f5c56d18311577::t_32a6adc30c9f7d 68
+  s_f5c56d18311577::t_e811149bce47ce 146
+  s_f5c56d18311577::t_aa009bab02d514 593-596
+  s_f5c56d18311577::t_69e320156f082a 11
+VimAction/AppState.swift
+  s_f5c56d18311577::t_a63535a0d674ba 26-27
+  s_f5c56d18311577::t_ac56b9230d9d07 6
+  s_f5c56d18311577::t_41c561ce9c0a3e 8
+  s_f5c56d18311577::t_00802198e57a74 22-25,28-29
+VimActionTests/VimActionTests.swift
+  s_f5c56d18311577::t_e22469257dae61 9
+VimAction/KeyTranslator.swift
+  s_f5c56d18311577::t_2c893538e78d45 8
+  s_f5c56d18311577::t_7f295a1f70dd04 69-72
+  s_f5c56d18311577::t_adb01c3c5eb185 111-120
+  s_f5c56d18311577::t_df42a2936c4f69 26-28,30
+  s_f5c56d18311577::t_a7c9eb26c182ed 98-103
+  s_f5c56d18311577::t_e8b2f7131a660c 1-5,7,9-18,129-130
+  s_f5c56d18311577::t_7250c9e1dc21c9 78
+  s_f5c56d18311577::t_13f4774634c020 6,19-25,29,31-68,73-77,79-97,104-110,121-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8b372f1ade3c2cb571544047a5d2b458bd2ec742",
+  "prompts": {},
+  "sessions": {
+    "s_f5c56d18311577": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17d3fe27-a0cb-4e4a-91cf-0fdfc5383a03",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
