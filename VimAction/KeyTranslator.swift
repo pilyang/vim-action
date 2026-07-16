@@ -8,14 +8,19 @@ import CoreGraphics
 import os
 import VimEngine
 
-/// keyDown `CGEvent`를 엔진 입력 계약인 `Key`로 정규화하는 번역기.
+/// `CGEvent`를 엔진 입력 계약인 `Key`로 정규화하는 번역기.
 ///
 /// 계약: 번역 불가(`nil`)면 호출측은 이벤트를 무조건 통과시킨다.
+/// keyDown만 번역 가능하며, 그 외 타입은 번역 불가로 정의한다 —
+/// 임의의 `CGEvent`에 대해 답이 정의된 total function이다.
 /// TIS API가 메인 스레드를 요구하므로 `@MainActor`에 고정한다 —
 /// 탭 콜백은 메인 런루프에서 돌므로 런타임 제약 변화는 없다.
 @MainActor
 enum KeyTranslator {
     static func translate(_ event: CGEvent) -> Key? {
+        // keyDown 외 타입은 keycode 필드 오독(비키보드 이벤트는 0 → "a") 여지가 있다.
+        guard event.type == .keyDown else { return nil }
+
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let modifiers = modifiers(from: event.flags)
 

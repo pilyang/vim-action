@@ -88,4 +88,21 @@ struct KeyTranslatorTests {
 
         #expect(KeyTranslator.translate(event) == fixture.expected, "\(fixture.name)")
     }
+
+    @Test("keyDown 외 타입 → nil (total function 계약)")
+    func nonKeyDownReturnsNil() throws {
+        // keyUp의 j — 타입 가드가 없다면 keyDown과 동일하게 .char("j")로 번역되는 입력.
+        let keyUp = try #require(
+            CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_J), keyDown: false)
+        )
+        #expect(KeyTranslator.translate(keyUp) == nil)
+
+        // 실제 flagsChanged가 나르는 modifier keycode 형태 (Shift 단독 누름).
+        let flagsChanged = try #require(
+            CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_Shift), keyDown: true)
+        )
+        flagsChanged.type = .flagsChanged
+        flagsChanged.flags = [.maskShift]
+        #expect(KeyTranslator.translate(flagsChanged) == nil)
+    }
 }
