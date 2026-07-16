@@ -19,7 +19,7 @@
 
 <!-- 승인된 상세 플랜의 단계 순서 그대로. 각 항목이 인계 가능한 단위. -->
 
-- [ ] **탭↔엔진 배선**: `EventTapController`가 엔진 소유, 콜백에서 decision 적용(`.replace`는 이번엔 삼키고 actions 로그), flagsChanged 항상 통과, `private(set) var mode` 노출 → `AppState.menuBarGlyph` 배선(기존 `AppState.mode` 스켈레톤 정리), 스파이크 `logKeyEvent` TODO 제거.
+- [ ] **탭↔엔진 배선**: `EventTapController`가 엔진 소유, 콜백에서 decision 적용(`.replace`는 이번엔 삼키고 actions 로그), flagsChanged 항상 통과, `private(set) var mode` 노출 → `AppState.menuBarGlyph` 배선(기존 `AppState.mode` 스켈레톤 정리), 스파이크 `logKeyEvent` TODO 제거. **PR #6 리뷰 후속 2건 포함**: ① `KeyTranslator`가 문자키마다 TIS 레이아웃을 재조회하는데 탭 콜백은 지연 시 탭 비활성화 타임아웃이 있음 — 레이아웃 데이터 캐싱 + `kTISNotifySelectedKeyboardInputSourceChanged` 무효화 도입 여부를 배선 전에 결정 ② `translate`가 이벤트 타입을 확인하지 않음 — keyDown 가드를 번역기 또는 호출측 중 어디에 둘지 확정(계약을 코드로 고정).
 - [ ] **안전장치 — 메뉴바 토글 + 설정**: `isInterceptionEnabled`(off = 전부 통과 + 엔진 `.insert` 리셋, 탭 포트 유지), 메뉴바 Toggle 항목 + off 글리프. Normal 탈출 옵션은 `@AppStorage` 토글(기본 on, cmd/opt) → 엔진 Configuration 주입.
 - [ ] **탭 워치독**: `DispatchSourceTimer` 전용 백그라운드 큐, 주기 2초, desired state(설치됨 + 토글 on)일 때만 `CGEventTapIsEnabled()` 폴링 → 꺼져 있으면 재활성화 + 복구 로그. `stop()`·토글 off 시 게이팅. 콜백 재활성화는 유지(이중 안전망).
 - [ ] **검증**: 엔진 `swift test` + 앱 타깃 `xcodebuild test` + 실기기 체크리스트(Insert 통과/Esc 글리프 전환, Normal 삼킴+액션 로그, Cmd-Space 후 Insert 자동 복귀 on/off, 메뉴바 토글, 워치독 복구 — 디버거 pause로 유도, SIGSTOP은 콜백 유실로 부적합).
