@@ -1,0 +1,30 @@
+.claude/skills/architecture/references/system-overview.md
+  s_f5c56d18311577::t_5719f279ddba7e 55
+.claude/skills/decisions/references/20260716_cgevent-key-translation-ascii-layout.md
+  s_f5c56d18311577::t_9f40ce845bcca3 1-31
+.claude/skills/plans/references/20260714_engine-tap-wiring.md
+  s_f5c56d18311577::t_b3850e9e4cf797 16
+  s_f5c56d18311577::t_423de9caebc202 26
+  s_f5c56d18311577::t_30164502c58efa 4
+  s_f5c56d18311577::t_d292cbc94556a5 33-34
+.claude/skills/decisions/SKILL.md
+  s_f5c56d18311577::t_28c0e032bd4f91 54
+.claude/skills/plans/SKILL.md
+  s_f5c56d18311577::t_8980cb76b1fa60 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "ad725a4c163ac69a8d6451e30c84c5eedaa563fb",
+  "prompts": {},
+  "sessions": {
+    "s_f5c56d18311577": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17d3fe27-a0cb-4e4a-91cf-0fdfc5383a03",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
