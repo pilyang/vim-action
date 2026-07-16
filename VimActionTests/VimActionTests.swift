@@ -6,6 +6,7 @@
 //
 
 import Testing
+import VimEngine
 @testable import VimAction
 
 struct VimActionTests {

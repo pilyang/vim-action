@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FE33333333333333333333E3 /* VimEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FE22222222222222222222E2 /* VimEngine */; };
+		FE55555555555555555555E5 /* VimEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FE44444444444444444444E4 /* VimEngine */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +65,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FE55555555555555555555E5 /* VimEngine in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -141,6 +143,7 @@
 			);
 			name = VimActionTests;
 			packageProductDependencies = (
+				FE44444444444444444444E4 /* VimEngine */,
 			);
 			productName = VimActionTests;
 			productReference = B52D10AD3002939F008FEE9F /* VimActionTests.xctest */;
@@ -584,6 +587,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		FE22222222222222222222E2 /* VimEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VimEngine;
+		};
+		FE44444444444444444444E4 /* VimEngine */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = VimEngine;
 		};
