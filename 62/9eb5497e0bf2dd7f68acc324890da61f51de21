@@ -1,0 +1,28 @@
+.claude/skills/decisions/references/20260716_keytranslator-total-function-keydown-guard.md
+  s_8a504299d6c24d::t_18432641c33bd4 1-26
+VimAction/KeyTranslator.swift
+  s_8a504299d6c24d::t_69386fe870b705 21-23
+  s_8a504299d6c24d::t_d31b9b9d591bfb 11,14-15
+VimActionTests/KeyTranslatorTests.swift
+  s_8a504299d6c24d::t_ea89af0b1045f4 91-107
+.claude/skills/decisions/SKILL.md
+  s_8a504299d6c24d::t_a2fe64840fbf88 55
+.claude/skills/architecture/references/system-overview.md
+  s_8a504299d6c24d::t_25fa2cf6a75f8f 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "629eb5497e0bf2dd7f68acc324890da61f51de21",
+  "prompts": {},
+  "sessions": {
+    "s_8a504299d6c24d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02b4052a-0c75-4e32-8f30-4ce5297a6387",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
