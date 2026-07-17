@@ -1,0 +1,19 @@
+VimAction/KeyTranslator.swift
+  s_06f04d155417fe::t_78c0e36acd5ab8 193-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "a333d25c1e8a558d8aa15f107f4b7cf995d91e9a",
+  "prompts": {},
+  "sessions": {
+    "s_06f04d155417fe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "349c87d3-2783-449f-bbb6-8249cbf35e2c",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
