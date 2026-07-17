@@ -1,0 +1,53 @@
+.claude/skills/plans/references/20260714_engine-tap-wiring.md
+  s_32d96fec0e479d::t_d5aa94c4911a63 17-69,73,75-76
+  s_32d96fec0e479d::t_3818d4f5f8fdb6 86
+  s_32d96fec0e479d::t_cd4d9ddd860de6 4
+  s_32d96fec0e479d::t_f765e5207a5e41 77-79
+  s_75badf9ddde8f3::t_d725a6f77111f5 88-90
+.claude/skills/plans/references/20260714_multikey-command-builder.md
+  s_365c9e2041335e::t_7b4b579f779a1e 127
+  s_32d96fec0e479d::t_a9dc1eab84c9f8 104-105
+  s_32d96fec0e479d::t_5ff5689a63bf37 145
+  s_365c9e2041335e::t_57617ae2d0e3ba 4,10-11,15-89,92-103,106-112,114,116-126
+  s_32d96fec0e479d::t_a8855958eb1819 115
+  s_365c9e2041335e::t_bedd686d74eeaf 128-144,146-153
+  s_32d96fec0e479d::t_60fac881358301 113
+  s_32d96fec0e479d::t_2db2e3e324eed4 90-91
+  s_365c9e2041335e::t_5a6efb6c3efee9 154
+  s_365c9e2041335e::t_2a12a3249378c8 156,158,162-164
+.claude/skills/plans/SKILL.md
+  s_32d96fec0e479d::t_c5910e1eedc210 52
+  s_365c9e2041335e::t_373c4c5cfe2598 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "c2746d473cbb0b03030407593df193f42f152b2b",
+  "prompts": {},
+  "sessions": {
+    "s_32d96fec0e479d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ba39d7a-0908-437d-a704-abb6c722dc97",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_365c9e2041335e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d152645f-157b-4f60-b9ba-17b7c7719862",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_75badf9ddde8f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8f886565-fde1-4fdd-875f-bfe40f7cf51d",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
