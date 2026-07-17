@@ -126,8 +126,22 @@ public struct VimEngine: Sendable {
             break
         }
 
+        // 카운트 digit — 1–9는 누적 시작/연장, 0은 누적 중일 때만 자리값이다
+        // (카운트 슬롯이 비어 있으면 아래 모션 매핑의 lineStart로 떨어진다).
+        if key.modifiers.isEmpty, case .char(let c) = key.base, c.isASCII,
+            let digit = c.wholeNumberValue, c.isNumber,
+            digit >= 1 || current.count != nil
+        {
+            var next = current
+            next.count = Self.accumulate(next.count, digit: digit)
+            pending = next
+            return .swallow
+        }
+
         if let motion = Self.singleKeyMotions[key] {
-            return .replace([.move(motion)])
+            // 카운트 붙은 모션은 `.move` 반복으로 낸다 — `.move`에 count 슬롯을
+            // 두지 않아 단일 모션 경로(count 1)가 기존 계약 그대로 유지된다.
+            return .replace(Array(repeating: VimAction.move(motion), count: current.count ?? 1))
         }
 
         // 매핑 없는 modifier 조합(Cmd+C 등)은 시스템 단축키이므로 통과시킨다.
@@ -143,6 +157,16 @@ public struct VimEngine: Sendable {
     /// 시스템 단축키 직후의 타이핑을 막지 않기 위해 이런 콤보는 Insert로 탈출시킨다.
     private func isEscapeCombo(_ key: Key) -> Bool {
         !key.modifiers.isDisjoint(with: configuration.normalModeEscapeModifiers)
+    }
+
+    /// 카운트 누적 상한. 무제한이면 Int 오버플로 트랩(시스템 전역 훅 크래시)과
+    /// 반복 출력 배열 폭주(탭 콜백 타임아웃) 리스크가 있어 여기서 클램프한다.
+    private static let maxCount = 9_999
+
+    /// digit 하나를 카운트에 누적한다 — 상한 도달 후의 초과 자리 digit은
+    /// 무시하고 누적 상태를 유지한다.
+    private static func accumulate(_ count: Int?, digit: Int) -> Int {
+        min((count ?? 0) * 10 + digit, maxCount)
     }
 
     /// pending 없이 단일 키로 완결되는 모션. `Key`의 Hashable 매칭이라
