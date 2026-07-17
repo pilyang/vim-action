@@ -1,0 +1,30 @@
+.claude/skills/plans/SKILL.md
+  s_580c7a59ae9bb3::t_5fbd410fd7e19a 53
+.claude/skills/plans/references/20260714_multikey-command-builder.md
+  s_580c7a59ae9bb3::t_c246614997c356 17
+  s_580c7a59ae9bb3::t_20a80a034b0ffa 114,116-119
+.claude/skills/decisions/references/20260717_vimaction-edit-output-shape.md
+  s_580c7a59ae9bb3::t_acd72cae667828 1-31
+.claude/skills/decisions/references/20260717_cancellation-first-ordering-premise.md
+  s_580c7a59ae9bb3::t_b1acf09611130a 1-22
+.claude/skills/decisions/SKILL.md
+  s_580c7a59ae9bb3::t_d10f009163b826 56-57
+.claude/skills/architecture/references/mode-engine.md
+  s_580c7a59ae9bb3::t_dba7b6d88b8722 3,7,12,24-29,32,39-40,45,47,52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "1f40d0b8ce1b157fc31bacaf5db477bd647dd4f7",
+  "prompts": {},
+  "sessions": {
+    "s_580c7a59ae9bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d8bc7ae5-e8fc-4d77-8996-8954d94b5666",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
