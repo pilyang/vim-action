@@ -49,5 +49,5 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-07-14 | 2026-07-17 | 엔진↔탭 연결 + 탭 워치독 (MVP 2차) | 탭→엔진 배선(swallow/passthrough 적용) + CGEvent→Key 번역 + 워치독 + 안전장치(토글·modifier 탈출 옵션). **배선 완료 — 실기기 GREEN 확인, PR #8 Copilot 리뷰 대기** — 다음은 리뷰 반영→머지, 이후 안전장치·워치독 | [20260714_engine-tap-wiring.md](references/20260714_engine-tap-wiring.md) |
+| 2026-07-14 | 2026-07-17 | 엔진↔탭 연결 + 탭 워치독 (MVP 2차) | 탭→엔진 배선(swallow/passthrough 적용) + CGEvent→Key 번역 + 워치독 + 안전장치(토글·modifier 탈출 옵션). **배선 완료(PR #8 머지, 실기기 GREEN)** — 다음은 안전장치(토글·설정)→워치독→최종 검증→기록 | [20260714_engine-tap-wiring.md](references/20260714_engine-tap-wiring.md) |
 | 2026-07-14 | 2026-07-17 | 멀티키 커맨드 빌더 | diw·dd·카운트 지원용 pending 일반화(문법 빌더) + 취소 규칙 명시화 + VimAction 오퍼레이터 출력 확장. 설계 결정 + **구체 구현 계획(인터페이스 확정·TDD 6단계) 완료** — agents mode 실행 대기, Plan-1과 worktree 병렬 가능 | [20260714_multikey-command-builder.md](references/20260714_multikey-command-builder.md) |
