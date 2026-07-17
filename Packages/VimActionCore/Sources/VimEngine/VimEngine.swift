@@ -122,6 +122,10 @@ public struct VimEngine: Sendable {
             next.prefix = .g
             pending = next
             return .swallow
+        case .char("x"):
+            // 전용 케이스 없이 delete-over-motion 재사용 — 카운트는 반복이 아니라
+            // 범위의 count로 담는다 (3x = 3문자를 한 편집 단위로).
+            return .replace([.edit(.delete, .motion(.charRight, count: current.count ?? 1))])
         default:
             break
         }
