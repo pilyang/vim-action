@@ -1,0 +1,40 @@
+.claude/skills/plans/SKILL.md
+  s_32d96fec0e479d::t_c872427db02f9d 52
+  s_365c9e2041335e::t_373c4c5cfe2598 53
+.claude/skills/plans/references/20260714_multikey-command-builder.md
+  s_32d96fec0e479d::t_2db2e3e324eed4 90-91
+  s_32d96fec0e479d::t_60fac881358301 113
+  s_32d96fec0e479d::t_a9dc1eab84c9f8 104-105
+  s_365c9e2041335e::t_57617ae2d0e3ba 4,10-11,15-89,92-103,106-112,114,116-126,159-161
+  s_32d96fec0e479d::t_a8855958eb1819 115
+  s_365c9e2041335e::t_bedd686d74eeaf 128-144,146-151,153,155
+  s_32d96fec0e479d::t_5ff5689a63bf37 145
+  s_365c9e2041335e::t_7b4b579f779a1e 127
+.claude/skills/plans/references/20260714_engine-tap-wiring.md
+  s_32d96fec0e479d::t_cd4d9ddd860de6 4
+  s_32d96fec0e479d::t_1c92327b0450e9 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b7310412a2fc0a7c04d1fb4429e48d35cffdf89e",
+  "prompts": {},
+  "sessions": {
+    "s_32d96fec0e479d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ba39d7a-0908-437d-a704-abb6c722dc97",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_365c9e2041335e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d152645f-157b-4f60-b9ba-17b7c7719862",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
