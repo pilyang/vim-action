@@ -43,45 +43,28 @@ func deleteChar(_ fixture: KeySequenceFixture) {
 // `d`+모션 — 오퍼레이터 뒤에 valid한 모션은 charwise-safe 집합(w e $ 0 h l b ^)만.
 // j/k/G는 Vim에서 linewise 범위인데 TextRange.motion엔 그 구분이 없어 어댑터가
 // 의미를 복원할 수 없으므로 invalid로 이연한다.
+// 화이트리스트 8종 전수. d 뒤의 0은 카운트 슬롯(opCount)이 비어 있으므로
+// 모션 d0이다 (0-규칙).
 let deleteMotionFixtures: [KeySequenceFixture] = [
+    (Character("w"), Motion.wordForward),
+    (Character("b"), Motion.wordBackward),
+    (Character("e"), Motion.wordEndForward),
+    (Character("h"), Motion.charLeft),
+    (Character("l"), Motion.charRight),
+    (Character("0"), Motion.lineStart),
+    (Character("^"), Motion.lineFirstNonBlank),
+    (Character("$"), Motion.lineEnd),
+].map { key, motion in
     KeySequenceFixture(
-        "dw → delete over wordForward",
+        "d\(key) → delete over \(motion)",
         startMode: .normal,
         steps: [
             step(.char("d"), .swallow),
-            step(.char("w"), .replace([.edit(.delete, .motion(.wordForward, count: 1))])),
+            step(.char(key), .replace([.edit(.delete, .motion(motion, count: 1))])),
         ],
         finalMode: .normal
-    ),
-    KeySequenceFixture(
-        "d$ → delete over lineEnd",
-        startMode: .normal,
-        steps: [
-            step(.char("d"), .swallow),
-            step(.char("$"), .replace([.edit(.delete, .motion(.lineEnd, count: 1))])),
-        ],
-        finalMode: .normal
-    ),
-    // d 뒤의 0은 카운트 슬롯(opCount)이 비어 있으므로 모션 d0이다 (0-규칙).
-    KeySequenceFixture(
-        "d0 → delete over lineStart",
-        startMode: .normal,
-        steps: [
-            step(.char("d"), .swallow),
-            step(.char("0"), .replace([.edit(.delete, .motion(.lineStart, count: 1))])),
-        ],
-        finalMode: .normal
-    ),
-    KeySequenceFixture(
-        "de → delete over wordEndForward",
-        startMode: .normal,
-        steps: [
-            step(.char("d"), .swallow),
-            step(.char("e"), .replace([.edit(.delete, .motion(.wordEndForward, count: 1))])),
-        ],
-        finalMode: .normal
-    ),
-]
+    )
+}
 
 @Test(arguments: deleteMotionFixtures)
 func deleteMotions(_ fixture: KeySequenceFixture) {
