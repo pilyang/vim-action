@@ -122,10 +122,7 @@ public struct VimEngine: Sendable {
 
             // 카운트 digit → opCount 누적. d 뒤의 0은 opCount가 비어 있으면
             // 아래 화이트리스트의 lineStart로 떨어져 모션 d0이 된다 (0-규칙).
-            if key.modifiers.isEmpty, case .char(let c) = key.base, c.isASCII,
-                let digit = c.wholeNumberValue, c.isNumber,
-                digit >= 1 || current.opCount != nil
-            {
+            if let digit = Self.countDigit(key, accumulating: current.opCount != nil) {
                 var next = current
                 next.opCount = Self.accumulate(next.opCount, digit: digit)
                 pending = next
@@ -177,12 +174,9 @@ public struct VimEngine: Sendable {
             break
         }
 
-        // 카운트 digit — 1–9는 누적 시작/연장, 0은 누적 중일 때만 자리값이다
-        // (카운트 슬롯이 비어 있으면 아래 모션 매핑의 lineStart로 떨어진다).
-        if key.modifiers.isEmpty, case .char(let c) = key.base, c.isASCII,
-            let digit = c.wholeNumberValue, c.isNumber,
-            digit >= 1 || current.count != nil
-        {
+        // 카운트 digit — 카운트 슬롯이 비어 있는 0은 아래 모션 매핑의
+        // lineStart로 떨어진다 (0-규칙).
+        if let digit = Self.countDigit(key, accumulating: current.count != nil) {
             var next = current
             next.count = Self.accumulate(next.count, digit: digit)
             pending = next
@@ -208,6 +202,16 @@ public struct VimEngine: Sendable {
     /// 시스템 단축키 직후의 타이핑을 막지 않기 위해 이런 콤보는 Insert로 탈출시킨다.
     private func isEscapeCombo(_ key: Key) -> Bool {
         !key.modifiers.isDisjoint(with: configuration.normalModeEscapeModifiers)
+    }
+
+    /// 이 키가 카운트 digit이면 그 값 (0-규칙 적용) — 1–9는 항상 누적을
+    /// 시작/연장하고, 0은 해당 카운트 슬롯이 이미 누적 중일 때만 자리값이다.
+    /// modifier가 붙은 digit(Ctrl+3 등)은 카운트가 아니다.
+    private static func countDigit(_ key: Key, accumulating: Bool) -> Int? {
+        guard key.modifiers.isEmpty, case .char(let c) = key.base, c.isASCII, c.isNumber,
+            let digit = c.wholeNumberValue, digit >= 1 || accumulating
+        else { return nil }
+        return digit
     }
 
     /// 카운트 누적 상한. 무제한이면 Int 오버플로 트랩(시스템 전역 훅 크래시)과
