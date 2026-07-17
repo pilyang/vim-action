@@ -104,6 +104,34 @@ public struct VimEngine: Sendable {
             }
         }
 
+        // 오퍼레이터 대기 — 뒤에 올 수 있는 건 카운트·모션·오퍼레이터 키(dd) 뿐이다.
+        if let op = current.op {
+            // 카운트 digit → opCount 누적. d 뒤의 0은 opCount가 비어 있으면
+            // 아래 화이트리스트의 lineStart로 떨어져 모션 d0이 된다 (0-규칙).
+            if key.modifiers.isEmpty, case .char(let c) = key.base, c.isASCII,
+                let digit = c.wholeNumberValue, c.isNumber,
+                digit >= 1 || current.opCount != nil
+            {
+                var next = current
+                next.opCount = Self.accumulate(next.opCount, digit: digit)
+                pending = next
+                return .swallow
+            }
+
+            // 유효 카운트는 두 카운트의 곱 — 2d3w = 6단어.
+            let effectiveCount = (current.count ?? 1) * (current.opCount ?? 1)
+            // 오퍼레이터 키 반복(dd)은 줄 단위 범위다.
+            if key == .char("d"), op == .delete {
+                return .replace([.edit(op, .line(count: effectiveCount))])
+            }
+            if let motion = Self.operatorMotions[key] {
+                return .replace([.edit(op, .motion(motion, count: effectiveCount))])
+            }
+            // 화이트리스트 밖은 전부 invalid — dq 같은 무효 키와 dj/dk/dG
+            // (linewise — TextRange에 구분이 생길 때까지 이연)를 포함한다.
+            return .swallow
+        }
+
         switch key {
         case .char("i"):
             mode = .insert
@@ -120,6 +148,11 @@ public struct VimEngine: Sendable {
         case .char("g"):
             var next = current
             next.prefix = .g
+            pending = next
+            return .swallow
+        case .char("d"):
+            var next = current
+            next.op = .delete
             pending = next
             return .swallow
         case .char("x"):
@@ -172,6 +205,21 @@ public struct VimEngine: Sendable {
     private static func accumulate(_ count: Int?, digit: Int) -> Int {
         min((count ?? 0) * 10 + digit, maxCount)
     }
+
+    /// 오퍼레이터 뒤에 올 수 있는 모션 — charwise-safe 집합만. `j`/`k`/`G`는
+    /// Vim에서 linewise 범위(`dj` = 두 줄 통삭제)인데 `TextRange.motion`엔
+    /// charwise/linewise 구분이 없어 어댑터가 의미를 복원할 수 없으므로
+    /// invalid로 이연한다 (구분 추가와 함께 이후 확장).
+    private static let operatorMotions: [Key: Motion] = [
+        .char("w"): .wordForward,
+        .char("b"): .wordBackward,
+        .char("e"): .wordEndForward,
+        .char("h"): .charLeft,
+        .char("l"): .charRight,
+        .char("0"): .lineStart,
+        .char("^"): .lineFirstNonBlank,
+        .char("$"): .lineEnd,
+    ]
 
     /// pending 없이 단일 키로 완결되는 모션. `Key`의 Hashable 매칭이라
     /// modifier가 붙은 키(Ctrl+h 등)는 자연히 걸리지 않는다.
