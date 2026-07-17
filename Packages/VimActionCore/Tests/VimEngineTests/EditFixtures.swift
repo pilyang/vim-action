@@ -214,3 +214,56 @@ let deleteInvalidFixtures: [KeySequenceFixture] = [
 func deleteInvalids(_ fixture: KeySequenceFixture) {
     expectFixture(fixture)
 }
+
+// 텍스트 오브젝트 — 오퍼레이터 뒤 i/a는 Insert 진입이 아니라 스코프 접두다.
+// 1차 오브젝트는 word(w)만.
+let textObjectFixtures: [KeySequenceFixture] = [
+    KeySequenceFixture(
+        "diw → delete inner word",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("i"), .swallow),
+            step(.char("w"), .replace([.edit(.delete, .textObject(.word(.inner)))])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "daw → delete around word",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("a"), .swallow),
+            step(.char("w"), .replace([.edit(.delete, .textObject(.word(.around)))])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "di 후 Esc는 취소 — 이후 w는 단일 모션, Insert 진입 없음",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("i"), .swallow),
+            step(.escape, .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
+    // 오브젝트 자리에 무효 키 — pending과 키를 함께 버리는 no-op.
+    KeySequenceFixture(
+        "diq → no-op (무효 object 키) — 이후 w는 단일 모션",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("i"), .swallow),
+            step(.char("q"), .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
+]
+
+@Test(arguments: textObjectFixtures)
+func textObjects(_ fixture: KeySequenceFixture) {
+    expectFixture(fixture)
+}

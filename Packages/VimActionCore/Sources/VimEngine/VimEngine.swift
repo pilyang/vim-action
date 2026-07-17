@@ -90,22 +90,36 @@ public struct VimEngine: Sendable {
         // 접두(prefix)는 완결 키 하나만 기다린다 — 다른 어떤 매핑보다 먼저 본다.
         // 케이스 망라 switch라 Prefix가 늘면 여기서 컴파일이 깨진다 — 새 접두가
         // 아래 일반 매핑으로 새는 실수를 타입으로 막는다.
-        // `gi` 같은 실제 Vim 커맨드도 지원 전까지는 invalid로 떨어진다.
-        if let prefix = current.prefix {
-            switch prefix {
-            case .g:
-                if key == .char("g") {
-                    return .replace([.move(.documentStart)])
-                }
-                return .swallow
-            case .textObjectScope:
-                // 생산 경로 없음 — `di`/`da`를 만드는 Phase 3에서 구현한다.
-                return .swallow
+        switch current.prefix {
+        case .g:
+            // complete 시 선행 카운트는 버린다 — 3gg도 documentStart 단일 출력
+            // (mode-change 키의 count 무시와 같은 원칙). `gi` 같은 실제 Vim
+            // 커맨드도 지원 전까지는 invalid로 떨어진다.
+            if key == .char("g") {
+                return .replace([.move(.documentStart)])
             }
+            return .swallow
+        case .textObjectScope(let scope):
+            // di/da로만 진입하므로 op != nil이 보장된다. 1차 오브젝트는 word만.
+            if key == .char("w"), let op = current.op {
+                return .replace([.edit(op, .textObject(.word(scope)))])
+            }
+            return .swallow
+        case nil:
+            break
         }
 
-        // 오퍼레이터 대기 — 뒤에 올 수 있는 건 카운트·모션·오퍼레이터 키(dd) 뿐이다.
+        // 오퍼레이터 대기 — 뒤에 올 수 있는 건 스코프(i/a)·카운트·모션·
+        // 오퍼레이터 키(dd) 뿐이다.
         if let op = current.op {
+            // i/a는 Insert 진입이 아니라 텍스트 오브젝트 스코프 접두다.
+            if key == .char("i") || key == .char("a") {
+                var next = current
+                next.prefix = .textObjectScope(key == .char("i") ? .inner : .around)
+                pending = next
+                return .swallow
+            }
+
             // 카운트 digit → opCount 누적. d 뒤의 0은 opCount가 비어 있으면
             // 아래 화이트리스트의 lineStart로 떨어져 모션 d0이 된다 (0-규칙).
             if key.modifiers.isEmpty, case .char(let c) = key.base, c.isASCII,
