@@ -8,10 +8,11 @@ import ApplicationServices
 import Carbon.HIToolbox  // IsSecureEventInputEnabled() 제공 — 제거 시 빌드 실패 (곧 kVK_* 키코드도 사용).
 import Observation
 import os
+import VimEngine
 
-/// 유일한 메인 CGEventTap의 소유자. 지금은 스파이크 단계 — 모든 이벤트를 무수정 통과시키고
-/// 로그만 남긴다. 이후 마일스톤에서 CGEvent→Key 변환, 합성 이벤트 마커 확인, VimEngine 연결이
-/// 이 스켈레톤 위에 얹힌다.
+/// 유일한 메인 CGEventTap의 소유자. keyDown을 `KeyTranslator`→`VimEngine`으로 흘려
+/// 엔진 결정(통과/삼킴/대체)을 이벤트에 적용한다. 대체(replace)의 실제 실행은 디스패처
+/// 마일스톤 — 지금은 삼키고 로그만 남긴다. 합성 이벤트 마커 확인도 그때 얹힌다.
 @MainActor
 @Observable
 final class EventTapController {
@@ -27,6 +28,14 @@ final class EventTapController {
     }
 
     private(set) var status: Status = .waitingForPermission
+
+    /// 현재 모드 — `handle` 후 `engine.mode`의 복사본. 메뉴바 글리프가 관찰한다.
+    private(set) var mode: Mode = .insert
+
+    /// 엔진 소유 — UI 관찰 대상이 아니다. Configuration은 배선 단계 하드코딩 기본값
+    /// (제품 기본 on) — 안전장치 단계에서 설정 주입으로 교체.
+    @ObservationIgnored private var engine = VimEngine(
+        configuration: .init(normalModeEscapeModifiers: [.command, .option]))
 
     @ObservationIgnored private var tapPort: CFMachPort?
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
@@ -103,14 +112,37 @@ final class EventTapController {
         Logger.eventTap.info("시스템이 탭 비활성화(type=\(type.rawValue)) — 재활성화")
     }
 
-    fileprivate func logKeyEvent(type: CGEventType, event: CGEvent) {
-        // 키 입력 로그는 사실상 키로거 — DEBUG 빌드에만 컴파일한다(릴리스 산출물엔 존재하지 않음).
-        // keycode 관찰이 이 스파이크의 목적이라 DEBUG에서는 .public 유지. TODO: 엔진 연결 시 제거.
-        #if DEBUG
-        let keycode = event.getIntegerValueField(.keyboardEventKeycode)
-        let flags = String(event.flags.rawValue, radix: 16)
-        Logger.eventTap.debug("\(type == .keyDown ? "keyDown" : "flagsChanged", privacy: .public) keycode=\(keycode, privacy: .public) flags=0x\(flags, privacy: .public)")
-        #endif
+    /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라
+    /// internal이다 — 합성 CGEvent 시퀀스로 단위 테스트하는 계약.
+    func handleKeyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+        // 번역 불가는 무조건 통과 — 번역기 계약.
+        guard let key = KeyTranslator.translate(event) else {
+            return Unmanaged.passUnretained(event)
+        }
+        let output = engine.handle(key)
+        // 등가 가드: @Observable은 등가 비교 없이 대입만으로 발화하므로, 무조건 대입이면
+        // Insert 타이핑 내내 매 keyDown마다 메뉴바 SwiftUI 무효화가 콜백 경로에서 돈다.
+        if mode != engine.mode { mode = engine.mode }
+
+        // 로그는 swallow/replace만 — passthrough(Insert 타이핑)까지 남기면 키로거가 된다.
+        switch output.decision {
+        case .passthrough:
+            return Unmanaged.passUnretained(event)
+        case .swallow:
+            #if DEBUG
+            Logger.eventTap.debug("swallow")
+            #endif
+            return nil
+        case .replace:
+            // 과도기: 실행 없이 삼키고 요약 1건만 로그. actions는 수천 개일 수 있어
+            // (카운트 도입 예정) 콜백 내 다발 로그는 탭 타임아웃을 유발한다.
+            #if DEBUG
+            Logger.eventTap.debug(
+                "replace ×\(output.actions.count, privacy: .public): \(String(describing: output.actions.first), privacy: .public)"
+            )
+            #endif
+            return nil
+        }
     }
 }
 
@@ -133,12 +165,13 @@ private nonisolated func eventTapCallback(
             // 재활성화만 하고, 이벤트가 흐르지 않음을 드러내려 nil 반환.
             controller.reenableAfterDisable(type: type)
             return nil
-        case .keyDown, .flagsChanged:
-            controller.logKeyEvent(type: type, event: event)
+        case .keyDown:
+            return controller.handleKeyDown(event)
         default:
             break
         }
-        // 스파이크: 키 이벤트는 무수정 통과.
+        // flagsChanged 등 나머지는 무수정 통과 — modifier는 keyDown의 flags로 이미
+        // 엔진에 전달되므로 flagsChanged를 엔진에 넣지 않는다.
         return Unmanaged.passUnretained(event)
     }
 }

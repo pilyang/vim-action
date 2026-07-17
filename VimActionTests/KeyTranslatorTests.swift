@@ -79,27 +79,6 @@ let qwertyCharacterFixtures: [KeyTranslationFixture] = [
     .init("CapsLock+j → j", kVK_ANSI_J, [.maskAlphaShift], .char("j")),
 ]
 
-/// 픽스처의 keycode↔문자 짝이 성립하는 QWERTY 계열 레이아웃 ID.
-/// Unicode Hex Input은 문자 배열이 US와 동일하다 (hex 입력은 option 조합 전용).
-private let qwertyLayoutIDs: Set<String> = [
-    "com.apple.keylayout.ABC",
-    "com.apple.keylayout.US",
-    "com.apple.keylayout.UnicodeHexInput",
-]
-
-/// 현재 ASCII-capable 레이아웃이 QWERTY 계열인지 — QWERTY 의존 픽스처의 실행 조건.
-/// TIS API가 메인 스레드를 요구하므로 `@MainActor`에 고정한다.
-@MainActor
-private func isQwertyLayout() -> Bool {
-    guard
-        let inputSource = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?
-            .takeRetainedValue(),
-        let sourceIDRef = TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceID)
-    else { return false }
-    let sourceID = Unmanaged<CFString>.fromOpaque(sourceIDRef).takeUnretainedValue() as String
-    return qwertyLayoutIDs.contains(sourceID)
-}
-
 @MainActor
 struct KeyTranslatorTests {
     @Test("CGEvent(keyDown) → Key 번역 — 레이아웃 불변", arguments: layoutInvariantFixtures)
@@ -126,6 +105,24 @@ struct KeyTranslatorTests {
         event.flags = fixture.flags
 
         #expect(KeyTranslator.translate(event) == fixture.expected, "\(fixture.name)")
+    }
+
+    @Test("문자 번역이 레이아웃 데이터를 캐시하고, 무효화 후 재조회한다")
+    func layoutCacheInvalidationRefetches() throws {
+        // 물리 J 키는 어느 ASCII-capable 레이아웃에서든 출력 가능한 문자로 번역된다 —
+        // 특정 문자를 기대하지 않으므로 QWERTY 조건 없이 성립한다.
+        let event = try #require(
+            CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_J), keyDown: true)
+        )
+        let before = try #require(KeyTranslator.translate(event))
+        #expect(KeyTranslator.cachedLayoutData != nil)
+
+        KeyTranslator.invalidateLayoutCache()
+        #expect(KeyTranslator.cachedLayoutData == nil)
+
+        let after = KeyTranslator.translate(event)
+        #expect(after == before)
+        #expect(KeyTranslator.cachedLayoutData != nil)
     }
 
     @Test("keyDown 외 타입 → nil (total function 계약)")
