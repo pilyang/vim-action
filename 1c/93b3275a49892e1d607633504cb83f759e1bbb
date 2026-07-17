@@ -1,0 +1,23 @@
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_580c7a59ae9bb3::t_ecf3cb8f5df891 123
+  s_580c7a59ae9bb3::t_d8e2a995c12244 206-215
+  s_580c7a59ae9bb3::t_1d87577abef8ba 175-177
+Packages/VimActionCore/Tests/VimEngineTests/CancellationFixtures.swift
+  s_580c7a59ae9bb3::t_becf740c175167 1-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "1c93b3275a49892e1d607633504cb83f759e1bbb",
+  "prompts": {},
+  "sessions": {
+    "s_580c7a59ae9bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d8bc7ae5-e8fc-4d77-8996-8954d94b5666",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
