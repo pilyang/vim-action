@@ -3,16 +3,31 @@
 /// 이 타입은 macOS를 전혀 알지 못한다 — AX 호출, 키 이벤트 합성, 최전면 앱 인식을
 /// 하지 않는다. 그런 로직은 전략 디스패처/어댑터의 몫이며, 여기 들어오면 안 된다.
 public struct VimEngine: Sendable {
-    /// Normal 모드에서 멀티키 시퀀스의 나머지 키를 기다리는 상태 (모드 외 유일한 내부 상태).
+    /// Normal 모드에서 누적 중인 부분 커맨드 (모드 외 유일한 내부 상태).
+    /// `3w`·`dd`·`diw` 같은 멀티키 커맨드의 문법 슬롯을 채워가는 빌더이며,
     /// 무효한 연속 키가 오면 pending과 그 키를 함께 버리는 no-op이다 (Vim의 무효 커맨드 동작).
-    private enum Pending: Sendable {
-        case g
+    private struct PendingCommand: Sendable {
+        /// 선행 카운트 — `3w`의 3, `2dd`의 2.
+        var count: Int?
+        /// 대기 중인 오퍼레이터 — `d`.
+        var op: Operator?
+        /// 오퍼레이터 뒤 카운트 — `d3w`의 3. 유효 카운트는 두 카운트의 곱이다 (`2d3w` = 6).
+        var opCount: Int?
+        /// 완결 키 하나를 기다리는 접두. `op` 유무로 두 케이스가 구분된다.
+        var prefix: Prefix?
+
+        enum Prefix: Sendable {
+            /// `g` — `gg` 대기 (`op == nil`일 때만).
+            case g
+            /// `di`/`da` 후 오브젝트 키 대기 (`op != nil` 보장).
+            case textObjectScope(TextObject.Scope)
+        }
     }
 
     /// 현재 모드. 시작 모드는 Insert — 기본적으로 앱의 평소 타이핑을 방해하지 않는다.
     public private(set) var mode: Mode
 
-    private var pending: Pending?
+    private var pending: PendingCommand?
 
     /// 주입된 동작 설정. 기본값(빈 셋)은 기존 동작을 그대로 유지한다.
     private let configuration: Configuration
@@ -42,9 +57,43 @@ public struct VimEngine: Sendable {
     }
 
     private mutating func handleNormal(_ key: Key) -> EngineOutput {
-        if let pending {
-            self.pending = nil
-            return resolve(pending, then: key)
+        // 취소 — 어떤 매핑보다 우선하는 cross-cutting 규칙 (step 진입 전).
+        //
+        // Esc는 정확 매치(수식자 없음)로 pending을 폐기하고 Normal에 머문다.
+        // 탈출 modifier 콤보는 커맨드 입력 도중이라도 pending을 폐기하고 Insert로
+        // 탈출시킨다 — 시스템 단축키(Spotlight/Raycast 등) 직후 타이핑을 막지
+        // 않기 위함. 수식자 붙은 Esc(Cmd+Esc 등)는 Esc 분기가 아니라 이 판정을 탄다.
+        if key == .escape {
+            pending = nil
+            return .swallow
+        }
+        if isEscapeCombo(key) {
+            pending = nil
+            mode = .insert
+            return .passthrough
+        }
+
+        return step(key)
+    }
+
+    /// 누적 중인 부분 커맨드를 이번 키로 한 스텝 진행시킨다 — 결과는 셋 중 하나다.
+    ///
+    /// - extend: 문법이 계속되면 pending에 슬롯을 채워 유지한다 (`g`, 이후 카운트·오퍼레이터).
+    /// - complete: 커맨드가 완결되면 pending을 비우고 액션을 낸다.
+    /// - invalid: 무효한 연속이면 pending과 이번 키를 함께 버리는 no-op이다.
+    ///
+    /// 진입 시 pending을 비워두므로 extend 경로만 명시적으로 되채운다.
+    private mutating func step(_ key: Key) -> EngineOutput {
+        let current = pending ?? PendingCommand()
+        pending = nil
+
+        // 접두(prefix)는 완결 키 하나만 기다린다 — 다른 어떤 매핑보다 먼저 본다.
+        // `gi` 같은 실제 Vim 커맨드도 지원 전까지는 invalid로 떨어진다.
+        if case .g = current.prefix {
+            if key == .char("g") {
+                return .replace([.move(.documentStart)])
+            }
+            return .swallow
         }
 
         switch key {
@@ -61,7 +110,9 @@ public struct VimEngine: Sendable {
             mode = .insert
             return .replace([.move(.lineEndForAppend)])
         case .char("g"):
-            pending = .g
+            var next = current
+            next.prefix = .g
+            pending = next
             return .swallow
         default:
             break
@@ -72,38 +123,12 @@ public struct VimEngine: Sendable {
         }
 
         // 매핑 없는 modifier 조합(Cmd+C 등)은 시스템 단축키이므로 통과시킨다.
+        // (탈출 콤보는 handleNormal이 이미 걸렀으므로 여기는 비탈출 콤보만 온다.)
         // modifier 없는 미매핑 키만 삼킨다 (Normal 모드 키가 앱에 새지 않게).
         if key.modifiers.isEmpty {
             return .swallow
         }
-        if isEscapeCombo(key) {
-            mode = .insert
-        }
         return .passthrough
-    }
-
-    /// 소비된 pending 접두를 다음 키로 해소한다. `self.pending`은 호출부
-    /// (`handleNormal`)가 진입 시 이미 비웠으므로 어느 경로로 빠지든 pending은
-    /// 남지 않는다 — 여기서 정하는 건 "이번 키로 무엇을 낼지"뿐이다.
-    ///
-    /// - 유효한 연속(`gg`): 해당 모션을 낸다.
-    /// - 탈출 modifier 콤보: Insert로 전이하며 통과시킨다 — `g` 입력 도중이라도
-    ///   시스템 단축키(Spotlight/Raycast 등) 직후 타이핑을 막지 않기 위함.
-    /// - 그 외(Esc 포함): no-op으로 삼키고 Normal에 머문다. `gi`(마지막 삽입
-    ///   위치로 insert) 같은 실제 Vim 커맨드도 지원 전까지는 여기로 떨어진다.
-    private mutating func resolve(_ pending: Pending, then key: Key) -> EngineOutput {
-        if isEscapeCombo(key) {
-            mode = .insert
-            return .passthrough
-        }
-
-        switch pending {
-        case .g:
-            if key == .char("g") {
-                return .replace([.move(.documentStart)])
-            }
-            return .swallow
-        }
     }
 
     /// 탈출 modifier(예: Cmd/Opt)와 교집합이 있는 콤보인지 — Spotlight/Raycast 등
