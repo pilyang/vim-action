@@ -1,0 +1,25 @@
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_580c7a59ae9bb3::t_79e677b7d675c8 5-33
+Packages/VimActionCore/Tests/VimEngineTests/EscapeModifierFixtures.swift
+  s_580c7a59ae9bb3::t_65da1867d6b846 76-87
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_580c7a59ae9bb3::t_8dea1e2add7dab 30
+  s_580c7a59ae9bb3::t_6a55dcd08a0d75 60-96,113-115,126
+  s_580c7a59ae9bb3::t_06b5ca86f82ff1 6-7,9-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "17d78b8c27ef4927d6ce42451ff2445091c23a75",
+  "prompts": {},
+  "sessions": {
+    "s_580c7a59ae9bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d8bc7ae5-e8fc-4d77-8996-8954d94b5666",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
