@@ -1,7 +1,7 @@
 # 엔진↔탭 연결 + 탭 워치독 (MVP 파이프라인 2차)
 
 - **생성일**: 2026-07-14
-- **갱신일**: 2026-07-16
+- **갱신일**: 2026-07-17
 
 ## 목표
 
@@ -14,23 +14,80 @@
 - [x] 플랜 수립 + 범위·결정 사용자 확인 (2026-07-14, plan mode 승인)
 - [x] **엔진 — Normal 모드 modifier 탈출 옵션** (2026-07-14, 브랜치 `feat/engine-normal-escape-modifiers`): `Configuration { normalModeEscapeModifiers }` 도입 + Normal 규칙 ⑤ 확장 + pending 엣지(아래 컨텍스트 참고) + 픽스처 8건. TDD workflow(RED opus→GREEN sonnet→리뷰 패널)로 수행, 리뷰 findings(헬퍼 추출·픽스처 네이밍) 반영 완료, `swift test` 전체 통과.
 - [x] **앱 — CGEvent→Key 번역기** (2026-07-16, PR #6): `VimAction/KeyTranslator.swift` — 특수키 keycode 우선, 문자키는 **UCKeyTranslate + ASCII-capable 레이아웃**(승인안 keyboardGetUnicodeString에서 변경 — 한글 입력 소스에서도 동작, [결정 기록](../../decisions/references/20260716_cgevent-key-translation-ascii-layout.md)), base 추출은 shift만 반영, `nil`=무조건 통과, `@MainActor`(TIS 메인 스레드 요구). 테스트: `VimActionTests`에 VimEngine 의존성 추가(pbxproj) + 픽스처 23건(QWERTY 가정 명시), TDD + 리뷰 에이전트 2종(correctness/silent-failure) findings 반영(UInt16 트랩 방지, 셋업 실패 1회 로그). 부수: `AppState.bootstrap()`에 XCTest 환경 가드(TEST_HOST 테스트의 라이브 탭 설치 방지). Copilot 리뷰 3건 반영 후 머지 완료 (2026-07-16, squash `24271d9`): keyDown 가드로 total function화([결정 기록](../../decisions/references/20260716_keytranslator-total-function-keydown-guard.md)), QWERTY 의존 문자 픽스처를 레이아웃 판별(`.enabled` trait) 조건부 실행으로 분리, 미사용 import 제거.
+- [x] **구체 구현 계획 확정** (2026-07-17) — 아래 "확정 설계". 미결이던 레이아웃 캐싱 사용자 확정(도입) 포함. 병렬 worktree 실행 착수 기준선.
+- [x] **플랜 리뷰 반영** (2026-07-17): mode 대입 등가 가드, replace 로그 요약 1건(Plan-2 클램프 상호작용), 토글 on 복귀 선제 tapEnable, 워치독 cancel 경합 근거, 캐시 무효화 옵저버 격리 — 전부 위 확정 설계에 흡수됨.
+
+## 확정 설계 (구현 착수 기준선)
+
+> 남은 항목을 병렬 실행자가 재량 판단 없이 착수할 수 있도록 인터페이스·판단 기준을 못 박는다. 구현 중 문제가 드러나면 조정하되, 동작 확인된 형태는 "기록" 단계에서 decisions에 확정 기록한다 (그 전까지는 제안 상태).
+
+### 배선 — 소유 구조와 콜백 결정 매핑
+
+```swift
+// EventTapController (@MainActor @Observable — 기존 유지)
+@ObservationIgnored private var engine: VimEngine   // 엔진 소유 — UI 관찰 대상 아님
+private(set) var mode: Mode = .insert               // handle 후 engine.mode 복사 — 메뉴바가 관찰
+```
+
+- 배선 단계의 Configuration은 **하드코딩 기본값** `Configuration(normalModeEscapeModifiers: [.command, .option])` (제품 기본 on). 안전장치 단계에서 설정 주입으로 교체.
+- 콜백 `.keyDown` 경로 (순서 고정, 실제 mutating 접근은 controller 메서드로 감쌈):
+
+```swift
+guard let key = KeyTranslator.translate(event) else { return passthrough }  // nil = 무조건 통과 (번역기 계약)
+let output = engine.handle(key)
+if mode != engine.mode { mode = engine.mode }  // 등가 가드 필수 — @Observable은 등가 비교 없이 대입만으로 발화하므로, 무조건 대입이면 Insert 타이핑 내내 매 keyDown마다 메뉴바 SwiftUI 무효화가 콜백 경로에서 돈다
+switch output.decision {
+case .passthrough: return Unmanaged.passUnretained(event)
+case .swallow:     return nil
+case .replace:     // 과도기 규칙: 실행 없이 삼키고 actions 로그만 → "기록" 단계에서 결정 기록
+    log("replace ×\(output.actions.count): \(String(describing: output.actions.first))")  // 요약 1건 — actions forEach 로그 금지 (Plan-2 카운트 클램프로 actions가 최대 9,999개 — 콜백 내 os_log 수천 건은 탭 타임아웃을 유발해 워치독 실기기 검증을 오염시킨다)
+    return nil
+}
+```
+
+- **`.replace` 로그는 `switch` case 분기 없이 `String(describing:)`으로** — Plan-2(멀티키 커맨드 빌더)가 병렬 worktree에서 `VimAction`에 `.edit` 케이스를 추가 중이라, default 없는 exhaustive switch는 머지 시 충돌 마커 없이 빌드만 깨진다. (`switch`가 꼭 필요하면 `default:` 하나로 흡수.)
+- `flagsChanged`는 엔진에 넣지 않고 콜백에서 **항상 통과** (모디파이어는 keyDown의 flags로 이미 엔진에 전달됨).
+- `AppState.mode` 정적 스켈레톤 제거 — `menuBarGlyph`/`menuBarAccessibilityLabel`이 `eventTap.mode`를 읽도록 변경. 스파이크 `logKeyEvent`(keycode 로그) 제거, DEBUG 전용 decision 로그로 대체.
+
+### KeyTranslator 레이아웃 캐싱 (사용자 확정 2026-07-17: 도입)
+
+- 레이아웃 `Data`를 static lazy 캐시하고, `kTISNotifySelectedKeyboardInputSourceChanged` 분산 노티피케이션(`DistributedNotificationCenter`)으로 무효화(캐시 클리어 → 다음 키에서 재조회). 옵저버 등록은 최초 translate 시 1회 (`@MainActor`라 경합 없음). 옵저버 콜백은 **main queue 지정 + `MainActor.assumeIsolated`로 캐시 클리어** — 캐시가 `@MainActor` static이라 큐 미지정 콜백에서 직접 접근하면 격리 위반. 캐시 후 키당 비용은 nil 체크뿐.
+- 단위 테스트: 무효화 → 재조회 경로 (노티 게시 시뮬레이트가 안 되면 내부 무효화 메서드 직접 호출로 검증).
+
+### 안전장치 — 토글·설정 의미론
+
+- `isInterceptionEnabled`는 `EventTapController` 소유(관찰 프로퍼티) + UserDefaults 영속(init 로드, didSet 저장 — `@Observable` 클래스엔 `@AppStorage` 불가). **off = 콜백 최상단에서 전부 통과 + 엔진 `.insert` 리셋(재생성) + 탭 포트 유지 + 워치독 정지.**
+- **on 복귀 시 `tapEnable(true)` 1회 선제 호출** — off 동안(워치독 정지 + 콜백 미발화 상태) 시스템이 탭을 비활성화하면 감지 주체가 없으므로, 복귀 시점에 워치독 첫 폴링(≤2초)을 기다리지 않고 즉시 복구한다.
+- 메뉴바 Toggle 항목 + off 전용 글리프 (기존 "square.dashed"는 탭 비활성 표시 — off와 구분되는 심볼 선택은 구현 재량).
+- Normal 탈출 옵션: SettingsView `@AppStorage`(기본 on) → on=`[.command, .option]` / off=`[]`를 Configuration으로 번역해 엔진 **재생성 주입**. 설정 변경 시 모드가 insert로 리셋되는데, 설정 조작 중이므로 수용 (판단 근거 포함해 "기록" 단계에 기재).
+
+### 워치독 — 스레딩 규칙 (핵심 불변식)
+
+- `DispatchSourceTimer`, 전용 백그라운드 큐(`.utility`), 주기 2초.
+- **폴링·재활성화는 백그라운드 큐에서 `CGEventTapIsEnabled`/`tapEnable`을 직접 호출 — MainActor 홉 금지.** 메인 스레드 스톨 복구가 워치독의 존재 이유라([결정 문서](../../decisions/references/20260713_tap-reenable-watchdog-polling.md)), 메인 홉을 넣으면 정확히 그 실패 모드에서 무력화된다. `CFMachPort`는 스레드 안전 C API 대상이므로 `nonisolated(unsafe)`로 캡처.
+- 게이팅: 탭 설치됨 && 토글 on일 때만 타이머 가동. `stop()`·토글 off에서 cancel. 복구 시 로그 1건. 콜백 재활성화는 유지(이중 안전망).
+- **cancel 경합 수용 근거**: `DispatchSourceTimer.cancel()`은 in-flight 핸들러 완료를 기다리지 않는다 — `stop()`이 메인에서 포트를 invalidate하는 순간 백그라운드 핸들러가 `tapEnable`/`IsEnabled`를 호출 중일 수 있다. 핸들러가 포트를 **강캡처**하므로 메모리는 안전하고, invalidated 포트 호출은 무해한 no-op이라 이 경합은 수용한다. **약참조·매 폴링 재조회로 짜지 말 것** — 그게 오히려 nil 경합·격리 위반을 만든다.
 
 ## 남은 것
 
-<!-- 승인된 상세 플랜의 단계 순서 그대로. 각 항목이 인계 가능한 단위. -->
+<!-- 승인된 단계 순서 그대로. 각 항목이 인계 가능한 단위 — 상세는 위 "확정 설계" 참조. -->
 
-- [ ] **탭↔엔진 배선**: `EventTapController`가 엔진 소유, 콜백에서 decision 적용(`.replace`는 이번엔 삼키고 actions 로그), flagsChanged 항상 통과, `private(set) var mode` 노출 → `AppState.menuBarGlyph` 배선(기존 `AppState.mode` 스켈레톤 정리), 스파이크 `logKeyEvent` TODO 제거. **PR #6 리뷰 후속 1건 포함**: `KeyTranslator`가 문자키마다 TIS 레이아웃을 재조회하는데 탭 콜백은 지연 시 탭 비활성화 타임아웃이 있음 — 레이아웃 데이터 캐싱 + `kTISNotifySelectedKeyboardInputSourceChanged` 무효화 도입 여부를 배선 전에 결정. (keyDown 가드 후속은 PR #6 내에서 해결됨 — 위 번역기 항목 참고.)
-- [ ] **안전장치 — 메뉴바 토글 + 설정**: `isInterceptionEnabled`(off = 전부 통과 + 엔진 `.insert` 리셋, 탭 포트 유지), 메뉴바 Toggle 항목 + off 글리프. Normal 탈출 옵션은 `@AppStorage` 토글(기본 on, cmd/opt) → 엔진 Configuration 주입.
-- [ ] **탭 워치독**: `DispatchSourceTimer` 전용 백그라운드 큐, 주기 2초, desired state(설치됨 + 토글 on)일 때만 `CGEventTapIsEnabled()` 폴링 → 꺼져 있으면 재활성화 + 복구 로그. `stop()`·토글 off 시 게이팅. 콜백 재활성화는 유지(이중 안전망).
-- [ ] **검증**: 엔진 `swift test` + 앱 타깃 `xcodebuild test` + 실기기 체크리스트(Insert 통과/Esc 글리프 전환, Normal 삼킴+액션 로그, Cmd-Space 후 Insert 자동 복귀 on/off, 메뉴바 토글, 워치독 복구 — 디버거 pause로 유도, SIGSTOP은 콜백 유실로 부적합).
-- [ ] **기록**: decisions 4건(런루프 재검토 결과=메인 유지, modifier 탈출 옵션 — pending 엣지 포함, 토글 의미론+워치독 게이팅, replace-미실행-시-swallow 과도기 규칙 — CGEvent→Key 번역 방식은 2026-07-16 기록 완료) + architecture 갱신(mode-engine/system-overview/reentrancy-and-safety).
+- [ ] **탭↔엔진 배선**: "배선"·"KeyTranslator 레이아웃 캐싱" 설계대로 — 엔진 소유 + mode 노출 + 콜백 결정 매핑 + flagsChanged 통과 + `AppState.mode` 정리 + 캐싱. GREEN: 기존 `VimActionTests` 회귀 + 캐싱 테스트 그린, 실기기 — Insert 전부 통과 / Esc→Normal 글리프 전환 / Normal 문자키 삼킴 / `hjkl`·`gg`가 `String(describing:)` replace 로그로 관측.
+- [ ] **안전장치 — 메뉴바 토글 + 설정**: "안전장치" 의미론대로. GREEN: 실기기 — 토글 off에서 Normal 키 전부 통과 + off 글리프, on 복귀 시 Insert부터 재시작 / 탈출 옵션 on: Normal에서 Cmd-Space 후 타이핑 통과(Insert 복귀), off: Normal 유지.
+- [ ] **탭 워치독**: "워치독" 규칙대로. GREEN: 실기기 — 디버거 pause로 탭 비활성 유도 → resume 후 ≤2초+α 내 복구 로그 + 가로채기 재개 (SIGSTOP은 콜백 유실로 부적합 — 결정 문서의 검증 노트).
+- [ ] **최종 검증**: 엔진 `swift test` + `xcodebuild test -only-testing:VimActionTests` + 위 항목별 실기기 GREEN 체크리스트 통합 재점검.
+- [ ] **기록**: decisions 5건(런루프 재검토 결과=메인 유지, modifier 탈출 옵션 — pending 엣지 포함, 토글 의미론+워치독 게이팅, replace-미실행-시-swallow 과도기 규칙, KeyTranslator 레이아웃 캐싱+무효화 — CGEvent→Key 번역 방식은 2026-07-16 기록 완료) + architecture 갱신(mode-engine/system-overview/reentrancy-and-safety).
 
 ## 진행 중 컨텍스트
 
 - **사용자 확정 사항 (2026-07-14)**: ① 범위는 연결만(실행은 로그) ② 메인 런루프 유지(AX가 콜백 경로에 들어오는 디스패처 마일스톤에서 재재검토) ③ 안전장치는 메뉴바 토글 + modifier 콤보(cmd/opt+키) Normal 자동 탈출 옵션(설정 가능, 기본 on). 탈출 옵션의 목적: Spotlight/Raycast/AeroSpace 등이 cmd/opt 단축키를 많이 써서, 단축키 직후 텍스트 입력이 Normal 모드에 막히지 않게 함. ctrl은 향후 Vim 키(Ctrl-d 등)와 충돌 소지로 기본 제외.
 - 상세 설계 원본: plan mode 승인본이 `~/.claude/plans/2-virtual-sifakis.md`에 있음 (세션 로컬 — 이 문서가 인계 SSOT이며 핵심은 위에 반영됨).
 - **pending 엣지 사용자 확정 (2026-07-14)**: pending(`g`) 상태에서 escape modifier 콤보가 오면 pending 버림 + `.passthrough` + Insert 복귀 (탈출 옵션 취지와 일관 — `g` 직후 Cmd+Space로 Spotlight가 막히지 않게). escape 교집합 없는 키는 기존 resolve 규칙 유지. → decisions 기록은 "기록" 단계에서 modifier 탈출 옵션 결정에 포함.
+- **사용자 확정 사항 (2026-07-17)**: KeyTranslator 레이아웃 캐싱 **도입** (PR #6 리뷰 후속으로 "배선 전 결정"이던 건 — 배선 항목에 포함, 위 확정 설계 참고).
 - 번역기 PR #6 머지 완료 (2026-07-16) — "탭↔엔진 배선" 착수 가능 (KeyTranslator는 배선에서 `translate` 호출만 하면 되는 상태).
+- **착수 기준선 (2026-07-17 확인)**: `EventTapController`는 스파이크(무수정 통과 + keycode 로그), KeyTranslator 미배선, `AppState.mode`는 정적 스켈레톤. 착수 전 신선도 재확인(이 기준선이 바뀌었는지 `git log`로 확인).
+- **실행 방식**: Plan-2(멀티키 커맨드 빌더)와 worktree 병렬 가능(이 플랜=앱 타깃 `VimAction/*.swift`, Plan-2=엔진 타깃 `Packages/VimActionCore/*` — 파일 교집합 없음). 단 이 플랜은 각 항목 GREEN에 **실기기 검증이 포함**되어 완전 자율 실행은 불가 — 코드·단위 테스트까지 에이전트가 진행하고 실기기 체크는 사용자와 함께 확인.
+- **실기기 검증 주의**: 배선 항목 GREEN 시점엔 안전장치(토글)가 **아직 없다** — 단계 순서가 배선 → 안전장치라서. 비상 탈출 수단은 하드코딩 cmd/opt 탈출 콤보와 메뉴바 Quit뿐이므로, 검증 세션 시작 전 Quit 경로 동작을 먼저 확인하고 들어간다 (TCC 리셋 이슈와 겹치면 당황스러움).
 - 참고: `VimActionUITests.testLaunchPerformance`(Xcode 템플릿 잔재)가 메트릭 수집 flaky로 실패함 — 이번 작업과 무관, 단위 테스트는 `-only-testing:VimActionTests`로 격리 실행.
 - 주의(1차 플랜에서 승계): ad-hoc 서명 상태라 리빌드마다 TCC 무효화 — `tccutil reset Accessibility dev.pilyang.VimAction` 후 재부여 필요.
 
