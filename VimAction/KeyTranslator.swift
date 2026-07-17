@@ -190,9 +190,11 @@ enum KeyTranslator {
 private final class LayoutCacheInvalidator: NSObject {
     static let shared = LayoutCacheInvalidator()
 
-    /// 분산 노티피케이션은 메인 스레드 런루프로 배달된다 — `assumeIsolated`의 근거.
-    @objc nonisolated func inputSourcesChanged(_ notification: Notification) {
-        MainActor.assumeIsolated {
+    /// 배달 스레드는 문서상 보장이 없다 — 가정 대신 메인 액터로 홉해 무효화한다.
+    /// 홉의 지연은 무해하다: 그 사이 키는 이전 캐시로 번역되고, 이는 노티 기반
+    /// 무효화에 원래 내재한 창이다.
+    @objc nonisolated func inputSourcesChanged(_: Notification) {
+        Task { @MainActor in
             KeyTranslator.invalidateLayoutCache()
         }
     }
