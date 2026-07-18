@@ -1,0 +1,44 @@
+.claude/skills/decisions/SKILL.md
+  s_88253816b4971b::t_e535a7da2b37fb 56-57
+Packages/VimActionCore/Tests/VimEngineTests/CancellationFixtures.swift
+  s_88253816b4971b::t_e535a7da2b37fb 1-89
+.claude/skills/plans/references/20260714_multikey-command-builder.md
+  s_88253816b4971b::t_e535a7da2b37fb 17,114,116-119
+.claude/skills/decisions/references/20260717_vimaction-edit-output-shape.md
+  s_88253816b4971b::t_e535a7da2b37fb 1-31
+.claude/skills/architecture/references/mode-engine.md
+  s_88253816b4971b::t_e535a7da2b37fb 3,7,12,24-29,32,39-40,45,47,52
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_88253816b4971b::t_e535a7da2b37fb 5-33
+Packages/VimActionCore/Tests/VimEngineTests/EditFixtures.swift
+  s_88253816b4971b::t_e535a7da2b37fb 1-288
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_88253816b4971b::t_e535a7da2b37fb 6-7,9-24,30,60-145,162-164,166-174,179-187,189-191,195,209-242
+  s_88253816b4971b::t_85f1f859d319ae 243
+.claude/skills/decisions/references/20260717_cancellation-first-ordering-premise.md
+  s_88253816b4971b::t_e535a7da2b37fb 1-22
+Packages/VimActionCore/Tests/VimEngineTests/CountFixtures.swift
+  s_88253816b4971b::t_e535a7da2b37fb 1-129
+.claude/skills/plans/SKILL.md
+  s_88253816b4971b::t_e535a7da2b37fb 53
+Packages/VimActionCore/Tests/VimEngineTests/EscapeModifierFixtures.swift
+  s_88253816b4971b::t_e535a7da2b37fb 76-87
+Packages/VimActionCore/Tests/VimEngineTests/ModeTransitionTests.swift
+  s_88253816b4971b::t_e535a7da2b37fb 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b1cb7a9e05acc970dd6511ffc4a19276377bdc13",
+  "prompts": {},
+  "sessions": {
+    "s_88253816b4971b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "147ace3f-5807-4824-b449-19d90d89d952",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
