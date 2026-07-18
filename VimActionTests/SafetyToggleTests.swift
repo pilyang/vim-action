@@ -78,15 +78,16 @@ struct SafetyToggleTests {
         }
     }
 
-    @Test("updateConfiguration: Insert 리셋 + 새 설정 적용")
-    func updateConfigurationResetsAndApplies() throws {
+    @Test("탈출 옵션 변경: Insert 리셋 + 새 설정 적용 + 영속")
+    func escapeOptionChangeResetsAppliesAndPersists() throws {
         try withTemporaryDefaults { defaults in
             let controller = EventTapController(defaults: defaults)
             _ = controller.handleKeyDown(try keyDown(kVK_Escape))
             #expect(controller.mode == .normal)
 
-            controller.updateConfiguration(makeConfiguration(normalModeEscapeEnabled: false))
+            controller.isNormalModeEscapeEnabled = false
             #expect(controller.mode == .insert)
+            #expect(defaults.bool(forKey: PreferenceKeys.normalModeEscapeEnabled) == false)
 
             _ = controller.handleKeyDown(try keyDown(kVK_Escape))
             // 탈출 off 주입 적용 확인 — 콤보는 통과하되 Normal 유지 (Insert 전이 없음).

@@ -9,11 +9,6 @@ import SwiftUI
 struct SettingsView: View {
     let appState: AppState
 
-    /// Normal 탈출 옵션 — 값의 SSOT는 UserDefaults이고, 엔진 반영은 `onChange`의
-    /// `updateConfiguration` 주입 (EventTapController는 init에서 같은 키를 읽는다).
-    @AppStorage(PreferenceKeys.normalModeEscapeEnabled)
-    private var normalModeEscapeEnabled = PreferenceKeys.normalModeEscapeEnabledDefault
-
     /// 번들 Info.plist의 실제 버전(`CFBundleShortVersionString` = MARKETING_VERSION). 하드코딩 드리프트 방지.
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -25,7 +20,11 @@ struct SettingsView: View {
                 LabeledContent("Version", value: appVersion)
             }
             Section("Behavior") {
-                Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $normalModeEscapeEnabled)
+                // 값·엔진 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 가로채기 토글과 동일 모델.
+                Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: Binding(
+                    get: { appState.eventTap.isNormalModeEscapeEnabled },
+                    set: { appState.eventTap.isNormalModeEscapeEnabled = $0 }
+                ))
                 Text("After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -56,13 +55,6 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 420, height: 400)
-        .onChange(of: normalModeEscapeEnabled) { _, newValue in
-            // 알려진 한계: 엔진 반영 경로는 이 onChange와 컨트롤러 init 두 곳뿐이라,
-            // 설정 창 밖에서 키를 바꾸면(외부 defaults write 등) 다음 실행까지 엔진에
-            // 반영되지 않는다. 이 키의 writer를 추가한다면 updateConfiguration 호출까지 챙길 것.
-            appState.eventTap.updateConfiguration(
-                makeConfiguration(normalModeEscapeEnabled: newValue))
-        }
     }
 }
 

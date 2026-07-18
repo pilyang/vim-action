@@ -6,17 +6,15 @@
 import Foundation
 import VimEngine
 
-/// UserDefaults 키 — SettingsView(`@AppStorage`)와 EventTapController(초기 로드)가
-/// 같은 키를 봐야 하므로 한 곳에 모은다. (단수형 `PreferenceKey`는 SwiftUI 프로토콜과
-/// 이름이 충돌해 피한다.)
+/// UserDefaults 키 — 두 키 모두 EventTapController가 로드(init)·저장(didSet)하는
+/// 단일 소유다. (단수형 `PreferenceKey`는 SwiftUI 프로토콜과 이름이 충돌해 피한다.)
 enum PreferenceKeys {
     /// 가로채기 마스터 토글. 기본 on.
     static let interceptionEnabled = "interceptionEnabled"
     /// Normal 모드 cmd/opt 콤보 자동 탈출 옵션.
     static let normalModeEscapeEnabled = "normalModeEscapeEnabled"
 
-    /// 탈출 옵션의 제품 기본값 — 읽기 지점이 둘(SettingsView `@AppStorage` 초기값,
-    /// EventTapController init)이라 한쪽만 바뀌면 UI 표시와 엔진 동작이 영구히 어긋난다.
+    /// 탈출 옵션의 제품 기본값 — EventTapController init이 읽는다.
     static let normalModeEscapeEnabledDefault = true
 }
 

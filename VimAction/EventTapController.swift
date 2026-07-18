@@ -32,27 +32,28 @@ final class EventTapController {
     /// 현재 모드 — `handle` 후 `engine.mode`의 복사본. 메뉴바 글리프가 관찰한다.
     private(set) var mode: Mode = .insert
 
-    /// 가로채기 마스터 토글 (UserDefaults 영속). off 의미론: 전부 통과(`handleKeyDown`
-    /// 최상단 가드) + 엔진 Insert 리셋 + 탭 포트 유지. 콜백의 `tapDisabledBy*`
-    /// 재활성화는 off 중에도 유지된다 (무해한 이중 안전망).
+    /// 가로채기 마스터 토글 (UserDefaults 영속). off 의미론: `tapEnable(false)`로 스트림
+    /// 해방(포트는 유지) + 엔진 Insert 리셋 + `handleKeyDown` 최상단 가드(탭이 어떤
+    /// 이유로든 살아 있어도 전부 통과하는 이중 방어). off 중에는 아무도 탭을 되살리지
+    /// 않는다 — 콜백의 `tapDisabledBy*` 재활성화도 게이트되며, 복귀 경로는 on 분기의
+    /// 선제 tapEnable뿐이다.
     ///
     /// 런타임 SSOT는 이 프로퍼티다 — defaults는 didSet이 쓰는 팔로워라, 실행 중
-    /// 외부 `defaults write`는 재시작까지 무시된다 (탈출 옵션 키는 반대로
-    /// UserDefaults가 SSOT — 소유 모델이 다름에 주의).
+    /// 외부 `defaults write`는 재시작까지 무시된다 (탈출 옵션도 같은 소유 모델).
     var isInterceptionEnabled: Bool {
         didSet {
             // didSet은 등가 대입에도 발화한다 — 가드 없이는 엔진 재생성·tapEnable이 중복 실행.
             guard oldValue != isInterceptionEnabled else { return }
             defaults.set(isInterceptionEnabled, forKey: PreferenceKeys.interceptionEnabled)
             if isInterceptionEnabled {
-                // off 동안 시스템이 탭을 죽이면 콜백 자체가 안 와 감지 주체가 없다 —
-                // 복귀 시점에 선제 재활성화한다 (워치독 첫 폴링을 기다리지 않음).
+                // off가 탭을 비활성화하므로 이 재활성화가 유일한 복귀 경로다
+                // (워치독 첫 폴링을 기다리지 않음).
                 // 이 분기는 TEST_HOST에서 포트가 항상 nil이라 로그가 유일한 관측 수단 —
                 // 하지 않은 재활성화를 성공처럼 남기면 안 된다.
                 if let port = tapPort {
                     CGEvent.tapEnable(tap: port, enable: true)
                     if CGEvent.tapIsEnabled(tap: port) {
-                        Logger.eventTap.info("가로채기 on — 탭 선제 재활성화")
+                        Logger.eventTap.info("가로채기 on — 탭 재활성화")
                     } else {
                         Logger.eventTap.error("가로채기 on — tapEnable 후에도 탭 비활성 (가로채기 불능 상태)")
                     }
@@ -62,9 +63,27 @@ final class EventTapController {
                 }
             } else {
                 resetEngine()
-                Logger.eventTap.info("가로채기 off — 전부 통과, 엔진 Insert 리셋")
+                // off = 스트림 해방. 비활성화 없이 통과만 하면 모든 키가 여전히 메인 스레드
+                // 콜백을 왕복해, 앱이 오동작(스톨)할 때 끄는 안전장치 목적을 못 지킨다.
+                if let port = tapPort {
+                    CGEvent.tapEnable(tap: port, enable: false)
+                }
+                Logger.eventTap.info("가로채기 off — 탭 비활성화, 엔진 Insert 리셋")
             }
             // 워치독(다음 항목): off→정지 / on→재가동 훅이 여기 들어간다.
+        }
+    }
+
+    /// Normal 탈출 옵션 (UserDefaults 영속). 가로채기 토글과 같은 소유 모델 — 런타임
+    /// SSOT는 이 프로퍼티이고, didSet이 저장과 엔진 주입을 함께 책임져 UI 표시와 엔진
+    /// 동작이 어긋날 수 없다. 실행 중 외부 `defaults write`는 재시작까지 무시된다.
+    var isNormalModeEscapeEnabled: Bool {
+        didSet {
+            guard oldValue != isNormalModeEscapeEnabled else { return }
+            defaults.set(
+                isNormalModeEscapeEnabled, forKey: PreferenceKeys.normalModeEscapeEnabled)
+            updateConfiguration(
+                makeConfiguration(normalModeEscapeEnabled: isNormalModeEscapeEnabled))
         }
     }
 
@@ -83,16 +102,18 @@ final class EventTapController {
         self.defaults = defaults
         self.isInterceptionEnabled = defaults.bool(
             forKey: PreferenceKeys.interceptionEnabled, default: true)
-        let configuration = makeConfiguration(
-            normalModeEscapeEnabled: defaults.bool(
-                forKey: PreferenceKeys.normalModeEscapeEnabled,
-                default: PreferenceKeys.normalModeEscapeEnabledDefault))
+        let escapeEnabled = defaults.bool(
+            forKey: PreferenceKeys.normalModeEscapeEnabled,
+            default: PreferenceKeys.normalModeEscapeEnabledDefault)
+        self.isNormalModeEscapeEnabled = escapeEnabled
+        let configuration = makeConfiguration(normalModeEscapeEnabled: escapeEnabled)
         self.configuration = configuration
         self.engine = VimEngine(configuration: configuration)
     }
 
     /// 설정 변경 주입 — 엔진 재생성이라 모드는 Insert로 리셋된다 (설정 조작 중이므로 수용).
-    func updateConfiguration(_ configuration: VimEngine.Configuration) {
+    /// 호출 경로는 설정 프로퍼티의 didSet뿐 — 프로퍼티를 우회한 주입은 SSOT를 깬다.
+    private func updateConfiguration(_ configuration: VimEngine.Configuration) {
         self.configuration = configuration
         resetEngine()
         // 사용자 가시 전이(모드 리셋 + 동작 변경) — 로그 없이는 "엔진 버그"와 구분 불가.
@@ -171,6 +192,9 @@ final class EventTapController {
 
     /// 시스템이 탭을 비활성화(타임아웃/사용자 개입)했을 때 재활성화한다.
     fileprivate func reenableAfterDisable(type: CGEventType) {
+        // off 중에는 되살리지 않는다 — off가 탭을 비활성화하므로 여기서 재활성화하면
+        // 안전장치가 풀린다 (비활성화 직전 in-flight 통지가 이 가드에 걸린다).
+        guard isInterceptionEnabled else { return }
         guard let port = tapPort else { return }
         CGEvent.tapEnable(tap: port, enable: true)
         Logger.eventTap.info("시스템이 탭 비활성화(type=\(type.rawValue)) — 재활성화")
