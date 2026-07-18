@@ -5,6 +5,7 @@
 
 import Carbon.HIToolbox
 import CoreGraphics
+import Foundation
 import os
 import VimEngine
 
@@ -18,6 +19,8 @@ import VimEngine
 @MainActor
 enum KeyTranslator {
     static func translate(_ event: CGEvent) -> Key? {
+        registerLayoutChangeObserverIfNeeded()
+
         // keyDown 외 타입은 keycode 필드 오독(비키보드 이벤트는 0 → "a") 여지가 있다.
         guard event.type == .keyDown else { return nil }
 
@@ -60,11 +63,46 @@ enum KeyTranslator {
         return result
     }
 
-    /// 현재 ASCII-capable 레이아웃으로 keycode → 문자 번역.
+    /// 현재 ASCII-capable 레이아웃 데이터의 캐시. 키 입력마다 TIS 조회를 반복하지 않기 위한
+    /// 것으로, 입력 소스 변경 노티피케이션이 무효화한다(클리어 → 다음 키에서 재조회).
+    /// 조회 실패는 캐시하지 않는다 — 다음 키에서 재시도한다. 읽기는 테스트 검증용으로 연다.
+    private(set) static var cachedLayoutData: Data?
+
+    /// 입력 소스 변경 노티피케이션의 무효화 경로 — 옵저버 콜백과 테스트가 함께 쓴다.
+    static func invalidateLayoutCache() {
+        cachedLayoutData = nil
+    }
+
+    /// 레이아웃 캐시 무효화 옵저버를 최초 translate 시 1회 등록한다 (`@MainActor`라 경합 없음).
+    /// 앱 수명 동안 유지되므로 해제하지 않는다.
     ///
-    /// base 문자 유도에는 shift만 반영한다 — ctrl/opt/cmd/capsLock를 섞으면
-    /// `Ctrl-d` 같은 조합에서 제어 문자가 나와 base를 잃기 때문이다.
-    private static func character(for keyCode: UInt16, shifted: Bool) -> Character? {
+    /// selector 기반 등록 + `.deliverImmediately`가 필수다: block 기반 API는
+    /// suspensionBehavior를 지정할 수 없고, 기본(coalesce) 동작은 앱이 비활성인 동안
+    /// 배달을 유예한다 — LSUIElement 메뉴바 앱은 사실상 항상 비활성이라 노티가 오지 않아
+    /// 캐시가 조용히 낡는다. 선택 소스 변경 외에 enabled 소스 목록 변경도 관찰한다 —
+    /// 캐시 대상(ASCII-capable 레이아웃)은 선택 소스가 그대로여도 목록 변경으로 바뀔 수 있다.
+    private static var observerRegistered = false
+    private static func registerLayoutChangeObserverIfNeeded() {
+        guard !observerRegistered else { return }
+        observerRegistered = true
+        let names = [
+            kTISNotifySelectedKeyboardInputSourceChanged as String,
+            kTISNotifyEnabledKeyboardInputSourcesChanged as String,
+        ]
+        for name in names {
+            DistributedNotificationCenter.default().addObserver(
+                LayoutCacheInvalidator.shared,
+                selector: #selector(LayoutCacheInvalidator.inputSourcesChanged(_:)),
+                name: Notification.Name(name),
+                object: nil,
+                suspensionBehavior: .deliverImmediately
+            )
+        }
+    }
+
+    /// 현재 ASCII-capable 레이아웃 데이터 — 캐시 우선, 없으면 TIS 조회 후 적재.
+    private static func currentLayoutData() -> Data? {
+        if let cached = cachedLayoutData { return cached }
         guard
             let inputSource = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?
                 .takeRetainedValue(),
@@ -75,7 +113,17 @@ enum KeyTranslator {
             logSetupFailureOnce("ASCII-capable 키보드 레이아웃 데이터 획득 실패 — 문자 키 번역 불가")
             return nil
         }
-        let layoutData = Unmanaged<CFData>.fromOpaque(layoutDataRef).takeUnretainedValue() as Data
+        let data = Unmanaged<CFData>.fromOpaque(layoutDataRef).takeUnretainedValue() as Data
+        cachedLayoutData = data
+        return data
+    }
+
+    /// 현재 ASCII-capable 레이아웃으로 keycode → 문자 번역.
+    ///
+    /// base 문자 유도에는 shift만 반영한다 — ctrl/opt/cmd/capsLock를 섞으면
+    /// `Ctrl-d` 같은 조합에서 제어 문자가 나와 base를 잃기 때문이다.
+    private static func character(for keyCode: UInt16, shifted: Bool) -> Character? {
+        guard let layoutData = currentLayoutData() else { return nil }
 
         let modifierKeyState: UInt32 = shifted ? UInt32((shiftKey >> 8) & 0xFF) : 0
         var deadKeyState: UInt32 = 0
@@ -102,6 +150,9 @@ enum KeyTranslator {
 
         // API 실패는 셋업 문제(1회 기록), dead key 진행·빈 출력은 정상적인 번역 불가.
         guard status == noErr else {
+            // 캐시된 데이터가 원인일 수 있다 — 유지하면 영구 무번역이 되므로 버려서
+            // 다음 키가 새로 조회하게 한다 (캐시 도입 전의 키마다 재조회 자가 치유 복원).
+            cachedLayoutData = nil
             logSetupFailureOnce("UCKeyTranslate 실패 status=\(status)")
             return nil
         }
@@ -131,5 +182,20 @@ enum KeyTranslator {
             if (0xF700...0xF8FF).contains(value) { return false }
         }
         return true
+    }
+}
+
+/// 분산 노티 옵저버 셔틀 — suspensionBehavior를 받는 API가 selector 기반뿐이라
+/// NSObject가 필요하다 (`KeyTranslator`는 enum). 등록 이유는 등록 지점 주석 참고.
+private final class LayoutCacheInvalidator: NSObject {
+    static let shared = LayoutCacheInvalidator()
+
+    /// 배달 스레드는 문서상 보장이 없다 — 가정 대신 메인 액터로 홉해 무효화한다.
+    /// 홉의 지연은 무해하다: 그 사이 키는 이전 캐시로 번역되고, 이는 노티 기반
+    /// 무효화에 원래 내재한 창이다.
+    @objc nonisolated func inputSourcesChanged(_: Notification) {
+        Task { @MainActor in
+            KeyTranslator.invalidateLayoutCache()
+        }
     }
 }
