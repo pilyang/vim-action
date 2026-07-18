@@ -100,7 +100,8 @@ public struct VimEngine: Sendable {
             }
             return .swallow
         case .textObjectScope(let scope):
-            // di/da로만 진입하므로 op != nil이 보장된다. 1차 오브젝트는 word만.
+            // 오퍼레이터+i/a(di/ci/ya 등)로만 진입하므로 op != nil이 보장된다.
+            // 1차 오브젝트는 word만.
             if key == .char("w"), let op = current.op {
                 return complete(op, .textObject(.word(scope)))
             }
