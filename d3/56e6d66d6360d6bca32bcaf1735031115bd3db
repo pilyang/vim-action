@@ -1,0 +1,19 @@
+VimActionTests/TemporaryDefaults.swift
+  s_ca85732c4cfed7::t_4c726c71c35d07 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "d356e6d66d6360d6bca32bcaf1735031115bd3db",
+  "prompts": {},
+  "sessions": {
+    "s_ca85732c4cfed7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9f12f60b-5d1b-4797-8b7e-2e9024bf0143",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
