@@ -1,0 +1,21 @@
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_a53368345008c6::t_c1d9f7bc36b330 132-135
+Packages/VimActionCore/Tests/VimEngineTests/EditFixtures.swift
+  s_a53368345008c6::t_ef5d4558afc2c4 134-169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "1ea59edef03bd88db9d0cca0633d5a59295244db",
+  "prompts": {},
+  "sessions": {
+    "s_a53368345008c6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcf8ef2c-3a5e-4bdf-8c93-b312a3484808",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
