@@ -18,8 +18,7 @@ final class AppState {
     func bootstrap() {
         // TEST_HOST로 launch된 단위 테스트 실행 중에는 시동하지 않는다 —
         // 테스트가 라이브 이벤트 탭을 설치하거나 권한 폴링을 돌리면 안 된다.
-        let env = ProcessInfo.processInfo.environment
-        if env["XCTestConfigurationFilePath"] != nil || env["XCTestSessionIdentifier"] != nil {
+        if isRunningUnderXCTest() {
             // 이 변수가 일반 launch에 새어 들어오면 앱이 통째로 비활성이 되므로 흔적을 남긴다.
             Logger.eventTap.notice("XCTest 환경변수 감지 — bootstrap 생략 (탭 설치·권한 폴링 비활성)")
             return
@@ -35,16 +34,20 @@ final class AppState {
         }
     }
 
-    /// 메뉴바 글리프 — 탭이 안 돌면 흐림/비활성 표시 (PRD §7.7 최소 구현).
+    /// 메뉴바 글리프 — 탭이 안 돌면 비활성(square.dashed), 토글 off면 square.slash,
+    /// 그 외 모드 글리프 (PRD §7.7 최소 구현). 탭 비활성이 토글보다 우선한다 —
+    /// 탭이 안 돌면 토글 상태와 무관하게 가로채기가 불가능하기 때문.
     var menuBarGlyph: String {
-        eventTap.status == .running ? eventTap.mode.menuBarGlyph : "square.dashed"
+        guard eventTap.status == .running else { return "square.dashed" }
+        return eventTap.isInterceptionEnabled ? eventTap.mode.menuBarGlyph : "square.slash"
     }
 
     /// VoiceOver 등 사람이 읽는 메뉴바 상태 문구.
     var menuBarAccessibilityLabel: String {
-        eventTap.status == .running
+        guard eventTap.status == .running else { return "VimAction — inactive" }
+        return eventTap.isInterceptionEnabled
             ? "VimAction — \(eventTap.mode.displayName) mode"
-            : "VimAction — inactive"
+            : "VimAction — disabled"
     }
 }
 
