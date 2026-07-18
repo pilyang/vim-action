@@ -1,0 +1,19 @@
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_f6bc062bcc5991::t_95ac4f479649f5 103-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "507eb508dcffb6e4ef5ab9835c537371dc415cd1",
+  "prompts": {},
+  "sessions": {
+    "s_f6bc062bcc5991": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd63e91c-e1d5-41d8-a09d-575826883258",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
