@@ -73,6 +73,18 @@ let escapeModifierFixtures: [KeySequenceFixture] = [
         steps: [step(.init(.space, [.command]), .passthrough)],
         finalMode: .insert
     ),
+    // 수식자 붙은 Esc는 "Esc 취소" 분기(정확 매치)가 아니라 escapeCombo 판정을 탄다.
+    // Esc를 base 매치로 구현하면 이 케이스가 swallow+Normal로 뒤집혀 여기서 잡힌다.
+    KeySequenceFixture(
+        "탈출 옵션 켜진 Normal에서 g 후 Cmd+Esc → Esc 취소가 아니라 탈출 콤보로 통과하며 Insert",
+        startMode: .normal,
+        configuration: escapeOnCmdOpt,
+        steps: [
+            step(.char("g"), .swallow),
+            step(.init(.escape, [.command]), .passthrough),
+        ],
+        finalMode: .insert
+    ),
     // 탈출 목적 자체 확인 — 복귀 후 후속 문자 키가 타이핑으로 통과
     KeySequenceFixture(
         "탈출 옵션으로 Insert 복귀 후 후속 문자 키(a)는 타이핑으로 통과",
