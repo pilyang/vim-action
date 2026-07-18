@@ -1,0 +1,21 @@
+.claude/skills/plans/SKILL.md
+  s_00676e2465573e::t_60b7e5ca1785d0 53
+.claude/skills/plans/references/20260719_engine-operators-textobjects-linewise.md
+  s_00676e2465573e::t_a994472017a85b 1-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "333d972a1b603c57ca808a8021d935d456c8b1fe",
+  "prompts": {},
+  "sessions": {
+    "s_00676e2465573e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02c60194-a80e-4ad5-8546-3e984fae0ad0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
