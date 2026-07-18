@@ -63,8 +63,13 @@ final class EventTapController {
                         Logger.eventTap.error("가로채기 on — tapEnable 후에도 탭 비활성 (가로채기 불능 상태)")
                     }
                 } else {
+                    // 포트가 없다 = tapCreate가 (권한 외 원인으로) 실패했거나 아직 설치 전.
+                    // off→on 토글이 문서화된 수동 복구 경로이므로, 로그만 남기지 말고
+                    // 실제로 전체 설치를 재시도한다 (권한 없으면 startIfPermitted가
+                    // .waitingForPermission으로, 재실패면 .failed로 정리한다).
                     Logger.eventTap.notice(
-                        "가로채기 on — 탭 포트 없음, 재활성화 생략 (status=\(String(describing: self.status), privacy: .public))")
+                        "가로채기 on — 탭 포트 없음, 설치 재시도 (status=\(String(describing: self.status), privacy: .public))")
+                    startIfPermitted()
                 }
             } else {
                 resetEngine()
@@ -133,6 +138,9 @@ final class EventTapController {
 
     /// Accessibility 권한이 있을 때만 탭을 설치한다 (권한 없으면 설치 거부 — 불변식).
     func startIfPermitted() {
+        // 단위 테스트(TEST_HOST=앱 프로세스)가 이 경로를 타면 라이브 탭을 설치한다 —
+        // off→on 토글 테스트가 didSet을 통해 여기 도달하므로 bootstrap과 같은 가드가 필요하다.
+        guard !isRunningUnderXCTest() else { return }
         guard tapPort == nil else { return }
         guard AXIsProcessTrusted() else {
             status = .waitingForPermission
