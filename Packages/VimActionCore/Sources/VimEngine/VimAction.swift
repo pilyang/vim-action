@@ -7,6 +7,9 @@ public enum VimAction: Hashable, Sendable {
     /// 편집 오퍼레이터의 종류. 적용 범위는 `TextRange`가 함께 나른다.
     public enum Operator: Hashable, Sendable {
         case delete
+        /// 범위를 지우고 입력을 시작한다 — 엔진이 완결 시 Insert로 전이한다.
+        case change
+        case yank
     }
 
     /// 오퍼레이터가 적용될 범위.

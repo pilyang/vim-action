@@ -20,6 +20,9 @@ private let pendingDepths: [(label: String, keys: [Key])] = [
     ("카운트 두 자리 입력 중(12)", [.char("1"), .char("2")]),
     ("오퍼레이터 대기(d)", [.char("d")]),
     ("스코프 대기(di)", [.char("d"), .char("i")]),
+    // change는 완결 시 Insert로 전이하므로, 취소가 전이를 유발하지 않음을 별도로 편다.
+    ("오퍼레이터 대기(c)", [.char("c")]),
+    ("스코프 대기(ci)", [.char("c"), .char("i")]),
     ("오퍼레이터 카운트 입력 중(d3)", [.char("d"), .char("3")]),
     ("전체 슬롯 사용 중(2d3)", [.char("2"), .char("d"), .char("3")]),
 ]
