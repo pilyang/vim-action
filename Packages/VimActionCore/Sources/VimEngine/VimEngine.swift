@@ -9,7 +9,7 @@ public struct VimEngine: Sendable {
     private struct PendingCommand: Sendable {
         /// 선행 카운트 — `3w`의 3, `2dd`의 2.
         var count: Int?
-        /// 대기 중인 오퍼레이터 — `d`.
+        /// 대기 중인 오퍼레이터 — `d`/`c`/`y`.
         var op: VimAction.Operator?
         /// 오퍼레이터 뒤 카운트 — `d3w`의 3. 유효 카운트는 두 카운트의 곱이다 (`2d3w` = 6).
         var opCount: Int?
@@ -102,7 +102,7 @@ public struct VimEngine: Sendable {
         case .textObjectScope(let scope):
             // di/da로만 진입하므로 op != nil이 보장된다. 1차 오브젝트는 word만.
             if key == .char("w"), let op = current.op {
-                return .replace([.edit(op, .textObject(.word(scope)))])
+                return complete(op, .textObject(.word(scope)))
             }
             return .swallow
         case nil:
@@ -133,15 +133,24 @@ public struct VimEngine: Sendable {
             // 9,999 클램프를 우회할 수 있어(9999d9999w ≈ 1e8) 동일 상한으로 다시
             // 클램프한다 — 소비자가 신뢰하는 카운트 상한을 곱 경로도 지키게 한다.
             let effectiveCount = min((current.count ?? 1) * (current.opCount ?? 1), Self.maxCount)
-            // 오퍼레이터 키 반복(dd)은 줄 단위 범위다.
-            if key == .char("d"), op == .delete {
-                return .replace([.edit(op, .line(count: effectiveCount))])
+            // 오퍼레이터 키 반복(dd/cc/yy)은 줄 단위 범위다. 혼합(dc, yd 등)은
+            // 문법에 없으므로 아래 invalid로 떨어진다.
+            if Self.operatorKeys[key] == op {
+                return complete(op, .line(count: effectiveCount))
             }
             if let motion = Self.operatorMotions[key] {
-                return .replace([.edit(op, .motion(motion, count: effectiveCount))])
+                return complete(op, .motion(motion, count: effectiveCount))
             }
             // 화이트리스트 밖은 전부 invalid — dq 같은 무효 키와 dj/dk/dG
             // (linewise — TextRange에 구분이 생길 때까지 이연)를 포함한다.
+            return .swallow
+        }
+
+        // 최상위 오퍼레이터 키(d/c/y) — op 슬롯을 채우고 다음 키를 기다린다.
+        if let op = Self.operatorKeys[key] {
+            var next = current
+            next.op = op
+            pending = next
             return .swallow
         }
 
@@ -161,11 +170,6 @@ public struct VimEngine: Sendable {
         case .char("g"):
             var next = current
             next.prefix = .g
-            pending = next
-            return .swallow
-        case .char("d"):
-            var next = current
-            next.op = .delete
             pending = next
             return .swallow
         case .char("x"):
@@ -200,6 +204,15 @@ public struct VimEngine: Sendable {
         return .passthrough
     }
 
+    /// 커맨드 완결 공통 경로 — change는 편집 출력과 함께 Insert로 전이한다
+    /// (`cc`/`c$`/`ciw` 전부, `a`/`A`의 전이+출력 동시 패턴과 동일).
+    private mutating func complete(_ op: VimAction.Operator, _ range: VimAction.TextRange) -> EngineOutput {
+        if op == .change {
+            mode = .insert
+        }
+        return .replace([.edit(op, range)])
+    }
+
     /// 탈출 modifier(예: Cmd/Opt)와 교집합이 있는 콤보인지 — Spotlight/Raycast 등
     /// 시스템 단축키 직후의 타이핑을 막지 않기 위해 이런 콤보는 Insert로 탈출시킨다.
     private func isEscapeCombo(_ key: Key) -> Bool {
@@ -225,6 +238,14 @@ public struct VimEngine: Sendable {
     private static func accumulate(_ count: Int?, digit: Int) -> Int {
         min((count ?? 0) * 10 + digit, maxCount)
     }
+
+    /// 최상위에서 op 슬롯을 여는 오퍼레이터 키. 오퍼레이터 대기 중 "자신의 키"
+    /// 반복(dd/cc/yy = 줄 범위) 판정에도 같은 테이블을 쓴다.
+    private static let operatorKeys: [Key: VimAction.Operator] = [
+        .char("d"): .delete,
+        .char("c"): .change,
+        .char("y"): .yank,
+    ]
 
     /// 오퍼레이터 뒤에 올 수 있는 모션 — charwise-safe 집합만. `j`/`k`/`G`는
     /// Vim에서 linewise 범위(`dj` = 두 줄 통삭제)인데 `TextRange.motion`엔
