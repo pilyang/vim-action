@@ -104,17 +104,20 @@ struct EventTapDecisionTests {
 
     private func assertDecision(_ fixture: EventTapDecisionFixture) throws {
         // 탭 설치와 무관한 순수 메서드 경로 — startIfPermitted를 호출하지 않는다.
-        let controller = EventTapController()
-        var lastResult: Unmanaged<CGEvent>?
-        for stroke in fixture.sequence {
-            let event = try #require(
-                CGEvent(keyboardEventSource: nil, virtualKey: stroke.virtualKey, keyDown: true),
-                "합성 CGEvent 생성 실패: \(fixture.name)"
-            )
-            event.flags = stroke.flags
-            lastResult = controller.handleKeyDown(event)
+        // 임시 suite 주입: .standard는 실기기 사용으로 영속된 설정이 새어 든다.
+        try withTemporaryDefaults { defaults in
+            let controller = EventTapController(defaults: defaults)
+            var lastResult: Unmanaged<CGEvent>?
+            for stroke in fixture.sequence {
+                let event = try #require(
+                    CGEvent(keyboardEventSource: nil, virtualKey: stroke.virtualKey, keyDown: true),
+                    "합성 CGEvent 생성 실패: \(fixture.name)"
+                )
+                event.flags = stroke.flags
+                lastResult = controller.handleKeyDown(event)
+            }
+            #expect((lastResult != nil) == fixture.lastKeyPassesThrough, "\(fixture.name)")
+            #expect(controller.mode == fixture.finalMode, "\(fixture.name)")
         }
-        #expect((lastResult != nil) == fixture.lastKeyPassesThrough, "\(fixture.name)")
-        #expect(controller.mode == fixture.finalMode, "\(fixture.name)")
     }
 }

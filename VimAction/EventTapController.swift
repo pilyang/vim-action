@@ -32,14 +32,78 @@ final class EventTapController {
     /// 현재 모드 — `handle` 후 `engine.mode`의 복사본. 메뉴바 글리프가 관찰한다.
     private(set) var mode: Mode = .insert
 
-    /// 엔진 소유 — UI 관찰 대상이 아니다. Configuration은 배선 단계 하드코딩 기본값
-    /// (제품 기본 on) — 안전장치 단계에서 설정 주입으로 교체.
-    @ObservationIgnored private var engine = VimEngine(
-        configuration: .init(normalModeEscapeModifiers: [.command, .option]))
+    /// 가로채기 마스터 토글 (UserDefaults 영속). off 의미론: 전부 통과(`handleKeyDown`
+    /// 최상단 가드) + 엔진 Insert 리셋 + 탭 포트 유지. 콜백의 `tapDisabledBy*`
+    /// 재활성화는 off 중에도 유지된다 (무해한 이중 안전망).
+    ///
+    /// 런타임 SSOT는 이 프로퍼티다 — defaults는 didSet이 쓰는 팔로워라, 실행 중
+    /// 외부 `defaults write`는 재시작까지 무시된다 (탈출 옵션 키는 반대로
+    /// UserDefaults가 SSOT — 소유 모델이 다름에 주의).
+    var isInterceptionEnabled: Bool {
+        didSet {
+            // didSet은 등가 대입에도 발화한다 — 가드 없이는 엔진 재생성·tapEnable이 중복 실행.
+            guard oldValue != isInterceptionEnabled else { return }
+            defaults.set(isInterceptionEnabled, forKey: PreferenceKeys.interceptionEnabled)
+            if isInterceptionEnabled {
+                // off 동안 시스템이 탭을 죽이면 콜백 자체가 안 와 감지 주체가 없다 —
+                // 복귀 시점에 선제 재활성화한다 (워치독 첫 폴링을 기다리지 않음).
+                // 이 분기는 TEST_HOST에서 포트가 항상 nil이라 로그가 유일한 관측 수단 —
+                // 하지 않은 재활성화를 성공처럼 남기면 안 된다.
+                if let port = tapPort {
+                    CGEvent.tapEnable(tap: port, enable: true)
+                    if CGEvent.tapIsEnabled(tap: port) {
+                        Logger.eventTap.info("가로채기 on — 탭 선제 재활성화")
+                    } else {
+                        Logger.eventTap.error("가로채기 on — tapEnable 후에도 탭 비활성 (가로채기 불능 상태)")
+                    }
+                } else {
+                    Logger.eventTap.notice(
+                        "가로채기 on — 탭 포트 없음, 재활성화 생략 (status=\(String(describing: self.status), privacy: .public))")
+                }
+            } else {
+                resetEngine()
+                Logger.eventTap.info("가로채기 off — 전부 통과, 엔진 Insert 리셋")
+            }
+            // 워치독(다음 항목): off→정지 / on→재가동 훅이 여기 들어간다.
+        }
+    }
+
+    /// 엔진 소유 — UI 관찰 대상이 아니다. 설정 변경 시 `updateConfiguration`으로 재생성.
+    @ObservationIgnored private var engine: VimEngine
+    @ObservationIgnored private var configuration: VimEngine.Configuration
+    @ObservationIgnored private let defaults: UserDefaults
 
     @ObservationIgnored private var tapPort: CFMachPort?
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
+
+    /// `defaults` 주입은 테스트용 — 실제 앱은 `.standard`. 테스트가 `.standard`를 쓰면
+    /// TEST_HOST가 앱 프로세스라 실기기에서 영속된 값이 새어 들어온다.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        self.isInterceptionEnabled = defaults.bool(
+            forKey: PreferenceKeys.interceptionEnabled, default: true)
+        let configuration = makeConfiguration(
+            normalModeEscapeEnabled: defaults.bool(
+                forKey: PreferenceKeys.normalModeEscapeEnabled,
+                default: PreferenceKeys.normalModeEscapeEnabledDefault))
+        self.configuration = configuration
+        self.engine = VimEngine(configuration: configuration)
+    }
+
+    /// 설정 변경 주입 — 엔진 재생성이라 모드는 Insert로 리셋된다 (설정 조작 중이므로 수용).
+    func updateConfiguration(_ configuration: VimEngine.Configuration) {
+        self.configuration = configuration
+        resetEngine()
+        // 사용자 가시 전이(모드 리셋 + 동작 변경) — 로그 없이는 "엔진 버그"와 구분 불가.
+        Logger.eventTap.info(
+            "엔진 재생성 — 설정 주입 (escapeModifiers=\(String(describing: configuration.normalModeEscapeModifiers), privacy: .public)), 모드 Insert 리셋")
+    }
+
+    private func resetEngine() {
+        engine = VimEngine(configuration: configuration)
+        if mode != .insert { mode = .insert }
+    }
 
     /// Accessibility 권한이 있을 때만 탭을 설치한다 (권한 없으면 설치 거부 — 불변식).
     func startIfPermitted() {
@@ -115,6 +179,10 @@ final class EventTapController {
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라
     /// internal이다 — 합성 CGEvent 시퀀스로 단위 테스트하는 계약.
     func handleKeyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+        // 마스터 토글 off — 번역 전에 전부 통과 (off 의미론).
+        guard isInterceptionEnabled else {
+            return Unmanaged.passUnretained(event)
+        }
         // 번역 불가는 무조건 통과 — 번역기 계약.
         guard let key = KeyTranslator.translate(event) else {
             return Unmanaged.passUnretained(event)

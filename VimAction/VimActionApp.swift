@@ -22,6 +22,11 @@ struct VimActionApp: App {
 
     var body: some Scene {
         MenuBarExtra {
+            Toggle("Enable Vim Keybindings", isOn: Binding(
+                get: { appState.eventTap.isInterceptionEnabled },
+                set: { appState.eventTap.isInterceptionEnabled = $0 }
+            ))
+            Divider()
             SettingsLink {
                 Text("Preferences…")
             }
