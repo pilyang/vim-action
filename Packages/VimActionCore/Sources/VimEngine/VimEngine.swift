@@ -129,8 +129,10 @@ public struct VimEngine: Sendable {
                 return .swallow
             }
 
-            // 유효 카운트는 두 카운트의 곱 — 2d3w = 6단어.
-            let effectiveCount = (current.count ?? 1) * (current.opCount ?? 1)
+            // 유효 카운트는 두 카운트의 곱 — 2d3w = 6단어. 곱은 개별 카운트의
+            // 9,999 클램프를 우회할 수 있어(9999d9999w ≈ 1e8) 동일 상한으로 다시
+            // 클램프한다 — 소비자가 신뢰하는 카운트 상한을 곱 경로도 지키게 한다.
+            let effectiveCount = min((current.count ?? 1) * (current.opCount ?? 1), Self.maxCount)
             // 오퍼레이터 키 반복(dd)은 줄 단위 범위다.
             if key == .char("d"), op == .delete {
                 return .replace([.edit(op, .line(count: effectiveCount))])

@@ -131,6 +131,42 @@ let deleteCountFixtures: [KeySequenceFixture] = [
         ],
         finalMode: .normal
     ),
+    // 곱은 개별 9,999 클램프를 우회할 수 있어(9999×9999 ≈ 1e8) 동일 상한으로
+    // 다시 클램프한다 — 모션·dd 두 소비 경로 모두 클램프된 값을 받는다.
+    KeySequenceFixture(
+        "9999d9999w → 곱(≈1e8)이 9,999로 클램프",
+        startMode: .normal,
+        steps: [
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("d"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("w"), .replace([.edit(.delete, .motion(.wordForward, count: 9_999))])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "9999d9999d → dd 곱도 9,999로 클램프",
+        startMode: .normal,
+        steps: [
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("d"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("d"), .replace([.edit(.delete, .line(count: 9_999))])),
+        ],
+        finalMode: .normal
+    ),
 ]
 
 @Test(arguments: deleteCountFixtures)
