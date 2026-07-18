@@ -21,7 +21,7 @@ final class EventTapController {
         case waitingForPermission
         /// 탭 활성.
         case running
-        /// 권한 외 원인으로 tapCreate 실패.
+        /// 권한 외 원인으로 tapCreate 실패, 또는 재활성화 후에도 탭 불능.
         case failed
         /// 종료 정리 후.
         case stopped
@@ -53,8 +53,13 @@ final class EventTapController {
                 if let port = tapPort {
                     CGEvent.tapEnable(tap: port, enable: true)
                     if CGEvent.tapIsEnabled(tap: port) {
+                        if status != .running { status = .running }
                         Logger.eventTap.info("가로채기 on — 탭 재활성화")
                     } else {
+                        // 탭 불능을 관찰 상태로 반영 — 글리프·레이블이 활성인 척하면 안 된다.
+                        // 자동 복구·상태 일원화는 워치독(다음 항목) 몫이고, 그 전까지는
+                        // 토글 off→on 재시도가 수동 복구 경로다.
+                        status = .failed
                         Logger.eventTap.error("가로채기 on — tapEnable 후에도 탭 비활성 (가로채기 불능 상태)")
                     }
                 } else {
