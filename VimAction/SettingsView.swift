@@ -48,11 +48,25 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                LabeledContent("Event Tap", value: appState.eventTap.status.displayName)
+                LabeledContent(
+                    "Event Tap",
+                    value: eventTapStatusText(
+                        status: eventTap.status, interceptionEnabled: eventTap.isInterceptionEnabled))
             }
         }
         .formStyle(.grouped)
         .frame(width: 420, height: 400)
+    }
+}
+
+/// "Event Tap" 행 문구를 (설치 상태, 가로채기 토글)에서 파생한다. `.running`은 탭
+/// 설치·헬스가 정상이라는 뜻일 뿐 가로채기 여부와 무관하므로, off일 땐 "Disabled"로
+/// 표시해야 실제 상태와 어긋나지 않는다 (AppState.menuBarGlyph의 파생과 같은 우선순위).
+/// status를 인자로 받는 순수 함수라 단위 테스트가 전 분기를 커버할 수 있다.
+func eventTapStatusText(status: EventTapController.Status, interceptionEnabled: Bool) -> String {
+    switch status {
+    case .running: interceptionEnabled ? "Running" : "Disabled"
+    default: status.displayName
     }
 }
 

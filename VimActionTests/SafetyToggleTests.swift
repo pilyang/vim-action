@@ -99,3 +99,24 @@ struct SafetyToggleTests {
         }
     }
 }
+
+/// Settings "Event Tap" 행 파생 — status가 private(set)이라 컨트롤러로는 .running을
+/// 만들 수 없으므로, 순수 함수를 직접 호출해 전 분기를 검증한다.
+struct EventTapStatusTextTests {
+    @Test(".running: 가로채기 on이면 Running, off면 Disabled")
+    func runningDerivesFromInterceptionToggle() {
+        #expect(eventTapStatusText(status: .running, interceptionEnabled: true) == "Running")
+        #expect(eventTapStatusText(status: .running, interceptionEnabled: false) == "Disabled")
+    }
+
+    @Test(".running 외 상태는 토글과 무관하게 자기 문구")
+    func nonRunningIgnoresToggle() {
+        for enabled in [true, false] {
+            #expect(
+                eventTapStatusText(status: .waitingForPermission, interceptionEnabled: enabled)
+                    == "Waiting for Permission")
+            #expect(eventTapStatusText(status: .failed, interceptionEnabled: enabled) == "Failed")
+            #expect(eventTapStatusText(status: .stopped, interceptionEnabled: enabled) == "Stopped")
+        }
+    }
+}
