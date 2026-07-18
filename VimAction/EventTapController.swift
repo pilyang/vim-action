@@ -165,9 +165,13 @@ final class EventTapController {
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0)
         runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: port, enable: true)
+        // 설치 시점에도 off 의미론을 지킨다 — persisted off로 부팅하거나 권한이 나중에
+        // 부여돼 이 경로가 뒤늦게 돌 때, 무조건 enable하면 off 상태인데 탭이 살아 키가
+        // 메인 스레드 콜백을 왕복한다 (didSet off 분기와 같은 규칙: 포트 유지·탭 비활성).
+        CGEvent.tapEnable(tap: port, enable: isInterceptionEnabled)
 
-        Logger.eventTap.info("탭 설치 완료 (secureInput=\(IsSecureEventInputEnabled()))")
+        Logger.eventTap.info(
+            "탭 설치 완료 (secureInput=\(IsSecureEventInputEnabled()), 가로채기=\(self.isInterceptionEnabled))")
         status = .running
 
         if terminationObserver == nil {
