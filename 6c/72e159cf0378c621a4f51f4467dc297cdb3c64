@@ -1,0 +1,22 @@
+VimActionTests/SafetyToggleTests.swift
+  s_8f37a123c164aa::t_78c26a1467d7fb 102-122
+VimAction/SettingsView.swift
+  s_8f37a123c164aa::t_6af45d1956e0c0 62-72
+  s_8f37a123c164aa::t_1929cb7b1b5ee3 51-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "6c72e159cf0378c621a4f51f4467dc297cdb3c64",
+  "prompts": {},
+  "sessions": {
+    "s_8f37a123c164aa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c3638b6f-f7f1-4a7a-a92d-2d19d24eba0d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
