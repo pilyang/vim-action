@@ -1,0 +1,19 @@
+Packages/VimActionCore/Tests/VimEngineTests/EditFixtures.swift
+  s_580c7a59ae9bb3::t_100a077f34817e 46-47,49-57,59,63,66-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "2990649b04b9795be75d9aae84666e6f7b93c29d",
+  "prompts": {},
+  "sessions": {
+    "s_580c7a59ae9bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d8bc7ae5-e8fc-4d77-8996-8954d94b5666",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}

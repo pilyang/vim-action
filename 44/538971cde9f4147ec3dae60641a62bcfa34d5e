@@ -1,0 +1,22 @@
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_580c7a59ae9bb3::t_7325d1991e2e16 129-140,142-144
+  s_580c7a59ae9bb3::t_15b45911c8747e 162-171
+Packages/VimActionCore/Tests/VimEngineTests/CountFixtures.swift
+  s_580c7a59ae9bb3::t_b91c5a48580f6d 1-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "44538971cde9f4147ec3dae60641a62bcfa34d5e",
+  "prompts": {},
+  "sessions": {
+    "s_580c7a59ae9bb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d8bc7ae5-e8fc-4d77-8996-8954d94b5666",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
