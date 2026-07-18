@@ -1,0 +1,47 @@
+VimAction/Preferences.swift
+  s_3d5842776ac07b::t_201e6ee1d73440 10-12
+  s_3d5842776ac07b::t_7daccf5360faf2 15,17-20
+  s_3d5842776ac07b::t_011f1627ac5cc8 1-9,13-14,16,21-35
+VimAction/SettingsView.swift
+  s_3d5842776ac07b::t_1aee0889488d5f 27-32
+  s_3d5842776ac07b::t_c85661bcee0861 58-59,63-65
+  s_3d5842776ac07b::t_4559dd6d841b6b 60-62
+  s_3d5842776ac07b::t_f8e18be6cffb04 14
+  s_3d5842776ac07b::t_f07214be67f9c8 15
+  s_3d5842776ac07b::t_181540a4122ea8 12-13,16
+VimAction/VimActionApp.swift
+  s_3d5842776ac07b::t_15f81e8fee1e53 25-29
+VimActionTests/SafetyToggleTests.swift
+  s_3d5842776ac07b::t_4ad39672f23ab5 74-76
+  s_3d5842776ac07b::t_c4927efd15fd3b 1-68,70-73,77-91,94-104,106-111
+  s_3d5842776ac07b::t_e9a42f81820137 92-93
+  s_3d5842776ac07b::t_f8e18be6cffb04 69,105
+VimAction/EventTapController.swift
+  s_3d5842776ac07b::t_3ad6cf693ccaa7 88-89
+  s_3d5842776ac07b::t_7f243ff5710be8 182-185
+  s_3d5842776ac07b::t_f8e18be6cffb04 46,85
+  s_3d5842776ac07b::t_6e7dd773895a9d 35-37,42-45,47-49,52-53,62-74,80-84,86-87,90-97,101-106
+  s_3d5842776ac07b::t_6e2d8dbfc7c3e0 98-100
+  s_3d5842776ac07b::t_be4cbbb925780e 38-41,50-51,54-61
+  s_3d5842776ac07b::t_20b43b4cd01039 107
+VimActionTests/EventTapDecisionTests.swift
+  s_3d5842776ac07b::t_7a857807c12b58 107-120
+VimAction/AppState.swift
+  s_3d5842776ac07b::t_7e995d2466695a 38-40,42-43,48-49,51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "4b9ab2fd8a4be704084b8236ce063623f04714aa",
+  "prompts": {},
+  "sessions": {
+    "s_3d5842776ac07b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d5c3b614-9b2d-47bc-9fef-ab28f9ea100b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
