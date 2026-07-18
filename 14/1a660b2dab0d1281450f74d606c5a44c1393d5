@@ -1,0 +1,24 @@
+.claude/skills/plans/references/20260714_engine-tap-wiring.md
+  s_ca85732c4cfed7::t_78ab22788f0c9c 90
+VimAction/VimActionApp.swift
+  s_ca85732c4cfed7::t_807401cedb8455 25-26
+VimAction/SettingsView.swift
+  s_ca85732c4cfed7::t_fb9c7f4fdd65a5 18
+  s_ca85732c4cfed7::t_9497a513cfc486 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "141a660b2dab0d1281450f74d606c5a44c1393d5",
+  "prompts": {},
+  "sessions": {
+    "s_ca85732c4cfed7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9f12f60b-5d1b-4797-8b7e-2e9024bf0143",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
