@@ -1,0 +1,20 @@
+VimAction/EventTapController.swift
+  s_ca85732c4cfed7::t_0e833b96357810 24
+  s_ca85732c4cfed7::t_28689fc4155e7e 56,59-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "69195d94a0b9be7c4049a17130cf019379c3631b",
+  "prompts": {},
+  "sessions": {
+    "s_ca85732c4cfed7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9f12f60b-5d1b-4797-8b7e-2e9024bf0143",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
