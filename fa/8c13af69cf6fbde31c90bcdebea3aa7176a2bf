@@ -1,0 +1,19 @@
+.gitignore
+  s_597579e78d9500::t_f0573c69d5b08d 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "fa8c13af69cf6fbde31c90bcdebea3aa7176a2bf",
+  "prompts": {},
+  "sessions": {
+    "s_597579e78d9500": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dfb8bf76-9732-442f-88aa-45376917be16",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
