@@ -15,16 +15,14 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        @Bindable var eventTap = appState.eventTap
         Form {
             Section("VimAction") {
                 LabeledContent("Version", value: appVersion)
             }
             Section("Behavior") {
                 // 값·엔진 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 가로채기 토글과 동일 모델.
-                Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: Binding(
-                    get: { appState.eventTap.isNormalModeEscapeEnabled },
-                    set: { appState.eventTap.isNormalModeEscapeEnabled = $0 }
-                ))
+                Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
                 Text("After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
