@@ -19,7 +19,8 @@ final class EventTapController {
     enum Status: Equatable {
         /// Accessibility 미허용 — 불변식에 따라 설치 거부 상태.
         case waitingForPermission
-        /// 탭 활성.
+        /// 탭 설치·헬스 정상. 가로채기 on/off는 이 상태가 아니라 `isInterceptionEnabled`가
+        /// 표현한다 — off로 설치돼 탭이 비활성이어도 설치 자체가 정상이면 `.running`이다.
         case running
         /// 권한 외 원인으로 tapCreate 실패, 또는 재활성화 후에도 탭 불능.
         case failed
@@ -50,18 +51,8 @@ final class EventTapController {
                 // (워치독 첫 폴링을 기다리지 않음).
                 // 이 분기는 TEST_HOST에서 포트가 항상 nil이라 로그가 유일한 관측 수단 —
                 // 하지 않은 재활성화를 성공처럼 남기면 안 된다.
-                if let port = tapPort {
-                    CGEvent.tapEnable(tap: port, enable: true)
-                    if CGEvent.tapIsEnabled(tap: port) {
-                        if status != .running { status = .running }
-                        Logger.eventTap.info("가로채기 on — 탭 재활성화")
-                    } else {
-                        // 탭 불능을 관찰 상태로 반영 — 글리프·레이블이 활성인 척하면 안 된다.
-                        // 자동 복구·상태 일원화는 워치독(다음 항목) 몫이고, 그 전까지는
-                        // 토글 off→on 재시도가 수동 복구 경로다.
-                        status = .failed
-                        Logger.eventTap.error("가로채기 on — tapEnable 후에도 탭 비활성 (가로채기 불능 상태)")
-                    }
+                if tapPort != nil {
+                    enableTapAndVerify(reason: "가로채기 on")
                 } else {
                     // 포트가 없다 = tapCreate가 (권한 외 원인으로) 실패했거나 아직 설치 전.
                     // off→on 토글이 문서화된 수동 복구 경로이므로, 로그만 남기지 말고
@@ -173,14 +164,20 @@ final class EventTapController {
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0)
         runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        Logger.eventTap.info(
+            "탭 설치 완료 (secureInput=\(IsSecureEventInputEnabled()), 가로채기=\(self.isInterceptionEnabled))")
         // 설치 시점에도 off 의미론을 지킨다 — persisted off로 부팅하거나 권한이 나중에
         // 부여돼 이 경로가 뒤늦게 돌 때, 무조건 enable하면 off 상태인데 탭이 살아 키가
         // 메인 스레드 콜백을 왕복한다 (didSet off 분기와 같은 규칙: 포트 유지·탭 비활성).
-        CGEvent.tapEnable(tap: port, enable: isInterceptionEnabled)
-
-        Logger.eventTap.info(
-            "탭 설치 완료 (secureInput=\(IsSecureEventInputEnabled()), 가로채기=\(self.isInterceptionEnabled))")
-        status = .running
+        if isInterceptionEnabled {
+            // enable 성공을 검증한 뒤에만 .running으로 — 검증 없이 .running을 찍으면
+            // (예: 설치 시점 secure input) 탭이 죽었는데 UI가 활성인 척한다.
+            enableTapAndVerify(reason: "탭 설치")
+        } else {
+            CGEvent.tapEnable(tap: port, enable: false)
+            // 탭 설치·헬스는 정상 — 가로채기 off는 status가 아니라 토글이 표현한다.
+            status = .running
+        }
 
         if terminationObserver == nil {
             terminationObserver = NotificationCenter.default.addObserver(
@@ -212,9 +209,34 @@ final class EventTapController {
         // off 중에는 되살리지 않는다 — off가 탭을 비활성화하므로 여기서 재활성화하면
         // 안전장치가 풀린다 (비활성화 직전 in-flight 통지가 이 가드에 걸린다).
         guard isInterceptionEnabled else { return }
-        guard let port = tapPort else { return }
+        enableTapAndVerify(reason: "시스템이 탭 비활성화(type=\(type.rawValue))")
+    }
+
+    /// tapEnable(true) → tapIsEnabled 검증 → status 전이의 단일 지점. on 복귀·설치·
+    /// 시스템 재활성화 세 경로가 공유한다 — 검증 없이 tapEnable만 하면 실제로는 죽은
+    /// 탭을 .running으로 표시(UI 거짓)하게 된다. `.running`은 "탭 설치·헬스 정상"을
+    /// 뜻하고, 가로채기 on/off는 `isInterceptionEnabled`가 별도로 표현한다.
+    ///
+    /// 자동 재확인(일시적 실패 후 재시도)은 워치독 몫 — 여기서는 정직한 상태 전이까지만
+    /// 하고, 실패 후 복구는 토글 off→on 재시도(또는 워치독)로 이뤄진다.
+    ///
+    /// 워치독은 백그라운드 큐에서 도므로 이 @MainActor 헬퍼를 그대로 재사용하지 못한다 —
+    /// tapEnable/tapIsEnabled는 bg에서 직접 호출하고 status 반영만 메인으로 홉해야 한다.
+    @discardableResult
+    private func enableTapAndVerify(reason: String) -> Bool {
+        guard let port = tapPort else { return false }
         CGEvent.tapEnable(tap: port, enable: true)
-        Logger.eventTap.info("시스템이 탭 비활성화(type=\(type.rawValue)) — 재활성화")
+        let live = CGEvent.tapIsEnabled(tap: port)
+        if live {
+            // 등가 가드 — @Observable은 등가 대입에도 발화하므로 반복 성공 시 과발화 방지.
+            if status != .running { status = .running }
+            Logger.eventTap.info("\(reason, privacy: .public) — 탭 재활성화")
+        } else {
+            // 실패 분기에도 등가 가드 — tapDisabledBy* 반복 실패가 콜백 경로에서 돌 수 있다.
+            if status != .failed { status = .failed }
+            Logger.eventTap.error("\(reason, privacy: .public) — tapEnable 후에도 탭 비활성 (가로채기 불능)")
+        }
+        return live
     }
 
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라
