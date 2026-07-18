@@ -14,6 +14,7 @@
 - [x] 설계 모델 결정·기록 — 문법 기반 누적 빌더 채택, 대안(케이스 열거·트라이·raw 버퍼) 기각 ([결정 문서](../../decisions/references/20260714_multikey-command-grammar-builder.md))
 - [x] **구체 구현 계획 + 인터페이스 확정** (2026-07-17) — 아래 "확정 인터페이스"·"규칙"·"TDD 단계". 착수 기준선 확보 (agents mode 실행 대상).
 - [x] **플랜 리뷰 반영** (2026-07-17): Esc 정확 매치 규칙 + Cmd+Esc 회귀 핀(Phase 0), count×절대 모션·`3gg` 의미 확정(Phase 1 핀), escapeCombo 선행 전제의 기록 항목(Phase 6) — 자율 실행 시 재량 판단이 필요하던 스펙 구멍 봉합.
+- [x] **Phase 0~6 구현 완료** (2026-07-17): 확정 인터페이스·규칙 그대로 구현, swift test 21 스위트 전체 그린 + 앱 빌드 확인. PR ① [#7](https://github.com/pilyang/vim-action/pull/7) (Phase 0 — `.edit` 계약 선고정, base: main) → PR ② (Phase 1~6, base: multikey-phase0, stacked). decisions 기록 2건: [.edit 출력 형태](../../decisions/references/20260717_vimaction-edit-output-shape.md), [취소 최우선 순서 전제](../../decisions/references/20260717_cancellation-first-ordering-premise.md). architecture [mode-engine.md](../../architecture/references/mode-engine.md) 최종 상태 갱신 완료. 구현 중 인터페이스 조정 없음 (x 전용 케이스 승격 불필요 확인).
 
 ## 확정 인터페이스 (구현 착수 기준선)
 
@@ -110,15 +111,12 @@ D. 최상위 (op·prefix 없음, count만 있을 수 있음):
 - **invalid** = pending과 그 키를 함께 버리는 no-op `.swallow` (기존 `pending-invalid-sequence-noop` 규칙 일반화).
 - **count 무시(mode-change)**: `3i` 류 반복 삽입은 범위 밖 — 선행 count가 있어도 i/a/I/A는 그냥 Insert 진입.
 
-## 남은 것 — TDD 단계 (각 단계 끝에 `swift test` 그린)
+## 남은 것
 
-- [ ] **Phase 0 — 타입/발판 리팩터 (무동작, 회귀 핀만)**: 위 신규 타입 추가(`.edit`/`Operator`/`TextRange`/`TextObject`) + `Pending` enum → `PendingCommand` 구조체 전환 + `resolve`를 `취소 최우선 + step` 구조로 재배선. **새 키 없음** — 기존 픽스처 전부 그대로 통과가 성공 기준(리팩터를 기존 테스트로 방어). 단 **Cmd+Esc 회귀 핀 1건은 여기서 추가**(현재 동작 핀: escapeCombo로 passthrough+Insert — Esc 정확 매치 규칙이 재배선에서 base 매치로 잘못 구현되면 이 픽스처가 잡는다). `.edit` 케이스를 여기서 먼저 도입해 Plan-1 접점 조기 확정.
-- [ ] **Phase 1 — 카운트**: `3w`→move×3, `3j`, `10j`(0-규칙, `1`→`0`→`j`), `0` 단독=lineStart 유지, **카운트 클램프**(`99999j`→move×9999), **절대 모션 핀**(`3G`→move(.documentEnd)×3 반복 수용, `3gg`→count 무시 documentStart 단일 — 위 규칙 참고), 카운트 후 무효/취소. GREEN: `count` 슬롯 + 모션 반복 + 클램프.
-- [ ] **Phase 2 — `x`/`3x`**: `.edit(.delete,.motion(.charRight,count:))` 첫 사용. edit 출력 계약 최소 검증.
-- [ ] **Phase 3 — `d`+모션·`dd`·카운트 곱**: `dw`/`d$`/`d0`/`de`, `dd`/`2dd`/`3dd`, `d3w`/`2d3w`, `d`후 Esc(취소), `d`후 무효(`dq`→no-op, **`dj`→no-op** — linewise 이연 핀). GREEN: `op`/`opCount` 슬롯, dd operator-repeat, `eff` 곱, opMotion 화이트리스트.
-- [ ] **Phase 4 — 텍스트 오브젝트 `diw`/`daw`**: `diw`→inner, `daw`→around, `di`후 Esc(취소), `di`후 무효 object-char(`diq`→no-op). GREEN: `.textObjectScope` prefix + object-char `w`.
-- [ ] **Phase 5 — 취소 깊이 매트릭스 전수**: Esc/escapeCombo를 각 깊이(카운트 입력 중, `d` 후, `di` 후, `d3` 후)에서 픽스처로 전수 + no-macOS-import 가드(`EngineInvariantTests`)·기존 회귀 핀 전부 그린 재확인. REFACTOR 정리.
-- [ ] **Phase 6 — 기록·정리**: architecture `mode-engine.md` 최종 상태 갱신(PendingCommand 모델 + edit 출력 반영) → decisions에 **확정된 `VimAction.edit` 형태** 기록(결정 문서가 "구현 시 확정"으로 남긴 항목) + **규칙 1(취소 최우선)의 전제 기록**: escapeCombo를 모든 매핑보다 선행시키는 순서는 "현재 매핑에 modifier 콤보 키가 없다"는 사실 위에서만 동작 동치 — 향후 `Ctrl-d`(half-page) 등 modifier 매핑 추가 시 이 순서를 재검토해야 함 → 이 플랜 완료 처리(plans 완료 플로우).
+- [ ] PR ① [#7](https://github.com/pilyang/vim-action/pull/7) 머지 (Phase 0, base: main) → PR ② main으로 리타깃 후 머지 (Phase 1~6 + 문서화)
+- [ ] 머지 후 이 플랜 완료 처리 — 사용자 확인 후 삭제 (plans 워크플로우 4)
+
+(TDD Phase 0~6 자체는 전부 구현 완료 — "완료된 것" 참고. 상세 스펙 기록은 결정 문서 2건과 architecture mode-engine.md로 이관됨.)
 
 ## 회귀 핀 (절대 깨지면 안 됨)
 

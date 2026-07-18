@@ -22,7 +22,7 @@ let modeTransitionFixtures: [KeySequenceFixture] = [
     KeySequenceFixture(
         "Normal에서 매핑 안 된 키는 삼키고 Normal 유지",
         startMode: .normal,
-        steps: [step(.char("x"), .swallow)],
+        steps: [step(.char("q"), .swallow)],
         finalMode: .normal
     ),
     KeySequenceFixture(
