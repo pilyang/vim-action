@@ -141,7 +141,6 @@ public struct VimEngine: Sendable {
 
     /// 탈출 modifier(예: Cmd/Opt)와 교집합이 있는 콤보인지 — Spotlight/Raycast 등
     /// 시스템 단축키 직후의 타이핑을 막지 않기 위해 이런 콤보는 Insert로 탈출시킨다.
-    /// Normal의 미매핑 콤보 분기와 pending 해소 분기가 같은 판정을 공유한다.
     private func isEscapeCombo(_ key: Key) -> Bool {
         !key.modifiers.isDisjoint(with: configuration.normalModeEscapeModifiers)
     }
