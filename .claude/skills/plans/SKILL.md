@@ -50,4 +50,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
 | 2026-07-14 | 2026-07-19 | 엔진↔탭 연결 + 탭 워치독 (MVP 2차) | 탭→엔진 배선(swallow/passthrough 적용) + CGEvent→Key 번역 + 워치독 + 안전장치(토글·modifier 탈출 옵션). **배선 완료(PR #8 머지, 실기기 GREEN)** — 다음은 안전장치(토글·설정)→워치독→최종 검증→기록 | [20260714_engine-tap-wiring.md](references/20260714_engine-tap-wiring.md) |
-| 2026-07-14 | 2026-07-17 | 멀티키 커맨드 빌더 | diw·dd·카운트 지원용 pending 일반화(문법 빌더) + 취소 규칙 명시화 + VimAction 오퍼레이터 출력 확장. **Phase 0~6 구현·문서화 완료** (swift test 그린, decisions 2건·architecture 갱신) — 남은 것: PR #7(Phase 0)·PR ②(stacked) 머지 후 플랜 완료 처리 | [20260714_multikey-command-builder.md](references/20260714_multikey-command-builder.md) |
+| 2026-07-19 | 2026-07-19 | 엔진 확장 — c/y 오퍼레이터·텍스트 오브젝트·linewise | c/y 오퍼레이터 일반화(cc/yy, change→Insert 전이) + quote·pair 텍스트 오브젝트 + linewise TextRange(dj/dk/dG/dgg). 엔진 타깃 전용 — Plan-1과 worktree 병렬용, 실기기 불필요·완전 자율 실행 가능. 확정 설계 포함, 미착수 | [20260719_engine-operators-textobjects-linewise.md](references/20260719_engine-operators-textobjects-linewise.md) |
