@@ -10,7 +10,7 @@ public struct VimEngine: Sendable {
         /// 선행 카운트 — `3w`의 3, `2dd`의 2.
         var count: Int?
         /// 대기 중인 오퍼레이터 — `d`.
-        var op: Operator?
+        var op: VimAction.Operator?
         /// 오퍼레이터 뒤 카운트 — `d3w`의 3. 유효 카운트는 두 카운트의 곱이다 (`2d3w` = 6).
         var opCount: Int?
         /// 완결 키 하나를 기다리는 접두. `op` 유무로 두 케이스가 구분된다.
@@ -20,7 +20,7 @@ public struct VimEngine: Sendable {
             /// `g` — `gg` 대기 (`op == nil`일 때만).
             case g
             /// `di`/`da` 후 오브젝트 키 대기 (`op != nil` 보장).
-            case textObjectScope(TextObject.Scope)
+            case textObjectScope(VimAction.TextObject.Scope)
         }
     }
 
@@ -88,12 +88,20 @@ public struct VimEngine: Sendable {
         pending = nil
 
         // 접두(prefix)는 완결 키 하나만 기다린다 — 다른 어떤 매핑보다 먼저 본다.
+        // 케이스 망라 switch라 Prefix가 늘면 여기서 컴파일이 깨진다 — 새 접두가
+        // 아래 일반 매핑으로 새는 실수를 타입으로 막는다.
         // `gi` 같은 실제 Vim 커맨드도 지원 전까지는 invalid로 떨어진다.
-        if case .g = current.prefix {
-            if key == .char("g") {
-                return .replace([.move(.documentStart)])
+        if let prefix = current.prefix {
+            switch prefix {
+            case .g:
+                if key == .char("g") {
+                    return .replace([.move(.documentStart)])
+                }
+                return .swallow
+            case .textObjectScope:
+                // 생산 경로 없음 — `di`/`da`를 만드는 Phase 3에서 구현한다.
+                return .swallow
             }
-            return .swallow
         }
 
         switch key {
