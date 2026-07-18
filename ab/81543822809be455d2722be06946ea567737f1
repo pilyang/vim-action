@@ -1,0 +1,24 @@
+VimAction/EventTapController.swift
+  s_8f37a123c164aa::t_714af44b5c786b 66-69,71-72
+  s_8f37a123c164aa::t_66076f36f4e88b 141-143
+VimAction/TestEnvironment.swift
+  s_8f37a123c164aa::t_4876a3d606d141 1-14
+VimAction/AppState.swift
+  s_8f37a123c164aa::t_92c00b677a0b6c 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "ab81543822809be455d2722be06946ea567737f1",
+  "prompts": {},
+  "sessions": {
+    "s_8f37a123c164aa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c3638b6f-f7f1-4a7a-a92d-2d19d24eba0d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
