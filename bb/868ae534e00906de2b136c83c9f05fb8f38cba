@@ -1,0 +1,33 @@
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_f6bc062bcc5991::t_f71278fe197269 149-156
+  s_f6bc062bcc5991::t_8474f8bf23b1a3 242-249
+  s_f6bc062bcc5991::t_55b673d83e071b 136-139,142
+  s_f6bc062bcc5991::t_0bec30e88414b7 207-215
+  s_f6bc062bcc5991::t_eedd06be030bd6 12
+  s_f6bc062bcc5991::t_047b37b1680ca3 105
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_f6bc062bcc5991::t_34c8ae6c840bb8 10-12
+Packages/VimActionCore/Tests/VimEngineTests/OperatorFixtures.swift
+  s_f6bc062bcc5991::t_8e35f13b11bd0d 1-230
+Packages/VimActionCore/Tests/VimEngineTests/CancellationFixtures.swift
+  s_f6bc062bcc5991::t_20c08975a9804e 23-25
+.claude/skills/plans/references/20260719_engine-operators-textobjects-linewise.md
+  s_f6bc062bcc5991::t_8deb6bc0794d4f 15
+  s_f6bc062bcc5991::t_f15a66d25efb60 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "bb868ae534e00906de2b136c83c9f05fb8f38cba",
+  "prompts": {},
+  "sessions": {
+    "s_f6bc062bcc5991": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fd63e91c-e1d5-41d8-a09d-575826883258",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
