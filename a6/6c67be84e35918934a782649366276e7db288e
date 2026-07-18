@@ -1,0 +1,37 @@
+VimAction/EventTapController.swift
+  s_ca85732c4cfed7::t_6c9ca79a5af98c 49-50,56
+  s_ca85732c4cfed7::t_65b555c4b8a735 105-109,115-116
+  s_ca85732c4cfed7::t_ed1dfaf6b2c485 77-89
+  s_ca85732c4cfed7::t_e9b1d8da22de14 195-197
+  s_ca85732c4cfed7::t_a5750593a04c38 66-71
+  s_ca85732c4cfed7::t_aabc05ffa671dc 35-39,42
+VimAction/Preferences.swift
+  s_ca85732c4cfed7::t_5bb638d611ca01 9-10,17
+VimActionTests/SafetyToggleTests.swift
+  s_ca85732c4cfed7::t_62d4c0eccf4be9 81-82,88,90
+VimAction/SettingsView.swift
+  s_ca85732c4cfed7::t_b0057ec1b92f10 23-27
+.claude/skills/plans/references/20260714_engine-tap-wiring.md
+  s_ca85732c4cfed7::t_dbf3c81a76545e 80
+  s_ca85732c4cfed7::t_32700fe503e31d 58,60-62,64
+  s_ca85732c4cfed7::t_c0dbafc0252c68 90
+  s_ca85732c4cfed7::t_219c2276fdad12 4
+.claude/skills/plans/SKILL.md
+  s_ca85732c4cfed7::t_21a2e84e936617 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "a66c67be84e35918934a782649366276e7db288e",
+  "prompts": {},
+  "sessions": {
+    "s_ca85732c4cfed7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9f12f60b-5d1b-4797-8b7e-2e9024bf0143",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
