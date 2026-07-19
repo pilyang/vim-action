@@ -1,0 +1,34 @@
+VimActionTests/TapWatchdogTests.swift
+  s_23346c40f0cdee::t_df1ce8a2f70519 25-26,35-36,44-45,49-60
+  s_23346c40f0cdee::t_39582c0778428b 76
+  s_23346c40f0cdee::t_d1717ebdafbb6c 61-62
+VimActionTests/SafetyToggleTests.swift
+  s_23346c40f0cdee::t_d99b743e49c629 112-120
+VimAction/AppState.swift
+  s_23346c40f0cdee::t_aa9d42f12522c5 38-40,42-48,53-61
+VimAction/EventTapController.swift
+  s_23346c40f0cdee::t_b2261bf9a0e183 27-30
+  s_23346c40f0cdee::t_7c9adb75938a69 363-364
+  s_23346c40f0cdee::t_6a2f9ff559b76f 270-274
+  s_23346c40f0cdee::t_583ac65383dab0 321-322
+  s_23346c40f0cdee::t_5829d34287ed0b 370-373,376-377,380
+  s_23346c40f0cdee::t_c047298d604963 400-404
+VimAction/SettingsView.swift
+  s_23346c40f0cdee::t_c218663aacb136 68-71,84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "0a9958817b16ed395b47babac78d0ed4d05f08ec",
+  "prompts": {},
+  "sessions": {
+    "s_23346c40f0cdee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11dd7917-7c96-41a1-adfd-9a356ea7e8cc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
