@@ -115,13 +115,14 @@ public struct VimEngine: Sendable {
             // 있는데 표현할 수 없다. 파괴적 편집이라 오해석 대신 invalid로
             // 이연한다 (d3G와 같은 기준).
             guard current.count == nil && current.opCount == nil else { return .swallow }
-            if key == .char("w"), let op = current.op {
+            guard let op = current.op else { return .swallow }
+            if key == .char("w") {
                 return complete(op, .textObject(.word(scope)))
             }
-            if let quote = Self.quoteObjectKeys[key], let op = current.op {
+            if let quote = Self.quoteObjectKeys[key] {
                 return complete(op, .textObject(.quote(quote, scope)))
             }
-            if let pair = Self.pairObjectKeys[key], let op = current.op {
+            if let pair = Self.pairObjectKeys[key] {
                 return complete(op, .textObject(.pair(pair, scope)))
             }
             return .swallow
