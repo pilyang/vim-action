@@ -130,6 +130,15 @@ public struct VimEngine: Sendable {
             break
         }
 
+        // g — op 유무와 무관하게 같은 prefix extend다 (gg / dgg). 카운트
+        // invalid 판정은 완결 시점(둘째 g)의 몫이다.
+        if key == .char("g") {
+            var next = current
+            next.prefix = .g
+            pending = next
+            return .swallow
+        }
+
         // 오퍼레이터 대기 — 뒤에 올 수 있는 건 스코프(i/a)·카운트·모션·
         // 오퍼레이터 키(dd) 뿐이다.
         if let op = current.op {
@@ -173,14 +182,6 @@ public struct VimEngine: Sendable {
                 guard current.count == nil && current.opCount == nil else { return .swallow }
                 return complete(op, .linewiseMotion(.documentEnd, count: 1))
             }
-            // g — dgg(linewise documentStart)를 위해 op-pending에서도 prefix로
-            // extend한다. 카운트 invalid 판정은 완결 시점(둘째 g)의 몫이다.
-            if key == .char("g") {
-                var next = current
-                next.prefix = .g
-                pending = next
-                return .swallow
-            }
             // 화이트리스트 밖은 전부 invalid — dq 같은 무효 키를 포함한다.
             return .swallow
         }
@@ -206,11 +207,6 @@ public struct VimEngine: Sendable {
         case .char("A"):
             mode = .insert
             return .replace([.move(.lineEndForAppend)])
-        case .char("g"):
-            var next = current
-            next.prefix = .g
-            pending = next
-            return .swallow
         case .char("x"):
             // 전용 케이스 없이 delete-over-motion 재사용 — 카운트는 반복이 아니라
             // 범위의 count로 담는다 (3x = 3문자를 한 편집 단위로).
