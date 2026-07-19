@@ -13,6 +13,9 @@
 
 - [x] 플랜 수립 + 확정 설계 (2026-07-19, 사용자 요청 — 병렬 후보 1·2번 채택)
 - [x] **c/y 오퍼레이터 일반화** (2026-07-19, `swift test` GREEN + 리뷰 패널 3종 통과) — `operatorKeys` 테이블(진입·자기 키 반복 공용), `complete` 헬퍼(change→Insert 전이 단일화), `OperatorFixtures.swift` 34케이스 + 취소 매트릭스 `c`/`ci` 깊이 추가. `cg`/`cj` 이연 핀은 linewise 단계에서 갱신될 churn을 사용자 승인 하에 추가.
+- [x] **텍스트 오브젝트 확장** (2026-07-19, 커밋 8b886bb, `swift test` GREEN) — quote(double/single/backtick)·pair(paren/bracket/brace/angle) + 별칭 키 테이블, **카운트+텍스트 오브젝트 invalid(word 포함)** — 확정 설계에 없던 공백을 플랜 리뷰에서 발견, 사용자 확정(파괴적 오해석 방지, d3G와 같은 기준). `TextObjectFixtures.swift`.
+- [x] **linewise TextRange** (2026-07-19, 커밋 cb76a41, `swift test` GREEN + 리뷰 패널 3종 통과 — 지적은 낡은 주석 1건뿐, 4efc9b9 반영) — additive `.linewiseMotion`, 상대(j/k) 카운트 곱·절대(G/gg)+카운트 invalid, op-pending `g` extend(카운트 판정은 완결 시점 — extend 거름은 잔류 pending 유발). 기존 `dj`/`dg`/`cj`/`cg` 이연 핀 갱신, 취소 매트릭스 `dg` 깊이 추가. `LinewiseFixtures.swift`.
+- [x] **기록** (2026-07-19) — decisions 3건(change Insert 전이+cw 이연 / TextObject 확장+카운트 invalid / linewise+절대 카운트 invalid) + `mode-engine.md` 최종 상태 갱신(키셋·이연 문구 해소·픽스처 파일 목록).
 
 ## 확정 설계 (구현 착수 기준선)
 
@@ -59,9 +62,7 @@ case linewiseMotion(Motion, count: Int)
 
 ## 남은 것
 
-- [ ] **텍스트 오브젝트 확장**: quote·pair. GREEN: `swift test`.
-- [ ] **linewise TextRange**: `.linewiseMotion` + 화이트리스트 + `dgg` 문법. GREEN: `swift test`.
-- [ ] **기록**: decisions 3건(change의 Insert 전이 + cw 특례 어댑터 이연 — **change 완결 즉시 전이와 어댑터 실행의 인터리빙 리스크·"어댑터는 change 삭제 실행 후 후속 이벤트 처리" 계약 명시(사용자 확인됨)** / TextObject 확장 형태와 키 매핑 경계 / linewise 표현 + 절대-모션-카운트 invalid 기준) + architecture `mode-engine.md` 갱신(구현 키셋·opMotion 이연 문구 해소·타입 목록).
+(없음 — 전 항목 완료. 브랜치 `feat/engine-textobjects-linewise`의 PR/머지와 플랜 완료 처리(삭제)만 남음, 사용자 확인 대기.)
 
 ## 진행 중 컨텍스트
 
