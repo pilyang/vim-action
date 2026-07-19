@@ -31,7 +31,7 @@ public enum VimAction: Hashable, Sendable {
     /// 따옴표 안/포함, 괄호 중첩 처리)는 어댑터가 정하며, 엔진은 종류와 스코프만 낸다.
     public enum TextObject: Hashable, Sendable {
         case word(Scope)
-        /// 따옴표 오브젝트 — `ci"`/`da'`/`yi``.
+        /// 따옴표 오브젝트 — `ci"`/`da'`/``yi` ``.
         case quote(Quote, Scope)
         /// 괄호쌍 오브젝트 — `ci(`/`da[`/`yiB`. 여닫이 어느 쪽 키로 완결해도 같은 kind다.
         case pair(Pair, Scope)
