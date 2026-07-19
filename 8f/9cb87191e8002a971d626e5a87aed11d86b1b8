@@ -1,0 +1,34 @@
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_23346c40f0cdee::t_22393f7702c314 3
+  s_23346c40f0cdee::t_94e7b38efb2164 30-31
+.claude/skills/plans/references/20260719_dedicated-tap-runloop-thread.md
+  s_23346c40f0cdee::t_fa3491f6987f25 1-28
+.claude/skills/decisions/references/20260719_watchdog-stall-gate-post-stall-recovery.md
+  s_23346c40f0cdee::t_29100a39a57e8f 1-31
+.claude/skills/plans/references/20260714_engine-tap-wiring.md
+  s_23346c40f0cdee::t_c4a115979f3e99 4
+  s_23346c40f0cdee::t_55fe90ce59b653 78-80
+  s_23346c40f0cdee::t_7eef491230d601 102-103
+.claude/skills/decisions/references/20260719_secure-input-status.md
+  s_23346c40f0cdee::t_8d0267af8a5764 1-24
+.claude/skills/plans/SKILL.md
+  s_23346c40f0cdee::t_3baeb15d65ed06 54
+.claude/skills/decisions/SKILL.md
+  s_23346c40f0cdee::t_7ffbd7087bde79 58-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8f9cb87191e8002a971d626e5a87aed11d86b1b8",
+  "prompts": {},
+  "sessions": {
+    "s_23346c40f0cdee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11dd7917-7c96-41a1-adfd-9a356ea7e8cc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
