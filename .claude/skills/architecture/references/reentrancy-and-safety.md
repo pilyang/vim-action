@@ -1,6 +1,6 @@
 # 재진입과 안전장치
 
-- **Last updated**: 2026-07-12
+- **Last updated**: 2026-07-19
 
 ## 현재 구조
 
@@ -27,8 +27,8 @@ sequenceDiagram
 2. **예외 폭주 자동 비활성화** — 엔진·어댑터의 모든 호출 지점을 카운터로 감싸고, 1초 창에서 예외 ≥5회면 가로채기 비활성화 후 알림.
 3. **동작별 AX 타임아웃** — 3ms 하드 캡 ([strategy-dispatch.md](strategy-dispatch.md)).
 4. **깔끔한 SIGTERM 처리** — 종료 전 탭 제거, 대롱거리는 탭 방지.
-5. **보안 입력 인식** — `IsSecureEventInputEnabled()`가 true(비밀번호 필드 등)면 가로채기 중단 + 흐릿한 인디케이터.
-6. **탭 자동복구 워치독** — 콜백의 `tapDisabledBy*` 재활성화는 콜백이 전달되지 못하는 완전 정지/장기 스톨에서는 무력하다. 별도 타이머로 `CGEventTapIsEnabled()`를 주기 폴링해 꺼져 있으면 다시 켠다 ([20260713_tap-reenable-watchdog-polling.md](../../decisions/references/20260713_tap-reenable-watchdog-polling.md)).
+5. **보안 입력 인식** — 탭 비활성의 원인이 `IsSecureEventInputEnabled()`(비밀번호 필드 등)면 재활성화를 시도하지 않고 전용 상태 `Status.secureInput`으로 표시한다(메뉴바 `lock.square`, Settings "Secure Input"). 고장(`.failed`)이 아닌 보호 상태이며, 해제 후엔 워치독 다음 폴링이 복귀시킨다. 표시 우선순위: 탭 고장 > 토글 off > Secure Input ([20260719_secure-input-status.md](../../decisions/references/20260719_secure-input-status.md)).
+6. **탭 자동복구 워치독** — 콜백의 `tapDisabledBy*` 재활성화는 콜백이 전달되지 못하는 완전 정지/장기 스톨에서는 무력하다. 별도 백그라운드 타이머로 `CGEventTapIsEnabled()`를 주기 폴링해(2초), **정지/스톨이 풀린 뒤에도** 죽은 채 방치된 탭을 다시 켠다 ([20260713_tap-reenable-watchdog-polling.md](../../decisions/references/20260713_tap-reenable-watchdog-polling.md)). 스톨 "중"에는 재활성화를 보류한다(스톨 게이트 — 직전 status 홉 미소비를 신호로 틱 스킵): 탭 소스가 메인 런루프에 있어 스톨 중 되살린 탭은 키를 처리하지 못한 채 잡아두기만 하기 때문. status 홉은 FIFO(`main.async`), 토글 off의 최종 disable은 워치독 시리얼 큐 뒤에 게시해 in-flight 틱 경합을 봉인한다 ([20260719_watchdog-stall-gate-post-stall-recovery.md](../../decisions/references/20260719_watchdog-stall-gate-post-stall-recovery.md)).
 
 권한: 접근성 확인은 매 실행 시 `AXIsProcessTrustedWithOptions`로 수행하고, 권한이 없으면 이벤트 탭 설치를 거부한다.
 
