@@ -225,7 +225,7 @@ func deleteInvalids(_ fixture: KeySequenceFixture) {
 }
 
 // 텍스트 오브젝트 — 오퍼레이터 뒤 i/a는 Insert 진입이 아니라 스코프 접두다.
-// 1차 오브젝트는 word(w)만.
+// 여기는 word 오브젝트와 스코프 경로만 — quote/pair는 `TextObjectFixtures.swift`가 담당한다.
 let textObjectFixtures: [KeySequenceFixture] = [
     KeySequenceFixture(
         "diw → delete inner word",
