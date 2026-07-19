@@ -24,6 +24,7 @@ private let pendingDepths: [(label: String, keys: [Key])] = [
     ("오퍼레이터 대기(c)", [.char("c")]),
     ("스코프 대기(ci)", [.char("c"), .char("i")]),
     ("오퍼레이터 카운트 입력 중(d3)", [.char("d"), .char("3")]),
+    ("linewise g 대기(dg)", [.char("d"), .char("g")]),
     ("전체 슬롯 사용 중(2d3)", [.char("2"), .char("d"), .char("3")]),
 ]
 
