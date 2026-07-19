@@ -23,10 +23,27 @@ public enum VimAction: Hashable, Sendable {
         case line(count: Int)
     }
 
-    /// 텍스트 오브젝트. 경계의 실제 의미(단어의 정의, 주변 공백 포함 범위)는
-    /// 어댑터가 정하며, 엔진은 종류와 스코프만 낸다.
+    /// 텍스트 오브젝트. 경계의 실제 의미(단어의 정의, 주변 공백 포함 범위,
+    /// 따옴표 안/포함, 괄호 중첩 처리)는 어댑터가 정하며, 엔진은 종류와 스코프만 낸다.
     public enum TextObject: Hashable, Sendable {
         case word(Scope)
+        /// 따옴표 오브젝트 — `ci"`/`da'`/`yi``.
+        case quote(Quote, Scope)
+        /// 괄호쌍 오브젝트 — `ci(`/`da[`/`yiB`. 여닫이 어느 쪽 키로 완결해도 같은 kind다.
+        case pair(Pair, Scope)
+
+        public enum Quote: Hashable, Sendable {
+            case double
+            case single
+            case backtick
+        }
+
+        public enum Pair: Hashable, Sendable {
+            case paren
+            case bracket
+            case brace
+            case angle
+        }
 
         /// `i`(inner: 오브젝트 본체만) / `a`(around: 주변 공백 포함).
         public enum Scope: Hashable, Sendable {

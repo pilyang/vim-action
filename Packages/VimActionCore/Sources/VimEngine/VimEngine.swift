@@ -101,9 +101,19 @@ public struct VimEngine: Sendable {
             return .swallow
         case .textObjectScope(let scope):
             // 오퍼레이터+i/a(di/ci/ya 등)로만 진입하므로 op != nil이 보장된다.
-            // 1차 오브젝트는 word만.
+            //
+            // 카운트+오브젝트(d2i(·3diw 등)는 Vim 의미(괄호 중첩 단계·단어 수)가
+            // 있는데 표현할 수 없다. 파괴적 편집이라 오해석 대신 invalid로
+            // 이연한다 (d3G와 같은 기준).
+            guard current.count == nil && current.opCount == nil else { return .swallow }
             if key == .char("w"), let op = current.op {
                 return complete(op, .textObject(.word(scope)))
+            }
+            if let quote = Self.quoteObjectKeys[key], let op = current.op {
+                return complete(op, .textObject(.quote(quote, scope)))
+            }
+            if let pair = Self.pairObjectKeys[key], let op = current.op {
+                return complete(op, .textObject(.pair(pair, scope)))
             }
             return .swallow
         case nil:
@@ -261,6 +271,22 @@ public struct VimEngine: Sendable {
         .char("0"): .lineStart,
         .char("^"): .lineFirstNonBlank,
         .char("$"): .lineEnd,
+    ]
+
+    /// 스코프 접두(i/a) 뒤 quote 오브젝트 완결 키.
+    private static let quoteObjectKeys: [Key: VimAction.TextObject.Quote] = [
+        .char("\""): .double,
+        .char("'"): .single,
+        .char("`"): .backtick,
+    ]
+
+    /// 스코프 접두(i/a) 뒤 pair 오브젝트 완결 키 — 여닫이 양쪽 키와
+    /// Vim 별칭(b=paren, B=brace)을 모두 인정한다.
+    private static let pairObjectKeys: [Key: VimAction.TextObject.Pair] = [
+        .char("("): .paren, .char(")"): .paren, .char("b"): .paren,
+        .char("["): .bracket, .char("]"): .bracket,
+        .char("{"): .brace, .char("}"): .brace, .char("B"): .brace,
+        .char("<"): .angle, .char(">"): .angle,
     ]
 
     /// pending 없이 단일 키로 완결되는 모션. `Key`의 Hashable 매칭이라
