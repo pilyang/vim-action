@@ -66,12 +66,18 @@ final class EventTapController {
             } else {
                 resetEngine()
                 // cancel을 비활성화보다 먼저 — 이후 새 폴링은 안 뜨므로, 남는 경합은
-                // in-flight 핸들러 하나뿐이고 그건 applyWatchdogResult의 off 가드가 되돌린다.
+                // in-flight 핸들러 하나뿐.
                 stopWatchdog()
                 // off = 스트림 해방. 비활성화 없이 통과만 하면 모든 키가 여전히 메인 스레드
                 // 콜백을 왕복해, 앱이 오동작(스톨)할 때 끄는 안전장치 목적을 못 지킨다.
                 if let port = tapPort {
                     CGEvent.tapEnable(tap: port, enable: false)
+                    // in-flight 틱이 위 disable 직후 탭을 되살릴 수 있다. 최종 disable을
+                    // 워치독 시리얼 큐 *뒤에* 걸어 "마지막 동작은 반드시 disable"을 큐
+                    // 순서로 보장한다 — applyWatchdogResult의 off 가드는 메인 홉이라
+                    // 메인 스톨 중엔 못 닫는 경합을 이 경로가 메인 무관하게 닫는다.
+                    nonisolated(unsafe) let offPort = port
+                    watchdogQueue.async { CGEvent.tapEnable(tap: offPort, enable: false) }
                 }
                 Logger.eventTap.info("가로채기 off — 탭 비활성화, 엔진 Insert 리셋")
             }
