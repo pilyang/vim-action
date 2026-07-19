@@ -1,0 +1,24 @@
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_5f15927ef1d179::t_d69c4eabb587f5 26-27,30-46
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_5f15927ef1d179::t_8d586155cd4ca9 276-291
+  s_5f15927ef1d179::t_0cf8985e331c2e 104-108,112-117
+Packages/VimActionCore/Tests/VimEngineTests/TextObjectFixtures.swift
+  s_5f15927ef1d179::t_4e1a8e31fee827 1-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "8b886bb56a50b392d436eeda4c8f3bfe2d8b8409",
+  "prompts": {},
+  "sessions": {
+    "s_5f15927ef1d179": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f8045ede-164c-4cdc-9906-33002b6bd293",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
