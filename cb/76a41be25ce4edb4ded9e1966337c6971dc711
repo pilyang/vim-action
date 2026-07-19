@@ -1,0 +1,34 @@
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_5f15927ef1d179::t_3d4cb4785fd2b0 20-21
+  s_5f15927ef1d179::t_f11b65ebac450a 96,98-107
+  s_5f15927ef1d179::t_a7a8e13f5c4d83 288-290
+  s_5f15927ef1d179::t_3f6742bf5c3214 164-183
+  s_5f15927ef1d179::t_59c490c7cf12aa 302-308
+Packages/VimActionCore/Tests/VimEngineTests/EditFixtures.swift
+  s_5f15927ef1d179::t_8359331515e437 43-44
+  s_5f15927ef1d179::t_c8ae8840ea8ad1 207-208,210,215
+Packages/VimActionCore/Tests/VimEngineTests/LinewiseFixtures.swift
+  s_5f15927ef1d179::t_129735bf962fba 1-242
+Packages/VimActionCore/Tests/VimEngineTests/CancellationFixtures.swift
+  s_5f15927ef1d179::t_caf2f30e81e6d5 27
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_5f15927ef1d179::t_31ff1a91f5a1f3 24-27
+Packages/VimActionCore/Tests/VimEngineTests/OperatorFixtures.swift
+  s_5f15927ef1d179::t_70b5fbf7a31eb1 193-194,207,212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "cb76a41be25ce4edb4ded9e1966337c6971dc711",
+  "prompts": {},
+  "sessions": {
+    "s_5f15927ef1d179": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f8045ede-164c-4cdc-9906-33002b6bd293",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
