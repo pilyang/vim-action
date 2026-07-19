@@ -49,5 +49,5 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-07-14 | 2026-07-19 | 엔진↔탭 연결 + 탭 워치독 (MVP 2차) | 탭→엔진 배선(swallow/passthrough 적용) + CGEvent→Key 번역 + 워치독 + 안전장치(토글·modifier 탈출 옵션). **배선·안전장치 완료(PR #8·#10 머지, 실기기 GREEN)** — 다음은 탭 워치독→최종 검증→기록 | [20260714_engine-tap-wiring.md](references/20260714_engine-tap-wiring.md) |
+| 2026-07-14 | 2026-07-19 | 엔진↔탭 연결 + 탭 워치독 (MVP 2차) | 탭→엔진 배선(swallow/passthrough 적용) + CGEvent→Key 번역 + 워치독 + 안전장치(토글·modifier 탈출 옵션). **배선·안전장치·워치독 완료(워치독은 실기기 GREEN까지, 커밋/PR 대기)** — 다음은 워치독 커밋/PR→최종 검증→기록 | [20260714_engine-tap-wiring.md](references/20260714_engine-tap-wiring.md) |
 | 2026-07-19 | 2026-07-19 | 엔진 확장 — c/y 오퍼레이터·텍스트 오브젝트·linewise | c/y 오퍼레이터 일반화(cc/yy, change→Insert 전이) + quote·pair 텍스트 오브젝트 + linewise TextRange(dj/dk/dG/dgg). 엔진 타깃 전용 — Plan-1과 worktree 병렬용, 실기기 불필요·완전 자율 실행 가능. 확정 설계 포함, 미착수 | [20260719_engine-operators-textobjects-linewise.md](references/20260719_engine-operators-textobjects-linewise.md) |
