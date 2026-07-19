@@ -108,9 +108,14 @@ final class EventTapController {
 
     /// 탭 워치독 — 콜백 재활성화가 못 덮는 실패 모드(완전 정지/장기 스톨은 `tapDisabledBy*`
     /// 통지 자체가 유실됨) 대응으로 탭 활성 여부를 백그라운드에서 주기 폴링한다.
+    /// 복구 시점은 정지/스톨이 풀린 뒤다 — 스톨 "중"에는 재활성화를 보류한다 (스톨 게이트).
     @ObservationIgnored private var watchdogTimer: DispatchSourceTimer?
     @ObservationIgnored private let watchdogQueue =
         DispatchQueue(label: "dev.pilyang.VimAction.tapWatchdog", qos: .utility)
+    /// 스톨 게이트의 신호: 직전 틱의 status 홉이 아직 메인에서 소비되지 않았으면 true.
+    /// bg 틱이 세우고 메인 홉이 내린다 — 잠금은 두 스레드 간 가시성·원자성용.
+    @ObservationIgnored private nonisolated let watchdogHopPending =
+        OSAllocatedUnfairLock(initialState: false)
 
     /// `defaults` 주입은 테스트용 — 실제 앱은 `.standard`. 테스트가 `.standard`를 쓰면
     /// TEST_HOST가 앱 프로세스라 실기기에서 영속된 값이 새어 들어온다.
@@ -269,10 +274,15 @@ final class EventTapController {
     /// 워치독 가동 — 게이팅은 "탭 설치됨 && 토글 on" (status 무관 — .failed여도 돌아야
     /// 일시적 실패가 다음 폴링에서 자동 재확인된다).
     ///
+    /// 목적: 완전 정지/장기 스톨 중 OS가 끈 탭은 `tapDisabledBy*` 통지가 유실돼 콜백
+    /// 재활성화가 못 살린다 — 정지가 *풀린 뒤에도* 죽은 채 방치되는 탭을 폴링으로
+    /// 감지해 복구한다. 스톨 "중"의 복구는 목적이 아니다: 탭 소스가 메인 런루프에
+    /// 있어 스톨 중 되살린 탭은 키를 처리하지 못한다 (핸들러의 스톨 게이트 주석 참고).
+    ///
     /// 핵심 불변식: 폴링·재활성화는 전용 백그라운드 큐에서 `tapIsEnabled`/`tapEnable`을
-    /// 직접 호출한다 — 메인 스레드 스톨 복구가 워치독의 존재 이유라, 폴링이 메인에
-    /// 의존하면 정확히 그 실패 모드에서 무력화된다. status 반영만 fire-and-forget
-    /// `Task { @MainActor }` 홉 (폴링은 메인을 기다리지 않는다).
+    /// 직접 호출한다 — SIGSTOP류 완전 정지에서 깨어난 직후, 메인 큐 적체와 무관하게
+    /// 첫 틱이 즉시 복구·로그할 수 있어야 한다. status 반영만 main.async 홉
+    /// (폴링은 메인을 기다리지 않는다).
     private func startWatchdog() {
         guard watchdogTimer == nil, isInterceptionEnabled, let tapPort else { return }
         // CFMachPort 강캡처 — 스레드 안전 C API 대상이라 bg 호출이 안전하고, stop()이
@@ -288,6 +298,15 @@ final class EventTapController {
         // 강캡처된 port만 쓰므로 weak 전환의 기능 비용은 없다.
         timer.setEventHandler { [weak self] in
             guard let self else { return }
+            // 스톨 게이트: 직전 홉이 아직 메인에서 소비되지 않았다 = 메인이 ≥1 폴링
+            // 주기만큼 적체(스톨)됐다. 이때는 틱을 통째로 건너뛴다 —
+            // ① 재활성화 보류: 탭 소스가 메인 런루프에 있어 스톨 중 되살린 탭은 키를
+            //    처리하지 못한 채 ~1초씩 잡아두다 OS에 다시 꺼진다 (2초마다 타이핑
+            //    지연만 반복하며 OS 보호와 싸움). 꺼진 탭은 키를 즉시 통과시키므로
+            //    스톨 중엔 그대로 두는 게 올바른 degrade다.
+            // ② 홉 미적재: 장기 스톨에 홉이 2초당 1건씩 메인 큐에 붇는 것을 막는다
+            //    (pending 최대 1건). 복구는 스톨 해소 → 홉 소진 → 다음 틱(≤2초)이 한다.
+            guard !watchdogHopPending.withLock({ $0 }) else { return }
             let observation = Self.watchdogTick(
                 isEnabled: { CGEvent.tapIsEnabled(tap: port) },
                 enableAndVerify: { Self.enableAndCheck(port) }
@@ -304,8 +323,11 @@ final class EventTapController {
             //
             // 홉은 main.async — unstructured Task의 메인 액터 실행 순서는 FIFO 보장이
             // 없어, 탭이 flap하면 낡은 dead 홉이 최신 홉을 덮어쓸 수 있다. GCD
-            // 메인 큐는 FIFO라 이 버그 클래스가 없다.
+            // 메인 큐는 FIFO라 이 버그 클래스가 없다 (스톨 게이트의 pending ≤1건과
+            // 합쳐 홉 순서 문제가 이중으로 봉인된다).
+            watchdogHopPending.withLock { $0 = true }
             DispatchQueue.main.async {
+                self.watchdogHopPending.withLock { $0 = false }
                 MainActor.assumeIsolated { self.applyWatchdogResult(observation) }
             }
         }
