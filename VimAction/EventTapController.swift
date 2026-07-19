@@ -274,9 +274,12 @@ final class EventTapController {
         let timer = DispatchSource.makeTimerSource(queue: watchdogQueue)
         timer.schedule(
             deadline: .now() + .seconds(2), repeating: .seconds(2), leeway: .milliseconds(500))
-        // self→timer→handler→self 리테인 사이클은 cancel이 핸들러를 해제하며 끊어진다 —
-        // 컨트롤러는 앱 수명 객체고 종료 시 stop()이 cancel을 보장.
-        timer.setEventHandler { [self] in
+        // [weak self]: 핸들러가 self를 잡으면 self→timer→handler→self 사이클이 cancel에만
+        // 의존한다 — stop() 없는 해제 경로가 생기는 순간 좀비 워치독이 2초마다 탭을
+        // 되살리는 최악 부류의 누수라, 사이클 자체를 두지 않는다. CGEvent 호출은 별도
+        // 강캡처된 port만 쓰므로 weak 전환의 기능 비용은 없다.
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
             var live = CGEvent.tapIsEnabled(tap: port)
             if !live {
                 CGEvent.tapEnable(tap: port, enable: true)
@@ -289,9 +292,15 @@ final class EventTapController {
                 }
             }
             // 매 폴링 홉: 비활성 감지 시에만 홉하면 "탭은 살았는데 status만 .failed"인
-            // 낡은 래치(토글 경합의 늦은 홉 덮어쓰기 등)를 영원히 못 고친다. 항상 관측값을
-            // 흘려 status↔실제가 ≤2초 내 수렴시키고, 등가 가드가 과발화를 흡수한다.
-            Task { @MainActor in applyWatchdogResult(live: live) }
+            // 낡은 래치를 영원히 못 고친다. 항상 관측값을 흘려 status↔실제가 ≤2초 내
+            // 수렴시키고, 등가 가드가 과발화를 흡수한다.
+            //
+            // 홉은 main.async — unstructured Task의 메인 액터 실행 순서는 FIFO 보장이
+            // 없어, 탭이 flap하면 낡은 live=false 홉이 최신 홉을 덮어쓸 수 있다. GCD
+            // 메인 큐는 FIFO라 이 버그 클래스가 없다.
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self.applyWatchdogResult(live: live) }
+            }
         }
         timer.resume()
         watchdogTimer = timer
