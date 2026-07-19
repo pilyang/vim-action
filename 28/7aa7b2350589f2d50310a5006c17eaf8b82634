@@ -1,0 +1,36 @@
+.claude/skills/decisions/references/20260719_textobject-quote-pair-expansion.md
+  s_5f15927ef1d179::t_582ca66c1422b6 1-27
+.claude/skills/plans/SKILL.md
+  s_5f15927ef1d179::t_553f7b367522b7 53
+.claude/skills/decisions/references/20260719_linewise-textrange-absolute-count-invalid.md
+  s_5f15927ef1d179::t_cc89a719d384ea 1-33
+.claude/skills/decisions/SKILL.md
+  s_5f15927ef1d179::t_21682a7ce26bec 58-60
+.claude/skills/decisions/references/20260719_change-insert-transition-and-cw-deferral.md
+  s_5f15927ef1d179::t_b9b7b40eed9127 1-27
+.claude/skills/plans/references/20260719_engine-operators-textobjects-linewise.md
+  s_5f15927ef1d179::t_4bd9b19c7b95cd 16-18
+  s_5f15927ef1d179::t_9073753e99796e 65
+.claude/skills/architecture/references/mode-engine.md
+  s_5f15927ef1d179::t_f28056d2dff339 32
+  s_5f15927ef1d179::t_28995cb9ed1072 52
+  s_5f15927ef1d179::t_d471219dcc8312 28-29
+  s_5f15927ef1d179::t_302559ec5e29f4 3
+  s_5f15927ef1d179::t_0f65bcc532e559 25-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "287aa7b2350589f2d50310a5006c17eaf8b82634",
+  "prompts": {},
+  "sessions": {
+    "s_5f15927ef1d179": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f8045ede-164c-4cdc-9906-33002b6bd293",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
