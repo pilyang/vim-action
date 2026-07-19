@@ -65,7 +65,10 @@ struct SettingsView: View {
 /// status를 인자로 받는 순수 함수라 단위 테스트가 전 분기를 커버할 수 있다.
 func eventTapStatusText(status: EventTapController.Status, interceptionEnabled: Bool) -> String {
     switch status {
-    case .running: interceptionEnabled ? "Running" : "Disabled"
+    // .secureInput도 토글 off면 "Disabled" — 사용자가 끈 상태가 OS 일시 억제 표시보다
+    // 우선한다 (AppState.menuBarGlyph와 같은 우선순위).
+    case .running, .secureInput:
+        interceptionEnabled ? status.displayName : "Disabled"
     default: status.displayName
     }
 }
@@ -78,6 +81,7 @@ private extension EventTapController.Status {
         case .running: "Running"
         case .failed: "Failed"
         case .stopped: "Stopped"
+        case .secureInput: "Secure Input"
         }
     }
 }

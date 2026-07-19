@@ -35,19 +35,30 @@ final class AppState {
     }
 
     /// 메뉴바 글리프 — 탭이 안 돌면 비활성(square.dashed), 토글 off면 square.slash,
-    /// 그 외 모드 글리프 (PRD §7.7 최소 구현). 탭 비활성이 토글보다 우선한다 —
-    /// 탭이 안 돌면 토글 상태와 무관하게 가로채기가 불가능하기 때문.
+    /// Secure Input 억제 중이면 lock.square, 그 외 모드 글리프 (PRD §7.7 최소 구현).
+    /// 우선순위: 탭 고장 > 토글 off > Secure Input — 고장이면 토글과 무관하게 가로채기
+    /// 불가능하고, 사용자가 끈 상태(off)는 OS의 일시 억제 표시보다 우선한다.
     var menuBarGlyph: String {
-        guard eventTap.status == .running else { return "square.dashed" }
-        return eventTap.isInterceptionEnabled ? eventTap.mode.menuBarGlyph : "square.slash"
+        switch eventTap.status {
+        case .running, .secureInput:
+            guard eventTap.isInterceptionEnabled else { return "square.slash" }
+            return eventTap.status == .secureInput ? "lock.square" : eventTap.mode.menuBarGlyph
+        default:
+            return "square.dashed"
+        }
     }
 
     /// VoiceOver 등 사람이 읽는 메뉴바 상태 문구.
     var menuBarAccessibilityLabel: String {
-        guard eventTap.status == .running else { return "VimAction — inactive" }
-        return eventTap.isInterceptionEnabled
-            ? "VimAction — \(eventTap.mode.displayName) mode"
-            : "VimAction — disabled"
+        switch eventTap.status {
+        case .running, .secureInput:
+            guard eventTap.isInterceptionEnabled else { return "VimAction — disabled" }
+            return eventTap.status == .secureInput
+                ? "VimAction — paused for secure input"
+                : "VimAction — \(eventTap.mode.displayName) mode"
+        default:
+            return "VimAction — inactive"
+        }
     }
 }
 

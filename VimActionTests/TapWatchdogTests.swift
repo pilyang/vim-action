@@ -22,7 +22,8 @@ struct TapWatchdogTests {
             enableAndVerify: {
                 enableAttempted = true
                 return true
-            })
+            },
+            isSecureInput: { false })
         #expect(observation == .live)
         #expect(!enableAttempted)
     }
@@ -31,7 +32,8 @@ struct TapWatchdogTests {
     func tickDeadTapRecovers() {
         let observation = EventTapController.watchdogTick(
             isEnabled: { false },
-            enableAndVerify: { true })
+            enableAndVerify: { true },
+            isSecureInput: { false })
         #expect(observation == .recovered)
     }
 
@@ -39,8 +41,23 @@ struct TapWatchdogTests {
     func tickDeadTapStaysDead() {
         let observation = EventTapController.watchdogTick(
             isEnabled: { false },
-            enableAndVerify: { false })
+            enableAndVerify: { false },
+            isSecureInput: { false })
         #expect(observation == .dead)
+    }
+
+    @Test("비활성 원인이 Secure Input: 재활성화 미시도 + .secureInput")
+    func tickSecureInputSkipsEnable() {
+        var enableAttempted = false
+        let observation = EventTapController.watchdogTick(
+            isEnabled: { false },
+            enableAndVerify: {
+                enableAttempted = true
+                return true
+            },
+            isSecureInput: { true })
+        #expect(observation == .secureInput)
+        #expect(!enableAttempted)
     }
 
     // MARK: - applyWatchdogResult 가드
@@ -56,6 +73,7 @@ struct TapWatchdogTests {
             controller.applyWatchdogResult(.live)
             controller.applyWatchdogResult(.recovered)
             controller.applyWatchdogResult(.dead)
+            controller.applyWatchdogResult(.secureInput)
             #expect(controller.status == before)
         }
     }

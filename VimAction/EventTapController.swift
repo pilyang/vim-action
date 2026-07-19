@@ -24,6 +24,10 @@ final class EventTapController {
         case running
         /// 권한 외 원인으로 tapCreate 실패, 또는 재활성화 후에도 탭 불능.
         case failed
+        /// 탭 설치는 정상이나 OS Secure Event Input(비밀번호 입력 등)이 키보드 탭을
+        /// 억제 중 — 고장이 아니라 보호 상태다. 워치독은 재활성화를 보류하고(OS 보호와
+        /// 싸우지 않음), 해제되면 다음 폴링(≤2초)이 자동 복귀시킨다.
+        case secureInput
         /// 종료 정리 후.
         case stopped
     }
@@ -263,6 +267,11 @@ final class EventTapController {
             // 등가 가드 — @Observable은 등가 대입에도 발화하므로 반복 성공 시 과발화 방지.
             if status != .running { status = .running }
             Logger.eventTap.info("\(reason, privacy: .public) — 탭 재활성화")
+        } else if IsSecureEventInputEnabled() {
+            // 실패 원인이 OS 보호(비밀번호 입력 등)면 고장이 아니다 — 워치독 틱의
+            // secureInput 판정과 같은 규칙. 해제 후 복귀는 워치독 폴링 몫.
+            if status != .secureInput { status = .secureInput }
+            Logger.eventTap.info("\(reason, privacy: .public) — Secure Input 활성, 탭 활성화 보류")
         } else {
             // 실패 분기에도 등가 가드 — tapDisabledBy* 반복 실패가 콜백 경로에서 돌 수 있다.
             if status != .failed { status = .failed }
@@ -309,7 +318,8 @@ final class EventTapController {
             guard !watchdogHopPending.withLock({ $0 }) else { return }
             let observation = Self.watchdogTick(
                 isEnabled: { CGEvent.tapIsEnabled(tap: port) },
-                enableAndVerify: { Self.enableAndCheck(port) }
+                enableAndVerify: { Self.enableAndCheck(port) },
+                isSecureInput: { IsSecureEventInputEnabled() }
             )
             if observation == .recovered {
                 // 성공 로그만 bg에서 직접 — 희귀 이벤트라 스팸 불가능하고, 메인 스톨
@@ -350,16 +360,24 @@ final class EventTapController {
         case recovered
         /// 재활성화 후에도 비활성 — 가로채기 불능.
         case dead
+        /// 탭 비활성이나 Secure Event Input이 원인 — 재활성화 미시도 (OS 보호 존중).
+        case secureInput
     }
 
     /// 워치독 틱의 판정 로직 — CGEvent 의존을 클로저로 주입받는 순수 함수. 실탭 경로는
     /// TEST_HOST 포트가 항상 nil이라 CI에서 도달 불가하므로, 판정만 분리해 단위 테스트한다
     /// (타이머 스케줄·실탭 결합은 실기기 GREEN 몫). 프로덕션 주입은 `startWatchdog` 핸들러.
+    ///
+    /// Secure Input 확인은 탭이 죽어 있을 때만 — 비활성의 원인이 OS 보호(비밀번호 입력
+    /// 등)면 재활성화를 시도하지 않는다. 시도하면 매 2초 거부→.failed 반복으로 정상
+    /// 보호 동작이 고장(false failure)처럼 표시된다.
     nonisolated static func watchdogTick(
         isEnabled: () -> Bool,
-        enableAndVerify: () -> Bool
+        enableAndVerify: () -> Bool,
+        isSecureInput: () -> Bool
     ) -> WatchdogObservation {
         if isEnabled() { return .live }
+        if isSecureInput() { return .secureInput }
         return enableAndVerify() ? .recovered : .dead
     }
 
@@ -379,6 +397,11 @@ final class EventTapController {
         switch observation {
         case .live, .recovered:
             if status != .running { status = .running }
+        case .secureInput:
+            if status != .secureInput {
+                status = .secureInput
+                Logger.eventTap.info("워치독 — Secure Input 활성, 재활성화 보류 (OS 보호)")
+            }
         case .dead:
             if status != .failed {
                 status = .failed
