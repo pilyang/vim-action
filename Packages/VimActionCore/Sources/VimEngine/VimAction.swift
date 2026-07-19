@@ -21,6 +21,10 @@ public enum VimAction: Hashable, Sendable {
         case textObject(TextObject)
         /// 현재 줄부터 count줄 — `dd`, `2dd`.
         case line(count: Int)
+        /// 줄 단위 모션 범위 — `dj`(현재+아래 줄), `dG`(현재부터 마지막 줄까지).
+        /// 총 몇 줄인지의 해석은 어댑터 몫이다. 절대 모션(G/gg)은 항상 count 1로만
+        /// 나온다 — 카운트가 붙으면 엔진이 invalid로 이연한다.
+        case linewiseMotion(Motion, count: Int)
     }
 
     /// 텍스트 오브젝트. 경계의 실제 의미(단어의 정의, 주변 공백 포함 범위,

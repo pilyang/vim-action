@@ -40,9 +40,8 @@ func deleteChar(_ fixture: KeySequenceFixture) {
     expectFixture(fixture)
 }
 
-// `d`+모션 — 오퍼레이터 뒤에 valid한 모션은 charwise-safe 집합(w e $ 0 h l b ^)만.
-// j/k/G는 Vim에서 linewise 범위인데 TextRange.motion엔 그 구분이 없어 어댑터가
-// 의미를 복원할 수 없으므로 invalid로 이연한다.
+// `d`+모션 — 오퍼레이터 뒤 charwise 모션은 charwise-safe 집합(w e $ 0 h l b ^)만.
+// j/k/G/gg는 linewise 범위로 별도 케이스(`LinewiseFixtures.swift`)가 담당한다.
 // 화이트리스트 8종 전수. d 뒤의 0은 카운트 슬롯(opCount)이 비어 있으므로
 // 모션 d0이다 (0-규칙).
 let deleteMotionFixtures: [KeySequenceFixture] = [
@@ -195,16 +194,6 @@ let deleteInvalidFixtures: [KeySequenceFixture] = [
         ],
         finalMode: .normal
     ),
-    // linewise 모션(dj)은 TextRange에 구분이 생길 때까지 invalid — 이연 핀.
-    KeySequenceFixture(
-        "dj → no-op (linewise-over-motion 이연)",
-        startMode: .normal,
-        steps: [
-            step(.char("d"), .swallow),
-            step(.char("j"), .swallow),
-        ],
-        finalMode: .normal
-    ),
     // d 뒤의 x는 오퍼레이터 문법에 없다 — invalid.
     KeySequenceFixture(
         "dx → no-op (x는 오퍼레이터 뒤에 못 온다)",
@@ -215,14 +204,15 @@ let deleteInvalidFixtures: [KeySequenceFixture] = [
         ],
         finalMode: .normal
     ),
-    // d 뒤의 g도 invalid — dgg(linewise)는 이연 범위. 무효 시점에 pending이
-    // 버려지므로 이후 w는 오퍼레이터 없는 단일 모션이다.
+    // d 뒤의 g는 dgg(linewise)를 위한 extend다 — 무효 완결 키(w)가 오면
+    // 그 시점에 pending과 함께 버려지고, 그다음 키부터 정상이다.
     KeySequenceFixture(
-        "dg → no-op (g 접두는 오퍼레이터 뒤에 못 온다) — 이후 w는 단일 모션",
+        "dg는 extend — 무효 완결 키(w)에 폐기, 그다음 w는 단일 모션",
         startMode: .normal,
         steps: [
             step(.char("d"), .swallow),
             step(.char("g"), .swallow),
+            step(.char("w"), .swallow),
             step(.char("w"), .replace([.move(.wordForward)])),
         ],
         finalMode: .normal
