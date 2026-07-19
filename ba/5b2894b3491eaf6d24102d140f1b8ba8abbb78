@@ -1,0 +1,26 @@
+VimAction/EventTapController.swift
+  s_f2ea8b1788e67a::t_dff0ab906225e1 255-321
+  s_f2ea8b1788e67a::t_f01e42aba6424c 185-187
+  s_f2ea8b1788e67a::t_349cb3271307c2 205,207
+  s_f2ea8b1788e67a::t_643fa1c476ea47 68-70
+  s_f2ea8b1788e67a::t_26a463eb1781c8 103-108
+  s_f2ea8b1788e67a::t_11ecfcc9800403 56
+VimActionTests/TapWatchdogTests.swift
+  s_f2ea8b1788e67a::t_c8b5096d32e98a 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "ba5b2894b3491eaf6d24102d140f1b8ba8abbb78",
+  "prompts": {},
+  "sessions": {
+    "s_f2ea8b1788e67a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "051bd8f1-b327-42a3-8de5-46ba26c6fb40",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
