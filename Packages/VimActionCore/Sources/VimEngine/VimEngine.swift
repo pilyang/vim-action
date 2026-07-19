@@ -168,19 +168,19 @@ public struct VimEngine: Sendable {
             if Self.operatorKeys[key] == op {
                 return complete(op, .line(count: effectiveCount))
             }
-            if let motion = Self.operatorMotions[key] {
-                return complete(op, .motion(motion, count: effectiveCount))
-            }
-            // 상대 linewise 모션(j/k) — 카운트는 charwise와 같은 곱 규칙.
-            if let motion = Self.operatorLinewiseRelativeMotions[key] {
-                return complete(op, .linewiseMotion(motion, count: effectiveCount))
-            }
-            // 절대 linewise 모션(G) — Vim의 d3G는 "3번 줄까지"라는 절대 줄
-            // 의미인데 표현할 수 없다. 파괴적 편집이라 오해석 대신 카운트가
-            // 하나라도 있으면 invalid로 이연한다 (모션 3G의 반복-수용과 다른 기준).
-            if key == .char("G") {
-                guard current.count == nil && current.opCount == nil else { return .swallow }
-                return complete(op, .linewiseMotion(.documentEnd, count: 1))
+            if let entry = Self.opMotions[key] {
+                switch entry.kind {
+                case .charwise:
+                    return complete(op, .motion(entry.motion, count: effectiveCount))
+                case .linewiseRelative:
+                    return complete(op, .linewiseMotion(entry.motion, count: effectiveCount))
+                case .linewiseAbsolute:
+                    // Vim의 d3G는 "3번 줄까지"라는 절대 줄 의미인데 표현할 수
+                    // 없다. 파괴적 편집이라 오해석 대신 카운트가 하나라도 있으면
+                    // invalid로 이연한다 (모션 3G의 반복-수용과 다른 기준).
+                    guard current.count == nil && current.opCount == nil else { return .swallow }
+                    return complete(op, .linewiseMotion(entry.motion, count: 1))
+                }
             }
             // 화이트리스트 밖은 전부 invalid — dq 같은 무효 키를 포함한다.
             return .swallow
@@ -282,25 +282,33 @@ public struct VimEngine: Sendable {
         .char("y"): .yank,
     ]
 
-    /// 오퍼레이터 뒤에 올 수 있는 charwise 모션 — charwise-safe 집합만.
-    /// linewise 범위(`dj` = 두 줄 통삭제)는 별도 테이블·분기가
-    /// `.linewiseMotion`으로 낸다.
-    private static let operatorMotions: [Key: Motion] = [
-        .char("w"): .wordForward,
-        .char("b"): .wordBackward,
-        .char("e"): .wordEndForward,
-        .char("h"): .charLeft,
-        .char("l"): .charRight,
-        .char("0"): .lineStart,
-        .char("^"): .lineFirstNonBlank,
-        .char("$"): .lineEnd,
-    ]
+    /// 오퍼레이터 뒤 모션의 종류 — 출력 범위와 카운트 규칙이 kind별로 갈린다.
+    private enum OpMotionKind: Sendable {
+        /// charwise-safe 범위 (`.motion`) — 카운트는 두 카운트의 곱.
+        case charwise
+        /// 줄 단위 상대 범위 (`.linewiseMotion`, `d2j` = 아래로 2) — 카운트는
+        /// charwise와 같은 곱 규칙.
+        case linewiseRelative
+        /// 줄 단위 절대 범위 (`.linewiseMotion`) — 절대 줄 의미를 표현할 수
+        /// 없어 카운트가 하나라도 있으면 invalid.
+        case linewiseAbsolute
+    }
 
-    /// 오퍼레이터 뒤 linewise 상대 모션 — 카운트가 적용된다 (`d2j` = 아래로 2).
-    /// 절대 모션(G/gg)은 카운트 규칙이 달라 테이블 밖에서 분기 처리한다.
-    private static let operatorLinewiseRelativeMotions: [Key: Motion] = [
-        .char("j"): .lineDown,
-        .char("k"): .lineUp,
+    /// 오퍼레이터 뒤에 올 수 있는 단일 키 모션 화이트리스트 — kind가 출력
+    /// 범위와 카운트 규칙을 정한다. 멀티키인 gg만 prefix 메커니즘(`.g`)이
+    /// 따로 완결한다.
+    private static let opMotions: [Key: (motion: Motion, kind: OpMotionKind)] = [
+        .char("w"): (.wordForward, .charwise),
+        .char("b"): (.wordBackward, .charwise),
+        .char("e"): (.wordEndForward, .charwise),
+        .char("h"): (.charLeft, .charwise),
+        .char("l"): (.charRight, .charwise),
+        .char("0"): (.lineStart, .charwise),
+        .char("^"): (.lineFirstNonBlank, .charwise),
+        .char("$"): (.lineEnd, .charwise),
+        .char("j"): (.lineDown, .linewiseRelative),
+        .char("k"): (.lineUp, .linewiseRelative),
+        .char("G"): (.documentEnd, .linewiseAbsolute),
     ]
 
     /// 스코프 접두(i/a) 뒤 quote 오브젝트 완결 키.
