@@ -1,0 +1,19 @@
+CLAUDE.md
+  s_366488e774adb9::t_251bc84812e93d 1-4,9-10,14-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "1ec54486083286fb0ad8e9bdc52a239ec21627ff",
+  "prompts": {},
+  "sessions": {
+    "s_366488e774adb9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c537d102-c863-45c7-9452-aca88c113da6",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
