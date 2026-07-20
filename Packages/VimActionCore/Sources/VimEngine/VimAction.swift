@@ -21,12 +21,33 @@ public enum VimAction: Hashable, Sendable {
         case textObject(TextObject)
         /// 현재 줄부터 count줄 — `dd`, `2dd`.
         case line(count: Int)
+        /// 줄 단위 모션 범위 — `dj`(현재+아래 줄), `dG`(현재부터 마지막 줄까지).
+        /// 총 몇 줄인지의 해석은 어댑터 몫이다. 절대 모션(G/gg)은 항상 count 1로만
+        /// 나온다 — 카운트가 붙으면 엔진이 invalid로 이연한다.
+        case linewiseMotion(Motion, count: Int)
     }
 
-    /// 텍스트 오브젝트. 경계의 실제 의미(단어의 정의, 주변 공백 포함 범위)는
-    /// 어댑터가 정하며, 엔진은 종류와 스코프만 낸다.
+    /// 텍스트 오브젝트. 경계의 실제 의미(단어의 정의, 주변 공백 포함 범위,
+    /// 따옴표 안/포함, 괄호 중첩 처리)는 어댑터가 정하며, 엔진은 종류와 스코프만 낸다.
     public enum TextObject: Hashable, Sendable {
         case word(Scope)
+        /// 따옴표 오브젝트 — `ci"`/`da'`/``yi` ``.
+        case quote(Quote, Scope)
+        /// 괄호쌍 오브젝트 — `ci(`/`da[`/`yiB`. 여닫이 어느 쪽 키로 완결해도 같은 kind다.
+        case pair(Pair, Scope)
+
+        public enum Quote: Hashable, Sendable {
+            case double
+            case single
+            case backtick
+        }
+
+        public enum Pair: Hashable, Sendable {
+            case paren
+            case bracket
+            case brace
+            case angle
+        }
 
         /// `i`(inner: 오브젝트 본체만) / `a`(around: 주변 공백 포함).
         public enum Scope: Hashable, Sendable {

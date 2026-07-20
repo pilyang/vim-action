@@ -190,8 +190,8 @@ func mixedOperators(_ fixture: KeySequenceFixture) {
     expectFixture(fixture)
 }
 
-// c 뒤 무효·이연 키 핀 — dq/dj/dg 핀(EditFixtures)의 change 대응.
-// cj(linewise)·cg(dgg 문법)는 이후 확장에서 의미가 생기며 이 핀이 갱신된다.
+// c 뒤 무효 키 핀 — dq 핀(EditFixtures)의 change 대응. change가 무효로
+// 끝나면 Insert 전이도 없다. cj(linewise 완결)는 LinewiseFixtures가 담당한다.
 let changeInvalidFixtures: [KeySequenceFixture] = [
     KeySequenceFixture(
         "cq → no-op (무효 키) — 이후 w는 단일 모션, Insert 진입 없음",
@@ -204,20 +204,12 @@ let changeInvalidFixtures: [KeySequenceFixture] = [
         finalMode: .normal
     ),
     KeySequenceFixture(
-        "cj → no-op (linewise-over-motion 이연)",
-        startMode: .normal,
-        steps: [
-            step(.char("c"), .swallow),
-            step(.char("j"), .swallow),
-        ],
-        finalMode: .normal
-    ),
-    KeySequenceFixture(
-        "cg → no-op (g 접두는 오퍼레이터 뒤에 못 온다) — 이후 w는 단일 모션",
+        "cg는 extend — 무효 완결 키(w)에 폐기, Insert 진입 없이 그다음 w는 단일 모션",
         startMode: .normal,
         steps: [
             step(.char("c"), .swallow),
             step(.char("g"), .swallow),
+            step(.char("w"), .swallow),
             step(.char("w"), .replace([.move(.wordForward)])),
         ],
         finalMode: .normal

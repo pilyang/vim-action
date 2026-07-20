@@ -17,7 +17,8 @@ public struct VimEngine: Sendable {
         var prefix: Prefix?
 
         enum Prefix: Sendable {
-            /// `g` — `gg` 대기 (`op == nil`일 때만).
+            /// `g` — `gg` 대기. `op == nil`이면 모션 gg, `op != nil`이면
+            /// linewise documentStart(dgg/cgg)로 완결된다.
             case g
             /// `di`/`da` 후 오브젝트 키 대기 (`op != nil` 보장).
             case textObjectScope(VimAction.TextObject.Scope)
@@ -92,22 +93,50 @@ public struct VimEngine: Sendable {
         // 아래 일반 매핑으로 새는 실수를 타입으로 막는다.
         switch current.prefix {
         case .g:
-            // complete 시 선행 카운트는 버린다 — 3gg도 documentStart 단일 출력
-            // (mode-change 키의 count 무시와 같은 원칙). `gi` 같은 실제 Vim
-            // 커맨드도 지원 전까지는 invalid로 떨어진다.
+            // `gi` 같은 실제 Vim 커맨드도 지원 전까지는 invalid로 떨어진다.
             if key == .char("g") {
+                if let op = current.op {
+                    // dgg/cgg — 절대 모션이라 카운트(선행·op 뒤 어느 쪽이든)가
+                    // 있으면 invalid다 (dG와 같은 기준). extend 시점이 아니라
+                    // 여기서 거른다 — extend에서 거르면 invalid 직후의 g가 새
+                    // .g pending을 열어 잔류 상태가 생긴다.
+                    guard current.count == nil && current.opCount == nil else { return .swallow }
+                    return complete(op, .linewiseMotion(.documentStart, count: 1))
+                }
+                // 모션 gg의 선행 카운트는 버린다 — 3gg도 documentStart 단일
+                // 출력 (mode-change 키의 count 무시와 같은 원칙).
                 return .replace([.move(.documentStart)])
             }
             return .swallow
         case .textObjectScope(let scope):
             // 오퍼레이터+i/a(di/ci/ya 등)로만 진입하므로 op != nil이 보장된다.
-            // 1차 오브젝트는 word만.
-            if key == .char("w"), let op = current.op {
+            //
+            // 카운트+오브젝트(d2i(·3diw 등)는 Vim 의미(괄호 중첩 단계·단어 수)가
+            // 있는데 표현할 수 없다. 파괴적 편집이라 오해석 대신 invalid로
+            // 이연한다 (d3G와 같은 기준).
+            guard current.count == nil && current.opCount == nil else { return .swallow }
+            guard let op = current.op else { return .swallow }
+            if key == .char("w") {
                 return complete(op, .textObject(.word(scope)))
+            }
+            if let quote = Self.quoteObjectKeys[key] {
+                return complete(op, .textObject(.quote(quote, scope)))
+            }
+            if let pair = Self.pairObjectKeys[key] {
+                return complete(op, .textObject(.pair(pair, scope)))
             }
             return .swallow
         case nil:
             break
+        }
+
+        // g — op 유무와 무관하게 같은 prefix extend다 (gg / dgg). 카운트
+        // invalid 판정은 완결 시점(둘째 g)의 몫이다.
+        if key == .char("g") {
+            var next = current
+            next.prefix = .g
+            pending = next
+            return .swallow
         }
 
         // 오퍼레이터 대기 — 뒤에 올 수 있는 건 스코프(i/a)·카운트·모션·
@@ -139,11 +168,21 @@ public struct VimEngine: Sendable {
             if Self.operatorKeys[key] == op {
                 return complete(op, .line(count: effectiveCount))
             }
-            if let motion = Self.operatorMotions[key] {
-                return complete(op, .motion(motion, count: effectiveCount))
+            if let entry = Self.opMotions[key] {
+                switch entry.kind {
+                case .charwise:
+                    return complete(op, .motion(entry.motion, count: effectiveCount))
+                case .linewiseRelative:
+                    return complete(op, .linewiseMotion(entry.motion, count: effectiveCount))
+                case .linewiseAbsolute:
+                    // Vim의 d3G는 "3번 줄까지"라는 절대 줄 의미인데 표현할 수
+                    // 없다. 파괴적 편집이라 오해석 대신 카운트가 하나라도 있으면
+                    // invalid로 이연한다 (모션 3G의 반복-수용과 다른 기준).
+                    guard current.count == nil && current.opCount == nil else { return .swallow }
+                    return complete(op, .linewiseMotion(entry.motion, count: 1))
+                }
             }
-            // 화이트리스트 밖은 전부 invalid — dq 같은 무효 키와 dj/dk/dG
-            // (linewise — TextRange에 구분이 생길 때까지 이연)를 포함한다.
+            // 화이트리스트 밖은 전부 invalid — dq 같은 무효 키를 포함한다.
             return .swallow
         }
 
@@ -168,11 +207,6 @@ public struct VimEngine: Sendable {
         case .char("A"):
             mode = .insert
             return .replace([.move(.lineEndForAppend)])
-        case .char("g"):
-            var next = current
-            next.prefix = .g
-            pending = next
-            return .swallow
         case .char("x"):
             // 전용 케이스 없이 delete-over-motion 재사용 — 카운트는 반복이 아니라
             // 범위의 count로 담는다 (3x = 3문자를 한 편집 단위로).
@@ -248,19 +282,49 @@ public struct VimEngine: Sendable {
         .char("y"): .yank,
     ]
 
-    /// 오퍼레이터 뒤에 올 수 있는 모션 — charwise-safe 집합만. `j`/`k`/`G`는
-    /// Vim에서 linewise 범위(`dj` = 두 줄 통삭제)인데 `TextRange.motion`엔
-    /// charwise/linewise 구분이 없어 어댑터가 의미를 복원할 수 없으므로
-    /// invalid로 이연한다 (구분 추가와 함께 이후 확장).
-    private static let operatorMotions: [Key: Motion] = [
-        .char("w"): .wordForward,
-        .char("b"): .wordBackward,
-        .char("e"): .wordEndForward,
-        .char("h"): .charLeft,
-        .char("l"): .charRight,
-        .char("0"): .lineStart,
-        .char("^"): .lineFirstNonBlank,
-        .char("$"): .lineEnd,
+    /// 오퍼레이터 뒤 모션의 종류 — 출력 범위와 카운트 규칙이 kind별로 갈린다.
+    private enum OpMotionKind: Sendable {
+        /// charwise-safe 범위 (`.motion`) — 카운트는 두 카운트의 곱.
+        case charwise
+        /// 줄 단위 상대 범위 (`.linewiseMotion`, `d2j` = 아래로 2) — 카운트는
+        /// charwise와 같은 곱 규칙.
+        case linewiseRelative
+        /// 줄 단위 절대 범위 (`.linewiseMotion`) — 절대 줄 의미를 표현할 수
+        /// 없어 카운트가 하나라도 있으면 invalid.
+        case linewiseAbsolute
+    }
+
+    /// 오퍼레이터 뒤에 올 수 있는 단일 키 모션 화이트리스트 — kind가 출력
+    /// 범위와 카운트 규칙을 정한다. 멀티키인 gg만 prefix 메커니즘(`.g`)이
+    /// 따로 완결한다.
+    private static let opMotions: [Key: (motion: Motion, kind: OpMotionKind)] = [
+        .char("w"): (.wordForward, .charwise),
+        .char("b"): (.wordBackward, .charwise),
+        .char("e"): (.wordEndForward, .charwise),
+        .char("h"): (.charLeft, .charwise),
+        .char("l"): (.charRight, .charwise),
+        .char("0"): (.lineStart, .charwise),
+        .char("^"): (.lineFirstNonBlank, .charwise),
+        .char("$"): (.lineEnd, .charwise),
+        .char("j"): (.lineDown, .linewiseRelative),
+        .char("k"): (.lineUp, .linewiseRelative),
+        .char("G"): (.documentEnd, .linewiseAbsolute),
+    ]
+
+    /// 스코프 접두(i/a) 뒤 quote 오브젝트 완결 키.
+    private static let quoteObjectKeys: [Key: VimAction.TextObject.Quote] = [
+        .char("\""): .double,
+        .char("'"): .single,
+        .char("`"): .backtick,
+    ]
+
+    /// 스코프 접두(i/a) 뒤 pair 오브젝트 완결 키 — 여닫이 양쪽 키와
+    /// Vim 별칭(b=paren, B=brace)을 모두 인정한다.
+    private static let pairObjectKeys: [Key: VimAction.TextObject.Pair] = [
+        .char("("): .paren, .char(")"): .paren, .char("b"): .paren,
+        .char("["): .bracket, .char("]"): .bracket,
+        .char("{"): .brace, .char("}"): .brace, .char("B"): .brace,
+        .char("<"): .angle, .char(">"): .angle,
     ]
 
     /// pending 없이 단일 키로 완결되는 모션. `Key`의 Hashable 매칭이라
