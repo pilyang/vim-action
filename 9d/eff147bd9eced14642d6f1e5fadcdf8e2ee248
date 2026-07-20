@@ -1,0 +1,39 @@
+.claude/skills/decisions/references/20260718_interception-toggle-semantics.md
+  s_b27fa5a56d2ba8::t_6cd3cf54898ccf 1-33
+.claude/skills/decisions/references/20260717_keytranslator-layout-caching.md
+  s_b27fa5a56d2ba8::t_d1c55987bf5e96 1-28
+.claude/skills/decisions/SKILL.md
+  s_b27fa5a56d2ba8::t_512606d84ba63b 61
+  s_b27fa5a56d2ba8::t_6ec8b01d452bc1 59-60
+  s_b27fa5a56d2ba8::t_eb2c034109d1ab 54
+.claude/skills/decisions/references/20260714_normal-mode-escape-modifiers.md
+  s_b27fa5a56d2ba8::t_fcf52fc5b9bddb 1-27
+.claude/skills/decisions/references/20260717_replace-swallow-transitional-rule.md
+  s_b27fa5a56d2ba8::t_f8c73f797f2172 1-27
+.claude/skills/architecture/references/mode-engine.md
+  s_b27fa5a56d2ba8::t_23dbc3ac087537 3
+  s_b27fa5a56d2ba8::t_f1a512f042af63 27
+.claude/skills/architecture/references/system-overview.md
+  s_b27fa5a56d2ba8::t_2fcf480b3fb2e8 3
+  s_b27fa5a56d2ba8::t_fff1a6ca29aee3 54-55
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_b27fa5a56d2ba8::t_4172347afb5646 3
+  s_b27fa5a56d2ba8::t_78c6544ea92a61 32,36
+  s_b27fa5a56d2ba8::t_9565a0f91c1b5b 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "9deff147bd9eced14642d6f1e5fadcdf8e2ee248",
+  "prompts": {},
+  "sessions": {
+    "s_b27fa5a56d2ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97e6be66-5b88-4c7c-b2d8-888e5747ab84",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
