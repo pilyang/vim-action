@@ -1,0 +1,23 @@
+.claude/skills/plans/references/20260719_dedicated-tap-runloop-thread.md
+  s_7ee9691d0faa39::t_4c97f98a30598d 4
+  s_7ee9691d0faa39::t_1d69c093244a8b 16-19
+  s_7ee9691d0faa39::t_d865e816b3db53 23-24
+.claude/skills/plans/SKILL.md
+  s_7ee9691d0faa39::t_e838f78759765c 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "6aaab8480cbd36e6cb982dcd0e8df5d3c149e5ac",
+  "prompts": {},
+  "sessions": {
+    "s_7ee9691d0faa39": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e40d749-2428-4a02-8fef-a485236d9c04",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
