@@ -1,6 +1,6 @@
 # 모드 엔진
 
-- **Last updated**: 2026-07-19
+- **Last updated**: 2026-07-20
 
 ## 현재 구조
 
@@ -24,7 +24,7 @@ graph LR
 - `VimEngine`: `struct VimEngine`(`handle(_:) -> EngineOutput`, `private(set) var mode`, 시작 모드 `.insert`), 타입 `Key`/`VimAction`(`move`/`edit`)·`Motion`·`Operator`·`TextRange`·`TextObject`/`EventDecision`·`EngineOutput`/`Mode`. 내부 상태는 `mode`와 멀티키 커맨드 누적용 `pending: PendingCommand?` 둘뿐이다.
 - **`PendingCommand`는 문법 기반 누적 빌더**(부분 파스 상태)다: `count`(선행 카운트) / `op`(대기 오퍼레이터) / `opCount`(오퍼레이터 뒤 카운트) / `prefix`(`.g` 또는 `.textObjectScope` — 완결 키 하나를 기다리는 접두) 슬롯을 키가 채워간다. `.g`는 `op` 유무로 완결이 갈린다: `op == nil`이면 모션 `gg`, `op != nil`이면 linewise `dgg`/`cgg`.
 - 구현된 키셋: 모드 전환 `Esc, i, a, I, A` / 모션 `h j k l / w b e / 0 ^ $ / gg G` + 선행 카운트(`3w` → `.move` 반복 출력) / 편집 `x`(`3x`), 오퍼레이터 `d`/`c`/`y`(`operatorKeys` 테이블) — +모션(charwise-safe 화이트리스트), 자기 키 반복 `dd`/`cc`/`yy`(줄 범위, 유효 카운트는 두 카운트의 곱 `2d3w`=6), +텍스트 오브젝트(`diw`/`ciw`/`ya(` 등 — word·quote 3종·pair 4종, 여닫이 양쪽+b/B 별칭), +linewise 모션(`dj dk dG dgg`). `.change` 완결 시 엔진이 즉시 Insert 전이(`complete` 헬퍼 단일화), `cw` 특례(Vim의 ce 동작)는 어댑터 몫 — 어댑터는 change 삭제 실행 후 후속 이벤트를 처리해야 한다. Visual 모드는 이후 확장.
-- Normal 모드 처리 규칙: ① **취소 최우선** (cross-cutting, step 진입 전) — Esc **정확 매치**는 pending 폐기+swallow+Normal 유지, 탈출 modifier 콤보(`isEscapeCombo`)는 pending 폐기+passthrough+Insert 전이. 수식자 붙은 Esc(Cmd+Esc)는 Esc 분기가 아니라 콤보 판정을 탄다. → ② `step` — pending을 이번 키로 한 스텝 진행: **extend**(슬롯 채워 유지: 카운트 digit·`d`·`g`·`di`/`da`) / **complete**(커맨드 완결, 액션 출력) / **invalid**(pending과 키를 함께 버리는 no-op). step 내부 우선순위: prefix 완결 → g extend(op 유무 무관 공통 — gg/dgg 동일 경로) → 오퍼레이터 대기(스코프 i/a → opCount digit → dd → opMotions 테이블) → 최상위(오퍼레이터 키 → 모드 전환 → x → count digit → 단일 모션 → 미매핑 콤보 passthrough / 미매핑 키 swallow).
+- Normal 모드 처리 규칙: ① **취소 최우선** (cross-cutting, step 진입 전) — Esc **정확 매치**는 pending 폐기+swallow+Normal 유지, 탈출 modifier 콤보(`isEscapeCombo`)는 pending 폐기+passthrough+Insert 전이. 수식자 붙은 Esc(Cmd+Esc)는 Esc 분기가 아니라 콤보 판정을 탄다. 탈출 대상 modifier 셋은 `Configuration.normalModeEscapeModifiers` 주입(기본 `Cmd`/`Opt`, `Ctrl` 제외)이며 앱 설정으로 on/off한다 — [20260714_normal-mode-escape-modifiers.md](../../decisions/references/20260714_normal-mode-escape-modifiers.md). → ② `step` — pending을 이번 키로 한 스텝 진행: **extend**(슬롯 채워 유지: 카운트 digit·`d`·`g`·`di`/`da`) / **complete**(커맨드 완결, 액션 출력) / **invalid**(pending과 키를 함께 버리는 no-op). step 내부 우선순위: prefix 완결 → g extend(op 유무 무관 공통 — gg/dgg 동일 경로) → 오퍼레이터 대기(스코프 i/a → opCount digit → dd → opMotions 테이블) → 최상위(오퍼레이터 키 → 모드 전환 → x → count digit → 단일 모션 → 미매핑 콤보 passthrough / 미매핑 키 swallow).
 - **0-규칙**: `0`은 해당 카운트 슬롯이 비어 있으면 모션(lineStart), 누적 중이면 자리값. **카운트 클램프**: 9,999 (초과 자리 digit 무시). **절대 모션 카운트**: 모션 `3G`는 반복 출력 수용(멱등·무해, Vim 의미와 다름을 인지한 이연), `3gg`·`3i`는 count 무시. 반면 **편집은 파괴적이라 오해석을 수용하지 않는다**: 오퍼레이터+절대 linewise 모션(`d3G`/`3dgg`)과 카운트+텍스트 오브젝트(`d2i(`/`3diw`)는 카운트가 하나라도 있으면 invalid.
 - **opMotion 화이트리스트**: 오퍼레이터 뒤 유효 단일 키 모션은 kind 딸린 **단일 테이블 `opMotions`** — charwise(`w b e h l 0 ^ $` → `.motion`, 카운트 곱)·linewiseRelative(`j k` → `.linewiseMotion`, 카운트 곱)·linewiseAbsolute(`G` → `.linewiseMotion`, 카운트 있으면 invalid·항상 count 1)를 kind가 가른다. 멀티키 `gg`만 prefix 메커니즘(`.g`)이 따로 완결한다. 화이트리스트 밖은 invalid. 관련 결정: [20260719_opmotion-unified-dispatch-table.md](../../decisions/references/20260719_opmotion-unified-dispatch-table.md)
 - Insert 모드는 Esc(→Normal, 삼킴) 외 전부 `.passthrough`.

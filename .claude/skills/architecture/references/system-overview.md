@@ -1,6 +1,6 @@
 # 시스템 개요
 
-- **Last updated**: 2026-07-12
+- **Last updated**: 2026-07-20
 
 ## 현재 구조
 
@@ -51,5 +51,5 @@ graph LR
 - 앱 셸: `LSUIElement` 메뉴바 백그라운드 앱(SwiftUI `MenuBarExtra` + `Settings` 씬). Dock 아이콘·앱 메뉴 없음.
 - App Sandbox 해제(Developer ID 직접 배포). CGEventTap/AX가 샌드박스 불가하기 때문 — [20260712_disable-sandbox-developer-id.md](../../decisions/references/20260712_disable-sandbox-developer-id.md).
 - 권한은 빌드 엔타이틀먼트가 아니라 런타임 TCC. 온보딩은 **Accessibility만** 요청한다(Settings 창 권한 섹션 + 1초 폴링으로 부여 감지 후 재시작 없이 탭 설치). active tap은 AX만으로 설치되며, Input Monitoring은 필요가 입증될 때만 추가 — [20260712_active-tap-ax-only-onboarding.md](../../decisions/references/20260712_active-tap-ax-only-onboarding.md).
-- 메인 탭은 처음부터 active tap(`.defaultTap`)이며, 현재는 스파이크 스켈레톤(`EventTapController`) — 무수정 통과 + 로그. 런루프 소스는 메인 런루프 부착이고 엔진 연결 전 전용 스레드 여부를 재검토한다 — [20260712_main-runloop-tap-attachment.md](../../decisions/references/20260712_main-runloop-tap-attachment.md).
-- 탭 계층의 CGEvent→`Key` 정규화는 `KeyTranslator`(앱 타깃, `@MainActor`)가 담당한다: 특수키는 keycode, 문자키는 UCKeyTranslate + ASCII-capable 레이아웃(shift만 base에 반영, ctrl/opt/cmd는 modifiers로), 번역 불가는 `nil`이며 호출측은 무조건 통과시킨다. 임의의 `CGEvent`에 대해 답이 정의된 total function이며 keyDown 외 타입은 내부 가드로 `nil`이다. 아직 콜백에 배선되지 않음(다음 마일스톤) — [20260716_cgevent-key-translation-ascii-layout.md](../../decisions/references/20260716_cgevent-key-translation-ascii-layout.md), [20260716_keytranslator-total-function-keydown-guard.md](../../decisions/references/20260716_keytranslator-total-function-keydown-guard.md).
+- 메인 탭은 처음부터 active tap(`.defaultTap`)이며 메인 런루프에 부착돼 있다. **엔진이 배선돼 있다**(`EventTapController`): keyDown → `KeyTranslator` → `VimEngine.handle` → 결정 적용(passthrough=통과 / swallow=`nil`). `.replace`는 과도기라 실행 없이 삼키고 DEBUG 요약 로그만 남긴다(실행은 디스패처 마일스톤) — [20260717_replace-swallow-transitional-rule.md](../../decisions/references/20260717_replace-swallow-transitional-rule.md). 메뉴바 마스터 토글(`isInterceptionEnabled`)이 가로채기 on/off를 지배하고([20260718_interception-toggle-semantics.md](../../decisions/references/20260718_interception-toggle-semantics.md)), 백그라운드 워치독이 조용히 죽은 탭을 폴링·복구한다([reentrancy-and-safety.md](reentrancy-and-safety.md)). 런루프를 전용 스레드로 옮길지는 엔진 연결 후 재검토 대상으로 남아 있다(별도 플랜) — [20260712_main-runloop-tap-attachment.md](../../decisions/references/20260712_main-runloop-tap-attachment.md).
+- 탭 계층의 CGEvent→`Key` 정규화는 `KeyTranslator`(앱 타깃, `@MainActor`)가 담당한다: 특수키는 keycode, 문자키는 UCKeyTranslate + ASCII-capable 레이아웃(shift만 base에 반영, ctrl/opt/cmd는 modifiers로), 번역 불가는 `nil`이며 호출측은 무조건 통과시킨다. 임의의 `CGEvent`에 대해 답이 정의된 total function이며 keyDown 외 타입은 내부 가드로 `nil`이다. 레이아웃 `Data`는 캐시하고 입력 소스 변경 분산 노티로 무효화한다(키당 TIS 조회 제거) — [20260716_cgevent-key-translation-ascii-layout.md](../../decisions/references/20260716_cgevent-key-translation-ascii-layout.md), [20260716_keytranslator-total-function-keydown-guard.md](../../decisions/references/20260716_keytranslator-total-function-keydown-guard.md), [20260717_keytranslator-layout-caching.md](../../decisions/references/20260717_keytranslator-layout-caching.md).
