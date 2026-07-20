@@ -49,4 +49,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-07-19 | 2026-07-19 | 전용 CFRunLoop 스레드 재검토 | 탭을 메인 런루프에서 전용 스레드로 옮길지 결정(+구현) — PR #13 리뷰로 재검토 필요 확정("스톨 중 키 처리"의 유일 해법), 디스패처 마일스톤 전 결정 권장. 미착수 | [20260719_dedicated-tap-runloop-thread.md](references/20260719_dedicated-tap-runloop-thread.md) |
+| 2026-07-19 | 2026-07-20 | 전용 CFRunLoop 스레드 재검토 | 탭을 메인 런루프에서 전용 스레드로 옮길지 결정(+구현) — PR #13 리뷰로 재검토 필요 확정("스톨 중 키 처리"의 유일 해법), 디스패처 마일스톤 전 결정 권장. 착수 — 데이터 수집 단계, 워크트리 `dedicated-tap-runloop-thread` | [20260719_dedicated-tap-runloop-thread.md](references/20260719_dedicated-tap-runloop-thread.md) |
