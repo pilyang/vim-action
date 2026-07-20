@@ -109,7 +109,15 @@ struct EventTapStatusTextTests {
         #expect(eventTapStatusText(status: .running, interceptionEnabled: false) == "Disabled")
     }
 
-    @Test(".running 외 상태는 토글과 무관하게 자기 문구")
+    @Test(".secureInput: 가로채기 on이면 Secure Input, off면 Disabled — off가 우선")
+    func secureInputDerivesFromInterceptionToggle() {
+        #expect(
+            eventTapStatusText(status: .secureInput, interceptionEnabled: true) == "Secure Input")
+        #expect(
+            eventTapStatusText(status: .secureInput, interceptionEnabled: false) == "Disabled")
+    }
+
+    @Test("고장·미설치 상태는 토글과 무관하게 자기 문구")
     func nonRunningIgnoresToggle() {
         for enabled in [true, false] {
             #expect(

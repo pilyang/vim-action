@@ -24,6 +24,10 @@ final class EventTapController {
         case running
         /// 권한 외 원인으로 tapCreate 실패, 또는 재활성화 후에도 탭 불능.
         case failed
+        /// 탭 설치는 정상이나 OS Secure Event Input(비밀번호 입력 등)이 키보드 탭을
+        /// 억제 중 — 고장이 아니라 보호 상태다. 워치독은 재활성화를 보류하고(OS 보호와
+        /// 싸우지 않음), 해제되면 다음 폴링(≤2초)이 자동 복귀시킨다.
+        case secureInput
         /// 종료 정리 후.
         case stopped
     }
@@ -53,6 +57,7 @@ final class EventTapController {
                 // 하지 않은 재활성화를 성공처럼 남기면 안 된다.
                 if tapPort != nil {
                     enableTapAndVerify(reason: "가로채기 on")
+                    startWatchdog()
                 } else {
                     // 포트가 없다 = tapCreate가 (권한 외 원인으로) 실패했거나 아직 설치 전.
                     // off→on 토글이 문서화된 수동 복구 경로이므로, 로그만 남기지 말고
@@ -64,14 +69,22 @@ final class EventTapController {
                 }
             } else {
                 resetEngine()
+                // cancel을 비활성화보다 먼저 — 이후 새 폴링은 안 뜨므로, 남는 경합은
+                // in-flight 핸들러 하나뿐.
+                stopWatchdog()
                 // off = 스트림 해방. 비활성화 없이 통과만 하면 모든 키가 여전히 메인 스레드
                 // 콜백을 왕복해, 앱이 오동작(스톨)할 때 끄는 안전장치 목적을 못 지킨다.
                 if let port = tapPort {
                     CGEvent.tapEnable(tap: port, enable: false)
+                    // in-flight 틱이 위 disable 직후 탭을 되살릴 수 있다. 최종 disable을
+                    // 워치독 시리얼 큐 *뒤에* 걸어 "마지막 동작은 반드시 disable"을 큐
+                    // 순서로 보장한다 — applyWatchdogResult의 off 가드는 메인 홉이라
+                    // 메인 스톨 중엔 못 닫는 경합을 이 경로가 메인 무관하게 닫는다.
+                    nonisolated(unsafe) let offPort = port
+                    watchdogQueue.async { CGEvent.tapEnable(tap: offPort, enable: false) }
                 }
                 Logger.eventTap.info("가로채기 off — 탭 비활성화, 엔진 Insert 리셋")
             }
-            // 워치독(다음 항목): off→정지 / on→재가동 훅이 여기 들어간다.
         }
     }
 
@@ -96,6 +109,17 @@ final class EventTapController {
     @ObservationIgnored private var tapPort: CFMachPort?
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
+
+    /// 탭 워치독 — 콜백 재활성화가 못 덮는 실패 모드(완전 정지/장기 스톨은 `tapDisabledBy*`
+    /// 통지 자체가 유실됨) 대응으로 탭 활성 여부를 백그라운드에서 주기 폴링한다.
+    /// 복구 시점은 정지/스톨이 풀린 뒤다 — 스톨 "중"에는 재활성화를 보류한다 (스톨 게이트).
+    @ObservationIgnored private var watchdogTimer: DispatchSourceTimer?
+    @ObservationIgnored private let watchdogQueue =
+        DispatchQueue(label: "dev.pilyang.VimAction.tapWatchdog", qos: .utility)
+    /// 스톨 게이트의 신호: 직전 틱의 status 홉이 아직 메인에서 소비되지 않았으면 true.
+    /// bg 틱이 세우고 메인 홉이 내린다 — 잠금은 두 스레드 간 가시성·원자성용.
+    @ObservationIgnored private nonisolated let watchdogHopPending =
+        OSAllocatedUnfairLock(initialState: false)
 
     /// `defaults` 주입은 테스트용 — 실제 앱은 `.standard`. 테스트가 `.standard`를 쓰면
     /// TEST_HOST가 앱 프로세스라 실기기에서 영속된 값이 새어 들어온다.
@@ -173,6 +197,9 @@ final class EventTapController {
             // enable 성공을 검증한 뒤에만 .running으로 — 검증 없이 .running을 찍으면
             // (예: 설치 시점 secure input) 탭이 죽었는데 UI가 활성인 척한다.
             enableTapAndVerify(reason: "탭 설치")
+            // verify 실패(.failed)여도 시작 — 일시적 실패의 자동 재확인(연속 폴링)이
+            // 워치독 몫이므로, 게이팅은 status가 아니라 "탭 설치됨 && 토글 on"이다.
+            startWatchdog()
         } else {
             CGEvent.tapEnable(tap: port, enable: false)
             // 탭 설치·헬스는 정상 — 가로채기 off는 status가 아니라 토글이 표현한다.
@@ -190,8 +217,9 @@ final class EventTapController {
         }
     }
 
-    /// 탭 정리: 비활성화 → 런루프 소스 제거 → 포트 invalidate. 앱 종료 시 호출된다.
+    /// 탭 정리: 워치독 정지 → 비활성화 → 런루프 소스 제거 → 포트 invalidate. 앱 종료 시 호출된다.
     func stop() {
+        stopWatchdog()
         guard let port = tapPort else { return }
         CGEvent.tapEnable(tap: port, enable: false)
         if let source = runLoopSource {
@@ -212,6 +240,15 @@ final class EventTapController {
         enableTapAndVerify(reason: "시스템이 탭 비활성화(type=\(type.rawValue))")
     }
 
+    /// tapEnable(true)→tapIsEnabled 검증 쌍 — CGEvent는 스레드 안전 C API라 메인
+    /// (`enableTapAndVerify`)과 워치독 bg 틱이 공유한다. 재시도·지연 등 enable 시퀀스
+    /// 수정은 반드시 여기서 — 두 복구 경로가 어긋나지 않게 하는 단일 지점이다.
+    /// status 반영은 각자의 격리에서 별도로 한다.
+    private nonisolated static func enableAndCheck(_ port: CFMachPort) -> Bool {
+        CGEvent.tapEnable(tap: port, enable: true)
+        return CGEvent.tapIsEnabled(tap: port)
+    }
+
     /// tapEnable(true) → tapIsEnabled 검증 → status 전이의 단일 지점. on 복귀·설치·
     /// 시스템 재활성화 세 경로가 공유한다 — 검증 없이 tapEnable만 하면 실제로는 죽은
     /// 탭을 .running으로 표시(UI 거짓)하게 된다. `.running`은 "탭 설치·헬스 정상"을
@@ -221,22 +258,156 @@ final class EventTapController {
     /// 하고, 실패 후 복구는 토글 off→on 재시도(또는 워치독)로 이뤄진다.
     ///
     /// 워치독은 백그라운드 큐에서 도므로 이 @MainActor 헬퍼를 그대로 재사용하지 못한다 —
-    /// tapEnable/tapIsEnabled는 bg에서 직접 호출하고 status 반영만 메인으로 홉해야 한다.
+    /// CGEvent 쌍(`enableAndCheck`)만 공유하고 status 반영은 홉 뒤 `applyWatchdogResult`가 한다.
     @discardableResult
     private func enableTapAndVerify(reason: String) -> Bool {
         guard let port = tapPort else { return false }
-        CGEvent.tapEnable(tap: port, enable: true)
-        let live = CGEvent.tapIsEnabled(tap: port)
+        let live = Self.enableAndCheck(port)
         if live {
             // 등가 가드 — @Observable은 등가 대입에도 발화하므로 반복 성공 시 과발화 방지.
             if status != .running { status = .running }
             Logger.eventTap.info("\(reason, privacy: .public) — 탭 재활성화")
+        } else if IsSecureEventInputEnabled() {
+            // 실패 원인이 OS 보호(비밀번호 입력 등)면 고장이 아니다 — 워치독 틱의
+            // secureInput 판정과 같은 규칙. 해제 후 복귀는 워치독 폴링 몫.
+            if status != .secureInput { status = .secureInput }
+            Logger.eventTap.info("\(reason, privacy: .public) — Secure Input 활성, 탭 활성화 보류")
         } else {
             // 실패 분기에도 등가 가드 — tapDisabledBy* 반복 실패가 콜백 경로에서 돌 수 있다.
             if status != .failed { status = .failed }
             Logger.eventTap.error("\(reason, privacy: .public) — tapEnable 후에도 탭 비활성 (가로채기 불능)")
         }
         return live
+    }
+
+    /// 워치독 가동 — 게이팅은 "탭 설치됨 && 토글 on" (status 무관 — .failed여도 돌아야
+    /// 일시적 실패가 다음 폴링에서 자동 재확인된다).
+    ///
+    /// 목적: 완전 정지/장기 스톨 중 OS가 끈 탭은 `tapDisabledBy*` 통지가 유실돼 콜백
+    /// 재활성화가 못 살린다 — 정지가 *풀린 뒤에도* 죽은 채 방치되는 탭을 폴링으로
+    /// 감지해 복구한다. 스톨 "중"의 복구는 목적이 아니다: 탭 소스가 메인 런루프에
+    /// 있어 스톨 중 되살린 탭은 키를 처리하지 못한다 (핸들러의 스톨 게이트 주석 참고).
+    ///
+    /// 핵심 불변식: 폴링·재활성화는 전용 백그라운드 큐에서 `tapIsEnabled`/`tapEnable`을
+    /// 직접 호출한다 — SIGSTOP류 완전 정지에서 깨어난 직후, 메인 큐 적체와 무관하게
+    /// 첫 틱이 즉시 복구·로그할 수 있어야 한다. status 반영만 main.async 홉
+    /// (폴링은 메인을 기다리지 않는다).
+    private func startWatchdog() {
+        guard watchdogTimer == nil, isInterceptionEnabled, let tapPort else { return }
+        // CFMachPort 강캡처 — 스레드 안전 C API 대상이라 bg 호출이 안전하고, stop()이
+        // invalidate한 뒤의 늦은 호출은 무해한 no-op이다 (약참조·매 폴링 재조회가
+        // 오히려 nil 경합·격리 위반을 만든다).
+        nonisolated(unsafe) let port = tapPort
+        let timer = DispatchSource.makeTimerSource(queue: watchdogQueue)
+        timer.schedule(
+            deadline: .now() + .seconds(2), repeating: .seconds(2), leeway: .milliseconds(500))
+        // [weak self]: 핸들러가 self를 잡으면 self→timer→handler→self 사이클이 cancel에만
+        // 의존한다 — stop() 없는 해제 경로가 생기는 순간 좀비 워치독이 2초마다 탭을
+        // 되살리는 최악 부류의 누수라, 사이클 자체를 두지 않는다. CGEvent 호출은 별도
+        // 강캡처된 port만 쓰므로 weak 전환의 기능 비용은 없다.
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            // 스톨 게이트: 직전 홉이 아직 메인에서 소비되지 않았다 = 메인이 ≥1 폴링
+            // 주기만큼 적체(스톨)됐다. 이때는 틱을 통째로 건너뛴다 —
+            // ① 재활성화 보류: 탭 소스가 메인 런루프에 있어 스톨 중 되살린 탭은 키를
+            //    처리하지 못한 채 ~1초씩 잡아두다 OS에 다시 꺼진다 (2초마다 타이핑
+            //    지연만 반복하며 OS 보호와 싸움). 꺼진 탭은 키를 즉시 통과시키므로
+            //    스톨 중엔 그대로 두는 게 올바른 degrade다.
+            // ② 홉 미적재: 장기 스톨에 홉이 2초당 1건씩 메인 큐에 붇는 것을 막는다
+            //    (pending 최대 1건). 복구는 스톨 해소 → 홉 소진 → 다음 틱(≤2초)이 한다.
+            guard !watchdogHopPending.withLock({ $0 }) else { return }
+            let observation = Self.watchdogTick(
+                isEnabled: { CGEvent.tapIsEnabled(tap: port) },
+                enableAndVerify: { Self.enableAndCheck(port) },
+                isSecureInput: { IsSecureEventInputEnabled() }
+            )
+            if observation == .recovered {
+                // 성공 로그만 bg에서 직접 — 희귀 이벤트라 스팸 불가능하고, 메인 스톨
+                // 중에도 즉시 기록돼야 복구를 관측할 수 있다. 실패 로그는 메인 전이
+                // 가드 뒤 1건 (매 시도 로그는 장기 불능 시 2초당 1건씩 도배).
+                Logger.eventTap.info("워치독 — 비활성 탭 복구")
+            }
+            // 매 폴링 홉: 비활성 감지 시에만 홉하면 "탭은 살았는데 status만 .failed"인
+            // 낡은 래치를 영원히 못 고친다. 항상 관측값을 흘려 status↔실제가 ≤2초 내
+            // 수렴시키고, 등가 가드가 과발화를 흡수한다.
+            //
+            // 홉은 main.async — unstructured Task의 메인 액터 실행 순서는 FIFO 보장이
+            // 없어, 탭이 flap하면 낡은 dead 홉이 최신 홉을 덮어쓸 수 있다. GCD
+            // 메인 큐는 FIFO라 이 버그 클래스가 없다 (스톨 게이트의 pending ≤1건과
+            // 합쳐 홉 순서 문제가 이중으로 봉인된다).
+            watchdogHopPending.withLock { $0 = true }
+            DispatchQueue.main.async {
+                self.watchdogHopPending.withLock { $0 = false }
+                MainActor.assumeIsolated { self.applyWatchdogResult(observation) }
+            }
+        }
+        timer.resume()
+        watchdogTimer = timer
+    }
+
+    private func stopWatchdog() {
+        // cancel은 in-flight 핸들러를 기다리지 않는다 — 남는 경합은 강캡처(메모리 안전)와
+        // 시리얼 큐 최종 disable + applyWatchdogResult의 가드(의미론)가 수용한다.
+        watchdogTimer?.cancel()
+        watchdogTimer = nil
+    }
+
+    /// 워치독 틱의 관측 결과 — bg 틱이 산출하고 `applyWatchdogResult`가 소비한다.
+    enum WatchdogObservation: Equatable {
+        /// 탭이 이미 활성 — 재활성화 시도 없음.
+        case live
+        /// 비활성 탭을 재활성화해 살렸다.
+        case recovered
+        /// 재활성화 후에도 비활성 — 가로채기 불능.
+        case dead
+        /// 탭 비활성이나 Secure Event Input이 원인 — 재활성화 미시도 (OS 보호 존중).
+        case secureInput
+    }
+
+    /// 워치독 틱의 판정 로직 — CGEvent 의존을 클로저로 주입받는 순수 함수. 실탭 경로는
+    /// TEST_HOST 포트가 항상 nil이라 CI에서 도달 불가하므로, 판정만 분리해 단위 테스트한다
+    /// (타이머 스케줄·실탭 결합은 실기기 GREEN 몫). 프로덕션 주입은 `startWatchdog` 핸들러.
+    ///
+    /// Secure Input 확인은 탭이 죽어 있을 때만 — 비활성의 원인이 OS 보호(비밀번호 입력
+    /// 등)면 재활성화를 시도하지 않는다. 시도하면 매 2초 거부→.failed 반복으로 정상
+    /// 보호 동작이 고장(false failure)처럼 표시된다.
+    nonisolated static func watchdogTick(
+        isEnabled: () -> Bool,
+        enableAndVerify: () -> Bool,
+        isSecureInput: () -> Bool
+    ) -> WatchdogObservation {
+        if isEnabled() { return .live }
+        if isSecureInput() { return .secureInput }
+        return enableAndVerify() ? .recovered : .dead
+    }
+
+    /// 워치독 관측값의 메인측 status 반영 — `enableTapAndVerify`와 같은 전이 규칙
+    /// (live→.running / dead→.failed)의 4번째 소비자. 탭 설치와 무관한 순수 경로라
+    /// internal — 늦은 홉 무시·off 가드를 단위 테스트하는 계약.
+    func applyWatchdogResult(_ observation: WatchdogObservation) {
+        // 토글 off 경합 자가 치유: off 직전 in-flight 폴링이 탭을 되살렸을 수 있다.
+        // 시리얼 큐 최종 disable이 1차로 닫고, 이 가드는 늦은 홉의 status 오염 방지 +
+        // 이중 방어의 되돌림이다.
+        guard isInterceptionEnabled else {
+            if let tapPort { CGEvent.tapEnable(tap: tapPort, enable: false) }
+            return
+        }
+        // stop() 이후·설치 전 늦은 홉 무시 — 탭 없는 status를 오염시키지 않는다.
+        guard tapPort != nil else { return }
+        switch observation {
+        case .live, .recovered:
+            if status != .running { status = .running }
+        case .secureInput:
+            if status != .secureInput {
+                status = .secureInput
+                Logger.eventTap.info("워치독 — Secure Input 활성, 재활성화 보류 (OS 보호)")
+            }
+        case .dead:
+            if status != .failed {
+                status = .failed
+                Logger.eventTap.error("워치독 — tapEnable 후에도 탭 비활성 (가로채기 불능)")
+            }
+        }
     }
 
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라
