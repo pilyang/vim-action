@@ -1,0 +1,47 @@
+Packages/VimActionCore/Tests/VimEngineTests/LinewiseFixtures.swift
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 1-242
+Packages/VimActionCore/Tests/VimEngineTests/EditFixtures.swift
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 43-44,207-208,210,215,228
+.claude/skills/plans/references/20260719_engine-operators-textobjects-linewise.md
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 16-18,65
+.claude/skills/decisions/references/20260719_linewise-textrange-absolute-count-invalid.md
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 1-33
+.claude/skills/decisions/references/20260719_opmotion-unified-dispatch-table.md
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 1-24
+.claude/skills/decisions/references/20260719_change-insert-transition-and-cw-deferral.md
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 1-27
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 24-27,30-31,34-50
+Packages/VimActionCore/Tests/VimEngineTests/CancellationFixtures.swift
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 27
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 20-21,96,98-107,113-119,122-127,133-141,171-183,185,285-327
+Packages/VimActionCore/Tests/VimEngineTests/TextObjectFixtures.swift
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 1-177
+Packages/VimActionCore/Tests/VimEngineTests/OperatorFixtures.swift
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 193-194,207,212
+.claude/skills/decisions/SKILL.md
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 58-61
+.claude/skills/decisions/references/20260719_textobject-quote-pair-expansion.md
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 1-27
+.claude/skills/architecture/references/mode-engine.md
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 3,25-29,32,52
+.claude/skills/plans/SKILL.md
+  s_7bcf9201a09a6c::t_197c1f80fd6acb 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "d5e9c192aebb3f3a58e0e5690ce67cd6f1fe86d1",
+  "prompts": {},
+  "sessions": {
+    "s_7bcf9201a09a6c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "91edcd23-2634-4def-bfd3-c49cfedbf5a6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
