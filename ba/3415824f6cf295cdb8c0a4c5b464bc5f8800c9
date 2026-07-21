@@ -1,0 +1,23 @@
+.claude/skills/plans/references/20260721_engine-vocabulary-completion-overview.md
+  s_ec9a87f07dad06::t_a287ad98874f89 1-38
+.claude/skills/plans/references/20260721_visual-mode.md
+  s_ec9a87f07dad06::t_1f133275ce7906 1-39
+.claude/skills/plans/SKILL.md
+  s_ec9a87f07dad06::t_8c851af1cbd31f 53-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "ba3415824f6cf295cdb8c0a4c5b464bc5f8800c9",
+  "prompts": {},
+  "sessions": {
+    "s_ec9a87f07dad06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ba281bd-0113-4c38-9894-373860ac4d41",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
