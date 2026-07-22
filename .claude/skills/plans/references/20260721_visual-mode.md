@@ -14,13 +14,14 @@
 
 - [x] **1. 출력 계약 설계·결정** (2026-07-22) — selection 케이스 신설안 채택: `extendSelection(Motion)`(카운트는 반복 출력), `beginSelection(linewise:)`/`clearSelection`(명시 진입·이탈 신호, wise는 세션 속성), `TextRange.selection`(`y d x c`, `x`≡`d`), 앵커·범위는 어댑터 상태. pending 상호작용은 특례 없음(`3v` 카운트 무시 진입, `dv` invalid no-op). decisions: [20260722_visual-mode-output-contract.md](../../decisions/references/20260722_visual-mode-output-contract.md), [20260722_visual-entry-pending-interaction.md](../../decisions/references/20260722_visual-entry-pending-interaction.md)
 
+- [x] **2. 모드 전이** (2026-07-22): visualChar/visualLine 추가, `v`/`V` 진입·이탈·전환, Insert에서 `v`는 통과. `ModeTransitionTests` 확장 (커밋 660fa16).
+- [x] **3. 모션 → 선택 확장 + 카운트** (2026-07-22): 기존 모션 전부 `extendSelection` 반복 출력, 0-규칙·클램프 공유, `VisualFixtures.swift` 신설 (커밋 b241e56).
+- [x] **4. 선택 동작 `y d x c`** (2026-07-22): `.edit(op, .selection)` 즉시 완결, `x`≡`d`, `c`→Insert, 카운트+오퍼레이터 invalid (커밋 54ff33f).
+- [x] **5. 엣지·취소 규칙 + 문서 갱신** (2026-07-22): Esc/탈출 콤보·미매핑·`3v`/`dv` 픽스처, `mode-engine.md` 최종 상태 갱신.
+
 ## 남은 것
 
-<!-- 위에서부터 순서대로. 출력 형태는 1단계 결정(완료)에 고정 — 20260722 결정 문서 두 건 참조. -->
-- [ ] **2. 모드 전이**: `Mode`에 visual(char/line) 추가, Normal→`v`/`V` 진입, 이탈(`Esc`, 같은 키 재입력)·전환(`v`↔`V`) 의미론, Insert와의 전이 매트릭스. `ModeTransitionTests` 확장.
-- [ ] **3. 모션 → 선택 확장 + 카운트**: 기존 모션 전부의 Visual 해석(1단계 계약대로 출력), 선행 카운트(`3j`) 적용. Visual 전용 픽스처 파일 신설.
-- [ ] **4. 선택 동작 `y d x c`**: 선택 범위에 대한 오퍼레이터 출력, `c`→Insert / `y d x`→Normal 복귀, `x`≡`d`. 픽스처 추가.
-- [ ] **5. 엣지·취소 규칙 정리 + 문서 갱신**: Visual에서의 탈출 modifier 콤보, 미매핑 키 처리(swallow/passthrough), Normal의 `pending`과의 상호작용(Visual 진입 시 pending 폐기 등), `mode-engine.md` 갱신, 개요 플랜 체크.
+- [ ] 완료 확인 후 정리: 개요 플랜 항목 ① 체크 + 이 문서 삭제 (스킬 워크플로우 4 — 사용자 확인 필요).
 
 ## 진행 중 컨텍스트
 

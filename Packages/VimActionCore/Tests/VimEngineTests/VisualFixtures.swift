@@ -8,6 +8,10 @@ import Testing
 /// 출력 계약: 모션은 `extendSelection` 반복 출력(`.move`와 같은 카운트 규칙),
 /// linewise 세션의 줄 반올림은 어댑터 몫이라 char/line 모드의 모션 출력은 동일하다.
 /// (decisions: 20260722_visual-mode-output-contract.md)
+
+/// cmd/opt를 탈출 modifier로 켠 설정 (EscapeModifierFixtures와 동일).
+private let escapeOnCmdOpt = VimEngine.Configuration(normalModeEscapeModifiers: [.command, .option])
+
 let visualFixtures: [KeySequenceFixture] = [
     // 모션 → 선택 확장
     KeySequenceFixture(
@@ -148,6 +152,73 @@ let visualFixtures: [KeySequenceFixture] = [
             step(.char("3"), .swallow),
             step(.char("d"), .swallow),
         ],
+        finalMode: .visualChar
+    ),
+
+    // Normal pending과의 상호작용 (decisions: 20260722_visual-entry-pending-interaction.md)
+    KeySequenceFixture(
+        "Normal에서 3v → 카운트를 버리고 Visual 진입 (3i와 동일 원칙)",
+        startMode: .normal,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("v"), .replace([.beginSelection(linewise: false)])),
+        ],
+        finalMode: .visualChar
+    ),
+    KeySequenceFixture(
+        "Normal에서 dv → invalid no-op, Visual 진입하지 않음 (dq와 동일)",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("v"), .swallow),
+        ],
+        finalMode: .normal
+    ),
+
+    // 취소·엣지
+    KeySequenceFixture(
+        "Visual에서 카운트 누적 중 Esc → pending 폐기 + 선택 해제 + Normal",
+        startMode: .visualChar,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.escape, .replace([.clearSelection])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "Visual에서 g 접두 후 무효 키 → 접두와 키를 함께 버리는 no-op",
+        startMode: .visualChar,
+        steps: [
+            step(.char("g"), .swallow),
+            step(.char("q"), .swallow),
+            // 잔류 상태 없음 확인 — 이어지는 모션은 정상 동작.
+            step(.char("w"), .replace([.extendSelection(.wordForward)])),
+        ],
+        finalMode: .visualChar
+    ),
+    KeySequenceFixture(
+        "Visual에서 탈출 콤보 → 통과하며 Insert 탈출 (clearSelection 없음 — 콤보가 선택에 작용 가능)",
+        startMode: .visualChar,
+        configuration: escapeOnCmdOpt,
+        steps: [step(.init(.space, [.command]), .passthrough)],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "Visual에서 비탈출 modifier 콤보는 통과, 모드 유지 (시스템 단축키 보존)",
+        startMode: .visualChar,
+        steps: [step(.char("c", [.control]), .passthrough)],
+        finalMode: .visualChar
+    ),
+    KeySequenceFixture(
+        "Visual에서 미매핑 맨 키는 삼킴, 모드 유지",
+        startMode: .visualChar,
+        steps: [step(.char("q"), .swallow)],
+        finalMode: .visualChar
+    ),
+    KeySequenceFixture(
+        "Visual에서 i는 미매핑 — 삼킴 (v1엔 텍스트 오브젝트 선택 없음)",
+        startMode: .visualChar,
+        steps: [step(.char("i"), .swallow)],
         finalMode: .visualChar
     ),
 ]
