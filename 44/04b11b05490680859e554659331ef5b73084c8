@@ -1,0 +1,30 @@
+.claude/skills/plans/references/20260721_visual-mode.md
+  s_efd8c68521df30::t_b38f63ce3b8ed4 17-21,24
+Packages/VimActionCore/Tests/VimEngineTests/VisualFixtures.swift
+  s_efd8c68521df30::t_ab9931925f02c0 157-223
+  s_efd8c68521df30::t_9f1bc1ace9847d 11-14
+.claude/skills/architecture/references/mode-engine.md
+  s_efd8c68521df30::t_6e8347f99e9f5c 26
+  s_efd8c68521df30::t_caae0e0d0b36f3 3
+  s_efd8c68521df30::t_5276dba3842e5f 24
+  s_efd8c68521df30::t_0cafdeae7257b8 54
+  s_efd8c68521df30::t_5bb8fb652d016c 30-31
+.claude/skills/plans/SKILL.md
+  s_efd8c68521df30::t_c92d7378f34f44 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "4404b11b05490680859e554659331ef5b73084c8",
+  "prompts": {},
+  "sessions": {
+    "s_efd8c68521df30": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6509b515-78ff-4ede-8a8d-410cdbb48354",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
