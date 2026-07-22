@@ -69,6 +69,8 @@ extension Mode {
         switch self {
         case .normal: "n.square.fill"
         case .insert: "i.square"
+        case .visualChar: "v.square.fill"
+        case .visualLine: "v.square"
         }
     }
 
@@ -77,6 +79,8 @@ extension Mode {
         switch self {
         case .normal: "Normal"
         case .insert: "Insert"
+        case .visualChar: "Visual"
+        case .visualLine: "Visual Line"
         }
     }
 }
