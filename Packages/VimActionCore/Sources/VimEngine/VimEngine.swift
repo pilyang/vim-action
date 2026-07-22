@@ -45,6 +45,8 @@ public struct VimEngine: Sendable {
             return handleInsert(key)
         case .normal:
             return handleNormal(key)
+        case .visualChar, .visualLine:
+            return handleVisual(key)
         }
     }
 
@@ -198,6 +200,14 @@ public struct VimEngine: Sendable {
         case .char("i"):
             mode = .insert
             return .swallow
+        case .char("v"):
+            // 선행 카운트는 버린다 (3i와 같은 원칙). 오퍼레이터 대기 중의 v(dv)는
+            // 여기 오지 않고 위 op 분기에서 invalid로 떨어진다 — 특례 없음.
+            mode = .visualChar
+            return .replace([.beginSelection(linewise: false)])
+        case .char("V"):
+            mode = .visualLine
+            return .replace([.beginSelection(linewise: true)])
         case .char("a"):
             mode = .insert
             return .replace([.move(.charRightForAppend)])
@@ -233,6 +243,62 @@ public struct VimEngine: Sendable {
         // 매핑 없는 modifier 조합(Cmd+C 등)은 시스템 단축키이므로 통과시킨다.
         // (탈출 콤보는 handleNormal이 이미 걸렀으므로 여기는 비탈출 콤보만 온다.)
         // modifier 없는 미매핑 키만 삼킨다 (Normal 모드 키가 앱에 새지 않게).
+        if key.modifiers.isEmpty {
+            return .swallow
+        }
+        return .passthrough
+    }
+
+    private mutating func handleVisual(_ key: Key) -> EngineOutput {
+        // 취소 최우선 — Normal과 동일한 cross-cutting 규칙 (step 진입 전).
+        //
+        // Esc 정확 매치는 선택을 해제하며 Normal로 복귀한다. 탈출 modifier 콤보는
+        // passthrough라 clearSelection을 함께 실을 수 없다(결정이 배타적) —
+        // 원본 콤보 전달이 우선이고(Cmd+C가 선택에 작용할 수 있어 오히려 유용),
+        // 어댑터의 선택 세션 상태는 다음 beginSelection이 리셋한다.
+        if key == .escape {
+            pending = nil
+            mode = .normal
+            return .replace([.clearSelection])
+        }
+        if isEscapeCombo(key) {
+            pending = nil
+            mode = .insert
+            return .passthrough
+        }
+
+        return visualStep(key)
+    }
+
+    /// Visual의 step — Normal `step`과 같은 extend/complete/invalid 구조지만
+    /// 문법이 다르다: 오퍼레이터는 대기 없이 선택 범위로 즉시 완결되고,
+    /// pending에는 카운트와 g 접두만 쌓인다.
+    private mutating func visualStep(_ key: Key) -> EngineOutput {
+        pending = nil
+
+        // v/V — 같은 키는 이탈, 다른 키는 wise 전환 (Vim 동일). 전환은
+        // beginSelection 재출력으로 표현한다: 세션 활성 중의 begin은 앵커 유지 +
+        // wise 교체·재적용이라는 어댑터 규약이다.
+        switch key {
+        case .char("v"):
+            if mode == .visualChar {
+                mode = .normal
+                return .replace([.clearSelection])
+            }
+            mode = .visualChar
+            return .replace([.beginSelection(linewise: false)])
+        case .char("V"):
+            if mode == .visualLine {
+                mode = .normal
+                return .replace([.clearSelection])
+            }
+            mode = .visualLine
+            return .replace([.beginSelection(linewise: true)])
+        default:
+            break
+        }
+
+        // 미매핑 처리도 Normal과 동일: modifier 콤보는 통과, 맨 키는 삼킴.
         if key.modifiers.isEmpty {
             return .swallow
         }

@@ -3,6 +3,15 @@
 public enum VimAction: Hashable, Sendable {
     case move(Motion)
     case edit(Operator, TextRange)
+    /// Visual 선택 세션 시작 — 앵커를 현재 캐럿으로 설정한다. `linewise`(V 진입)면
+    /// 현재 줄 전체를 즉시 선택한다. 세션 활성 중 다시 받으면(v↔V 전환) 앵커를
+    /// 유지한 채 wise만 교체·재적용한다. 앵커·실제 범위는 어댑터 상태다.
+    case beginSelection(linewise: Bool)
+    /// Visual에서의 모션 — 이동이 아니라 선택 확장이다. 카운트는 `.move`와 같은
+    /// 반복 출력. linewise 세션에서의 줄 반올림은 wise를 아는 어댑터의 실행 규칙이다.
+    case extendSelection(Motion)
+    /// Visual 이탈 — 화면의 선택을 해제(collapse)한다.
+    case clearSelection
 
     /// 편집 오퍼레이터의 종류. 적용 범위는 `TextRange`가 함께 나른다.
     public enum Operator: Hashable, Sendable {
@@ -25,6 +34,9 @@ public enum VimAction: Hashable, Sendable {
         /// 총 몇 줄인지의 해석은 어댑터 몫이다. 절대 모션(G/gg)은 항상 count 1로만
         /// 나온다 — 카운트가 붙으면 엔진이 invalid로 이연한다.
         case linewiseMotion(Motion, count: Int)
+        /// 현재 선택 영역 — Visual의 `y d x c`. 실제 범위는 어댑터가 유지하는
+        /// 선택 상태에서 온다.
+        case selection
     }
 
     /// 텍스트 오브젝트. 경계의 실제 의미(단어의 정의, 주변 공백 포함 범위,
