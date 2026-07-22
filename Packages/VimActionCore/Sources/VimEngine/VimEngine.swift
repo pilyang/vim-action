@@ -320,6 +320,15 @@ public struct VimEngine: Sendable {
             break
         }
 
+        // 선택 동작 y d x c — 선택 범위로 즉시 완결. 카운트는 모션에만 허용하므로
+        // 카운트가 쌓여 있으면 invalid다 (파괴적 편집의 오해석 거부, d3G와 같은 기준).
+        // y/d/x는 Normal 복귀, c는 complete가 Insert로 전이한다(기존 단일화 헬퍼).
+        if let op = Self.visualOperatorKeys[key] {
+            guard current.count == nil else { return .swallow }
+            mode = .normal
+            return complete(op, .selection)
+        }
+
         if let digit = Self.countDigit(key, accumulating: current.count != nil) {
             var next = current
             next.count = Self.accumulate(next.count, digit: digit)
@@ -410,6 +419,15 @@ public struct VimEngine: Sendable {
         .char("j"): (.lineDown, .linewiseRelative),
         .char("k"): (.lineUp, .linewiseRelative),
         .char("G"): (.documentEnd, .linewiseAbsolute),
+    ]
+
+    /// Visual에서 선택 범위로 즉시 완결되는 오퍼레이터 키 — `x`는 전용 케이스 없이
+    /// `d`와 동일 출력이다 (PRD가 둘 다 "선택 삭제"로 정의).
+    private static let visualOperatorKeys: [Key: VimAction.Operator] = [
+        .char("d"): .delete,
+        .char("x"): .delete,
+        .char("c"): .change,
+        .char("y"): .yank,
     ]
 
     /// 스코프 접두(i/a) 뒤 quote 오브젝트 완결 키.

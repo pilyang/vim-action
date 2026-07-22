@@ -99,6 +99,57 @@ let visualFixtures: [KeySequenceFixture] = [
         ],
         finalMode: .visualChar
     ),
+
+    // 선택 동작 y d x c
+    KeySequenceFixture(
+        "Visual-char에서 y → 선택 복사 후 Normal 복귀",
+        startMode: .visualChar,
+        steps: [step(.char("y"), .replace([.edit(.yank, .selection)]))],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "Visual-char에서 d → 선택 삭제 후 Normal 복귀",
+        startMode: .visualChar,
+        steps: [step(.char("d"), .replace([.edit(.delete, .selection)]))],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "Visual-char에서 x → d와 동일 출력 (x≡d)",
+        startMode: .visualChar,
+        steps: [step(.char("x"), .replace([.edit(.delete, .selection)]))],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "Visual-char에서 c → 선택 삭제하며 Insert 진입",
+        startMode: .visualChar,
+        steps: [step(.char("c"), .replace([.edit(.change, .selection)]))],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "Visual-line에서 d → 출력은 char와 동일 .selection (줄 범위는 어댑터 선택 상태)",
+        startMode: .visualLine,
+        steps: [step(.char("d"), .replace([.edit(.delete, .selection)]))],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "진입부터 완결까지: v → w 확장 → y 복사 → Normal",
+        startMode: .normal,
+        steps: [
+            step(.char("v"), .replace([.beginSelection(linewise: false)])),
+            step(.char("w"), .replace([.extendSelection(.wordForward)])),
+            step(.char("y"), .replace([.edit(.yank, .selection)])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "Visual에서 카운트+오퍼레이터(3d)는 invalid — 카운트는 모션에만",
+        startMode: .visualChar,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("d"), .swallow),
+        ],
+        finalMode: .visualChar
+    ),
 ]
 
 @Test(arguments: visualFixtures)
