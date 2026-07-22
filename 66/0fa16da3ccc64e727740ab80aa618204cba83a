@@ -1,0 +1,28 @@
+Packages/VimActionCore/Sources/VimEngine/Mode.swift
+  s_efd8c68521df30::t_3e68f89819664f 1-2,6-7
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_efd8c68521df30::t_68b83fd5559864 48-49
+  s_efd8c68521df30::t_70f3c6cda889eb 203-210
+  s_efd8c68521df30::t_09a6463dbf2ac7 252-307
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_efd8c68521df30::t_ee39dd86480fb2 37-39
+  s_efd8c68521df30::t_8c9b3a55917d3e 6-14
+Packages/VimActionCore/Tests/VimEngineTests/ModeTransitionTests.swift
+  s_efd8c68521df30::t_85d2f871ae2b8d 54-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "660fa16da3ccc64e727740ab80aa618204cba83a",
+  "prompts": {},
+  "sessions": {
+    "s_efd8c68521df30": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6509b515-78ff-4ede-8a8d-410cdbb48354",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
