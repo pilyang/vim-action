@@ -1,0 +1,23 @@
+Packages/VimActionCore/Tests/VimEngineTests/VisualFixtures.swift
+  s_efd8c68521df30::t_6b589398297a7b 1-107
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_efd8c68521df30::t_76fcec3097c118 277,280-299
+  s_efd8c68521df30::t_7add688e83da17 323-335
+  s_efd8c68521df30::t_920db938c039c4 300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "b241e564fe9762655bc935a2e9ae19066fd53e2b",
+  "prompts": {},
+  "sessions": {
+    "s_efd8c68521df30": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6509b515-78ff-4ede-8a8d-410cdbb48354",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
