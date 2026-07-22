@@ -4,7 +4,7 @@
      완료 시 개요 플랜 체크 후 이 문서는 삭제한다. -->
 
 - **생성일**: 2026-07-21
-- **갱신일**: 2026-07-21
+- **갱신일**: 2026-07-22
 
 ## 목표
 
@@ -12,13 +12,11 @@
 
 ## 완료된 것
 
-- (착수 전)
+- [x] **1. 출력 계약 설계·결정** (2026-07-22) — selection 케이스 신설안 채택: `extendSelection(Motion)`(카운트는 반복 출력), `beginSelection(linewise:)`/`clearSelection`(명시 진입·이탈 신호, wise는 세션 속성), `TextRange.selection`(`y d x c`, `x`≡`d`), 앵커·범위는 어댑터 상태. pending 상호작용은 특례 없음(`3v` 카운트 무시 진입, `dv` invalid no-op). decisions: [20260722_visual-mode-output-contract.md](../../decisions/references/20260722_visual-mode-output-contract.md), [20260722_visual-entry-pending-interaction.md](../../decisions/references/20260722_visual-entry-pending-interaction.md)
 
 ## 남은 것
 
-<!-- 위에서부터 순서대로. 1이 선행 결정이라 가장 먼저 — 이후 단계의 출력 형태가 여기 걸려 있다. -->
-
-- [ ] **1. 출력 계약 설계·결정** — "모션이 이동이 아니라 선택 확장"임을 어댑터에 어떻게 전달할지: `VimAction`에 selection 계열 케이스 신설 vs `EngineOutput`에 모드 문맥 동봉 vs 어댑터가 `mode`로 해석 분기. 선택 앵커·실제 범위는 텍스트를 모르는 엔진이 가질 수 없으므로 어댑터 상태라는 경계도 함께 확정. `c`의 Insert 전이(기존 `complete` 헬퍼)와 `x`≡`d` 동치 처리 포함. → **decisions 기록 후 다음 단계 진행**.
+<!-- 위에서부터 순서대로. 출력 형태는 1단계 결정(완료)에 고정 — 20260722 결정 문서 두 건 참조. -->
 - [ ] **2. 모드 전이**: `Mode`에 visual(char/line) 추가, Normal→`v`/`V` 진입, 이탈(`Esc`, 같은 키 재입력)·전환(`v`↔`V`) 의미론, Insert와의 전이 매트릭스. `ModeTransitionTests` 확장.
 - [ ] **3. 모션 → 선택 확장 + 카운트**: 기존 모션 전부의 Visual 해석(1단계 계약대로 출력), 선행 카운트(`3j`) 적용. Visual 전용 픽스처 파일 신설.
 - [ ] **4. 선택 동작 `y d x c`**: 선택 범위에 대한 오퍼레이터 출력, `c`→Insert / `y d x`→Normal 복귀, `x`≡`d`. 픽스처 추가.
