@@ -274,7 +274,29 @@ public struct VimEngine: Sendable {
     /// 문법이 다르다: 오퍼레이터는 대기 없이 선택 범위로 즉시 완결되고,
     /// pending에는 카운트와 g 접두만 쌓인다.
     private mutating func visualStep(_ key: Key) -> EngineOutput {
+        let current = pending ?? PendingCommand()
         pending = nil
+
+        switch current.prefix {
+        case .g:
+            // 모션 gg — 선행 카운트는 버린다 (Normal의 gg와 동일 원칙).
+            if key == .char("g") {
+                return .replace([.extendSelection(.documentStart)])
+            }
+            return .swallow
+        case .textObjectScope:
+            // Visual에는 진입 경로가 없다 (오퍼레이터 대기가 없으므로) — 방어적 invalid.
+            return .swallow
+        case nil:
+            break
+        }
+
+        if key == .char("g") {
+            var next = current
+            next.prefix = .g
+            pending = next
+            return .swallow
+        }
 
         // v/V — 같은 키는 이탈, 다른 키는 wise 전환 (Vim 동일). 전환은
         // beginSelection 재출력으로 표현한다: 세션 활성 중의 begin은 앵커 유지 +
@@ -296,6 +318,19 @@ public struct VimEngine: Sendable {
             return .replace([.beginSelection(linewise: true)])
         default:
             break
+        }
+
+        if let digit = Self.countDigit(key, accumulating: current.count != nil) {
+            var next = current
+            next.count = Self.accumulate(next.count, digit: digit)
+            pending = next
+            return .swallow
+        }
+
+        // 모션은 전부 선택 확장이다 — 카운트는 `.move`와 같은 반복 출력.
+        // linewise 세션의 줄 반올림은 wise를 아는 어댑터의 실행 규칙이다.
+        if let motion = Self.singleKeyMotions[key] {
+            return .replace(Array(repeating: VimAction.extendSelection(motion), count: current.count ?? 1))
         }
 
         // 미매핑 처리도 Normal과 동일: modifier 콤보는 통과, 맨 키는 삼킴.
