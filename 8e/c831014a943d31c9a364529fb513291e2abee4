@@ -1,0 +1,28 @@
+.claude/skills/plans/SKILL.md
+  s_efd8c68521df30::t_0e4e2d86fa7687 54
+.claude/skills/decisions/references/20260722_visual-entry-pending-interaction.md
+  s_efd8c68521df30::t_04c3559b314ace 1-33
+.claude/skills/plans/references/20260721_visual-mode.md
+  s_efd8c68521df30::t_242f39ddb69c33 7
+  s_efd8c68521df30::t_a15253325deeda 15,19
+.claude/skills/decisions/references/20260722_visual-mode-output-contract.md
+  s_efd8c68521df30::t_dcbb53b807084c 1-42
+.claude/skills/decisions/SKILL.md
+  s_efd8c68521df30::t_1bce8c83fbf20b 68-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "8ec831014a943d31c9a364529fb513291e2abee4",
+  "prompts": {},
+  "sessions": {
+    "s_efd8c68521df30": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6509b515-78ff-4ede-8a8d-410cdbb48354",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
