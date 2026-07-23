@@ -127,17 +127,19 @@ extension NSImage {
         let base = menuBarSymbol(named: "square.fill")
         let image = NSImage(size: base.size, flipped: false) { rect in
             base.draw(in: rect)
+            // 0.62·-0.4는 SF 글자 심볼의 컷아웃 메트릭에 맞춘 값 — v.square.fill의
+            // 글자 bbox(높이 7.5pt, y 4.5)와 픽셀 스캔으로 일치를 확인했다.
             let text = NSAttributedString(
                 string: "Vl",
                 attributes: [
-                    .font: NSFont.systemFont(ofSize: rect.height * 0.42, weight: .bold),
+                    .font: NSFont.systemFont(ofSize: rect.height * 0.62, weight: .bold),
                     .foregroundColor: NSColor.black,
                 ]
             )
             let textSize = text.size()
             NSGraphicsContext.current?.cgContext.setBlendMode(.destinationOut)
             text.draw(
-                at: NSPoint(x: rect.midX - textSize.width / 2, y: rect.midY - textSize.height / 2)
+                at: NSPoint(x: rect.midX - textSize.width / 2, y: rect.midY - textSize.height / 2 - 0.4)
             )
             return true
         }
