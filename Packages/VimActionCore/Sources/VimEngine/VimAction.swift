@@ -3,10 +3,13 @@
 public enum VimAction: Hashable, Sendable {
     case move(Motion)
     case edit(Operator, TextRange)
-    /// Visual 선택 세션 시작 — 앵커를 현재 캐럿으로 설정한다. `linewise`(V 진입)면
-    /// 현재 줄 전체를 즉시 선택한다. 세션 활성 중 다시 받으면(v↔V 전환) 앵커를
-    /// 유지한 채 wise만 교체·재적용한다. 앵커·실제 범위는 어댑터 상태다.
+    /// Visual 선택 세션 시작 — 항상 새 세션이다: 남아 있던 세션 상태가 있어도
+    /// 폐기하고 앵커를 현재 캐럿으로 리셋한다. `linewise`(V 진입)면 현재 줄
+    /// 전체를 즉시 선택한다. 앵커·실제 범위는 어댑터 상태다.
     case beginSelection(linewise: Bool)
+    /// 세션 활성 중의 v↔V 전환 — 앵커를 유지한 채 wise만 교체·재적용한다.
+    /// 활성 세션이 없으면 `beginSelection`처럼 새 세션으로 처리한다 (방어 규칙).
+    case switchSelectionWise(linewise: Bool)
     /// Visual에서의 모션 — 이동이 아니라 선택 확장이다. 카운트는 `.move`와 같은
     /// 반복 출력. linewise 세션에서의 줄 반올림은 wise를 아는 어댑터의 실행 규칙이다.
     case extendSelection(Motion)

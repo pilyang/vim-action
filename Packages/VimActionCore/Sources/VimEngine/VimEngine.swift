@@ -255,7 +255,8 @@ public struct VimEngine: Sendable {
         // Esc 정확 매치는 선택을 해제하며 Normal로 복귀한다. 탈출 modifier 콤보는
         // passthrough라 clearSelection을 함께 실을 수 없다(결정이 배타적) —
         // 원본 콤보 전달이 우선이고(Cmd+C가 선택에 작용할 수 있어 오히려 유용),
-        // 어댑터의 선택 세션 상태는 다음 beginSelection이 리셋한다.
+        // 남는 화면 선택·어댑터 세션은 수용한다: beginSelection이 항상 리셋이라
+        // stale 세션이 다음 진입을 오염시키지 않는다.
         if key == .escape {
             pending = nil
             mode = .normal
@@ -298,9 +299,9 @@ public struct VimEngine: Sendable {
             return .swallow
         }
 
-        // v/V — 같은 키는 이탈, 다른 키는 wise 전환 (Vim 동일). 전환은
-        // beginSelection 재출력으로 표현한다: 세션 활성 중의 begin은 앵커 유지 +
-        // wise 교체·재적용이라는 어댑터 규약이다.
+        // v/V — 같은 키는 이탈, 다른 키는 wise 전환 (Vim 동일). 전환은 진입과
+        // 다른 신호다: begin은 항상 리셋, switchSelectionWise는 앵커 유지 +
+        // wise 교체·재적용.
         switch key {
         case .char("v"):
             if mode == .visualChar {
@@ -308,14 +309,14 @@ public struct VimEngine: Sendable {
                 return .replace([.clearSelection])
             }
             mode = .visualChar
-            return .replace([.beginSelection(linewise: false)])
+            return .replace([.switchSelectionWise(linewise: false)])
         case .char("V"):
             if mode == .visualLine {
                 mode = .normal
                 return .replace([.clearSelection])
             }
             mode = .visualLine
-            return .replace([.beginSelection(linewise: true)])
+            return .replace([.switchSelectionWise(linewise: true)])
         default:
             break
         }

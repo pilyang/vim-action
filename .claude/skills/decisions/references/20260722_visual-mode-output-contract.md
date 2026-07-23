@@ -1,5 +1,7 @@
 # Visual 모드 출력 계약 — selection 계열 케이스 신설
 
+> 일부 Superseded: "세션 활성 중 beginSelection 재수신 = 앵커 유지 + wise 교체" 조항은 [20260723_visual-begin-reset-switch-wise-split.md](20260723_visual-begin-reset-switch-wise-split.md)로, `y`의 출력 형태는 [20260723_visual-yank-clear-selection.md](20260723_visual-yank-clear-selection.md)로 대체됨. 그 외 계약은 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-07-22

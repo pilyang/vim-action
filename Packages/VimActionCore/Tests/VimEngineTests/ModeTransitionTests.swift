@@ -51,8 +51,9 @@ let modeTransitionFixtures: [KeySequenceFixture] = [
         steps: [step(.char("A"), .replace([.move(.lineEndForAppend)]))],
         finalMode: .insert
     ),
-    // Visual 진입·이탈·전환 — 진입/전환은 beginSelection, 이탈은 clearSelection이
-    // 명시 출력된다 (V의 "현재 줄 즉시 선택"과 Esc의 화면 선택 해제는 실제 동작).
+    // Visual 진입·이탈·전환 — 진입은 beginSelection(항상 앵커 리셋), 전환은
+    // switchSelectionWise(앵커 유지), 이탈은 clearSelection이 명시 출력된다
+    // (V의 "현재 줄 즉시 선택"과 Esc의 화면 선택 해제는 실제 동작).
     KeySequenceFixture(
         "Normal에서 v → Visual-char 진입, beginSelection(charwise)",
         startMode: .normal,
@@ -90,15 +91,15 @@ let modeTransitionFixtures: [KeySequenceFixture] = [
         finalMode: .normal
     ),
     KeySequenceFixture(
-        "Visual-char에서 V → line으로 전환, beginSelection 재출력(앵커 유지·wise 교체)",
+        "Visual-char에서 V → line으로 전환, switchSelectionWise(앵커 유지·wise 교체)",
         startMode: .visualChar,
-        steps: [step(.char("V"), .replace([.beginSelection(linewise: true)]))],
+        steps: [step(.char("V"), .replace([.switchSelectionWise(linewise: true)]))],
         finalMode: .visualLine
     ),
     KeySequenceFixture(
-        "Visual-line에서 v → char로 전환, beginSelection 재출력",
+        "Visual-line에서 v → char로 전환, switchSelectionWise 출력",
         startMode: .visualLine,
-        steps: [step(.char("v"), .replace([.beginSelection(linewise: false)]))],
+        steps: [step(.char("v"), .replace([.switchSelectionWise(linewise: false)]))],
         finalMode: .visualChar
     ),
     KeySequenceFixture(
