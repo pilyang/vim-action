@@ -45,6 +45,8 @@ public struct VimEngine: Sendable {
             return handleInsert(key)
         case .normal:
             return handleNormal(key)
+        case .visualChar, .visualLine:
+            return handleVisual(key)
         }
     }
 
@@ -130,13 +132,9 @@ public struct VimEngine: Sendable {
             break
         }
 
-        // g — op 유무와 무관하게 같은 prefix extend다 (gg / dgg). 카운트
-        // invalid 판정은 완결 시점(둘째 g)의 몫이다.
+        // g — op 유무와 무관하게 같은 prefix extend다 (gg / dgg).
         if key == .char("g") {
-            var next = current
-            next.prefix = .g
-            pending = next
-            return .swallow
+            return openGPrefix(current)
         }
 
         // 오퍼레이터 대기 — 뒤에 올 수 있는 건 스코프(i/a)·카운트·모션·
@@ -198,6 +196,14 @@ public struct VimEngine: Sendable {
         case .char("i"):
             mode = .insert
             return .swallow
+        case .char("v"):
+            // 선행 카운트는 버린다 (3i와 같은 원칙). 오퍼레이터 대기 중의 v(dv)는
+            // 여기 오지 않고 위 op 분기에서 invalid로 떨어진다 — 특례 없음.
+            mode = .visualChar
+            return .replace([.beginSelection(linewise: false)])
+        case .char("V"):
+            mode = .visualLine
+            return .replace([.beginSelection(linewise: true)])
         case .char("a"):
             mode = .insert
             return .replace([.move(.charRightForAppend)])
@@ -215,6 +221,107 @@ public struct VimEngine: Sendable {
             break
         }
 
+        // 카운트 붙은 모션은 `.move` 반복으로 낸다 — `.move`에 count 슬롯을
+        // 두지 않아 단일 모션 경로(count 1)가 기존 계약 그대로 유지된다.
+        return motionTail(key, current, make: VimAction.move)
+    }
+
+    private mutating func handleVisual(_ key: Key) -> EngineOutput {
+        // 취소 최우선 — Normal과 동일한 cross-cutting 규칙 (step 진입 전).
+        //
+        // Esc 정확 매치는 선택을 해제하며 Normal로 복귀한다. 탈출 modifier 콤보는
+        // passthrough라 clearSelection을 함께 실을 수 없다(결정이 배타적) —
+        // 원본 콤보 전달이 우선이고(Cmd+C가 선택에 작용할 수 있어 오히려 유용),
+        // 남는 화면 선택·어댑터 세션은 수용한다: beginSelection이 항상 리셋이라
+        // stale 세션이 다음 진입을 오염시키지 않는다.
+        if key == .escape {
+            pending = nil
+            mode = .normal
+            return .replace([.clearSelection])
+        }
+        if isEscapeCombo(key) {
+            pending = nil
+            mode = .insert
+            return .passthrough
+        }
+
+        return visualStep(key)
+    }
+
+    /// Visual의 step — Normal `step`과 같은 extend/complete/invalid 구조지만
+    /// 문법이 다르다: 오퍼레이터는 대기 없이 선택 범위로 즉시 완결되고,
+    /// pending에는 카운트와 g 접두만 쌓인다.
+    private mutating func visualStep(_ key: Key) -> EngineOutput {
+        let current = pending ?? PendingCommand()
+        pending = nil
+
+        switch current.prefix {
+        case .g:
+            // 모션 gg — 선행 카운트는 버린다 (Normal의 gg와 동일 원칙).
+            if key == .char("g") {
+                return .replace([.extendSelection(.documentStart)])
+            }
+            return .swallow
+        case .textObjectScope:
+            // Visual에는 진입 경로가 없다 (오퍼레이터 대기가 없으므로) — 방어적 invalid.
+            return .swallow
+        case nil:
+            break
+        }
+
+        if key == .char("g") {
+            return openGPrefix(current)
+        }
+
+        // v/V — 같은 키는 이탈, 다른 키는 wise 전환 (Vim 동일). 전환은 진입과
+        // 다른 신호다: begin은 항상 리셋, switchSelectionWise는 앵커 유지 +
+        // wise 교체·재적용.
+        switch key {
+        case .char("v"):
+            if mode == .visualChar {
+                mode = .normal
+                return .replace([.clearSelection])
+            }
+            mode = .visualChar
+            return .replace([.switchSelectionWise(linewise: false)])
+        case .char("V"):
+            if mode == .visualLine {
+                mode = .normal
+                return .replace([.clearSelection])
+            }
+            mode = .visualLine
+            return .replace([.switchSelectionWise(linewise: true)])
+        default:
+            break
+        }
+
+        // 선택 동작 y d x c — 선택 범위로 즉시 완결. 선행 카운트는 버리고
+        // 실행한다 (Vim 동일): 피연산자가 이미 확정된 선택 범위라 카운트가
+        // 결과를 바꿀 여지가 없다 — 오해석이 가능해 invalid인 d3G와 다른 기준.
+        // y/d/x는 Normal 복귀, c는 complete가 Insert로 전이한다(기존 단일화 헬퍼).
+        if let op = Self.visualOperatorKeys[key] {
+            mode = .normal
+            // y는 범위를 파괴하지 않아 화면 선택이 남는다 — Vim처럼 collapse를
+            // 명시 출력한다 (복사 → 해제 순서는 배열이 보장). d/x/c는 범위
+            // 삭제로 하이라이트가 자연 소멸하므로 동반하지 않는다.
+            if op == .yank {
+                return .replace([.edit(.yank, .selection), .clearSelection])
+            }
+            return complete(op, .selection)
+        }
+
+        // 모션은 전부 선택 확장이다 — 카운트는 `.move`와 같은 반복 출력.
+        // linewise 세션의 줄 반올림은 wise를 아는 어댑터의 실행 규칙이다.
+        return motionTail(key, current, make: VimAction.extendSelection)
+    }
+
+    /// step/visualStep 공통 꼬리 문법 — 카운트 digit 축적, 단일 키 모션(카운트는
+    /// 반복 출력), 미매핑 폴백. Normal은 `.move`, Visual은 `.extendSelection`
+    /// 생성자를 주입한다 — 0-규칙·클램프·통과 기준이 두 모드에서 조용히
+    /// 어긋나지 않게 정책을 한 곳에 둔다.
+    private mutating func motionTail(
+        _ key: Key, _ current: PendingCommand, make: (Motion) -> VimAction
+    ) -> EngineOutput {
         // 카운트 digit — 카운트 슬롯이 비어 있는 0은 아래 모션 매핑의
         // lineStart로 떨어진다 (0-규칙).
         if let digit = Self.countDigit(key, accumulating: current.count != nil) {
@@ -225,18 +332,26 @@ public struct VimEngine: Sendable {
         }
 
         if let motion = Self.singleKeyMotions[key] {
-            // 카운트 붙은 모션은 `.move` 반복으로 낸다 — `.move`에 count 슬롯을
-            // 두지 않아 단일 모션 경로(count 1)가 기존 계약 그대로 유지된다.
-            return .replace(Array(repeating: VimAction.move(motion), count: current.count ?? 1))
+            return .replace(Array(repeating: make(motion), count: current.count ?? 1))
         }
 
         // 매핑 없는 modifier 조합(Cmd+C 등)은 시스템 단축키이므로 통과시킨다.
-        // (탈출 콤보는 handleNormal이 이미 걸렀으므로 여기는 비탈출 콤보만 온다.)
-        // modifier 없는 미매핑 키만 삼킨다 (Normal 모드 키가 앱에 새지 않게).
+        // (탈출 콤보는 handleNormal/handleVisual이 이미 걸렀으므로 여기는
+        // 비탈출 콤보만 온다.) modifier 없는 미매핑 키만 삼킨다 (모드 키가
+        // 앱에 새지 않게).
         if key.modifiers.isEmpty {
             return .swallow
         }
         return .passthrough
+    }
+
+    /// g 접두 열기 — 완결 키(gg 등) 하나를 기다리는 extend. Normal·Visual 공통이며,
+    /// 카운트 invalid 판정은 완결 시점(둘째 g)의 몫이다.
+    private mutating func openGPrefix(_ current: PendingCommand) -> EngineOutput {
+        var next = current
+        next.prefix = .g
+        pending = next
+        return .swallow
     }
 
     /// 커맨드 완결 공통 경로 — change는 편집 출력과 함께 Insert로 전이한다
@@ -310,6 +425,12 @@ public struct VimEngine: Sendable {
         .char("k"): (.lineUp, .linewiseRelative),
         .char("G"): (.documentEnd, .linewiseAbsolute),
     ]
+
+    /// Visual에서 선택 범위로 즉시 완결되는 오퍼레이터 키 — `operatorKeys`에서
+    /// 파생해 두 테이블이 어긋날 수 없게 한다. `x`는 전용 케이스 없이 `d`와
+    /// 동일 출력이다 (PRD가 둘 다 "선택 삭제"로 정의).
+    private static let visualOperatorKeys: [Key: VimAction.Operator] =
+        operatorKeys.merging([.char("x"): .delete]) { _, added in added }
 
     /// 스코프 접두(i/a) 뒤 quote 오브젝트 완결 키.
     private static let quoteObjectKeys: [Key: VimAction.TextObject.Quote] = [

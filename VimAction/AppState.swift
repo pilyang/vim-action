@@ -3,6 +3,7 @@
 //  VimAction
 //
 
+import AppKit
 import Foundation
 import Observation
 import os
@@ -48,6 +49,23 @@ final class AppState {
         }
     }
 
+    /// Visual-line일 때만 참 — 메뉴바 라벨이 커스텀 "Vl" 글리프로 wise를
+    /// 구분한다 (fill 축은 "차단 여부"라 wise에 재사용할 수 없음). 모드 글리프가
+    /// 실제로 표시되는 조건에서만 참이 되도록 `menuBarGlyph`와 같은 우선순위를 따른다.
+    var menuBarShowsVisualLineGlyph: Bool {
+        eventTap.status == .running && eventTap.isInterceptionEnabled
+            && eventTap.mode == .visualLine
+    }
+
+    /// 메뉴바 라벨이 그리는 최종 글리프 이미지. 모든 상태 글리프를 같은 심볼
+    /// 설정으로 렌더해 크기를 통일한다 — SF Symbol은 SwiftUI 폰트 유래 크기,
+    /// 커스텀 "Vl"은 고정 크기로 렌더 경로가 갈리면 크기가 어긋난다.
+    var menuBarImage: NSImage {
+        menuBarShowsVisualLineGlyph
+            ? .visualLineMenuBarGlyph
+            : .menuBarSymbol(named: menuBarGlyph)
+    }
+
     /// VoiceOver 등 사람이 읽는 메뉴바 상태 문구.
     var menuBarAccessibilityLabel: String {
         switch eventTap.status {
@@ -64,11 +82,15 @@ final class AppState {
 
 extension Mode {
     /// 메뉴바 아이템에 표시할 SF Symbol 이름. macOS 표현은 앱 레이어에만 둔다
-    /// (엔진 `Mode`는 플랫폼을 모른다).
+    /// (엔진 `Mode`는 플랫폼을 모른다). fill은 "키 차단 여부" 축이다 — 차단
+    /// 모드(Normal/Visual)는 fill, 통과 모드(Insert)는 미채움. Visual-line은
+    /// 커스텀 "Vl" 템플릿 글리프(`NSImage.visualLineMenuBarGlyph`)가 대신 표시되며
+    /// 여기 값은 폴백이다 (`AppState.menuBarShowsVisualLineGlyph`).
     var menuBarGlyph: String {
         switch self {
         case .normal: "n.square.fill"
         case .insert: "i.square"
+        case .visualChar, .visualLine: "v.square.fill"
         }
     }
 
@@ -77,6 +99,51 @@ extension Mode {
         switch self {
         case .normal: "Normal"
         case .insert: "Insert"
+        case .visualChar: "Visual"
+        case .visualLine: "Visual Line"
         }
     }
+}
+
+extension NSImage {
+    /// 메뉴바 글리프 공통 심볼 설정 — 모든 상태 글리프가 같은 크기로 렌더되도록
+    /// 한 곳에서 고정한다.
+    private static let menuBarSymbolConfiguration = NSImage.SymbolConfiguration(
+        pointSize: 15, weight: .regular
+    )
+
+    /// SF Symbol을 메뉴바 공통 설정으로 렌더한다. 이름은 이 파일의 상수에서만
+    /// 오므로 항상 유효하다.
+    static func menuBarSymbol(named name: String) -> NSImage {
+        let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)!
+        return symbol.withSymbolConfiguration(menuBarSymbolConfiguration) ?? symbol
+    }
+
+    /// Visual-line 전용 메뉴바 글리프 — SF Symbols의 글자 사각형은 1글자뿐이라
+    /// (vl.square 부재) "Vl"을 채운 사각형에서 뚫어낸 커스텀 템플릿 이미지를 그린다.
+    /// 실제 `square.fill` 심볼(공통 설정)을 바탕으로 그려 다른 모드 글리프와
+    /// 크기·모서리·비율이 일치하며, isTemplate이라 라이트/다크 외양은 시스템이 입힌다.
+    static let visualLineMenuBarGlyph: NSImage = {
+        let base = menuBarSymbol(named: "square.fill")
+        let image = NSImage(size: base.size, flipped: false) { rect in
+            base.draw(in: rect)
+            // 0.62·-0.4는 SF 글자 심볼의 컷아웃 메트릭에 맞춘 값 — v.square.fill의
+            // 글자 bbox(높이 7.5pt, y 4.5)와 픽셀 스캔으로 일치를 확인했다.
+            let text = NSAttributedString(
+                string: "Vl",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: rect.height * 0.62, weight: .bold),
+                    .foregroundColor: NSColor.black,
+                ]
+            )
+            let textSize = text.size()
+            NSGraphicsContext.current?.cgContext.setBlendMode(.destinationOut)
+            text.draw(
+                at: NSPoint(x: rect.midX - textSize.width / 2, y: rect.midY - textSize.height / 2 - 0.4)
+            )
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
 }

@@ -34,8 +34,14 @@ struct VimActionApp: App {
             }
         } label: {
             // 시각적으로는 아이콘만, VoiceOver에는 안정적인 앱 이름 + 현재 상태를 남긴다.
-            Label(appState.menuBarAccessibilityLabel, systemImage: appState.menuBarGlyph)
-                .labelStyle(.iconOnly)
+            // 글리프는 전부 NSImage 경로(menuBarImage)로 렌더한다 — Visual-line의
+            // 커스텀 "Vl" 글리프와 SF Symbol들이 같은 심볼 설정을 공유해 크기가 통일된다.
+            Label {
+                Text(appState.menuBarAccessibilityLabel)
+            } icon: {
+                Image(nsImage: appState.menuBarImage)
+            }
+            .labelStyle(.iconOnly)
         }
 
         Settings {
