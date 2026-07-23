@@ -48,6 +48,14 @@ final class AppState {
         }
     }
 
+    /// Visual-line일 때만 참 — 메뉴바 라벨이 글리프 아래 밑줄을 합성해 wise를
+    /// 구분한다 (fill 축은 "차단 여부"라 wise에 재사용할 수 없음). 모드 글리프가
+    /// 실제로 표시되는 조건에서만 참이 되도록 `menuBarGlyph`와 같은 우선순위를 따른다.
+    var menuBarGlyphUnderlined: Bool {
+        eventTap.status == .running && eventTap.isInterceptionEnabled
+            && eventTap.mode == .visualLine
+    }
+
     /// VoiceOver 등 사람이 읽는 메뉴바 상태 문구.
     var menuBarAccessibilityLabel: String {
         switch eventTap.status {
@@ -64,13 +72,15 @@ final class AppState {
 
 extension Mode {
     /// 메뉴바 아이템에 표시할 SF Symbol 이름. macOS 표현은 앱 레이어에만 둔다
-    /// (엔진 `Mode`는 플랫폼을 모른다).
+    /// (엔진 `Mode`는 플랫폼을 모른다). fill은 "키 차단 여부" 축이다 — 차단
+    /// 모드(Normal/Visual)는 fill, 통과 모드(Insert)는 미채움. Visual char/line
+    /// 구분은 글리프가 아니라 메뉴바 라벨의 밑줄 합성이 담당한다
+    /// (`AppState.menuBarGlyphUnderlined`).
     var menuBarGlyph: String {
         switch self {
         case .normal: "n.square.fill"
         case .insert: "i.square"
-        case .visualChar: "v.square.fill"
-        case .visualLine: "v.square"
+        case .visualChar, .visualLine: "v.square.fill"
         }
     }
 
