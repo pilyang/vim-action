@@ -327,6 +327,12 @@ public struct VimEngine: Sendable {
         if let op = Self.visualOperatorKeys[key] {
             guard current.count == nil else { return .swallow }
             mode = .normal
+            // y는 범위를 파괴하지 않아 화면 선택이 남는다 — Vim처럼 collapse를
+            // 명시 출력한다 (복사 → 해제 순서는 배열이 보장). d/x/c는 범위
+            // 삭제로 하이라이트가 자연 소멸하므로 동반하지 않는다.
+            if op == .yank {
+                return .replace([.edit(.yank, .selection), .clearSelection])
+            }
             return complete(op, .selection)
         }
 

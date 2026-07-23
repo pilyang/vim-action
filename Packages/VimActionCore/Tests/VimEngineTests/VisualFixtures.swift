@@ -106,9 +106,9 @@ let visualFixtures: [KeySequenceFixture] = [
 
     // 선택 동작 y d x c
     KeySequenceFixture(
-        "Visual-char에서 y → 선택 복사 후 Normal 복귀",
+        "Visual-char에서 y → 선택 복사 + collapse 후 Normal 복귀 (y만 clearSelection 동반)",
         startMode: .visualChar,
-        steps: [step(.char("y"), .replace([.edit(.yank, .selection)]))],
+        steps: [step(.char("y"), .replace([.edit(.yank, .selection), .clearSelection]))],
         finalMode: .normal
     ),
     KeySequenceFixture(
@@ -141,7 +141,7 @@ let visualFixtures: [KeySequenceFixture] = [
         steps: [
             step(.char("v"), .replace([.beginSelection(linewise: false)])),
             step(.char("w"), .replace([.extendSelection(.wordForward)])),
-            step(.char("y"), .replace([.edit(.yank, .selection)])),
+            step(.char("y"), .replace([.edit(.yank, .selection), .clearSelection])),
         ],
         finalMode: .normal
     ),
