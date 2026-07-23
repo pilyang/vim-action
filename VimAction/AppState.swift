@@ -57,6 +57,15 @@ final class AppState {
             && eventTap.mode == .visualLine
     }
 
+    /// 메뉴바 라벨이 그리는 최종 글리프 이미지. 모든 상태 글리프를 같은 심볼
+    /// 설정으로 렌더해 크기를 통일한다 — SF Symbol은 SwiftUI 폰트 유래 크기,
+    /// 커스텀 "Vl"은 고정 크기로 렌더 경로가 갈리면 크기가 어긋난다.
+    var menuBarImage: NSImage {
+        menuBarShowsVisualLineGlyph
+            ? .visualLineMenuBarGlyph
+            : .menuBarSymbol(named: menuBarGlyph)
+    }
+
     /// VoiceOver 등 사람이 읽는 메뉴바 상태 문구.
     var menuBarAccessibilityLabel: String {
         switch eventTap.status {
@@ -97,20 +106,31 @@ extension Mode {
 }
 
 extension NSImage {
+    /// 메뉴바 글리프 공통 심볼 설정 — 모든 상태 글리프가 같은 크기로 렌더되도록
+    /// 한 곳에서 고정한다.
+    private static let menuBarSymbolConfiguration = NSImage.SymbolConfiguration(
+        pointSize: 15, weight: .regular
+    )
+
+    /// SF Symbol을 메뉴바 공통 설정으로 렌더한다. 이름은 이 파일의 상수에서만
+    /// 오므로 항상 유효하다.
+    static func menuBarSymbol(named name: String) -> NSImage {
+        let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)!
+        return symbol.withSymbolConfiguration(menuBarSymbolConfiguration) ?? symbol
+    }
+
     /// Visual-line 전용 메뉴바 글리프 — SF Symbols의 글자 사각형은 1글자뿐이라
     /// (vl.square 부재) "Vl"을 채운 사각형에서 뚫어낸 커스텀 템플릿 이미지를 그린다.
-    /// `v.square.fill`과 같은 시각 문법(채운 라운드 사각형 + 글자 컷아웃)을 유지하며,
-    /// isTemplate이라 메뉴바 라이트/다크 외양을 시스템이 입힌다.
+    /// 실제 `square.fill` 심볼(공통 설정)을 바탕으로 그려 다른 모드 글리프와
+    /// 크기·모서리·비율이 일치하며, isTemplate이라 라이트/다크 외양은 시스템이 입힌다.
     static let visualLineMenuBarGlyph: NSImage = {
-        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(
-                roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 3.5, yRadius: 3.5
-            ).fill()
+        let base = menuBarSymbol(named: "square.fill")
+        let image = NSImage(size: base.size, flipped: false) { rect in
+            base.draw(in: rect)
             let text = NSAttributedString(
                 string: "Vl",
                 attributes: [
-                    .font: NSFont.systemFont(ofSize: 7, weight: .bold),
+                    .font: NSFont.systemFont(ofSize: rect.height * 0.42, weight: .bold),
                     .foregroundColor: NSColor.black,
                 ]
             )
