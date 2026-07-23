@@ -1,0 +1,28 @@
+.claude/skills/decisions/references/20260723_visual-yank-clear-selection.md
+  s_3080e7c7257834::t_e34a153c37f4a0 1-30
+.claude/skills/decisions/SKILL.md
+  s_3080e7c7257834::t_fb2e9727ff175d 71
+.claude/skills/architecture/references/mode-engine.md
+  s_3080e7c7257834::t_8cf4409205ff17 30
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_3080e7c7257834::t_80197e4661af3f 330-335
+Packages/VimActionCore/Tests/VimEngineTests/VisualFixtures.swift
+  s_3080e7c7257834::t_7fc432af6c8089 109,111
+  s_3080e7c7257834::t_db6c995b3c171c 144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "9e959e97bc05fc0a88dc96b5270cd9ff2302de36",
+  "prompts": {},
+  "sessions": {
+    "s_3080e7c7257834": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4d2d59c-fd89-42b8-bf75-ce9e608725f2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
