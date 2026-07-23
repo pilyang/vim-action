@@ -1,0 +1,21 @@
+.claude/skills/plans/references/20260721_visual-mode.md
+  s_3080e7c7257834::t_3a1ab3ff7041b5 7
+  s_3080e7c7257834::t_815b26cef9f47e 22,26
+  s_3080e7c7257834::t_a3974c638866ad 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "a3279956c88c3a0fe1959f60ed5b03e3d667bd3c",
+  "prompts": {},
+  "sessions": {
+    "s_3080e7c7257834": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4d2d59c-fd89-42b8-bf75-ce9e608725f2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
