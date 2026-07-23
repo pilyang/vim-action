@@ -321,11 +321,11 @@ public struct VimEngine: Sendable {
             break
         }
 
-        // 선택 동작 y d x c — 선택 범위로 즉시 완결. 카운트는 모션에만 허용하므로
-        // 카운트가 쌓여 있으면 invalid다 (파괴적 편집의 오해석 거부, d3G와 같은 기준).
+        // 선택 동작 y d x c — 선택 범위로 즉시 완결. 선행 카운트는 버리고
+        // 실행한다 (Vim 동일): 피연산자가 이미 확정된 선택 범위라 카운트가
+        // 결과를 바꿀 여지가 없다 — 오해석이 가능해 invalid인 d3G와 다른 기준.
         // y/d/x는 Normal 복귀, c는 complete가 Insert로 전이한다(기존 단일화 헬퍼).
         if let op = Self.visualOperatorKeys[key] {
-            guard current.count == nil else { return .swallow }
             mode = .normal
             // y는 범위를 파괴하지 않아 화면 선택이 남는다 — Vim처럼 collapse를
             // 명시 출력한다 (복사 → 해제 순서는 배열이 보장). d/x/c는 범위

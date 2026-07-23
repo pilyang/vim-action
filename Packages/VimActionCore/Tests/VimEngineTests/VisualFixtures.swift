@@ -146,13 +146,22 @@ let visualFixtures: [KeySequenceFixture] = [
         finalMode: .normal
     ),
     KeySequenceFixture(
-        "Visual에서 카운트+오퍼레이터(3d)는 invalid — 카운트는 모션에만",
+        "Visual에서 카운트+오퍼레이터(3d) → 카운트를 버리고 실행 (Vim 동일)",
         startMode: .visualChar,
         steps: [
             step(.char("3"), .swallow),
-            step(.char("d"), .swallow),
+            step(.char("d"), .replace([.edit(.delete, .selection)])),
         ],
-        finalMode: .visualChar
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "Visual에서 카운트+c → 카운트를 버리고 선택 삭제하며 Insert 진입",
+        startMode: .visualChar,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("c"), .replace([.edit(.change, .selection)])),
+        ],
+        finalMode: .insert
     ),
 
     // Normal pending과의 상호작용 (decisions: 20260722_visual-entry-pending-interaction.md)
