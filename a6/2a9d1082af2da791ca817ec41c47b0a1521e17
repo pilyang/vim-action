@@ -1,0 +1,35 @@
+Packages/VimActionCore/Tests/VimEngineTests/ModeTransitionTests.swift
+  s_3080e7c7257834::t_724d0244c896ab 54-56
+  s_3080e7c7257834::t_aacf888ef5d200 94,96,100,102
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_3080e7c7257834::t_b227ceefcc80d3 6-8,10-12
+.claude/skills/decisions/references/20260722_visual-mode-output-contract.md
+  s_3080e7c7257834::t_8efbe34658cfcd 3-4
+.claude/skills/decisions/SKILL.md
+  s_3080e7c7257834::t_7c5bf0d1a1664e 70
+.claude/skills/decisions/references/20260723_visual-begin-reset-switch-wise-split.md
+  s_3080e7c7257834::t_d41dede4af9deb 1-38
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_3080e7c7257834::t_a549a49b59237d 302-304,312,319
+  s_3080e7c7257834::t_8e0c5a5060d119 258-259
+.claude/skills/architecture/references/mode-engine.md
+  s_3080e7c7257834::t_8f22f37e608d58 30
+  s_3080e7c7257834::t_57581c40b61d28 31
+  s_3080e7c7257834::t_e64f3f378099f8 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "a62a9d1082af2da791ca817ec41c47b0a1521e17",
+  "prompts": {},
+  "sessions": {
+    "s_3080e7c7257834": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4d2d59c-fd89-42b8-bf75-ce9e608725f2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
