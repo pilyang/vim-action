@@ -4,7 +4,7 @@
      완료 시 개요 플랜 체크 후 이 문서는 삭제한다. -->
 
 - **생성일**: 2026-07-21
-- **갱신일**: 2026-07-22
+- **갱신일**: 2026-07-23
 
 ## 목표
 
@@ -19,11 +19,11 @@
 - [x] **4. 선택 동작 `y d x c`** (2026-07-22): `.edit(op, .selection)` 즉시 완결, `x`≡`d`, `c`→Insert, 카운트+오퍼레이터 invalid (커밋 54ff33f).
 - [x] **5. 엣지·취소 규칙 + 문서 갱신** (2026-07-22): Esc/탈출 콤보·미매핑·`3v`/`dv` 픽스처, `mode-engine.md` 최종 상태 갱신.
 - [x] **6. PR #14 + Copilot 리뷰 대응** (2026-07-22): 앱 빌드 파손 복구(커밋 bbd2aa1 — `AppState.swift`의 `menuBarGlyph`/`displayName`에 Visual 케이스), PR 본문 mermaid·Breaking Changes 정정. 리뷰 코멘트 2건 답글 완료.
+- [x] **7. 코드리뷰(F1~F7) 전체 반영** (2026-07-23): ① begin/switch 신호 분리 — `switchSelectionWise` 신설, `beginSelection`은 항상 앵커 리셋, 탈출 콤보 선택 잔류는 수용 확정 (F2·F3), ② `y` 완결 시 `clearSelection` 동반 — **collapse 계약 공백 해소, 어댑터 이월 불필요** (F1), ③ 카운트+오퍼레이터는 카운트 무시 실행 (F4), ④ `motionTail`/`openGPrefix` 공통 헬퍼 추출·`visualOperatorKeys` 파생·Visual-line 글리프 밑줄 구분 (F5~F7). decisions: [20260723_visual-begin-reset-switch-wise-split.md](../../decisions/references/20260723_visual-begin-reset-switch-wise-split.md), [20260723_visual-yank-clear-selection.md](../../decisions/references/20260723_visual-yank-clear-selection.md), [20260723_visual-count-operator-executes.md](../../decisions/references/20260723_visual-count-operator-executes.md)
 
 ## 남은 것
 
-- [ ] **`y` 이후 선택 collapse 계약 공백** — 어댑터 구현 시점에 결정 (Visual 마일스톤 밖, 어댑터 마일스톤으로 이월할 항목).
-- [ ] 완료 확인 후 정리: 개요 플랜 항목 ① 체크 + 이 문서 삭제 (스킬 워크플로우 4 — 사용자 확인 필요). 단 위 collapse 항목은 삭제 전 어댑터 플랜으로 옮길 것.
+- [ ] 완료 확인 후 정리: 개요 플랜 항목 ① 체크 + 이 문서 삭제 (스킬 워크플로우 4 — 사용자 확인 필요).
 
 ## 진행 중 컨텍스트
 
@@ -31,7 +31,7 @@
 - Vim 의미론 참고: visual-char에서 `v`는 이탈·`V`는 line 전환(반대도 동일 패턴). 이 문서의 의미론이 Vim과 다르게 결정되면 decisions에 남길 것.
 - 엔진 불변식 준수: macOS import 금지, 실행 방법 무지(선택 범위 계산은 어댑터 몫), `VimAction` 소비자는 exhaustive switch 금지(케이스 추가에 견딤).
 - **`Mode`에는 위 계약이 적용되지 않는다** — 앱의 `AppState.swift`가 `Mode`를 exhaustive switch하고 있어 케이스 추가 시 빌드가 깨진다(PR #14에서 실제 발생, bbd2aa1로 복구). 계약이 코드로 강제되지 않으며 `swift test`로는 안 잡히고 앱 빌드 잡에서만 드러난다 — 이후 모드 추가 시 앱 빌드까지 함께 확인할 것.
-- **`y` 이후 선택 collapse 계약 공백** (Copilot 리뷰 발견): `d`/`x`/`c`는 선택 텍스트가 삭제돼 하이라이트가 자연히 사라지지만, `y`는 텍스트가 남아 엔진은 Normal인데 화면 선택이 유지될 수 있다. Vim은 collapse한다. `strategy-dispatch.md`의 어댑터 계약도 `yank(.selection)` → "선택 텍스트 읽어 NSPasteboard에 쓰기"까지만 정의. 어댑터 미구현이라 현재 런타임 영향 없음. 선택지: (A) `.selection` 편집 후 collapse를 어댑터 실행 규칙으로 문서화 — linewise 줄 반올림 선례와 일관, (B) 엔진이 `y` 후 `clearSelection`을 함께 출력 — 출력 계약 결정의 supersede 필요. 어댑터 구현 시점에 판단.
+- ~~`y` 이후 선택 collapse 계약 공백~~ → **해소** (2026-07-23): 선택지 (B) 채택 — 엔진이 `y` 완결 시 `[.edit(.yank, .selection), .clearSelection]` 출력. collapse 목적지는 어댑터 몫. [20260723_visual-yank-clear-selection.md](../../decisions/references/20260723_visual-yank-clear-selection.md)
 - 병행 안전: 순수 엔진 작업이라 스톨 측정 창과 무관. 구현 브랜치는 착수 시 신규 생성(기존 워크트리 없음).
 
 ## 관련 링크
