@@ -1,0 +1,22 @@
+VimAction/VimActionApp.swift
+  s_3080e7c7257834::t_31243e6dc519ac 37-38,42
+VimAction/AppState.swift
+  s_3080e7c7257834::t_ae9c64e3274e0b 60-68
+  s_3080e7c7257834::t_5ad62d9663ac5a 109-121,124-125,127-129,133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "7d85918b48dceae44bb7e089dc43a9564870c9d4",
+  "prompts": {},
+  "sessions": {
+    "s_3080e7c7257834": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4d2d59c-fd89-42b8-bf75-ce9e608725f2",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
