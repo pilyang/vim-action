@@ -132,13 +132,9 @@ public struct VimEngine: Sendable {
             break
         }
 
-        // g — op 유무와 무관하게 같은 prefix extend다 (gg / dgg). 카운트
-        // invalid 판정은 완결 시점(둘째 g)의 몫이다.
+        // g — op 유무와 무관하게 같은 prefix extend다 (gg / dgg).
         if key == .char("g") {
-            var next = current
-            next.prefix = .g
-            pending = next
-            return .swallow
+            return openGPrefix(current)
         }
 
         // 오퍼레이터 대기 — 뒤에 올 수 있는 건 스코프(i/a)·카운트·모션·
@@ -225,28 +221,9 @@ public struct VimEngine: Sendable {
             break
         }
 
-        // 카운트 digit — 카운트 슬롯이 비어 있는 0은 아래 모션 매핑의
-        // lineStart로 떨어진다 (0-규칙).
-        if let digit = Self.countDigit(key, accumulating: current.count != nil) {
-            var next = current
-            next.count = Self.accumulate(next.count, digit: digit)
-            pending = next
-            return .swallow
-        }
-
-        if let motion = Self.singleKeyMotions[key] {
-            // 카운트 붙은 모션은 `.move` 반복으로 낸다 — `.move`에 count 슬롯을
-            // 두지 않아 단일 모션 경로(count 1)가 기존 계약 그대로 유지된다.
-            return .replace(Array(repeating: VimAction.move(motion), count: current.count ?? 1))
-        }
-
-        // 매핑 없는 modifier 조합(Cmd+C 등)은 시스템 단축키이므로 통과시킨다.
-        // (탈출 콤보는 handleNormal이 이미 걸렀으므로 여기는 비탈출 콤보만 온다.)
-        // modifier 없는 미매핑 키만 삼킨다 (Normal 모드 키가 앱에 새지 않게).
-        if key.modifiers.isEmpty {
-            return .swallow
-        }
-        return .passthrough
+        // 카운트 붙은 모션은 `.move` 반복으로 낸다 — `.move`에 count 슬롯을
+        // 두지 않아 단일 모션 경로(count 1)가 기존 계약 그대로 유지된다.
+        return motionTail(key, current, make: VimAction.move)
     }
 
     private mutating func handleVisual(_ key: Key) -> EngineOutput {
@@ -293,10 +270,7 @@ public struct VimEngine: Sendable {
         }
 
         if key == .char("g") {
-            var next = current
-            next.prefix = .g
-            pending = next
-            return .swallow
+            return openGPrefix(current)
         }
 
         // v/V — 같은 키는 이탈, 다른 키는 wise 전환 (Vim 동일). 전환은 진입과
@@ -336,6 +310,20 @@ public struct VimEngine: Sendable {
             return complete(op, .selection)
         }
 
+        // 모션은 전부 선택 확장이다 — 카운트는 `.move`와 같은 반복 출력.
+        // linewise 세션의 줄 반올림은 wise를 아는 어댑터의 실행 규칙이다.
+        return motionTail(key, current, make: VimAction.extendSelection)
+    }
+
+    /// step/visualStep 공통 꼬리 문법 — 카운트 digit 축적, 단일 키 모션(카운트는
+    /// 반복 출력), 미매핑 폴백. Normal은 `.move`, Visual은 `.extendSelection`
+    /// 생성자를 주입한다 — 0-규칙·클램프·통과 기준이 두 모드에서 조용히
+    /// 어긋나지 않게 정책을 한 곳에 둔다.
+    private mutating func motionTail(
+        _ key: Key, _ current: PendingCommand, make: (Motion) -> VimAction
+    ) -> EngineOutput {
+        // 카운트 digit — 카운트 슬롯이 비어 있는 0은 아래 모션 매핑의
+        // lineStart로 떨어진다 (0-규칙).
         if let digit = Self.countDigit(key, accumulating: current.count != nil) {
             var next = current
             next.count = Self.accumulate(next.count, digit: digit)
@@ -343,17 +331,27 @@ public struct VimEngine: Sendable {
             return .swallow
         }
 
-        // 모션은 전부 선택 확장이다 — 카운트는 `.move`와 같은 반복 출력.
-        // linewise 세션의 줄 반올림은 wise를 아는 어댑터의 실행 규칙이다.
         if let motion = Self.singleKeyMotions[key] {
-            return .replace(Array(repeating: VimAction.extendSelection(motion), count: current.count ?? 1))
+            return .replace(Array(repeating: make(motion), count: current.count ?? 1))
         }
 
-        // 미매핑 처리도 Normal과 동일: modifier 콤보는 통과, 맨 키는 삼킴.
+        // 매핑 없는 modifier 조합(Cmd+C 등)은 시스템 단축키이므로 통과시킨다.
+        // (탈출 콤보는 handleNormal/handleVisual이 이미 걸렀으므로 여기는
+        // 비탈출 콤보만 온다.) modifier 없는 미매핑 키만 삼킨다 (모드 키가
+        // 앱에 새지 않게).
         if key.modifiers.isEmpty {
             return .swallow
         }
         return .passthrough
+    }
+
+    /// g 접두 열기 — 완결 키(gg 등) 하나를 기다리는 extend. Normal·Visual 공통이며,
+    /// 카운트 invalid 판정은 완결 시점(둘째 g)의 몫이다.
+    private mutating func openGPrefix(_ current: PendingCommand) -> EngineOutput {
+        var next = current
+        next.prefix = .g
+        pending = next
+        return .swallow
     }
 
     /// 커맨드 완결 공통 경로 — change는 편집 출력과 함께 Insert로 전이한다
