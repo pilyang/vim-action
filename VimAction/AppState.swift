@@ -49,7 +49,7 @@ final class AppState {
         }
     }
 
-    /// Visual-line일 때만 참 — 메뉴바 라벨이 커스텀 "VL" 글리프로 wise를
+    /// Visual-line일 때만 참 — 메뉴바 라벨이 커스텀 "Vl" 글리프로 wise를
     /// 구분한다 (fill 축은 "차단 여부"라 wise에 재사용할 수 없음). 모드 글리프가
     /// 실제로 표시되는 조건에서만 참이 되도록 `menuBarGlyph`와 같은 우선순위를 따른다.
     var menuBarShowsVisualLineGlyph: Bool {
@@ -75,7 +75,7 @@ extension Mode {
     /// 메뉴바 아이템에 표시할 SF Symbol 이름. macOS 표현은 앱 레이어에만 둔다
     /// (엔진 `Mode`는 플랫폼을 모른다). fill은 "키 차단 여부" 축이다 — 차단
     /// 모드(Normal/Visual)는 fill, 통과 모드(Insert)는 미채움. Visual-line은
-    /// 커스텀 "VL" 템플릿 글리프(`NSImage.visualLineMenuBarGlyph`)가 대신 표시되며
+    /// 커스텀 "Vl" 템플릿 글리프(`NSImage.visualLineMenuBarGlyph`)가 대신 표시되며
     /// 여기 값은 폴백이다 (`AppState.menuBarShowsVisualLineGlyph`).
     var menuBarGlyph: String {
         switch self {
@@ -98,7 +98,7 @@ extension Mode {
 
 extension NSImage {
     /// Visual-line 전용 메뉴바 글리프 — SF Symbols의 글자 사각형은 1글자뿐이라
-    /// (vl.square 부재) "VL"을 채운 사각형에서 뚫어낸 커스텀 템플릿 이미지를 그린다.
+    /// (vl.square 부재) "Vl"을 채운 사각형에서 뚫어낸 커스텀 템플릿 이미지를 그린다.
     /// `v.square.fill`과 같은 시각 문법(채운 라운드 사각형 + 글자 컷아웃)을 유지하며,
     /// isTemplate이라 메뉴바 라이트/다크 외양을 시스템이 입힌다.
     static let visualLineMenuBarGlyph: NSImage = {
@@ -108,7 +108,7 @@ extension NSImage {
                 roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 3.5, yRadius: 3.5
             ).fill()
             let text = NSAttributedString(
-                string: "VL",
+                string: "Vl",
                 attributes: [
                     .font: NSFont.systemFont(ofSize: 7, weight: .bold),
                     .foregroundColor: NSColor.black,
