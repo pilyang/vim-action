@@ -34,15 +34,18 @@ struct VimActionApp: App {
             }
         } label: {
             // 시각적으로는 아이콘만, VoiceOver에는 안정적인 앱 이름 + 현재 상태를 남긴다.
-            // Visual-line은 글리프 아래 밑줄을 합성해 wise를 구분한다
-            // (fill 축은 "차단 여부"에 쓰이고 있어 wise에 재사용할 수 없음).
-            VStack(spacing: 1) {
-                Label(appState.menuBarAccessibilityLabel, systemImage: appState.menuBarGlyph)
-                    .labelStyle(.iconOnly)
-                if appState.menuBarGlyphUnderlined {
-                    Rectangle().frame(width: 12, height: 1.5)
+            // Visual-line은 커스텀 "VL" 템플릿 글리프로 wise를 구분한다 — SF Symbols
+            // 글자 사각형은 1글자뿐이고, 라벨 합성 밑줄은 메뉴바 템플릿 렌더에서 뭉개진다.
+            Label {
+                Text(appState.menuBarAccessibilityLabel)
+            } icon: {
+                if appState.menuBarShowsVisualLineGlyph {
+                    Image(nsImage: .visualLineMenuBarGlyph)
+                } else {
+                    Image(systemName: appState.menuBarGlyph)
                 }
             }
+            .labelStyle(.iconOnly)
         }
 
         Settings {
