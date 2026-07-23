@@ -426,14 +426,11 @@ public struct VimEngine: Sendable {
         .char("G"): (.documentEnd, .linewiseAbsolute),
     ]
 
-    /// Visual에서 선택 범위로 즉시 완결되는 오퍼레이터 키 — `x`는 전용 케이스 없이
-    /// `d`와 동일 출력이다 (PRD가 둘 다 "선택 삭제"로 정의).
-    private static let visualOperatorKeys: [Key: VimAction.Operator] = [
-        .char("d"): .delete,
-        .char("x"): .delete,
-        .char("c"): .change,
-        .char("y"): .yank,
-    ]
+    /// Visual에서 선택 범위로 즉시 완결되는 오퍼레이터 키 — `operatorKeys`에서
+    /// 파생해 두 테이블이 어긋날 수 없게 한다. `x`는 전용 케이스 없이 `d`와
+    /// 동일 출력이다 (PRD가 둘 다 "선택 삭제"로 정의).
+    private static let visualOperatorKeys: [Key: VimAction.Operator] =
+        operatorKeys.merging([.char("x"): .delete]) { _, added in added }
 
     /// 스코프 접두(i/a) 뒤 quote 오브젝트 완결 키.
     private static let quoteObjectKeys: [Key: VimAction.TextObject.Quote] = [
