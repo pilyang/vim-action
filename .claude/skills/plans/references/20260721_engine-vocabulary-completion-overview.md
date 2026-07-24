@@ -16,7 +16,7 @@
 - [x] 모션 `h j k l / w b e / 0 ^ $ / gg G` + 선행 카운트
 - [x] 편집 `x`, 오퍼레이터 `d/c/y` + 모션·`dd/cc/yy`·텍스트 오브젝트·linewise (PRD v2 범위 초과 달성분)
 - [x] **① Visual 모드 (`v`/`V`)** (2026-07-23) — 진입·전환·이탈, 모션의 선택 확장 + 카운트, 선택 오퍼레이터 `y d x c`. PR #14 병합. 출력 계약 decisions 5건 + `mode-engine.md` 갱신 완료
-- [x] **② 소형 묶음: `o`/`O`, `p`/`P`, `u`** (2026-07-24) — `openLine`/`paste`/`undo` 케이스 + 카운트 3정책, 결정 decisions 3건 + `mode-engine.md` 갱신 완료. PR 병합 확인은 [세부 플랜](20260723_engine-open-paste-undo.md) 삭제와 함께.
+- [x] **② 소형 묶음: `o`/`O`, `p`/`P`, `u`** (2026-07-24) — `openLine`/`paste`/`undo` 케이스 + 카운트 3정책, 결정 decisions 3건 + `mode-engine.md` 갱신 완료. PR #15 병합.
 
 ## 남은 것
 
