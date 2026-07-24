@@ -15,6 +15,17 @@ public enum VimAction: Hashable, Sendable {
     case extendSelection(Motion)
     /// Visual 이탈 — 화면의 선택을 해제(collapse)한다.
     case clearSelection
+    /// 새 줄 열기 — `o`(아래)/`O`(위). 엔진이 완결 시 Insert로 전이한다
+    /// (change와 같은 전이+출력 동시 패턴). 선행 카운트는 무시한다 — Vim `3o`의
+    /// "입력 텍스트 반복"은 Insert 세션 기억 없이 표현할 수 없다 (3i와 같은 원칙).
+    case openLine(above: Bool)
+    /// 붙여넣기 — `p`(뒤)/`P`(앞). count는 반복 출력이 아니라 한 편집 단위다
+    /// (`3p` = 3회분을 한 번에, `3x` 규칙). 클립보드 내용의 charwise/linewise
+    /// 판정은 클립보드를 아는 어댑터 몫이다 — v1은 레지스터 없이 시스템 클립보드.
+    case paste(before: Bool, count: Int)
+    /// 실행 취소 — `u`. 앱 네이티브 undo에 위임한다. 카운트는 `.move`와 같은
+    /// 반복 출력이다 (`3u` = undo ×3 — 이산 반복 동작).
+    case undo
 
     /// 편집 오퍼레이터의 종류. 적용 범위는 `TextRange`가 함께 나른다.
     public enum Operator: Hashable, Sendable {
