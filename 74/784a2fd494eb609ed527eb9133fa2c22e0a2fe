@@ -1,0 +1,28 @@
+.claude/skills/decisions/SKILL.md
+  s_a0f4a630ad637b::t_d246d5d5ffd52a 78-79
+.claude/skills/decisions/references/20260725_tap-main-runloop-retention.md
+  s_a0f4a630ad637b::t_0fb9e41e2c8098 1-44
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_a0f4a630ad637b::t_89c6ee33f7fef6 40
+  s_a0f4a630ad637b::t_65796cd946bd43 3
+.claude/skills/decisions/references/20260712_main-runloop-tap-attachment.md
+  s_a0f4a630ad637b::t_0a25b229ab3ca6 1-2
+.claude/skills/decisions/references/20260725_callback-light-invariant.md
+  s_a0f4a630ad637b::t_9f58013491adfb 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "74784a2fd494eb609ed527eb9133fa2c22e0a2fe",
+  "prompts": {},
+  "sessions": {
+    "s_a0f4a630ad637b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1959e8a4-cb71-4a6f-9b1d-f1047119a5cc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
