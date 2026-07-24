@@ -50,4 +50,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
 | 2026-07-19 | 2026-07-21 | 전용 CFRunLoop 스레드 재검토 | 탭을 메인 런루프에서 전용 스레드로 옮길지 결정(+구현) — PR #13 리뷰로 재검토 필요 확정("스톨 중 키 처리"의 유일 해법), 디스패처 마일스톤 전 결정 권장. 측정 창 오픈(info 로그 영속화 적용) — 앱 켜둔 채 실사용 수집 중, 디스패처 착수 전 집계·결정 | [20260719_dedicated-tap-runloop-thread.md](references/20260719_dedicated-tap-runloop-thread.md) |
-| 2026-07-21 | 2026-07-24 | 엔진 v1 어휘 완성 (개요) | 남은 엔진 작업의 상위 흐름 플랜 — ①Visual(완료, PR #14) ②o/O·p/P·u(완료, PR #15 병합) 이후 ③Ctrl 콤보(취소 순서 재검토) ④jk 순. 세부는 항목별 세부 플랜에, 이 문서는 순서·상태만. 측정 창과 병행 안전 | [20260721_engine-vocabulary-completion-overview.md](references/20260721_engine-vocabulary-completion-overview.md) |
+| 2026-07-21 | 2026-07-25 | 엔진 v1 어휘 완성 (개요) | 남은 엔진 작업의 상위 흐름 플랜 — ①Visual(완료, PR #14) ②o/O·p/P·u(완료, PR #15) ③Ctrl 콤보(완료, PR #16) 이후 ④jk만 남음. 세부는 항목별 세부 플랜에, 이 문서는 순서·상태만. 측정 창과 병행 안전 | [20260721_engine-vocabulary-completion-overview.md](references/20260721_engine-vocabulary-completion-overview.md) |

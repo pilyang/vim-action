@@ -75,12 +75,13 @@ let comboCancellationOffFixtures: [KeySequenceFixture] = [
         ],
         finalMode: .normal
     ),
+    // Ctrl+t는 미매핑 콤보 — 매핑된 Ctrl+d 등의 동작은 CtrlComboFixtures가 핀.
     KeySequenceFixture(
-        "탈출 옵션 꺼짐: 카운트 중 비탈출 콤보(Ctrl+d)는 통과, 카운트는 버려진다",
+        "탈출 옵션 꺼짐: 카운트 중 비탈출 콤보(Ctrl+t)는 통과, 카운트는 버려진다",
         startMode: .normal,
         steps: [
             step(.char("3"), .swallow),
-            step(.char("d", [.control]), .passthrough),
+            step(.char("t", [.control]), .passthrough),
             step(.char("w"), .replace([.move(.wordForward)])),
         ],
         finalMode: .normal

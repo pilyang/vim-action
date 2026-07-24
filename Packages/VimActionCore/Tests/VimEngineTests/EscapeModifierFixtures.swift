@@ -30,11 +30,12 @@ let escapeModifierFixtures: [KeySequenceFixture] = [
         finalMode: .insert
     ),
     // on(cmd,opt) × Ctrl 콤보 → 셋에 없으므로 기존대로 통과 + Normal 유지
+    // (Ctrl+t는 미매핑 콤보 — 매핑된 Ctrl+d 등의 동작은 CtrlComboFixtures가 핀)
     KeySequenceFixture(
-        "탈출 옵션에 없는 Ctrl+d는 통과하되 Normal 유지",
+        "탈출 옵션에 없는 Ctrl+t는 통과하되 Normal 유지",
         startMode: .normal,
         configuration: escapeOnCmdOpt,
-        steps: [step(.char("d", [.control]), .passthrough)],
+        steps: [step(.char("t", [.control]), .passthrough)],
         finalMode: .normal
     ),
     // off(기본 빈 셋) × Cmd 콤보 → 기존 동작 회귀 핀
