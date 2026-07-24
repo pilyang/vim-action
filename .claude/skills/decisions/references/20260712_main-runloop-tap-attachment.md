@@ -1,3 +1,5 @@
+> Superseded by [20260725_tap-main-runloop-retention.md](20260725_tap-main-runloop-retention.md)
+
 # 이벤트 탭 메인 런루프 부착 (스파이크 한정, 엔진 연결 전 재검토)
 
 - **결정일**: 2026-07-12
