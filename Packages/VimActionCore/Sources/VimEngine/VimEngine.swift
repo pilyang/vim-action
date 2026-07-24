@@ -40,6 +40,10 @@ public struct VimEngine: Sendable {
 
     /// 키 하나를 처리하고 그 결과를 낸다. 필요 시 내부 모드를 전이시킨다.
     public mutating func handle(_ key: Key) -> EngineOutput {
+        // Ctrl-[는 Esc의 완전한 별칭이다 (Vim 동일) — 모드 분기 이전에 정규화해
+        // 세 모드 전부에서 Esc와 동일 경로를 탄다 (Insert의 Esc→Normal 포함).
+        // 탈출 콤보 판정보다 먼저라 Ctrl 탈출 설정과도 충돌하지 않는다.
+        let key = Self.normalized(key)
         switch mode {
         case .insert:
             return handleInsert(key)
@@ -70,7 +74,10 @@ public struct VimEngine: Sendable {
             pending = nil
             return .swallow
         }
-        if isEscapeCombo(key) {
+        // 매핑된 Ctrl 콤보는 탈출 판정에서 제외한다 — 매핑된 키는 Vim 기능이
+        // 항상 이긴다. Normal 전용 예외다: Visual에는 이 매핑이 없으므로
+        // handleVisual의 판정은 그대로 둔다.
+        if !Self.mappedComboKeys.contains(key), isEscapeCombo(key) {
             pending = nil
             mode = .insert
             return .passthrough
@@ -238,6 +245,13 @@ public struct VimEngine: Sendable {
             break
         }
 
+        // Normal 전용 Ctrl 콤보 — 카운트는 반복 출력(3u 규칙). 오퍼레이터 대기
+        // 중에는 위 op 분기 화이트리스트 밖이라 invalid로 떨어져 여기 오지
+        // 않는다 (do/du 선례).
+        if let action = Self.normalCtrlCombos[key] {
+            return .replace(Array(repeating: action, count: current.count ?? 1))
+        }
+
         // 카운트 붙은 모션은 `.move` 반복으로 낸다 — `.move`에 count 슬롯을
         // 두지 않아 단일 모션 경로(count 1)가 기존 계약 그대로 유지된다.
         return motionTail(key, current, make: VimAction.move)
@@ -382,6 +396,13 @@ public struct VimEngine: Sendable {
         return .replace([.edit(op, range)])
     }
 
+    /// Ctrl-[ → Esc 정규화. 정확 매치만 — 추가 modifier가 붙은 Cmd+Ctrl+[ 등은
+    /// 별칭이 아니다 (Esc 정확 매치 원칙과 동일 기준 — Cmd+Esc가 콤보 판정을
+    /// 타는 것과 같다).
+    private static func normalized(_ key: Key) -> Key {
+        key == .char("[", [.control]) ? .escape : key
+    }
+
     /// 탈출 modifier(예: Cmd/Opt)와 교집합이 있는 콤보인지 — Spotlight/Raycast 등
     /// 시스템 단축키 직후의 타이핑을 막지 않기 위해 이런 콤보는 Insert로 탈출시킨다.
     private func isEscapeCombo(_ key: Key) -> Bool {
@@ -466,6 +487,21 @@ public struct VimEngine: Sendable {
         .char("{"): .brace, .char("}"): .brace, .char("B"): .brace,
         .char("<"): .angle, .char(">"): .angle,
     ]
+
+    /// Normal 전용 Ctrl 콤보 → 완결 액션. 전부 이산 반복 동작이라 카운트는
+    /// 반복 출력(3u 규칙)으로 통일된다. 탈출 콤보 예외 셋(`mappedComboKeys`)이
+    /// 이 테이블의 키에서 파생되므로 매핑 추가 시 예외 동기화는 자동이다.
+    private static let normalCtrlCombos: [Key: VimAction] = [
+        .char("d", [.control]): .scroll(.halfPage, forward: true),
+        .char("u", [.control]): .scroll(.halfPage, forward: false),
+        .char("f", [.control]): .scroll(.fullPage, forward: true),
+        .char("b", [.control]): .scroll(.fullPage, forward: false),
+        .char("r", [.control]): .redo,
+    ]
+
+    /// 탈출 콤보 판정에서 제외되는 매핑 콤보 키 — 단일 소스는 위 테이블.
+    /// (Ctrl-[는 handle() 진입부 정규화라 애초에 탈출 판정에 닿지 않는다.)
+    private static let mappedComboKeys: Set<Key> = Set(normalCtrlCombos.keys)
 
     /// pending 없이 단일 키로 완결되는 모션. `Key`의 Hashable 매칭이라
     /// modifier가 붙은 키(Ctrl+h 등)는 자연히 걸리지 않는다.

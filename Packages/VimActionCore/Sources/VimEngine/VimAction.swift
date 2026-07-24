@@ -26,6 +26,21 @@ public enum VimAction: Hashable, Sendable {
     /// 실행 취소 — `u`. 앱 네이티브 undo에 위임한다. 카운트는 `.move`와 같은
     /// 반복 출력이다 (`3u` = undo ×3 — 이산 반복 동작).
     case undo
+    /// 다시 실행 — `Ctrl-r`. `undo`의 미러로 앱 네이티브 redo에 위임한다.
+    /// 카운트는 `undo`와 같은 반복 출력이다.
+    case redo
+    /// 뷰포트 스크롤 — `Ctrl-d`/`Ctrl-u`(half), `Ctrl-f`/`Ctrl-b`(full).
+    /// 실행 수단(키 합성 vs AX)과 커서 동반 이동 여부는 어댑터 몫이다.
+    /// 카운트는 `.move`와 같은 반복 출력이다 (이산 반복 동작 — Vim의
+    /// "카운트=스크롤 줄 수 설정"은 표현할 수 없어 반복으로 수용).
+    case scroll(ScrollExtent, forward: Bool)
+
+    /// 스크롤 단위 — 방향은 케이스가 아니라 `forward` 파라미터가 나른다
+    /// (`openLine(above:)`/`paste(before:)`의 Bool 방향 관례).
+    public enum ScrollExtent: Hashable, Sendable {
+        case halfPage
+        case fullPage
+    }
 
     /// 편집 오퍼레이터의 종류. 적용 범위는 `TextRange`가 함께 나른다.
     public enum Operator: Hashable, Sendable {
