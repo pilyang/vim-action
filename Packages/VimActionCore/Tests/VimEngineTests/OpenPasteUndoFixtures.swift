@@ -53,11 +53,29 @@ let openPasteUndoFixtures: [KeySequenceFixture] = [
         finalMode: .insert
     ),
     KeySequenceFixture(
+        "3O → 대문자도 동일하게 카운트 무시 (별도 케이스라 대칭을 픽스처로 고정)",
+        startMode: .normal,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("O"), .replace([.openLine(above: true)])),
+        ],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
         "3p → 단일 액션에 count 3 (한 편집 단위, 3x 규칙)",
         startMode: .normal,
         steps: [
             step(.char("3"), .swallow),
             step(.char("p"), .replace([.paste(before: false, count: 3)])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "3P → 대문자도 동일하게 count 3 (별도 케이스라 대칭을 픽스처로 고정)",
+        startMode: .normal,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("P"), .replace([.paste(before: true, count: 3)])),
         ],
         finalMode: .normal
     ),
