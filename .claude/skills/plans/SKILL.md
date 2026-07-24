@@ -50,4 +50,5 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
 | 2026-07-19 | 2026-07-21 | 전용 CFRunLoop 스레드 재검토 | 탭을 메인 런루프에서 전용 스레드로 옮길지 결정(+구현) — PR #13 리뷰로 재검토 필요 확정("스톨 중 키 처리"의 유일 해법), 디스패처 마일스톤 전 결정 권장. 측정 창 오픈(info 로그 영속화 적용) — 앱 켜둔 채 실사용 수집 중, 디스패처 착수 전 집계·결정 | [20260719_dedicated-tap-runloop-thread.md](references/20260719_dedicated-tap-runloop-thread.md) |
-| 2026-07-21 | 2026-07-23 | 엔진 v1 어휘 완성 (개요) | 남은 엔진 작업의 상위 흐름 플랜 — ①Visual(완료, PR #14) 이후 ②o/O·p/P·u ③Ctrl 콤보(취소 순서 재검토) ④jk 순. 세부는 항목별 세부 플랜에, 이 문서는 순서·상태만. 측정 창과 병행 안전 | [20260721_engine-vocabulary-completion-overview.md](references/20260721_engine-vocabulary-completion-overview.md) |
+| 2026-07-21 | 2026-07-24 | 엔진 v1 어휘 완성 (개요) | 남은 엔진 작업의 상위 흐름 플랜 — ①Visual(완료, PR #14) ②o/O·p/P·u(완료, PR 병합 대기) 이후 ③Ctrl 콤보(취소 순서 재검토) ④jk 순. 세부는 항목별 세부 플랜에, 이 문서는 순서·상태만. 측정 창과 병행 안전 | [20260721_engine-vocabulary-completion-overview.md](references/20260721_engine-vocabulary-completion-overview.md) |
+| 2026-07-23 | 2026-07-24 | 엔진 소형 묶음 o/O·p/P·u (세부) | 개요 항목 ②의 세부 플랜 — 결정 3건·구현·픽스처·mode-engine 갱신·PR 생성 완료. 남은 것: PR 병합 확인 후 이 플랜 삭제. 브랜치 feat/engine-open-paste-undo | [20260723_engine-open-paste-undo.md](references/20260723_engine-open-paste-undo.md) |

@@ -217,6 +217,23 @@ public struct VimEngine: Sendable {
             // 전용 케이스 없이 delete-over-motion 재사용 — 카운트는 반복이 아니라
             // 범위의 count로 담는다 (3x = 3문자를 한 편집 단위로).
             return .replace([.edit(.delete, .motion(.charRight, count: current.count ?? 1))])
+        case .char("o"):
+            // 새 줄 열기 — change/a/A와 같은 전이+출력 동시 패턴. 선행 카운트는
+            // 버린다 (3i 원칙 — Vim 3o의 "입력 반복"은 표현 불가).
+            mode = .insert
+            return .replace([.openLine(above: false)])
+        case .char("O"):
+            mode = .insert
+            return .replace([.openLine(above: true)])
+        case .char("p"):
+            // 카운트는 반복이 아니라 액션의 count다 — 3p를 한 편집 단위로
+            // (x와 같은 규칙: 단일 삽입 = 앱 undo 한 단계).
+            return .replace([.paste(before: false, count: current.count ?? 1)])
+        case .char("P"):
+            return .replace([.paste(before: true, count: current.count ?? 1)])
+        case .char("u"):
+            // 카운트는 반복 출력 — 이산 반복 동작이라 `.move`와 같은 규칙.
+            return .replace(Array(repeating: VimAction.undo, count: current.count ?? 1))
         default:
             break
         }
@@ -356,7 +373,9 @@ public struct VimEngine: Sendable {
 
     /// 커맨드 완결 공통 경로 — change는 편집 출력과 함께 Insert로 전이한다
     /// (`cc`/`c$`/`ciw` 전부, `a`/`A`의 전이+출력 동시 패턴과 동일).
-    private mutating func complete(_ op: VimAction.Operator, _ range: VimAction.TextRange) -> EngineOutput {
+    private mutating func complete(_ op: VimAction.Operator, _ range: VimAction.TextRange)
+        -> EngineOutput
+    {
         if op == .change {
             mode = .insert
         }
