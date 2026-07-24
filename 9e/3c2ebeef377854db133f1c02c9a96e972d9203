@@ -1,0 +1,21 @@
+.claude/skills/plans/SKILL.md
+  s_28b7863ab00eea::t_40f16db7053e28 53
+.claude/skills/plans/references/20260721_engine-vocabulary-completion-overview.md
+  s_28b7863ab00eea::t_6debc76c381b8d 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "9e3c2ebeef377854db133f1c02c9a96e972d9203",
+  "prompts": {},
+  "sessions": {
+    "s_28b7863ab00eea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c7cd2b55-ace7-4325-951b-b31722e251be",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
