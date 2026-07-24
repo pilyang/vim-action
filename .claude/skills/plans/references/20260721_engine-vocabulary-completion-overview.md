@@ -4,7 +4,7 @@
      각 항목의 세부 실행 계획은 착수 시점에 별도 세부 플랜으로 만들고 여기서 링크한다 — 내용 중복 금지. -->
 
 - **생성일**: 2026-07-21
-- **갱신일**: 2026-07-24
+- **갱신일**: 2026-07-25
 
 ## 목표
 
@@ -17,7 +17,7 @@
 - [x] 편집 `x`, 오퍼레이터 `d/c/y` + 모션·`dd/cc/yy`·텍스트 오브젝트·linewise (PRD v2 범위 초과 달성분)
 - [x] **① Visual 모드 (`v`/`V`)** (2026-07-23) — 진입·전환·이탈, 모션의 선택 확장 + 카운트, 선택 오퍼레이터 `y d x c`. PR #14 병합. 출력 계약 decisions 5건 + `mode-engine.md` 갱신 완료
 - [x] **② 소형 묶음: `o`/`O`, `p`/`P`, `u`** (2026-07-24) — `openLine`/`paste`/`undo` 케이스 + 카운트 3정책, 결정 decisions 3건 + `mode-engine.md` 갱신 완료. PR #15 병합.
-- [x] **③ Ctrl 콤보 묶음: `Ctrl-d/u/f/b` 스크롤, `Ctrl-r`, `Ctrl-[`** (2026-07-24) — `scroll`/`redo` 케이스 + Ctrl-[ 진입부 정규화, 취소 최우선 전제 재검토 해소(매핑 예외 셋). 결정 decisions 3건 + `mode-engine.md` 갱신 완료. 브랜치 `engine-ctrl-combo-bundle`.
+- [x] **③ Ctrl 콤보 묶음: `Ctrl-d/u/f/b` 스크롤, `Ctrl-r`, `Ctrl-[`** (2026-07-24) — `scroll`/`redo` 케이스 + Ctrl-[ 진입부 정규화, 취소 최우선 전제 재검토 해소(매핑 예외 셋). 결정 decisions 3건 + `mode-engine.md` 갱신 완료. PR #16 병합.
 
 ## 남은 것
 
