@@ -10,7 +10,7 @@ import Testing
 /// 탈출이 이긴다). Ctrl-[는 엔진 진입부에서 Esc로 정규화되어 세 모드 전부에서
 /// Esc와 동일 동작이다.
 /// (decisions: 20260724_ctrl-combo-mapped-exception-cancellation.md,
-/// 20260724_scroll-output-contract.md, 20260724_ctrl-bracket-escape-normalization.md)
+/// 20260724_scroll-redo-output-contract.md, 20260724_ctrl-bracket-escape-normalization.md)
 
 private let escapeOnCtrl = VimEngine.Configuration(normalModeEscapeModifiers: [.control])
 private let escapeOnCmdOpt = VimEngine.Configuration(normalModeEscapeModifiers: [.command, .option])
