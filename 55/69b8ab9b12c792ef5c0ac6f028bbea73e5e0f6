@@ -1,0 +1,31 @@
+.claude/skills/plans/SKILL.md
+  s_ab575562db6b7e::t_11b7f7aebc44da 54
+.claude/skills/decisions/references/20260723_undo-output-contract.md
+  s_ab575562db6b7e::t_7643e3a63584a2 1-26
+.claude/skills/decisions/references/20260723_paste-output-contract.md
+  s_ab575562db6b7e::t_4a8ef63d860856 1-27
+.claude/skills/decisions/references/20260723_openline-output-contract.md
+  s_ab575562db6b7e::t_b5734122b59b43 1-26
+.claude/skills/decisions/SKILL.md
+  s_ab575562db6b7e::t_51f9aa65190a78 73-75
+.claude/skills/plans/references/20260721_engine-vocabulary-completion-overview.md
+  s_ab575562db6b7e::t_148e08c1615d29 24
+.claude/skills/plans/references/20260723_engine-open-paste-undo.md
+  s_ab575562db6b7e::t_335787c6d1d720 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "5569b8ab9b12c792ef5c0ac6f028bbea73e5e0f6",
+  "prompts": {},
+  "sessions": {
+    "s_ab575562db6b7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d423f712-bd95-4fe9-9dfc-b77d0dcc9e9c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
