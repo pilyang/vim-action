@@ -1,0 +1,20 @@
+Packages/VimActionCore/Tests/VimEngineTests/OpenPasteUndoFixtures.swift
+  s_5b9a562e7837d4::t_041f011ab33404 55-63,73-79,81
+  s_5b9a562e7837d4::t_67d76892ed5a12 80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "392784ff53b5838cdb678d13b4cb43d6f72290bd",
+  "prompts": {},
+  "sessions": {
+    "s_5b9a562e7837d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "50b12db8-d4cb-430f-b8aa-c5cc24baf5c6",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
