@@ -1,0 +1,50 @@
+.claude/skills/decisions/SKILL.md
+  s_445d4ff3b159e7::t_60db4caa881648 76-78
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_445d4ff3b159e7::t_0f87520e0c1549 491-505
+  s_445d4ff3b159e7::t_4fed71bc4b951e 399-405
+  s_445d4ff3b159e7::t_737cc25422f1ad 77-80
+  s_445d4ff3b159e7::t_a89b146012cc6c 43-46
+  s_445d4ff3b159e7::t_2510a1d3f1f578 248-254
+Packages/VimActionCore/Tests/VimEngineTests/CtrlComboFixtures.swift
+  s_445d4ff3b159e7::t_ac01504c2dbaea 1-237
+.claude/skills/decisions/references/20260724_scroll-redo-output-contract.md
+  s_445d4ff3b159e7::t_41270f71db7b36 1-28
+.claude/skills/decisions/references/20260724_ctrl-bracket-escape-normalization.md
+  s_445d4ff3b159e7::t_5af0695d800e0e 1-27
+.claude/skills/plans/references/20260721_engine-vocabulary-completion-overview.md
+  s_445d4ff3b159e7::t_85471a93dedbd2 20
+.claude/skills/decisions/references/20260724_ctrl-combo-mapped-exception-cancellation.md
+  s_445d4ff3b159e7::t_a93c356f63b914 1-33
+.claude/skills/plans/SKILL.md
+  s_445d4ff3b159e7::t_1276aacfdb3e4b 53
+.claude/skills/architecture/references/mode-engine.md
+  s_445d4ff3b159e7::t_98e2d547c6564f 42
+  s_445d4ff3b159e7::t_a01c599eb95709 54
+  s_445d4ff3b159e7::t_7d43cb71c3ff5a 27
+  s_445d4ff3b159e7::t_d34cd3628ec9e9 28
+  s_445d4ff3b159e7::t_371e0bbea35e3a 24
+  s_445d4ff3b159e7::t_ebdb2afa9238e5 26
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_445d4ff3b159e7::t_ad807e54675097 29-43
+Packages/VimActionCore/Tests/VimEngineTests/EscapeModifierFixtures.swift
+  s_445d4ff3b159e7::t_5bcf1e63a8591e 33,35,38
+Packages/VimActionCore/Tests/VimEngineTests/CancellationFixtures.swift
+  s_445d4ff3b159e7::t_990ba2999c44a9 78,80,84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "e1e755e01ce084c468f17e0a573d4777b264aae6",
+  "prompts": {},
+  "sessions": {
+    "s_445d4ff3b159e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c1d5a67-8844-4ad8-9a20-2864e4e381b4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
