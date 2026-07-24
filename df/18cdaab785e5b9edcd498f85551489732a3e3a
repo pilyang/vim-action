@@ -1,0 +1,32 @@
+.claude/skills/plans/SKILL.md
+  s_0f55f2816c52d9::t_ab3acb50d39caf 53-54
+.claude/skills/plans/references/20260721_engine-vocabulary-completion-overview.md
+  s_0f55f2816c52d9::t_c970230ddffc4a 19
+  s_0f55f2816c52d9::t_8fea7d83afc0ff 7
+.claude/skills/architecture/references/mode-engine.md
+  s_0f55f2816c52d9::t_b02ca062df8e40 28
+  s_0f55f2816c52d9::t_592b5a5e315fd4 24
+  s_0f55f2816c52d9::t_2553b74e96634c 26
+  s_0f55f2816c52d9::t_4281d3cee830a1 27
+  s_0f55f2816c52d9::t_6193e58b5b28e8 3
+  s_0f55f2816c52d9::t_57fe905b227d62 54
+.claude/skills/plans/references/20260723_engine-open-paste-undo.md
+  s_0f55f2816c52d9::t_fbe0c0cddea41f 6
+  s_0f55f2816c52d9::t_40f8992b6259e1 17-18,24,28-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "df18cdaab785e5b9edcd498f85551489732a3e3a",
+  "prompts": {},
+  "sessions": {
+    "s_0f55f2816c52d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d6175e6-a4f1-4fae-8876-38c40aac3e6e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
