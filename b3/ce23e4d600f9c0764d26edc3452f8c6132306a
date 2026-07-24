@@ -1,0 +1,24 @@
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_0f55f2816c52d9::t_eecc745f8581e4 220-236
+  s_0f55f2816c52d9::t_8f744ab62f4979 376-378
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_0f55f2816c52d9::t_0726accbdeef6b 18-28
+Packages/VimActionCore/Tests/VimEngineTests/OpenPasteUndoFixtures.swift
+  s_0f55f2816c52d9::t_f54d73eec749d0 1-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "b3ce23e4d600f9c0764d26edc3452f8c6132306a",
+  "prompts": {},
+  "sessions": {
+    "s_0f55f2816c52d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d6175e6-a4f1-4fae-8876-38c40aac3e6e",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
