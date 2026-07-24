@@ -1,0 +1,19 @@
+Packages/VimActionCore/Tests/VimEngineTests/CtrlComboFixtures.swift
+  s_9fee06f1eea2b4::t_8fcfe8b2b9c2ed 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "a63606ce5bb2054964945e081c174d51254296ff",
+  "prompts": {},
+  "sessions": {
+    "s_9fee06f1eea2b4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4feac50-a7b5-4ed3-9111-6aaea65f4141",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
