@@ -1,0 +1,36 @@
+VimActionTests/SyntheticEventMarkerTests.swift
+  s_9b43a882dd7dd1::t_ec2426cfab69aa 65-81
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_9b43a882dd7dd1::t_ef80a2b286f930 31-32
+  s_9b43a882dd7dd1::t_b4bb5bfd0d8758 22
+.claude/skills/decisions/SKILL.md
+  s_9b43a882dd7dd1::t_ec926cfe06470a 83
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_9b43a882dd7dd1::t_55a6e39609cfce 27
+VimActionTests/SyntheticKeyEvent.swift
+  s_9b43a882dd7dd1::t_3bf88d2794113b 10-18
+.claude/skills/decisions/references/20260726_execution-failure-report-granularity.md
+  s_9b43a882dd7dd1::t_8cb63940e7d4b5 11,13-15,19
+  s_9b43a882dd7dd1::t_0d03cdd51476d9 23
+  s_9b43a882dd7dd1::t_4bac1d349bacd6 40-41
+  s_9b43a882dd7dd1::t_12adddcfd7fe09 20
+  s_9b43a882dd7dd1::t_270101482fc15b 31-32,34
+.claude/skills/plans/SKILL.md
+  s_9b43a882dd7dd1::t_f5ef0ff24c8874 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "54a427d152a81d84f1217ce7efced6aa75735626",
+  "prompts": {},
+  "sessions": {
+    "s_9b43a882dd7dd1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b9af684-90e8-4372-977b-a01c64c2fcba",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
