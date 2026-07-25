@@ -39,8 +39,10 @@ final class EventTapController {
     private(set) var mode: Mode = .insert
 
     /// 가로채기 마스터 토글 (UserDefaults 영속). off 의미론: `tapEnable(false)`로 스트림
-    /// 해방(포트는 유지) + 엔진 Insert 리셋 + `handleKeyDown` 최상단 가드(탭이 어떤
-    /// 이유로든 살아 있어도 전부 통과하는 이중 방어). off 중에는 아무도 탭을 되살리지
+    /// 해방(포트는 유지) + 엔진 Insert 리셋 + `handleKeyDown` 번역 전 가드(탭이 어떤
+    /// 이유로든 살아 있어도 전부 통과하는 이중 방어). 이 가드는 최상단이 아니라 마커
+    /// 가드 **다음**이다 — 마커는 상태 무관 불변식이라 어떤 상태 가드보다 앞선다
+    /// (20260725_marker-guard-highest-precedence). off 중에는 아무도 탭을 되살리지
     /// 않는다 — 콜백의 `tapDisabledBy*` 재활성화도 게이트되며, 복귀 경로는 on 분기의
     /// 선제 tapEnable뿐이다.
     ///
