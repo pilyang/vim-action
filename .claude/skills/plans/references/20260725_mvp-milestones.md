@@ -14,7 +14,7 @@
 ## 완료된 것
 
 - [x] (선행 상태) 엔진 v1 어휘 전체 + 탭 인프라(KeyTranslator·워치독·토글·Secure Input·모드 글리프·TCC 온보딩) + 콜백 경량 불변식 확정 — 남은 것은 전부 실행 계층
-- [x] **M1 세션 A — 출력 인프라 3종**: `ActionExecutor`(마커를 찍는 유일한 지점, 게시 프리미티브까지만) + 탭측 마커 가드(`handleKeyDown` 최우선 판정) + 폭주 카운터(`FailureBurstCounter` 1초/5회) 및 `reportExecutionFailure` 훅. 유닛 테스트 3계열 GREEN. 아직 **호출자 없음** — 게시·실패 보고 배선은 M2.
+- [x] **M1 세션 A — 출력 인프라 3종** (PR #17 병합, `f2040fd`): `ActionExecutor`(마커를 찍는 유일한 지점, 게시 프리미티브까지만) + 탭측 마커 가드(`handleKeyDown` 최우선 판정) + 폭주 카운터(`FailureBurstCounter` 1초/5회) 및 `reportExecutionFailure` 훅. 유닛 테스트 62건 GREEN. 아직 **호출자 없음** — 게시·실패 보고 배선은 M2. 리뷰에서 보고 단위 계약([20260726](../../decisions/references/20260726_execution-failure-report-granularity.md))이 추가로 확정됐다.
 
 ## 남은 것
 
@@ -31,7 +31,7 @@
 - 다음 착수: M1 세션 B(킬스위치). 그 다음이 M2(선행으로 위의 ActionExecutor 동시성 정리).
 - **세션 B에서 함께 볼 것**: `FailureBurstCounter`의 창은 가로채기 off→on 시 초기화되지 않는다. 지금은 메뉴바 토글이 유일한 수동 경로라 1초 안에 off→on이 불가능해 도달 불가지만, 킬스위치는 **연타로 1초 내 전환이 가능**해 그 전제가 깨진다. 킬스위치가 토글을 양방향으로 움직이게 설계된다면 off 분기에 `failureBurst = FailureBurstCounter()` 한 줄이 필요하다 (단방향 비활성화로 남기면 불필요).
 - **마커 왕복 보존 실기 확인 완료 (2026-07-26)**: 외부 프로세스가 `.eventSourceUserData`에 매직값을 찍어 `.cgSessionEventTap`에 게시 → 우리 탭에서 마커가 그대로 읽혔다. 같은 키를 마킹 없이 게시하면 0ms 만에 `replace(wordForward)`로 잡히고, 마킹하면 로그 없이 앱까지 전달돼 문자가 입력된다. `CGEventSource.userData` 폴백은 불필요 — M2는 이 전제 위에서 게시해도 된다.
-- M2가 인계받는 계약 두 가지: 합성 CGEvent 게시는 반드시 `ActionExecutor.post`를 거친다(우회 시 마커 불변식 붕괴), 실행 실패는 `EventTapController.reportExecutionFailure`로 보고한다(새 off 경로 금지). 세부는 [20260725_failure-burst-autodisable-shape.md](../../decisions/references/20260725_failure-burst-autodisable-shape.md), [20260725_marker-guard-highest-precedence.md](../../decisions/references/20260725_marker-guard-highest-precedence.md).
+- M2가 인계받는 계약 **세 가지**: 합성 CGEvent 게시는 반드시 `ActionExecutor.post`를 거친다(우회 시 마커 불변식 붕괴), 실행 실패는 `EventTapController.reportExecutionFailure`로 보고한다(새 off 경로 금지), 그 보고는 **원인 키 입력 1건당 최대 1회**다(어댑터가 action 시퀀스 실패를 접는다). 세부는 [20260725_failure-burst-autodisable-shape.md](../../decisions/references/20260725_failure-burst-autodisable-shape.md), [20260725_marker-guard-highest-precedence.md](../../decisions/references/20260725_marker-guard-highest-precedence.md), [20260726_execution-failure-report-granularity.md](../../decisions/references/20260726_execution-failure-report-granularity.md).
 - 릴리스 배포 금지 규칙(.replace 무로그 삼킴)은 M2에서 실행이 생기면서 해소 경로에 들어간다 — 해제 판단은 그때.
 - M2~M4 동안 번들 기본 전략 = keyboard 고정 (과도기, [strategy-dispatch.md](../../architecture/references/strategy-dispatch.md)에 표기).
 
