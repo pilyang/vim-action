@@ -2,13 +2,15 @@
 
 macOS 전역에서 Vim 모달 키 바인딩을 쓸 수 있게 해주는 메뉴바 백그라운드 앱입니다. Notion, Slack, Apple Notes, Mail, Safari 주소창, 네이티브 텍스트 필드 등 — 텍스트를 입력하는 거의 모든 곳에서 에디터의 Vim 근육 기억을 그대로 살립니다. 무료 오픈소스를 지향합니다.
 
-> ⚠️ **현재 상태 — 초기 스캐폴드 단계.** 지금 저장소에는 Xcode SwiftUI 앱 템플릿(기본 "Hello, world!" 창)만 들어 있습니다. 메뉴바 앱, 모드 엔진, 이벤트 탭, 전략 디스패처 등 핵심 기능은 **아직 구현 전**입니다. 아래 설계·로드맵은 앞으로의 방향입니다.
+> ⚠️ **현재 상태 — 엔진·이벤트 탭 구현, 실행 계층 개발 중.** 순수 Swift 모드 엔진(`Packages/VimActionCore`)은 v1 키바인딩 어휘([docs/KEYBINDINGS.md](docs/KEYBINDINGS.md))를 전부 해석하며, 앱 계층에는 전역 이벤트 탭(자동복구 워치독·Secure Input 감지 포함), 키 번역, 접근성 권한 모니터링, 메뉴바 모드 인디케이터가 구현되어 있습니다. 다만 해석된 동작을 실제 앱에서 실행하는 **전략 디스패처/어댑터는 아직 구현 전**이라, 현재 빌드는 키를 해석만 하고 실행하지 않습니다.
 
 ## 개요
 
 개발자와 Vim 사용자는 하루의 상당 시간을 Vim이 동작하지 않는 앱(Notion, Slack, Notes, Mail, 브라우저)에서 보내며, 그때마다 방향키와 마우스로 되돌아가는 컨텍스트 전환 마찰을 겪습니다. VimAction은 시스템 전역 수준에서 키 입력을 가로채, Vim 모션·편집을 **Accessibility API 텍스트 조작** 또는 **합성 키 입력**으로 변환합니다. 이때 각 대상 앱이 가장 잘 지원하는 방식을 골라 OS 전반에서 모달 편집 경험을 제공합니다.
 
 대상은 이미 Vim에 익숙한 엔지니어·테크니컬 라이터·파워 유저입니다. 완전한 Vim 에뮬레이터가 아니라, 텍스트 내비게이션과 기본 편집의 대부분을 커버하는 엄선된 모션·편집 부분집합을 목표로 합니다.
+
+지원하는(그리고 지원 예정인) 키바인딩 어휘 전체는 **[docs/KEYBINDINGS.md](docs/KEYBINDINGS.md)** 에서 확인할 수 있습니다.
 
 ## 동작 방식 — 두 가지 전략
 
@@ -22,20 +24,22 @@ macOS 앱마다 텍스트를 노출하는 방식이 크게 다르기 때문에, 
 ## 기술 스택
 
 - **Swift 5** — 주 언어.
-- **SwiftUI** — 설정·온보딩 UI. **AppKit** 브리징으로 메뉴바(`NSStatusItem`)와 저수준 UI 처리 *(예정)*.
-- **Quartz Event Services / Accessibility API** — 전역 키 입력 가로채기·합성, 텍스트 조작 *(예정)*.
+- **SwiftUI** — 설정·온보딩 UI. **AppKit** 브리징으로 메뉴바(`NSStatusItem`)와 저수준 UI 처리.
+- **Quartz Event Services / Accessibility API** — 전역 키 입력 가로채기·합성, 텍스트 조작 *(가로채기 구현됨 — 합성·AX 텍스트 조작은 디스패처 마일스톤에서 예정)*.
 - **YAML(Yams)** — 사용자 설정과 앱별 프로파일 *(예정)*.
-- **Swift Package Manager 멀티 타깃** — 모드 엔진을 앱 셸과 분리된, 독립적으로 테스트 가능한 순수 Swift 라이브러리로 구성 *(예정 — 현재는 단일 Xcode 앱 타깃)*.
+- **Swift Package Manager 멀티 타깃** — 모드 엔진을 앱 셸과 분리된, 독립적으로 테스트 가능한 순수 Swift 라이브러리로 구성 (`Packages/VimActionCore`).
 - 대상 플랫폼: macOS.
 
 ## 프로젝트 구조
 
 ```
 VimAction/
-├── VimAction/            # 앱 소스 (현재: SwiftUI 템플릿)
-├── VimActionTests/       # 단위 테스트
-├── VimActionUITests/     # UI 테스트
-└── VimAction.xcodeproj   # Xcode 프로젝트
+├── VimAction/               # 앱 소스 — 메뉴바 앱, 이벤트 탭, 키 번역, 권한 모니터링
+├── Packages/VimActionCore/  # 순수 Swift 모드 엔진 (macOS 의존성 없음, swift test로 테스트)
+├── VimActionTests/          # 앱 단위 테스트
+├── VimActionUITests/        # UI 테스트
+├── docs/                    # 사용자 문서 (키바인딩 어휘 등)
+└── VimAction.xcodeproj      # Xcode 프로젝트
 ```
 
 ## 로드맵
