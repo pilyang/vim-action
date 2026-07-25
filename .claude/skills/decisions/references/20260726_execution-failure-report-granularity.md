@@ -8,15 +8,19 @@
 
 ## 배경·근거 (왜)
 
-폭주 카운터의 임계는 "1초에 5회"([20260725_failure-burst-autodisable-shape.md](20260725_failure-burst-autodisable-shape.md))인데, 이 값은 **키 입력 단위**를 전제로 고른 것이다. 그런데 `VimAction`의 action 시퀀스는 카운트를 반복 출력으로 표현하므로 `output.actions`가 수천 개일 수 있다(`EventTapController.handleKeyDown`의 `.replace` 분기 주석, 카운트는 9999로 클램프됨 — [20260717_vimaction-edit-output-shape.md](20260717_vimaction-edit-output-shape.md)). action별로 보고하면 `100j` 한 번이 지원되지 않는 앱에서 즉시 100건을 보고해 임계를 압도한다.
+폭주 카운터의 임계는 "1초에 5회"다([20260725_failure-burst-autodisable-shape.md](20260725_failure-burst-autodisable-shape.md)). 그 결정은 **보고의 단위를 정하지 않았다** — 무엇을 한 번으로 세는지가 비어 있는 채로 상수만 정해졌고, 단위를 정하지 않으면 같은 임계가 전혀 다른 민감도를 뜻하게 된다.
 
-그 결과는 안전장치의 목적과 정반대다. 카운터가 감지하려는 것은 "실행 계층이 무너지고 있다"이지 "이 앱에서 이 명령 하나가 안 먹는다"가 아니다. action 단위 보고는 이 둘을 구분할 수 없게 만들고, **명령 하나가 지원되지 않는다는 이유로 가로채기 전체가 꺼지는** 오탐이 실사용 첫날부터 난다. 임계값을 키우는 방식으로는 못 고친다 — 한 키 입력이 만드는 실패 수 자체가 카운트에 비례해 무제한이기 때문이다.
+`VimAction`의 action 시퀀스는 카운트를 반복 출력으로 표현하기 때문이다. `100j`는 `move(.lineDown)` 100개로, `9999j`는 9999개로 전개된다(엔진의 `Array(repeating:count:)` 반복 출력, `maxCount = 9_999` 클램프 — [20260717_vimaction-edit-output-shape.md](20260717_vimaction-edit-output-shape.md)). 반면 `d3w`·`3p`처럼 카운트가 `TextRange`나 케이스의 값으로 실리는 편집은 1개다. 즉 한 키 입력이 만드는 action 수는 사용자가 친 숫자에 비례해 사실상 무제한이다.
+
+action마다 보고하면 이 숫자가 그대로 카운터에 들어간다. 실행 계층이 무너져 게시가 실패하는 상황에서 사용자가 마침 `100j`를 쳤다면 **하나의 근본 원인이 100건으로 세어져** 임계를 즉시 넘긴다 — 카운터가 재려는 것은 실패의 빈도이지 실패한 키 입력이 얼마나 큰 카운트를 달고 있었는지가 아니다. 임계값 상향으로는 못 고친다. 보고 수의 상한이 상수가 아니라 사용자 입력에 달려 있기 때문이다.
 
 보고를 접는 책임을 어댑터에 두는 이유는, 어떤 action들이 한 사용자 동작에 속하는지를 아는 유일한 계층이 어댑터이기 때문이다. 카운터는 시간만 주입받는 순수 타입으로 남는다.
 
+**이 결정이 해결하지 못하는 것**: 접기는 *한 번의 키 입력*이 임계를 혼자 넘기는 경우만 없앤다. 키 입력 단위로 세어도 1초에 5건은 낮다 — 파이프라인에 OS 자동반복 필터링이 없어서(`KeyTranslator`·`EventTapController` 모두) `j`를 누르고 있으면 반복 keyDown이 그대로 별개 키 입력으로 들어오고, 기본 반복 설정에서도 1초 안에 5건에 도달한다. 빠른 타이핑(60 WPM ≈ 초당 5타)도 경계에 있다. 접기는 민감도(진짜 폭주는 여전히 잡힌다)가 아니라 **특이도** 문제를 남긴다 — 아래 M2 항목 3.
+
 ## 검토한 대안
 
-- **임계값 상향**: 한 키 입력의 실패 수가 카운트에 비례해 무제한이라 어떤 상수로도 오탐을 막지 못한다.
+- **임계값 상향**: 한 키 입력의 실패 수가 사용자가 친 카운트에 비례해 무제한이라, action 단위를 유지하는 한 어떤 상수로도 오탐을 막지 못한다.
 - **카운터에 보고 단위 API 추가(`report(count:)` 등)**: 호출자가 0개인 시점에 실행 계층의 형태를 추측해 설계하는 것이고, 접는 판단은 어차피 어댑터에만 있는 정보다.
 - **action별 보고 유지 + 별도 디바운스**: 완화책이 하나 더 늘고, 그 디바운스의 창·임계가 다시 같은 종류의 미검증 상수가 된다.
 
@@ -24,11 +28,14 @@
 
 이 결정이 닫지 **않은** 것들 — 실행 계층을 배선할 때 함께 정한다.
 
-1. **백그라운드 실행 큐에서의 보고 배선.** 실행은 콜백 밖 직렬 큐로 나가는데([20260725_callback-light-invariant.md](20260725_callback-light-invariant.md)) `reportExecutionFailure`는 `EventTapController`의 MainActor 격리 안에 있다. 판정(`FailureBurstCounter`)은 순수 값 타입이라 오프메인에서 굴리고 `isInterceptionEnabled` 대입만 메인으로 홉하는 형태가 가능하다 — 워치독이 같은 이유로 쓰는 구조다. 메인 홉을 그대로 둘지 이 분리를 할지는 실행 큐 형태가 정해진 뒤 판단한다.
+1. **백그라운드 실행 큐에서의 보고 배선.** 실행은 콜백 밖 직렬 큐로 나가는데([20260725_callback-light-invariant.md](20260725_callback-light-invariant.md)) `reportExecutionFailure`는 `EventTapController`의 MainActor 격리 안에 있다. 그대로 두면 백그라운드 큐가 매 실패마다 메인으로 홉해야 한다.
+   **주의 — 이 항목은 닫힌 결정을 건드린다.** [20260725_failure-burst-autodisable-shape.md](20260725_failure-burst-autodisable-shape.md) 결정 **4항**이 "카운터는 컨트롤러의 MainActor 격리 안에서만 쓴다 — 별도 잠금·큐를 두지 않는다"로 이미 정했고, `FailureBurstCounter`의 doc 주석도 같은 불변식을 적고 있다. 카운터를 오프메인으로 옮기는 형태를 택하려면 **4항을 supersede하는 새 결정이 필요하다**. 값 타입이라는 점은 근거가 되지 않는다 — `reports` 배열을 가진 `mutating struct`라 오프메인 이동은 곧 가변 상태를 다른 격리로 옮기는 것이고, 4항이 금지한 바로 그것이다. 홉 유지로 갈지 supersede로 갈지는 실행 큐 형태가 정해진 뒤 판단한다.
 2. **자동 트립의 재시작 영속.** 트립은 기존 소프트 off의 didSet을 재사용하므로 `isInterceptionEnabled=false`가 UserDefaults에 기록되어 **재시작 후에도 꺼진 채**로 남고, 메뉴바 표시도 사용자가 직접 끈 off와 동일하다. off 의미론을 하나로 유지한 결과라 의도적이지만, 재시작은 일시적 실패 원인이 사라졌을 가능성이 가장 높은 시점이라 영속이 옳은지는 미검증이다. 실사용 데이터가 생긴 뒤 재평가한다.
+3. **1초/5회 임계의 재검증 — 키 입력 단위 기준.** 위 "해결하지 못하는 것"이 남긴 숙제다. 자동반복 keyDown을 보고에서 제외할지(반복 플래그로 거를지), 임계를 올릴지, 창을 늘릴지 중 무엇으로 특이도를 확보할지 실행 계층이 실제 실패를 내기 시작한 뒤 정한다. 지금 상수를 바꾸는 것은 실패 데이터 없이 다른 미검증 상수로 갈아타는 것일 뿐이다.
 
 ## 영향 범위
 
 - 갱신한 architecture reference: [reentrancy-and-safety.md](../../architecture/references/reentrancy-and-safety.md) (완화책 #2)
 - 코드 변경 없음 — `FailureBurstCounter`·`reportExecutionFailure`는 그대로다. 이 문서가 구속하는 것은 아직 존재하지 않는 **호출자**(Keyboard 어댑터)다.
-- 관련 결정: [20260725_failure-burst-autodisable-shape.md](20260725_failure-burst-autodisable-shape.md)(임계·창과 off 경로 재사용), [20260725_keyboard-first-mvp-build-order.md](20260725_keyboard-first-mvp-build-order.md)(이 계약을 지킬 첫 호출자)
+- 관련 결정: [20260725_failure-burst-autodisable-shape.md](20260725_failure-burst-autodisable-shape.md) — 임계·창과 off 경로 재사용을 정한 상위 결정이며, 그 **4항(카운터의 MainActor 전용)은 여전히 유효하다**. 이 문서는 그것을 뒤집지 않으며, M2 항목 1이 재검토 후보로만 지목한다. [20260725_keyboard-first-mvp-build-order.md](20260725_keyboard-first-mvp-build-order.md) — 이 계약을 지킬 첫 호출자.
+- **첫 호출자에서의 도달 범위 주의**: Keyboard 어댑터의 게시 경로(`ActionExecutor.post` → `CGEvent.post`)는 오류를 돌려주지 않는다. 따라서 "앱이 이 명령을 지원하지 않는다"는 이 경로에서 **아무 실패도 보고하지 않는다** — 화살표 키 게시는 앱이 무시하든 말든 성공한다. 이 계약이 실제로 막는 것은 앱별 미지원이 아니라, 게시 자체가 실패하는 systemic 상황에서 한 근본 원인이 action 수만큼 부풀려 세어지는 일이다. 앱별·요소별 실패 신호는 `AXError`를 돌려주는 AX 어댑터가 들어온 뒤에야 생긴다.

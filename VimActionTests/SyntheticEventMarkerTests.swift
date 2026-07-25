@@ -62,6 +62,23 @@ struct MarkerGuardTests {
         }
     }
 
+    @Test("마킹된 Esc는 엔진에 닿지 않는다 — 다음 실키로 오염 여부를 드러낸다")
+    func markedEventDoesNotContaminateEngineState() throws {
+        try withTemporaryDefaults { defaults in
+            let controller = EventTapController(defaults: defaults)
+
+            let marked = try keyDown(kVK_Escape)
+            SyntheticEventMarker.mark(marked)
+            _ = controller.handleKeyDown(marked)
+
+            // `mode`는 engine.handle 다음 줄에서 동기화되는 지연 사본이라, 가드가 그 두
+            // 줄 사이로 밀려나면 오염이 가려진다. 엔진 내부 상태는 다음 실키가 드러낸다 —
+            // 엔진이 마킹된 Esc를 먹었다면 Normal이라 Space를 삼켰을 입력이다.
+            #expect(controller.handleKeyDown(try keyDown(kVK_Space)) != nil)
+            #expect(controller.mode == .insert)
+        }
+    }
+
     @Test("Normal 상태에서 마킹된 이벤트가 들어와도 모드가 흔들리지 않는다")
     func markedEventDoesNotDisturbNormalMode() throws {
         try withTemporaryDefaults { defaults in
