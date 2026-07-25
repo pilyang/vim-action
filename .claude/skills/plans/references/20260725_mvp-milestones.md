@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-25
-- **갱신일**: 2026-07-25
+- **갱신일**: 2026-07-26
 
 ## 목표
 
@@ -28,6 +28,7 @@
 ## 진행 중 컨텍스트
 
 - 다음 착수: M1 세션 B(킬스위치). 그 다음이 M2.
+- **마커 왕복 보존 실기 확인 완료 (2026-07-26)**: 외부 프로세스가 `.eventSourceUserData`에 매직값을 찍어 `.cgSessionEventTap`에 게시 → 우리 탭에서 마커가 그대로 읽혔다. 같은 키를 마킹 없이 게시하면 0ms 만에 `replace(wordForward)`로 잡히고, 마킹하면 로그 없이 앱까지 전달돼 문자가 입력된다. `CGEventSource.userData` 폴백은 불필요 — M2는 이 전제 위에서 게시해도 된다.
 - M2가 인계받는 계약 두 가지: 합성 CGEvent 게시는 반드시 `ActionExecutor.post`를 거친다(우회 시 마커 불변식 붕괴), 실행 실패는 `EventTapController.reportExecutionFailure`로 보고한다(새 off 경로 금지). 세부는 [20260725_failure-burst-autodisable-shape.md](../../decisions/references/20260725_failure-burst-autodisable-shape.md), [20260725_marker-guard-highest-precedence.md](../../decisions/references/20260725_marker-guard-highest-precedence.md).
 - 릴리스 배포 금지 규칙(.replace 무로그 삼킴)은 M2에서 실행이 생기면서 해소 경로에 들어간다 — 해제 판단은 그때.
 - M2~M4 동안 번들 기본 전략 = keyboard 고정 (과도기, [strategy-dispatch.md](../../architecture/references/strategy-dispatch.md)에 표기).
