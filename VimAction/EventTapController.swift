@@ -107,6 +107,9 @@ final class EventTapController {
     @ObservationIgnored private var configuration: VimEngine.Configuration
     @ObservationIgnored private let defaults: UserDefaults
 
+    /// 실행 실패 폭주 감지기 — `reportExecutionFailure`가 유일한 소비자다.
+    @ObservationIgnored private var failureBurst = FailureBurstCounter()
+
     @ObservationIgnored private var tapPort: CFMachPort?
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
@@ -409,6 +412,26 @@ final class EventTapController {
                 Logger.eventTap.error("워치독 — tapEnable 후에도 탭 비활성 (가로채기 불능)")
             }
         }
+    }
+
+    /// 실행 실패 1건 보고 — 폭주(기본 1초 5회)면 가로채기를 자동으로 끈다.
+    ///
+    /// M1 시점엔 호출자가 없다: 엔진은 throw하지 않고 어댑터도 아직 없어서 보고할
+    /// 오류원 자체가 없다. 실행 계층(Keyboard 어댑터)이 들어올 때 실패 지점들이 이리로
+    /// 모인다 — 그때 새 off 경로를 만들지 말 것.
+    ///
+    /// off는 `isInterceptionEnabled = false` 대입뿐이다 — 기존 소프트 off 경로의 didSet이
+    /// 엔진 Insert 리셋·워치독 정지·탭 비활성·경합 봉인·영속·메뉴바 반영을 이미 책임진다.
+    /// 사용자 알림도 그 경로가 만드는 메뉴바 글리프 변화 + 아래 로그가 전부다
+    /// (새 알림 프레임워크·권한을 들이지 않는다).
+    ///
+    /// `now` 주입은 테스트용 — 프로덕션은 `systemUptime`(단조 증가라 시스템 시계 조정에
+    /// 흔들리지 않는다).
+    func reportExecutionFailure(at now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        // 이미 off면 셀 필요는 있어도(창은 계속 굴러간다) 끌 것도 알릴 것도 없다.
+        guard failureBurst.record(at: now), isInterceptionEnabled else { return }
+        Logger.eventTap.fault("실행 실패 폭주 감지 — 가로채기 자동 off")
+        isInterceptionEnabled = false
     }
 
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라
