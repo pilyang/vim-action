@@ -1,0 +1,28 @@
+.claude/skills/decisions/SKILL.md
+  s_11430706f537ef::t_cc63fae199d732 81-82
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_11430706f537ef::t_3a6cde2cf3d553 45
+  s_11430706f537ef::t_e6720a5bdd7adb 27
+  s_11430706f537ef::t_c51d405b0434c9 36-38
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_11430706f537ef::t_0aef15a387bde3 30-31
+  s_11430706f537ef::t_0dd2663519f14b 17,21
+.claude/skills/plans/SKILL.md
+  s_11430706f537ef::t_f9a6e05a5b94a0 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "74cd2d6b46b989b412c1e6729bbd8e339ae0ee52",
+  "prompts": {},
+  "sessions": {
+    "s_11430706f537ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c38ca13f-0a7a-4711-a871-ea43f3060f39",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
