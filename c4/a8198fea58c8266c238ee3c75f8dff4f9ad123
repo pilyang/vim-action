@@ -1,0 +1,30 @@
+.claude/skills/decisions/references/20260725_keyboard-first-mvp-build-order.md
+  s_a0f4a630ad637b::t_cafe188518c8c3 1-28
+.claude/skills/decisions/SKILL.md
+  s_a0f4a630ad637b::t_b55e8dab007295 80
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_a0f4a630ad637b::t_d6416272adf806 3,9
+  s_a0f4a630ad637b::t_aa5d780a582e4f 10
+docs/KEYBINDINGS.md
+  s_a0f4a630ad637b::t_fc890ff8f61053 151
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_a0f4a630ad637b::t_99cc5538053dfe 1-35
+.claude/skills/plans/SKILL.md
+  s_a0f4a630ad637b::t_7ce5ce140d6927 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "c4a8198fea58c8266c238ee3c75f8dff4f9ad123",
+  "prompts": {},
+  "sessions": {
+    "s_a0f4a630ad637b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1959e8a4-cb71-4a6f-9b1d-f1047119a5cc",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
