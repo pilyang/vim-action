@@ -77,3 +77,4 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 2026-07-24 | Ctrl-[ Esc 별칭 — 진입부 정규화 | handle() 초입에서 Esc로 치환(정확 매치만) — 세 모드 완전 별칭, 탈출 콤보 판정보다 선행, 앱 계층 아닌 엔진 정규화(픽스처 커버) | [20260724_ctrl-bracket-escape-normalization.md](references/20260724_ctrl-bracket-escape-normalization.md) |
 | 2026-07-25 | 탭 메인 런루프 유지 확정 | 전용 스레드 전환 기각(3-에이전트 리뷰) — 타임아웃은 스레드 무관, 실측 0건·양성 degrade, 재검토 트리거 3종 명시 | [20260725_tap-main-runloop-retention.md](references/20260725_tap-main-runloop-retention.md) |
 | 2026-07-25 | 콜백 경량 불변식 | 탭 콜백 동기 구간을 번역+엔진 step+캐시 읽기로 제한 — AX 프로브·실행은 콜백 밖 비동기, 디스패처 설계 제약, 3ms 캡 실기기 검증 위임 | [20260725_callback-light-invariant.md](references/20260725_callback-light-invariant.md) |
+| 2026-07-25 | Keyboard-first MVP 빌드 순서 | 실행 계층은 Keyboard 어댑터 먼저, AX+auto는 MVP 이후 확장 — 주력 앱 Electron, 과도기 기본 전략 keyboard, 리졸버는 시점별 분해 (최종 디스패치 구조 불변) | [20260725_keyboard-first-mvp-build-order.md](references/20260725_keyboard-first-mvp-build-order.md) |

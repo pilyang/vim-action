@@ -148,7 +148,7 @@ Text objects (`iw`, `i(`, …) are not available in Visual mode.
 
 ## Planned — v2+ backlog
 
-These are on the roadmap backlog. They are **not** commitments with a
+These are backlog candidates. They are **not** commitments with a
 timeline, but you can expect them to be considered after v1:
 
 - **Search** — `/`, `?`, `n`, `N` (where the host app exposes the needed
