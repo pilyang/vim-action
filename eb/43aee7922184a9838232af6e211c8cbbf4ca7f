@@ -1,0 +1,21 @@
+VimActionTests/SyntheticKeyEvent.swift
+  s_9b43a882dd7dd1::t_9b68966cbe9c29 1-17
+VimActionTests/FailureBurstCounterTests.swift
+  s_9b43a882dd7dd1::t_0e42c7b19df455 80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "eb43aee7922184a9838232af6e211c8cbbf4ca7f",
+  "prompts": {},
+  "sessions": {
+    "s_9b43a882dd7dd1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b9af684-90e8-4372-977b-a01c64c2fcba",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
