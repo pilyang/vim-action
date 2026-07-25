@@ -1,0 +1,29 @@
+VimAction/ActionExecutor.swift
+  s_11430706f537ef::t_0e2573a57631b1 1-50
+.claude/skills/decisions/references/20260725_marker-guard-highest-precedence.md
+  s_11430706f537ef::t_5f0f0e60ece68c 1-26
+VimAction/EventTapController.swift
+  s_11430706f537ef::t_2fb44a399b0b59 14-16
+  s_11430706f537ef::t_f260575fe54c4f 417-423
+VimActionTests/SyntheticEventMarkerTests.swift
+  s_11430706f537ef::t_849f60e29a33d1 14,16
+  s_11430706f537ef::t_b2b5eb26fef9b2 66-67
+  s_11430706f537ef::t_fad82c8cff2dc8 1-13,15,17-37,40-65,68-86
+  s_11430706f537ef::t_23634bac94850d 38-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "5b71e94b8f749138fc684df7d2adce447acfb256",
+  "prompts": {},
+  "sessions": {
+    "s_11430706f537ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c38ca13f-0a7a-4711-a871-ea43f3060f39",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
