@@ -4,7 +4,6 @@
 //
 
 import Carbon.HIToolbox
-import CoreGraphics
 import Foundation
 import Testing
 import VimEngine
@@ -78,10 +77,7 @@ struct ExecutionFailureBurstTests {
     func burstDisablesInterception() throws {
         try withTemporaryDefaults { defaults in
             let controller = EventTapController(defaults: defaults)
-            _ = controller.handleKeyDown(
-                try #require(
-                    CGEvent(
-                        keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_Escape), keyDown: true)))
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))
             #expect(controller.mode == .normal)
 
             for i in 0..<4 {

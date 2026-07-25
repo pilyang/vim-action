@@ -10,14 +10,6 @@ import Testing
 import VimEngine
 @testable import VimAction
 
-/// layout-invariant 특수키만 쓰는 합성 keyDown — QWERTY 의존 없는 안전장치 테스트용.
-private func keyDown(_ virtualKey: Int, _ flags: CGEventFlags = []) throws -> CGEvent {
-    let event = try #require(
-        CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(virtualKey), keyDown: true))
-    event.flags = flags
-    return event
-}
-
 @MainActor
 struct SafetyToggleTests {
     @Test("토글 off: 키 전부 통과 + off 시점 Insert 리셋")

@@ -9,13 +9,6 @@ import Testing
 import VimEngine
 @testable import VimAction
 
-/// layout-invariant 특수키만 쓰는 합성 keyDown — QWERTY 의존 없이 마커 경로만 본다.
-private func keyDown(_ virtualKey: Int) throws -> CGEvent {
-    let event = try #require(
-        CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(virtualKey), keyDown: true))
-    return event
-}
-
 struct ActionExecutorTests {
     @Test("게시되는 모든 이벤트에 마커가 찍힌다")
     func postMarksEveryEvent() throws {
