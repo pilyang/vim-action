@@ -24,7 +24,7 @@ sequenceDiagram
 의존 순서대로 정리한 완화책 (전부 유지할 것):
 
 1. **안전장치 단축키** — 별도 탭, 고정 코드, 사용자 설정 가능. 메인 탭 즉시 비활성화.
-2. **예외 폭주 자동 비활성화** — 엔진·어댑터의 모든 호출 지점을 카운터로 감싸고, 1초 창에서 예외 ≥5회면 가로채기 비활성화 후 알림.
+2. **예외 폭주 자동 비활성화** — 엔진·어댑터의 모든 호출 지점이 실패를 `EventTapController.reportExecutionFailure`로 보고하고, 슬라이딩 창(기본 1초)에서 ≥5회면 트립한다. 판정은 시간을 주입받는 순수 타입 `FailureBurstCounter`(트립 시 창을 비워 재트립 방지). 트립의 효과는 `isInterceptionEnabled = false` 대입뿐 — 소프트 off의 didSet(#7)이 리셋·정지·비활성·영속·메뉴바 반영을 전담하며 자동 off 전용 경로는 없다. 사용자 알림은 그 글리프 변화 + `fault` 로그 1건이 전부다 ([20260725_failure-burst-autodisable-shape.md](../../decisions/references/20260725_failure-burst-autodisable-shape.md)).
 3. **동작별 AX 타임아웃** — 3ms 하드 캡 ([strategy-dispatch.md](strategy-dispatch.md)).
 4. **깔끔한 SIGTERM 처리** — 종료 전 탭 제거, 대롱거리는 탭 방지.
 5. **보안 입력 인식** — 탭 비활성의 원인이 `IsSecureEventInputEnabled()`(비밀번호 필드 등)면 재활성화를 시도하지 않고 전용 상태 `Status.secureInput`으로 표시한다(메뉴바 `lock.square`, Settings "Secure Input"). 고장(`.failed`)이 아닌 보호 상태이며, 해제 후엔 워치독 다음 폴링이 복귀시킨다. 표시 우선순위: 탭 고장 > 토글 off > Secure Input ([20260719_secure-input-status.md](../../decisions/references/20260719_secure-input-status.md)).
@@ -33,13 +33,16 @@ sequenceDiagram
 
 권한: 접근성 확인은 매 실행 시 `AXIsProcessTrustedWithOptions`로 수행하고, 권한이 없으면 이벤트 탭 설치를 거부한다.
 
-**과도기 상태 (배선 마일스톤)**: ActionExecutor·합성 이벤트·마커 인프라는 아직 없다 — 실행은 디스패처 마일스톤의 몫이다. 그때까지 엔진의 `.replace` 결정은 실행 없이 삼키고 DEBUG 요약만 로그한다. 릴리스 빌드에선 이 삼킴이 무로그라 사용자에게 "죽은 키"로 보이므로, **디스패처 마일스톤 전 릴리스 배포는 금지**한다 ([20260717_replace-swallow-transitional-rule.md](../../decisions/references/20260717_replace-swallow-transitional-rule.md)).
+**과도기 상태 (배선 마일스톤)**: 출력 인프라는 존재하되 **호출자가 없다** — `ActionExecutor`(마커를 찍는 유일한 지점)와 탭측 마커 가드, 폭주 카운터와 보고 훅은 모두 구현·테스트돼 있지만, `VimAction` → CGEvent 시퀀스 매핑이 아직 없어 게시하는 코드도 실패를 보고하는 코드도 없다. 그때까지 엔진의 `.replace` 결정은 실행 없이 삼키고 DEBUG 요약만 로그한다. 릴리스 빌드에선 이 삼킴이 무로그라 사용자에게 "죽은 키"로 보이므로, **디스패처 마일스톤 전 릴리스 배포는 금지**한다 ([20260717_replace-swallow-transitional-rule.md](../../decisions/references/20260717_replace-swallow-transitional-rule.md)).
+
+안전장치 단축키(#1)의 별도 킬스위치 탭은 아직 없다 — 출력 인프라 다음 순서다.
 
 ## 불변식·계약
 
 - **탭 콜백의 동기 구간은 "번역 + 순수 엔진 step + 캐시된 컨텍스트 읽기"까지만** — AX 등 블로킹 가능 호출은 콜백에 들어오지 않는다(프로브는 포커스 변경 시 캐시 갱신, 실행은 콜백 밖 직렬 큐). OS 탭 타임아웃은 콜백 스레드와 무관하므로 탭 생존은 스레드 배치가 아니라 이 불변식이 지킨다. 탭 소스는 메인 런루프 유지 확정 ([20260725_callback-light-invariant.md](../../decisions/references/20260725_callback-light-invariant.md), [20260725_tap-main-runloop-retention.md](../../decisions/references/20260725_tap-main-runloop-retention.md)).
 - 이벤트 게시는 반드시 `ActionExecutor`를 거친다 — 우회 경로가 생기면 마커 불변식을 감사할 수 없다.
 - 마커 없는 합성 이벤트는 존재하지 않는다. **마커를 빠뜨리면 탭이 자기 출력을 재해석해 무한 루프** — 이벤트 탭 기반 도구의 병적 루프의 가장 흔한 원인.
+- 마커 확인은 `handleKeyDown`의 **최우선 판정**이다 — 마스터 토글을 포함한 어떤 상태 가드보다 앞. 상태 무관 불변식을 상태 뒤로 미루면 상태 조합 하나가 루프의 입구가 된다 ([20260725_marker-guard-highest-precedence.md](../../decisions/references/20260725_marker-guard-highest-precedence.md)).
 - 안전장치 탭은 메인 탭과 생명주기를 공유하지 않는다.
 
 ## 근거 요약
