@@ -11,8 +11,9 @@ import os
 import VimEngine
 
 /// 유일한 메인 CGEventTap의 소유자. keyDown을 `KeyTranslator`→`VimEngine`으로 흘려
-/// 엔진 결정(통과/삼킴/대체)을 이벤트에 적용한다. 대체(replace)의 실제 실행은 디스패처
-/// 마일스톤 — 지금은 삼키고 로그만 남긴다. 합성 이벤트 마커 확인도 그때 얹힌다.
+/// 엔진 결정(통과/삼킴/대체)을 이벤트에 적용하고, `ActionExecutor`가 마킹한 합성
+/// 이벤트는 재해석 없이 통과시킨다. 대체(replace)의 실제 실행은 디스패처 마일스톤 —
+/// 지금은 삼키고 로그만 남긴다.
 @MainActor
 @Observable
 final class EventTapController {
@@ -413,6 +414,13 @@ final class EventTapController {
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라
     /// internal이다 — 합성 CGEvent 시퀀스로 단위 테스트하는 계약.
     func handleKeyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+        // 우리가 게시한 합성 이벤트 — 번역·엔진 재해석 없이 즉시 통과.
+        // 어떤 가드보다도 앞이다: "자기 출력을 재해석하지 않는다"는 앱 상태(토글 포함)와
+        // 무관한 불변식이라 어떤 상태 조합보다 먼저 판정해야 한다. 뒤로 밀리면 상태
+        // 조합 하나가 무한 루프의 입구가 된다.
+        guard !SyntheticEventMarker.isMarked(event) else {
+            return Unmanaged.passUnretained(event)
+        }
         // 마스터 토글 off — 번역 전에 전부 통과 (off 의미론).
         guard isInterceptionEnabled else {
             return Unmanaged.passUnretained(event)
