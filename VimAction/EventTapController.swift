@@ -11,8 +11,9 @@ import os
 import VimEngine
 
 /// 유일한 메인 CGEventTap의 소유자. keyDown을 `KeyTranslator`→`VimEngine`으로 흘려
-/// 엔진 결정(통과/삼킴/대체)을 이벤트에 적용한다. 대체(replace)의 실제 실행은 디스패처
-/// 마일스톤 — 지금은 삼키고 로그만 남긴다. 합성 이벤트 마커 확인도 그때 얹힌다.
+/// 엔진 결정(통과/삼킴/대체)을 이벤트에 적용하고, `ActionExecutor`가 마킹한 합성
+/// 이벤트는 재해석 없이 통과시킨다. 대체(replace)의 실제 실행은 디스패처 마일스톤 —
+/// 지금은 삼키고 로그만 남긴다.
 @MainActor
 @Observable
 final class EventTapController {
@@ -38,8 +39,10 @@ final class EventTapController {
     private(set) var mode: Mode = .insert
 
     /// 가로채기 마스터 토글 (UserDefaults 영속). off 의미론: `tapEnable(false)`로 스트림
-    /// 해방(포트는 유지) + 엔진 Insert 리셋 + `handleKeyDown` 최상단 가드(탭이 어떤
-    /// 이유로든 살아 있어도 전부 통과하는 이중 방어). off 중에는 아무도 탭을 되살리지
+    /// 해방(포트는 유지) + 엔진 Insert 리셋 + `handleKeyDown` 번역 전 가드(탭이 어떤
+    /// 이유로든 살아 있어도 전부 통과하는 이중 방어). 이 가드는 최상단이 아니라 마커
+    /// 가드 **다음**이다 — 마커는 상태 무관 불변식이라 어떤 상태 가드보다 앞선다
+    /// (20260725_marker-guard-highest-precedence). off 중에는 아무도 탭을 되살리지
     /// 않는다 — 콜백의 `tapDisabledBy*` 재활성화도 게이트되며, 복귀 경로는 on 분기의
     /// 선제 tapEnable뿐이다.
     ///
@@ -105,6 +108,9 @@ final class EventTapController {
     @ObservationIgnored private var engine: VimEngine
     @ObservationIgnored private var configuration: VimEngine.Configuration
     @ObservationIgnored private let defaults: UserDefaults
+
+    /// 실행 실패 폭주 감지기 — `reportExecutionFailure`가 유일한 소비자다.
+    @ObservationIgnored private var failureBurst = FailureBurstCounter()
 
     @ObservationIgnored private var tapPort: CFMachPort?
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
@@ -410,9 +416,36 @@ final class EventTapController {
         }
     }
 
+    /// 실행 실패 1건 보고 — 폭주(기본 1초 5회)면 가로채기를 자동으로 끈다.
+    ///
+    /// M1 시점엔 호출자가 없다: 엔진은 throw하지 않고 어댑터도 아직 없어서 보고할
+    /// 오류원 자체가 없다. 실행 계층(Keyboard 어댑터)이 들어올 때 실패 지점들이 이리로
+    /// 모인다 — 그때 새 off 경로를 만들지 말 것.
+    ///
+    /// off는 `isInterceptionEnabled = false` 대입뿐이다 — 기존 소프트 off 경로의 didSet이
+    /// 엔진 Insert 리셋·워치독 정지·탭 비활성·경합 봉인·영속·메뉴바 반영을 이미 책임진다.
+    /// 사용자 알림도 그 경로가 만드는 메뉴바 글리프 변화 + 아래 로그가 전부다
+    /// (새 알림 프레임워크·권한을 들이지 않는다).
+    ///
+    /// `now` 주입은 테스트용 — 프로덕션은 `systemUptime`(단조 증가라 시스템 시계 조정에
+    /// 흔들리지 않는다).
+    func reportExecutionFailure(at now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        // 이미 off면 셀 필요는 있어도(창은 계속 굴러간다) 끌 것도 알릴 것도 없다.
+        guard failureBurst.record(at: now), isInterceptionEnabled else { return }
+        Logger.eventTap.fault("실행 실패 폭주 감지 — 가로채기 자동 off")
+        isInterceptionEnabled = false
+    }
+
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라
     /// internal이다 — 합성 CGEvent 시퀀스로 단위 테스트하는 계약.
     func handleKeyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+        // 우리가 게시한 합성 이벤트 — 번역·엔진 재해석 없이 즉시 통과.
+        // 어떤 가드보다도 앞이다: "자기 출력을 재해석하지 않는다"는 앱 상태(토글 포함)와
+        // 무관한 불변식이라 어떤 상태 조합보다 먼저 판정해야 한다. 뒤로 밀리면 상태
+        // 조합 하나가 무한 루프의 입구가 된다.
+        guard !SyntheticEventMarker.isMarked(event) else {
+            return Unmanaged.passUnretained(event)
+        }
         // 마스터 토글 off — 번역 전에 전부 통과 (off 의미론).
         guard isInterceptionEnabled else {
             return Unmanaged.passUnretained(event)
