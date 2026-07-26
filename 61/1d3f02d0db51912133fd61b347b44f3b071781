@@ -1,0 +1,21 @@
+Packages/VimActionCore/Sources/VimEngine/VimAction.swift
+  s_06a4477c2be8b6::t_0058d0bd947d53 103
+VimActionTests/MotionKeyMapperTests.swift
+  s_06a4477c2be8b6::t_bc510ef768d53e 56-57,59-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "611d3f02d0db51912133fd61b347b44f3b071781",
+  "prompts": {},
+  "sessions": {
+    "s_06a4477c2be8b6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "617b8157-a3d0-4fc1-97df-1565f203984c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
