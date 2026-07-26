@@ -1,0 +1,30 @@
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_958080ad3eebe7::t_ac9f0132f4b15e 32
+  s_958080ad3eebe7::t_cb3d3c1742849a 24
+  s_958080ad3eebe7::t_210689e981ab55 39-40
+.claude/skills/plans/references/20260726_m2-keyboard-motion-adapter.md
+  s_958080ad3eebe7::t_2aeca2927d49b7 16,22-24
+  s_958080ad3eebe7::t_a39ee4e2fe0756 28-31
+  s_958080ad3eebe7::t_45d0d0c4aaa840 40-41
+  s_958080ad3eebe7::t_71348b55e2739b 34
+  s_958080ad3eebe7::t_dfc269823a5bdd 6
+.claude/skills/plans/SKILL.md
+  s_958080ad3eebe7::t_567b26f15b942a 52
+  s_958080ad3eebe7::t_e56df16b6acd1f 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "8b3959dfa3da3fb43711b2419ba373eaea653c59",
+  "prompts": {},
+  "sessions": {
+    "s_958080ad3eebe7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aeeef39d-b940-41d3-97f5-4c9617e1a195",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
