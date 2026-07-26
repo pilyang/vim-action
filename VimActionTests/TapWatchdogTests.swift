@@ -49,8 +49,11 @@ struct TapWatchdogTests {
         #expect(observation == .dead)
     }
 
-    @Test("비활성 원인이 Secure Input: 재활성화 미시도 + .secureInput")
-    func tickSecureInputSkipsEnable() {
+    /// SEI는 탭 **활성화**를 막지 않는다 — 이벤트 배달만 억제한다 (macOS 26.5 실측).
+    /// 그러므로 비활성 탭을 만나면 SEI 여부와 무관하게 항상 되살려야 한다. 이걸
+    /// 건너뛰면 SEI가 켜져 있는 동안 *다른 이유로* 죽은 탭의 복구를 거부하게 된다.
+    @Test("Secure Input 중이어도 비활성 탭은 되살린다")
+    func tickRevivesEvenUnderSecureInput() {
         var enableAttempted = false
         let observation = EventTapController.watchdogTick(
             isKillRequested: { false },
@@ -60,15 +63,35 @@ struct TapWatchdogTests {
                 return true
             },
             isSecureInput: { true })
-        #expect(observation == .secureInput)
-        #expect(!enableAttempted)
+        #expect(observation == .recovered)
+        #expect(enableAttempted)
+    }
+
+    /// 되살리기가 **실패한 뒤에만** SEI가 의미를 갖는다 — 고장(.dead)과 보호 상태를
+    /// 가르는 표시용 구분이지, 재활성화를 보류하는 근거가 아니다.
+    @Test("재활성화 실패 + Secure Input: 표시만 .secureInput로 가른다")
+    func tickFailedRevivalUnderSecureInputIsLabelled() {
+        #expect(
+            EventTapController.watchdogTick(
+                isKillRequested: { false },
+                isEnabled: { false },
+                enableAndVerify: { false },
+                isSecureInput: { true }) == .secureInput)
+        // 같은 실패인데 SEI만 없으면 고장으로 표시된다 — 구분이 SEI에서만 온다는 증거.
+        #expect(
+            EventTapController.watchdogTick(
+                isKillRequested: { false },
+                isEnabled: { false },
+                enableAndVerify: { false },
+                isSecureInput: { false }) == .dead)
     }
 
     // MARK: - 킬스위치 래치 (틱 진행 중 발동)
 
     /// 킬 스레드가 틱 **진행 중에** 래치를 세우는 순간을 결정적으로 재현한다 — n번째 읽기부터
     /// true. 실제 스레드 경합은 CI에서 재현 불가라, 래치 읽기 횟수로 창의 위치를 고정한다.
-    /// 읽기 순서: ①진입 → (isEnabled/isSecureInput) → ②재활성화 직전 → ③관측 후.
+    /// 읽기 순서: ①진입 → (isEnabled) → ②재활성화 직전 → (enableAndVerify/isSecureInput)
+    /// → ③관측 후. 탭이 살아 있으면 ②를 건너뛰어 2회, 그 외에는 3회 읽는다.
     private func latch(raisedFromRead n: Int) -> () -> Bool {
         var reads = 0
         return {
@@ -127,12 +150,12 @@ struct TapWatchdogTests {
                 isEnabled: { true },
                 enableAndVerify: { true },
                 isSecureInput: { false }) == nil)
-        // .secureInput: 같은 2회 경로.
+        // .secureInput: 되살리기가 실패해야 도달하므로 ①→②→③ 3회 경로다.
         #expect(
             EventTapController.watchdogTick(
-                isKillRequested: latch(raisedFromRead: 1),
+                isKillRequested: latch(raisedFromRead: 2),
                 isEnabled: { false },
-                enableAndVerify: { true },
+                enableAndVerify: { false },
                 isSecureInput: { true }) == nil)
         // .recovered: 읽기 ①→②→③ 3회. ②까지 통과해 실제로 되살린 뒤 래치가 선 경우.
         #expect(

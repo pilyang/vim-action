@@ -25,9 +25,14 @@ final class EventTapController {
         case running
         /// 권한 외 원인으로 tapCreate 실패, 또는 재활성화 후에도 탭 불능.
         case failed
-        /// 탭 설치는 정상이나 OS Secure Event Input(비밀번호 입력 등)이 키보드 탭을
-        /// 억제 중 — 고장이 아니라 보호 상태다. 워치독은 재활성화를 보류하고(OS 보호와
-        /// 싸우지 않음), 해제되면 다음 폴링(≤2초)이 자동 복귀시킨다.
+        /// 재활성화가 먹지 않았고, 그 시점에 OS Secure Event Input(비밀번호 입력 등)이
+        /// 함께 관측된 상태. `.failed`의 하위 구분이지 별개의 원인이 아니다 — SEI는
+        /// 이벤트 *배달*만 억제할 뿐 탭 활성화를 막지 않는다 (macOS 26.5 실측).
+        ///
+        /// 그래도 나눠 두는 이유: 이 조합에서는 어차피 키가 우리에게 오지 않으므로,
+        /// 사용자에게 "고장"보다 덜 놀라운 표시가 정직하다. 워치독은 이 상태에서도
+        /// 매 폴링 재활성화를 **계속 시도한다** (SEI와 싸우는 것이 아니다 — 애초에
+        /// 활성화는 SEI와 무관하다).
         case secureInput
         /// 종료 정리 후.
         case stopped
@@ -354,10 +359,13 @@ final class EventTapController {
             if status != .running { status = .running }
             Logger.eventTap.info("\(reason, privacy: .public) — 탭 재활성화")
         } else if IsSecureEventInputEnabled() {
-            // 실패 원인이 OS 보호(비밀번호 입력 등)면 고장이 아니다 — 워치독 틱의
-            // secureInput 판정과 같은 규칙. 해제 후 복귀는 워치독 폴링 몫.
+            // 활성화는 **이미 시도했고 실패했다**. SEI는 그 실패의 원인이 아니라(SEI는
+            // 배달만 억제한다 — watchdogTick 주석 참고) 동시에 관측된 상태일 뿐이다.
+            // 그래도 `.failed`와 가르는 이유: 이 조합에서는 어차피 키가 우리에게 오지
+            // 않으므로 사용자에게 "고장"보다 덜 놀라운 표시가 정직하다. 복귀는 워치독 몫.
             if status != .secureInput { status = .secureInput }
-            Logger.eventTap.info("\(reason, privacy: .public) — Secure Input 활성, 탭 활성화 보류")
+            Logger.eventTap.info(
+                "\(reason, privacy: .public) — tapEnable 실패, Secure Input 동시 관측")
         } else {
             // 실패 분기에도 등가 가드 — tapDisabledBy* 반복 실패가 콜백 경로에서 돌 수 있다.
             if status != .failed { status = .failed }
@@ -459,9 +467,15 @@ final class EventTapController {
     /// TEST_HOST 포트가 항상 nil이라 CI에서 도달 불가하므로, 판정만 분리해 단위 테스트한다
     /// (타이머 스케줄·실탭 결합은 실기기 GREEN 몫). 프로덕션 주입은 `startWatchdog` 핸들러.
     ///
-    /// Secure Input 확인은 탭이 죽어 있을 때만 — 비활성의 원인이 OS 보호(비밀번호 입력
-    /// 등)면 재활성화를 시도하지 않는다. 시도하면 매 2초 거부→.failed 반복으로 정상
-    /// 보호 동작이 고장(false failure)처럼 표시된다.
+    /// Secure Input은 **재활성화를 보류하는 근거가 아니다**. SEI는 이벤트 *배달*만
+    /// 억제할 뿐 탭의 활성화를 막지도, 활성 탭을 끄지도 않는다 (macOS 26.5 실측:
+    /// SEI 중에도 tapCreate·tapEnable·tapIsEnabled 모두 정상). 따라서 여기 도달해
+    /// 탭이 꺼져 있다면 원인은 SEI가 아니라 타임아웃 등 실제 고장이고, 그때 되살리기를
+    /// 건너뛰면 **진짜 죽은 탭의 복구를 거부**하게 된다.
+    ///
+    /// 그래서 순서는 "되살리기 먼저, SEI는 그다음"이다 — SEI 확인은 되살리기가
+    /// **실패한 뒤에만**, 고장(.dead)과 보호 상태(.secureInput)의 표시를 가르는
+    /// 용도로 쓴다 (원인 판정이 아니다).
     ///
     /// 킬스위치 래치도 여기서 본다 — `isKillRequested`는 **매번 다시 읽는다**. 래치는 킬
     /// 스레드가 세우므로 틱이 도는 **중에** 설 수 있고, 한 번만 읽으면 그 창으로 방금
@@ -478,12 +492,16 @@ final class EventTapController {
         let observation: WatchdogObservation
         if isEnabled() {
             observation = .live
-        } else if isSecureInput() {
-            observation = .secureInput
         } else {
             // ② 재활성화 직전: ①과 이 지점 사이에 래치가 섰으면 되살리면 안 된다.
             guard !isKillRequested() else { return nil }
-            observation = enableAndVerify() ? .recovered : .dead
+            if enableAndVerify() {
+                observation = .recovered
+            } else {
+                // 되살리지 못한 뒤에만 SEI를 본다 — 재활성화를 막는 게 아니라 표시를
+                // 가르는 용도다 (위 주석 참고: SEI는 활성화가 아니라 배달을 억제한다).
+                observation = isSecureInput() ? .secureInput : .dead
+            }
         }
         // ③ 관측 후: 관측 중에 래치가 섰으면 값을 통째로 버린다 (①이 막았을 틱과 같게).
         return isKillRequested() ? nil : observation
@@ -508,7 +526,7 @@ final class EventTapController {
         case .secureInput:
             if status != .secureInput {
                 status = .secureInput
-                Logger.eventTap.info("워치독 — Secure Input 활성, 재활성화 보류 (OS 보호)")
+                Logger.eventTap.info("워치독 — 재활성화 실패, Secure Input 동시 관측")
             }
         case .dead:
             if status != .failed {
