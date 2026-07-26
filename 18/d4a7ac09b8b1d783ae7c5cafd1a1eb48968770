@@ -1,0 +1,31 @@
+.claude/skills/decisions/references/20260726_secure-input-suppresses-delivery-not-enablement.md
+  s_979edb6e0a2fdb::t_b221577b11df20 1-53
+.claude/skills/decisions/references/20260726_kill-switch-off-persistence-off-main.md
+  s_979edb6e0a2fdb::t_44fba8cbb06faa 1-51
+.claude/skills/decisions/references/20260726_kill-combo-swallow-independent-of-fire.md
+  s_979edb6e0a2fdb::t_db09c4420eadf9 1-56
+.claude/skills/decisions/references/20260726_kill-tap-enable-verification.md
+  s_979edb6e0a2fdb::t_b620bdd77f3e09 1-43
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_979edb6e0a2fdb::t_0a3bca69641f80 38
+  s_979edb6e0a2fdb::t_8eeb2c9e96d984 26-28
+  s_979edb6e0a2fdb::t_83bbc77ecc7172 32
+.claude/skills/decisions/SKILL.md
+  s_979edb6e0a2fdb::t_dfa0e58e33f334 87-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "18d4a7ac09b8b1d783ae7c5cafd1a1eb48968770",
+  "prompts": {},
+  "sessions": {
+    "s_979edb6e0a2fdb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "411c1157-890d-4903-b9f9-91d81b94205a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
