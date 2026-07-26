@@ -50,4 +50,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
 | 2026-07-25 | 2026-07-26 | MVP 1단계 마일스톤 | 실행 계층 구축 순서 M1~M5 (Keyboard 베이스 → AX 확장) — M1 출력 인프라·안전망 → M2 Keyboard 모션 → M3 편집·Visual·요소 리졸버 → M4 프로파일(=MVP 완료선) → M5 AX. **M1 종료·병합 완료**(세션 A 출력 인프라 PR #17 + 세션 B 킬스위치·리뷰 반영 PR #18) + **M1·M2 종료**(M2 = PR #20·#21 병합 — 모션 실행 + 앱 게이트, 릴리스 금지 게이트는 M3로 이동), 다음 착수: M3 | [20260725_mvp-milestones.md](references/20260725_mvp-milestones.md) |
-| 2026-07-26 | 2026-07-26 | M2 Keyboard 모션 어댑터 | MVP M2 — **본체 종료**(세션 A·B 병합, 결정 5건). 남은 것은 도그푸딩發 **매핑 정확도 후속 PR 1건**뿐: 근사 3건 개선 + Shift 새어 들어감(어댑터 레벨이라 decisions 선행). 착수 전 어긋난 모션의 구체 목록 확보 필요 | [20260726_m2-keyboard-motion-adapter.md](references/20260726_m2-keyboard-motion-adapter.md) |
+| 2026-07-26 | 2026-07-26 | M2 Keyboard 모션 어댑터 | MVP M2 — **본체 종료** + 매핑 정확도 후속(w·^·I 3타 조합, Shift 누출 종결, 탭 들여쓰기 엣지 수용) **구현·실기기 검증 완료**. 남은 것: `fix/keyboard-mapping` PR 생성·병합 → 완료 정리 | [20260726_m2-keyboard-motion-adapter.md](references/20260726_m2-keyboard-motion-adapter.md) |
