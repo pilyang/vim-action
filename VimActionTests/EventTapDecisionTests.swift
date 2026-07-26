@@ -9,17 +9,6 @@ import Testing
 import VimEngine
 @testable import VimAction
 
-/// 합성 keyDown 한 번의 입력 (virtualKey + flags).
-struct KeyStroke: Sendable {
-    var virtualKey: CGKeyCode
-    var flags: CGEventFlags
-
-    init(_ virtualKey: Int, _ flags: CGEventFlags = []) {
-        self.virtualKey = CGKeyCode(virtualKey)
-        self.flags = flags
-    }
-}
-
 /// 키 시퀀스 → 마지막 키의 처리 결과(통과 여부)와 최종 모드 픽스처.
 ///
 /// 엔진은 컨트롤러 내부라 상태를 직접 주입할 수 없다 — Normal 진입도 Esc 이벤트로
@@ -110,7 +99,7 @@ struct EventTapDecisionTests {
             var lastResult: Unmanaged<CGEvent>?
             for stroke in fixture.sequence {
                 let event = try #require(
-                    CGEvent(keyboardEventSource: nil, virtualKey: stroke.virtualKey, keyDown: true),
+                    CGEvent(keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: true),
                     "합성 CGEvent 생성 실패: \(fixture.name)"
                 )
                 event.flags = stroke.flags
