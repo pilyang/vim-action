@@ -1,0 +1,22 @@
+VimAction/KillSwitchTap.swift
+  s_c8719a46ef4eb8::t_a5c44251949b42 92-95
+  s_c8719a46ef4eb8::t_df3b3618454a2e 116-117
+VimAction/EventTapController.swift
+  s_c8719a46ef4eb8::t_4d9fc5f673ce86 373-379,382-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "febd5ed5a3b4bf4382ce4a5d15367b1e88f5d935",
+  "prompts": {},
+  "sessions": {
+    "s_c8719a46ef4eb8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f457bca8-d440-4910-ba1b-033c6d260101",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
