@@ -50,3 +50,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
 | 2026-07-25 | 2026-07-26 | MVP 1단계 마일스톤 | 실행 계층 구축 순서 M1~M5 (Keyboard 베이스 → AX 확장) — M1 출력 인프라·안전망 → M2 Keyboard 모션 → M3 편집·Visual·요소 리졸버 → M4 프로파일(=MVP 완료선) → M5 AX. **M1 종료·병합 완료**(세션 A 출력 인프라 PR #17 + 세션 B 킬스위치·리뷰 반영 PR #18) + **M2 선행 완료**(ActionExecutor 격리 정리, 경고 기준선 0건), 다음 착수: M2 | [20260725_mvp-milestones.md](references/20260725_mvp-milestones.md) |
+| 2026-07-26 | 2026-07-26 | M2 Keyboard 모션 어댑터 | MVP M2의 상세 플랜 — 설계 확정 완료(결정 3건: 미지원≠실패, 엔진 전 게이트+모드 동결, `Motion → [KeyStroke]` 매핑 계약·근사 3건). 다음 착수: 매퍼+어댑터 구현 | [20260726_m2-keyboard-motion-adapter.md](references/20260726_m2-keyboard-motion-adapter.md) |

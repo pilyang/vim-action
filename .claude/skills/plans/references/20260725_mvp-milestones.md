@@ -21,7 +21,7 @@
 
 ## 남은 것
 
-- [ ] **M2 — Keyboard 어댑터 ① 모션 (비파괴)**: 이동 계열 VimAction → CGEvent 시퀀스(h→←, w→Opt-→, 0/$→Cmd-←/→, gg/G→Cmd-↑/↓ …). 최소 디스패처 = keyboard 고정 + 앱 수준 게이트(NSWorkspace bundleID, 하드코딩 disable 목록). 모션은 요소 타입에 거의 무관해 요소 리졸버 불필요. 되면: 어디서든 이동 동작, 읽기 전용 도그푸딩 개시.
+- [ ] **M2 — Keyboard 어댑터 ① 모션 (비파괴)**: 이동 계열 VimAction → CGEvent 시퀀스(h→←, w→Opt-→, 0/$→Cmd-←/→, gg/G→Cmd-↑/↓ …). 최소 디스패처 = keyboard 고정 + 앱 수준 게이트(NSWorkspace bundleID, 하드코딩 disable 목록). 모션은 요소 타입에 거의 무관해 요소 리졸버 불필요. 되면: 어디서든 이동 동작, 읽기 전용 도그푸딩 개시. **설계 확정·상세 플랜 분리**: [20260726_m2-keyboard-motion-adapter.md](20260726_m2-keyboard-motion-adapter.md).
 - [ ] **M3 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버**: 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), Visual=Shift+모션, y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
 - [ ] **M4 — 프로파일 배관 + 앱별 on/off** ← **MVP 1단계 완료선**: Yams YAML 3계층 로더 + 핫 리로드, M2 하드코딩 게이트를 프로파일로 교체, 내장 프로파일(주력 앱 + VS Code류 enabled: false), 설정 UI 앱별 목록. per_element 스키마 시점에 캐시 충분성 최종 확정.
 - [ ] **M5 — AX 어댑터 + auto 전략 (MVP 이후 1차 확장)**: AX 어댑터(AXSelectedTextRange 직접 조작), auto 프로브 → key-mapping 폴백, force-text 계열, per_element 재정의 본격화. `AXUIElementSetMessagingTimeout` 실기기 계측(콜백 경량 불변식 위임 ①)은 여기.
