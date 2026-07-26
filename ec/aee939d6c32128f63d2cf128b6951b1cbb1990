@@ -1,0 +1,19 @@
+.claude/skills/plans/references/20260726_m2-keyboard-motion-adapter.md
+  s_7d6c7106b9eceb::t_543b0c21cb035c 20-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "ecaee939d6c32128f63d2cf128b6951b1cbb1990",
+  "prompts": {},
+  "sessions": {
+    "s_7d6c7106b9eceb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4efbc9dc-fc9f-46a4-bb5f-d16dfad1ebf5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
