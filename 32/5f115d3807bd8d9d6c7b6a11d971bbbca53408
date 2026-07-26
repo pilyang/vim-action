@@ -1,0 +1,23 @@
+.claude/skills/decisions/SKILL.md
+  s_c1de116acb0a3d::t_d8da84f59ee4b4 99-100
+.claude/skills/decisions/references/20260726_count-burst-abort-latch-promotion.md
+  s_c1de116acb0a3d::t_7a600fb6d67a0c 1-29
+.claude/skills/decisions/references/20260726_undo-unit-cmdz-policy.md
+  s_c1de116acb0a3d::t_8a206cd849cdcc 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "325f115d3807bd8d9d6c7b6a11d971bbbca53408",
+  "prompts": {},
+  "sessions": {
+    "s_c1de116acb0a3d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9d7fb992-d797-4d75-82b3-267ca8c2afd8",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
