@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-26
-- **갱신일**: 2026-07-26
+- **갱신일**: 2026-07-26 (PR #20 리뷰 반영)
 
 ## 목표
 
@@ -12,7 +12,7 @@ Normal 모드의 이동 계열 `VimAction`이 실제 앱에서 합성 CGEvent로
 ## 완료된 것
 
 - [x] **설계 확정** (2026-07-26, 결정 3건 기록): 미지원 액션 = 실패 아님(스킵+DEBUG 로그), 앱 게이트 = 엔진 전 통과 + 모드 동결(disable 초기값 `com.mitchellh.ghostty` 하드코딩), 매핑 계약 = 순수 매퍼 `Motion → [KeyStroke]`(배열 반환이 계약, 근사 3건: w≈e, ^≈0, a/A 자연 수렴). 카운트는 엔진 클램프(9,999) 그대로 — 상한·합치기는 실측 후 판단.
-- [x] **세션 A — 매퍼 + 어댑터** (2026-07-26, TDD): `MotionKeyMapper`(순수, 골든 테이블 14케이스 전수) + `KeyboardAdapter`(`.move`만 실행, 직렬 큐 위 keyDown+keyUp 생성 → `ActionExecutor.post`, 미지원 스킵+DEBUG 요약 1건). 실패는 `execute`의 반환 `Bool` 하나로 접어 호출자가 키 입력당 1회만 보고하게 준비 — `reportExecutionFailure` 호출 배선은 세션 B. `EventTapController` 무변경(런타임 동작 변화 0). 부수: 테스트 타깃의 동명 로컬 픽스처 구조체를 제거하고 프로덕션 `KeyStroke` 재사용.
+- [x] **세션 A — 매퍼 + 어댑터** (2026-07-26, TDD): `MotionKeyMapper`(순수, 골든 테이블 14케이스 전수) + `KeyboardAdapter`(`.move`만 실행, 직렬 큐 위 keyDown+keyUp 생성 → `ActionExecutor.post`, 미지원 스킵+DEBUG 요약 1건). `execute`는 값을 돌려주지 않는다 — 리뷰 반영으로 `Bool` 반환 제거(아래 컨텍스트 참조). `EventTapController` 무변경(런타임 동작 변화 0). 부수: 테스트 타깃의 동명 로컬 픽스처 구조체를 제거하고 프로덕션 `KeyStroke` 재사용, `Motion`에 `CaseIterable`(골든 표 완전성 단언용).
 
 ## 남은 것
 
@@ -26,7 +26,8 @@ M2는 **2세션 + 2PR**로 진행한다 — 세션 A는 호출자 없는 순수 
 ## 진행 중 컨텍스트
 
 - 인계 계약 4종(MVP 플랜에서 승계): ① 게시는 반드시 `ActionExecutor.post` ② CGEvent는 post 호출 직렬 큐 위에서 생성 ③ 실패 보고는 `reportExecutionFailure`만 ④ 보고는 원인 키 입력당 최대 1회.
-- 세션 B가 붙일 접점: `KeyboardAdapter.execute(_ actions: [VimAction]) -> Bool`을 직렬 큐 위에서 호출하고, 반환이 `true`일 때만 `reportExecutionFailure()`를 1회 부른다(반환 자체가 이미 키 입력당 1건으로 접혀 있다). 어댑터는 `nonisolated`·`Sendable`이라 큐 클로저로 그대로 캡처된다.
+- 세션 B가 붙일 접점: `KeyboardAdapter.execute(_ actions: [VimAction])`를 직렬 큐 위에서 호출하기만 하면 된다. 어댑터는 `nonisolated`·`Sendable`이라 큐 클로저로 그대로 캡처된다.
+- **실패 보고 배선은 세션 B에도 없다.** 계약 ④(키 입력당 1회)는 유효하지만, Keyboard 게시 경로(`ActionExecutor.post` → `CGEvent.post`)는 오류를 돌려주지 않아 **접을 실패 자체가 없다** — [실패 보고 단위 결정](../../decisions/references/20260726_execution-failure-report-granularity.md)의 "첫 호출자에서의 도달 범위 주의"가 이미 짚은 내용이다. 세션 A는 도달 불가능한 `CGEvent` 생성 실패만 담은 `Bool`을 반환했는데, 리뷰에서 제거했다(항상 통과하는 단언 3건이 딸려 있었다). 실패 신호는 `AXError`를 돌려주는 **M5 AX 어댑터**가 들어온 뒤 실제 실패 형태에 맞춰 만든다.
 - 매핑표 전체(키코드·근사 표시 포함)는 [매핑 계약 결정 문서](../../decisions/references/20260726_motion-keystroke-mapping-contract.md)에 있다 — 골든 테스트는 이 표를 그대로 옮긴다.
 - 테스트는 M1 방식 재사용: `ActionExecutor(postEvent:)` 수집기 주입으로 키코드·플래그·마커 검증. CGEvent **생성**은 TCC 불요라 headless 가능.
 - 빌드 경고 기준선 0건, `defaults.bool` 단언 함정(미설정 키도 false) 주의 — MVP 플랜 컨텍스트 참조.
