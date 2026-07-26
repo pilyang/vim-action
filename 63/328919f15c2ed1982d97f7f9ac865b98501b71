@@ -1,0 +1,46 @@
+.claude/skills/plans/SKILL.md
+  s_151369249a9490::t_dba6a78da6987c 53
+.claude/skills/decisions/SKILL.md
+  s_151369249a9490::t_14807bc4437e5a 95-97
+  s_151369249a9490::t_3ca996af6e004d 98
+.claude/skills/decisions/references/20260726_tab-indent-first-nonblank-chromium-edge.md
+  s_151369249a9490::t_581714b63108b0 1-30
+.claude/skills/decisions/references/20260726_word-forward-first-nonblank-multi-stroke.md
+  s_151369249a9490::t_298063194c56b1 1-41
+VimAction/MotionKeyMapper.swift
+  s_151369249a9490::t_3a944780ed7a96 48-54
+  s_151369249a9490::t_94379f492f42ab 31-35
+  s_151369249a9490::t_bcfa09127d3fbb 62-67
+.claude/skills/decisions/references/20260726_shift-leak-event-flags-sufficient.md
+  s_151369249a9490::t_e471b3e09cb49c 1-29
+.claude/skills/plans/references/20260726_m2-keyboard-motion-adapter.md
+  s_151369249a9490::t_67d8912406faca 24
+  s_151369249a9490::t_8dbd442d2017f3 6
+  s_151369249a9490::t_8bf3d8d8386c6d 30
+  s_151369249a9490::t_296bd77283a92a 17
+VimActionTests/MotionKeyMapperTests.swift
+  s_151369249a9490::t_c455535341ee0c 26
+  s_151369249a9490::t_8bcdff82f3d298 45-53
+  s_151369249a9490::t_7351cfb4061ea0 33-41
+VimActionTests/KeyboardAdapterTests.swift
+  s_151369249a9490::t_79dbb9d3813efc 113-131
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_151369249a9490::t_151d13c8a92906 3
+  s_151369249a9490::t_ae70c7354f57c2 43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "63328919f15c2ed1982d97f7f9ac865b98501b71",
+  "prompts": {},
+  "sessions": {
+    "s_151369249a9490": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "09f930c0-6135-4f8e-9b97-de7378951819",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
