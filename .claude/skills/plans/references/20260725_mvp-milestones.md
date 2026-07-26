@@ -21,7 +21,7 @@
 
 ## 남은 것
 
-- [ ] **M2 — Keyboard 어댑터 ① 모션 (비파괴)**: 이동 계열 VimAction → CGEvent 시퀀스(h→←, w→Opt-→, 0/$→Cmd-←/→, gg/G→Cmd-↑/↓ …). 최소 디스패처 = keyboard 고정 + 앱 수준 게이트(NSWorkspace bundleID, 하드코딩 disable 목록). 모션은 요소 타입에 거의 무관해 요소 리졸버 불필요. 되면: 어디서든 이동 동작, 읽기 전용 도그푸딩 개시. **설계 확정·상세 플랜 분리**: [20260726_m2-keyboard-motion-adapter.md](20260726_m2-keyboard-motion-adapter.md).
+- [ ] **M2 — Keyboard 어댑터 ① 모션 (비파괴)** — **거의 종료, 병합만 남음**: 세션 A(매퍼·어댑터, PR #20 병합) + 세션 B(앱 게이트·실행 배선·도그푸딩, PR #21 CI GREEN 병합 대기)로 이동 계열이 실제 앱에서 실행되고 Ghostty는 완전 통과한다. 남은 것은 병합 + 마무리(릴리스 금지 규칙 형식화) + 도그푸딩發 매핑 정확도 후속 PR 2건 — 전부 [상세 플랜](20260726_m2-keyboard-motion-adapter.md)에 있다.
 - [ ] **M3 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버**: 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), Visual=Shift+모션, y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
 - [ ] **M4 — 프로파일 배관 + 앱별 on/off** ← **MVP 1단계 완료선**: Yams YAML 3계층 로더 + 핫 리로드, M2 하드코딩 게이트를 프로파일로 교체, 내장 프로파일(주력 앱 + VS Code류 enabled: false), 설정 UI 앱별 목록. per_element 스키마 시점에 캐시 충분성 최종 확정.
 - [ ] **M5 — AX 어댑터 + auto 전략 (MVP 이후 1차 확장)**: AX 어댑터(AXSelectedTextRange 직접 조작), auto 프로브 → key-mapping 폴백, force-text 계열, per_element 재정의 본격화. `AXUIElementSetMessagingTimeout` 실기기 계측(콜백 경량 불변식 위임 ①)은 여기.
@@ -29,14 +29,15 @@
 
 ## 진행 중 컨텍스트
 
-- 다음 착수: **M2**. M1과 M2 선행은 종료됐다.
+- 다음 착수: **M2 병합·마무리** → 그다음 **M3**. M1·M2 선행은 종료됐고, M2 본체는 2PR 모두 작성돼 #21 병합만 남았다.
 - **빌드 경고 기준선은 이제 0건이다** — M2는 0을 기준으로 비교한다. (정정: M1 종료 시점 기준선 4건은 전부 `ActionExecutor.swift`(20·24·39·47행)였다. 이 문서가 함께 적었던 `AccessibilityPermissionMonitor.swift:35`는 **Swift 5 모드에선 경고가 아니다** — 2026-07-26 실측 빌드에서 재현되지 않았다.)
 - **Swift 6 언어 모드 잔여 항목은 딱 하나**: `AccessibilityPermissionMonitor.swift:35`의 `kAXTrustedCheckOptionPrompt`(전역 `var`) 참조가 Swift 6 모드에서만 에러다. `EventTapController`·`Preferences`·`ActionExecutor`는 프로브에서 깨끗함을 확인했다. 프로브는 pbxproj를 고치지 말고 **명령줄 오버라이드**로 하면 되돌림 실수가 원천 봉쇄된다: `xcodebuild build … CODE_SIGNING_ALLOWED=NO SWIFT_VERSION=6.0`.
 - **테스트 단언 함정 (M2에서 반복 주의)**: `defaults.bool(forKey:)`는 **미설정 키에도 `false`** 를 반환한다. 영속을 검증할 때 `object(forKey:) != nil`을 앞세우지 않으면 영속 코드를 통째로 지워도 테스트가 통과한다 — M1에서 실제로 4곳이 이 상태였다(전부 수정됨).
 - **`.secureInput` 축 분리는 이연**: SEI가 탭 건강과 무관한 별개 축이라는 것이 실측으로 확정됐지만, `Status` 소비자(글리프·Settings·접근성 레이블) 전면 재설계라 M1 범위 밖으로 뒀다. 필요해지면 [SEI 결정 문서](../../decisions/references/20260726_secure-input-suppresses-delivery-not-enablement.md)를 supersede한다.
 - **마커 왕복 보존 실기 확인 완료 (2026-07-26)**: 외부 프로세스가 `.eventSourceUserData`에 매직값을 찍어 `.cgSessionEventTap`에 게시 → 우리 탭에서 마커가 그대로 읽혔다. 같은 키를 마킹 없이 게시하면 0ms 만에 `replace(wordForward)`로 잡히고, 마킹하면 로그 없이 앱까지 전달돼 문자가 입력된다. `CGEventSource.userData` 폴백은 불필요 — M2는 이 전제 위에서 게시해도 된다.
 - M2가 인계받는 계약 **네 가지**: 합성 CGEvent 게시는 반드시 `ActionExecutor.post`를 거친다(우회 시 마커 불변식 붕괴), **CGEvent 시퀀스는 `post`를 호출할 그 직렬 큐 위에서 만든다**(CGEvent가 비-Sendable이라 격리를 건너면 안 된다 — [ActionExecutor 격리 결정](../../decisions/references/20260726_action-executor-nonisolated-sendable.md)), 실행 실패는 `EventTapController.reportExecutionFailure`로 보고한다(새 off 경로 금지), 그 보고는 **원인 키 입력 1건당 최대 1회**다(어댑터가 action 시퀀스 실패를 접는다). 세부는 [20260725_failure-burst-autodisable-shape.md](../../decisions/references/20260725_failure-burst-autodisable-shape.md), [20260725_marker-guard-highest-precedence.md](../../decisions/references/20260725_marker-guard-highest-precedence.md), [20260726_execution-failure-report-granularity.md](../../decisions/references/20260726_execution-failure-report-granularity.md).
-- 릴리스 배포 금지 규칙(.replace 무로그 삼킴)은 M2에서 실행이 생기면서 해소 경로에 들어간다 — 해제 판단은 그때.
+- 릴리스 배포 금지 규칙(.replace 무로그 삼킴)은 **M2로 해소되지 않는다**: 모션은 실행되지만 편집·Visual·붙여넣기는 여전히 무로그 스킵이라 릴리스에서 "죽은 키"로 보인다. 게이트를 **M3(편집 실행)** 으로 옮기는 것이 결론이고, decisions 형식화는 M2 마무리 항목이다.
+- **M2가 남긴 실행 계층 구조** (M3가 그대로 쓴다): `.replace` → 컨트롤러가 든 sink 클로저 → 게시 직렬 큐 → `KeyboardAdapter` → `ActionExecutor`. 어댑터를 큐 **안에서** 부르는 것이 계약이고(CGEvent 비-Sendable), 앱 게이트는 마커·토글 뒤·번역 앞에 있다. 계약 ③④(실패 보고)는 M2에서도 호출자가 없다 — Keyboard 게시 경로가 오류를 돌려주지 않아 접을 실패가 없고, 신호는 M5 AX 어댑터가 만든다. 세부: [실행 배선 형태 결정](../../decisions/references/20260726_m2-execution-wiring-shape.md).
 - M2~M4 동안 번들 기본 전략 = keyboard 고정 (과도기, [strategy-dispatch.md](../../architecture/references/strategy-dispatch.md)에 표기).
 
 ## 관련 링크
