@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-26
-- **갱신일**: 2026-07-26 (세션 B 구현·도그푸딩 완료 — PR #21 병합 대기)
+- **갱신일**: 2026-07-26 (PR #21 병합 — M2 본체 종료, 매핑 정확도 후속만 남음)
 
 ## 목표
 
@@ -13,14 +13,13 @@ Normal 모드의 이동 계열 `VimAction`이 실제 앱에서 합성 CGEvent로
 
 - [x] **설계 확정** (2026-07-26, 결정 3건 기록): 미지원 액션 = 실패 아님(스킵+DEBUG 로그), 앱 게이트 = 엔진 전 통과 + 모드 동결(disable 초기값 `com.mitchellh.ghostty` 하드코딩), 매핑 계약 = 순수 매퍼 `Motion → [KeyStroke]`(배열 반환이 계약, 근사 3건: w≈e, ^≈0, a/A 자연 수렴). 카운트는 엔진 클램프(9,999) 그대로 — 상한·합치기는 실측 후 판단.
 - [x] **세션 A — 매퍼 + 어댑터** (2026-07-26, TDD): `MotionKeyMapper`(순수, 골든 테이블 14케이스 전수) + `KeyboardAdapter`(`.move`만 실행, 직렬 큐 위 keyDown+keyUp 생성 → `ActionExecutor.post`, 미지원 스킵+DEBUG 요약 1건). `execute`는 값을 돌려주지 않는다 — 리뷰 반영으로 `Bool` 반환 제거(아래 컨텍스트 참조). `EventTapController` 무변경(런타임 동작 변화 0). 부수: 테스트 타깃의 동명 로컬 픽스처 구조체를 제거하고 프로덕션 `KeyStroke` 재사용, `Motion`에 `CaseIterable`(골든 표 완전성 단언용).
-- [x] **세션 B — 게이트 + 배선 + 도그푸딩** (2026-07-26, PR #21 — **병합만 남음**): `FrontmostAppGate`(최전면 bundleID 캐시, 옵저버 등록이 시드보다 먼저인 것이 계약) + `handleKeyDown` 가드 체인 삽입(마커·토글 뒤, 번역 앞 → 엔진 전이라 모드 자연 동결) + `.replace`가 주입된 sink로 actions 전달(sink가 게시 직렬 큐 + `KeyboardAdapter`를 캡처). 테스트 9건 추가, 앱 유닛 테스트·엔진 테스트 GREEN, 빌드 경고 0건 유지, CI 2잡 GREEN. 마이크로 결정 4건 확정 → [실행 배선 형태 결정](../../decisions/references/20260726_m2-execution-wiring-shape.md).
+- [x] **세션 B — 게이트 + 배선 + 도그푸딩** (2026-07-26, PR #21 병합 `bd643e1`): `FrontmostAppGate`(최전면 bundleID 캐시, 옵저버 등록이 시드보다 먼저인 것이 계약) + `handleKeyDown` 가드 체인 삽입(마커·토글 뒤, 번역 앞 → 엔진 전이라 모드 자연 동결) + `.replace`가 주입된 sink로 actions 전달(sink가 게시 직렬 큐 + `KeyboardAdapter`를 캡처). 테스트 9건 추가, 앱 유닛 테스트·엔진 테스트 GREEN, 빌드 경고 0건 유지, CI 2잡 GREEN. 마이크로 결정 4건 확정 → [실행 배선 형태 결정](../../decisions/references/20260726_m2-execution-wiring-shape.md).
+- [x] **마무리 — 릴리스 배포 금지 게이트 이동** (2026-07-26): 규칙은 **유지**하고 해제 게이트를 "디스패처 마일스톤"에서 **M3(편집 실행)** 으로 옮겼다 — 모션은 실행되지만 편집 키는 여전히 무로그 스킵이라 "죽은 키"가 남는다. [새 결정](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)이 [20260717 과도기 규칙](../../decisions/references/20260717_replace-swallow-transitional-rule.md)을 supersede(인덱스 제거, 유효 근거는 승계)하고 architecture 2곳(system-overview·reentrancy-and-safety)을 현재 상태로 맞췄다.
 
 ## 남은 것
 
 <!-- 다음에 할 것이 맨 위. 인계 단위(세션/마일스톤 수준)로 — 함수 단위 세부 todo는 세션 내 TodoList의 몫. -->
 
-- [ ] **세션 B 병합** — PR #21(CI GREEN, 도그푸딩 통과) 병합 대기. 병합되면 아래 마무리를 이어서.
-- [ ] **마무리** (병합 직후): ① 릴리스 배포 금지 규칙 판단 — 모션은 실행되지만 편집은 여전히 무로그 스킵이라 **M3까지 유지**가 결론이고, 게이트를 "디스패처 마일스톤"에서 "M3(편집 실행)"으로 옮기는 것을 decisions에 형식화한다. 그때 [20260717 과도기 규칙](../../decisions/references/20260717_replace-swallow-transitional-rule.md)의 supersede 처리(인덱스 유지/제거)는 **사용자 확인이 필요하다** — 본문에 아직 유효한 컨텍스트(로그 형태·DEBUG 전용 근거)가 섞여 있다. ② MVP 마일스톤 플랜에 M2 완료 반영(다음 착수 M3).
 - [ ] **M2 후속 PR — 모션 매핑 정확도** (도그푸딩發, 별도 PR로 분리 확정): ① 근사 3건 개선(w≈e, ^≈0, a/A) — 매핑 계약의 "배열 반환" 을 처음 활용하는 변경이라 테이블 원소 교체로 끝난다. ② **Shift 새어 들어감** — `$`(Shift+4)·`G`(Shift+g)·`^`·`A`는 사용자가 Shift를 누른 상태에서 Cmd/Opt 조합을 게시하므로, 전역 modifier 상태를 별도로 읽는 앱에서 이동이 아니라 **선택**이 될 수 있다. 이건 매퍼가 아니라 **어댑터 레벨**(게시 전 modifier 정리)이라 "매퍼 밖·큐 위 변환" 경계가 바뀐다 → decisions 먼저. 착수 전 **어긋난 항목의 구체 목록을 먼저 확보할 것**(아래 컨텍스트).
 
 ## 진행 중 컨텍스트
