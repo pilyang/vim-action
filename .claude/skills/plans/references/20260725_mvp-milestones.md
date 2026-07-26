@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-25
-- **갱신일**: 2026-07-26
+- **갱신일**: 2026-07-26 (M2 종료 — 다음 착수 M3)
 
 ## 목표
 
@@ -18,10 +18,9 @@
 - [x] **M1 세션 B — 킬스위치** (PR #18 병합, `a91bcda`) → **M1 종료**: `KillSwitchTap`(HID 능동 탭 + 전용 스레드 런루프, 세션 폴백 1단) + `triggerKillSwitch` 2겹 발동 + 킬 요청 래치 + Settings 상태·안내 행. 실기기 확인 완료(비루트 HID 생성 성공, 발동·삼킴·오토리핏·래치 전부 정상). 결정 3건: [전용 스레드](../../decisions/references/20260726_kill-switch-dedicated-runloop-thread.md), [탭 위치·폴백](../../decisions/references/20260726_kill-switch-hid-tap-session-fallback.md), [발동 의미론](../../decisions/references/20260726_kill-switch-trigger-semantics.md).
 - [x] **M1 세션 B 후속 — 코드리뷰 반영** (같은 PR #18): 서브에이전트 재검증으로 리뷰 10건 중 절반의 판정이 뒤집혔고, 살아남은 것만 고쳤다. 삼킴/발동 술어 분리, off 영속을 메인 홉과 분리, 킬 탭 활성화 검증 + `Installation.failed`, 종료 경합 nil 가드, 킬 탭 설치 재시도 훅(`onTapInstalled`), 래치 회귀 테스트(가드 삭제 시 실제로 RED 확인), SEI 모델 정정. 결정 4건 추가: [삼킴/발동 분리](../../decisions/references/20260726_kill-combo-swallow-independent-of-fire.md), [홉 무관 영속](../../decisions/references/20260726_kill-switch-off-persistence-off-main.md), [활성화 검증](../../decisions/references/20260726_kill-tap-enable-verification.md), [SEI는 배달만 억제](../../decisions/references/20260726_secure-input-suppresses-delivery-not-enablement.md).
 - [x] **M2 선행 — `ActionExecutor` Swift 6 동시성 정리** (PR #19 병합, `aaf637c`): `SyntheticEventMarker`·`ActionExecutor`를 타입 단위 `nonisolated` + 명시적 `Sendable`로, 게시 클로저는 `@Sendable (CGEvent) -> Void`로 바꿨다. 기능 변화 0, 테스트 변경 0(수집기의 기존 `nonisolated(unsafe)` 캡처가 그대로 컴파일됐다). **빌드 경고 4건 → 0건**, 테스트 GREEN, Swift 6 프로브에서 `ActionExecutor.swift` 진단 0건. Copilot 리뷰 코멘트 0건. 결정: [ActionExecutor 격리·게시 클로저 계약](../../decisions/references/20260726_action-executor-nonisolated-sendable.md).
+- [x] **M2 종료 — Keyboard 어댑터 ① 모션** (PR #20 `0eb2187` + PR #21 `bd643e1` 병합): 세션 A가 순수 실행 계층(`MotionKeyMapper`·`KeyboardAdapter`), 세션 B가 앱 게이트(`FrontmostAppGate`)와 실행 배선을 붙였다. 이동 계열이 실제 앱에서 캐럿을 움직이고 disable 앱(Ghostty)은 완전 통과하며, 실기기 도그푸딩으로 게이트 전이·모션 디스패치(`10w` 카운트 포함)·미지원 스킵·실패 보고 0건을 확인했다. 릴리스 배포 금지 게이트는 M3로 이동([결정](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)). **매핑 정확도 후속 2건**(근사 3건 개선, Shift 새어 들어감)은 [M2 상세 플랜](20260726_m2-keyboard-motion-adapter.md)에 남아 있다 — M3와 독립이라 언제든 착수 가능.
 
 ## 남은 것
-
-- [ ] **M2 — Keyboard 어댑터 ① 모션 (비파괴)** — **거의 종료, 병합만 남음**: 세션 A(매퍼·어댑터, PR #20 병합) + 세션 B(앱 게이트·실행 배선·도그푸딩, PR #21 CI GREEN 병합 대기)로 이동 계열이 실제 앱에서 실행되고 Ghostty는 완전 통과한다. 남은 것은 병합 + 마무리(릴리스 금지 규칙 형식화) + 도그푸딩發 매핑 정확도 후속 PR 2건 — 전부 [상세 플랜](20260726_m2-keyboard-motion-adapter.md)에 있다.
 - [ ] **M3 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버**: 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), Visual=Shift+모션, y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
 - [ ] **M4 — 프로파일 배관 + 앱별 on/off** ← **MVP 1단계 완료선**: Yams YAML 3계층 로더 + 핫 리로드, M2 하드코딩 게이트를 프로파일로 교체, 내장 프로파일(주력 앱 + VS Code류 enabled: false), 설정 UI 앱별 목록. per_element 스키마 시점에 캐시 충분성 최종 확정.
 - [ ] **M5 — AX 어댑터 + auto 전략 (MVP 이후 1차 확장)**: AX 어댑터(AXSelectedTextRange 직접 조작), auto 프로브 → key-mapping 폴백, force-text 계열, per_element 재정의 본격화. `AXUIElementSetMessagingTimeout` 실기기 계측(콜백 경량 불변식 위임 ①)은 여기.
@@ -29,7 +28,7 @@
 
 ## 진행 중 컨텍스트
 
-- 다음 착수: **M2 병합·마무리** → 그다음 **M3**. M1·M2 선행은 종료됐고, M2 본체는 2PR 모두 작성돼 #21 병합만 남았다.
+- 다음 착수: **M3**. M1·M2는 종료됐다 (M2의 매핑 정확도 후속 2건은 M3와 독립이라 상세 플랜에 별도로 남아 있다).
 - **빌드 경고 기준선은 이제 0건이다** — M2는 0을 기준으로 비교한다. (정정: M1 종료 시점 기준선 4건은 전부 `ActionExecutor.swift`(20·24·39·47행)였다. 이 문서가 함께 적었던 `AccessibilityPermissionMonitor.swift:35`는 **Swift 5 모드에선 경고가 아니다** — 2026-07-26 실측 빌드에서 재현되지 않았다.)
 - **Swift 6 언어 모드 잔여 항목은 딱 하나**: `AccessibilityPermissionMonitor.swift:35`의 `kAXTrustedCheckOptionPrompt`(전역 `var`) 참조가 Swift 6 모드에서만 에러다. `EventTapController`·`Preferences`·`ActionExecutor`는 프로브에서 깨끗함을 확인했다. 프로브는 pbxproj를 고치지 말고 **명령줄 오버라이드**로 하면 되돌림 실수가 원천 봉쇄된다: `xcodebuild build … CODE_SIGNING_ALLOWED=NO SWIFT_VERSION=6.0`.
 - **테스트 단언 함정 (M2에서 반복 주의)**: `defaults.bool(forKey:)`는 **미설정 키에도 `false`** 를 반환한다. 영속을 검증할 때 `object(forKey:) != nil`을 앞세우지 않으면 영속 코드를 통째로 지워도 테스트가 통과한다 — M1에서 실제로 4곳이 이 상태였다(전부 수정됨).

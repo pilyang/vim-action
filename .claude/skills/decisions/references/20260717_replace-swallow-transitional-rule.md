@@ -1,3 +1,5 @@
+> Superseded by [20260726_release-block-gate-moves-to-m3.md](20260726_release-block-gate-moves-to-m3.md)
+
 # replace 미실행 과도기 규칙 — 삼키고 로그만
 
 - **결정일**: 2026-07-17

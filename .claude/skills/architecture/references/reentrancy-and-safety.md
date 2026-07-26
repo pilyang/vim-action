@@ -39,7 +39,7 @@ sequenceDiagram
 
 **과도기 상태 (모션까지 배선됨)**: `.replace` 결정은 이제 실제로 실행된다 — 콜백은 원본을 삼킨 뒤 actions를 **실행 sink**로 넘기고, 그 클로저가 게시 직렬 큐 위에서 `KeyboardAdapter`를 부른다(`CGEvent` 생성·게시가 같은 컨텍스트여야 하는 계약). 컨트롤러는 sink 클로저 하나만 알고, 큐의 소유자·수명이 곧 그 클로저다. 기본 sink와 앱 게이트는 XCTest 하위에서 무해한 것으로 바꿔치기된다 — 그냥 두면 테스트가 개발자 머신에 실제 키를 주입하거나, disable 앱(Ghostty) 터미널에서 테스트를 돌릴 때 게이트가 켜져 결정 테스트가 통째로 뒤집힌다 ([20260726_m2-execution-wiring-shape.md](../../decisions/references/20260726_m2-execution-wiring-shape.md)).
 
-실행 범위는 **이동 계열뿐**이다: 어댑터는 `.move`만 CGEvent로 바꾸고 나머지(편집·Visual·붙여넣기 등)는 스킵+DEBUG 로그다(미지원≠실패). 즉 릴리스 빌드에서 편집 키는 여전히 무로그로 삼켜져 "죽은 키"로 보이므로, **릴리스 배포 금지는 유지**된다 — 게이트는 이제 편집 실행이 붙는 M3다 ([20260717_replace-swallow-transitional-rule.md](../../decisions/references/20260717_replace-swallow-transitional-rule.md)). 실패 보고는 아직 호출자가 없다: Keyboard 게시 경로는 오류를 돌려주지 않아 접을 실패 자체가 없고, 신호는 `AXError`를 돌려주는 M5 AX 어댑터가 만든다.
+실행 범위는 **이동 계열뿐**이다: 어댑터는 `.move`만 CGEvent로 바꾸고 나머지(편집·Visual·붙여넣기 등)는 스킵+DEBUG 로그다(미지원≠실패). 즉 릴리스 빌드에서 편집 키는 여전히 무로그로 삼켜져 "죽은 키"로 보이므로, **릴리스 배포 금지는 유지**된다 — 게이트는 이제 편집 실행이 붙는 M3다 ([20260726_release-block-gate-moves-to-m3.md](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)). 실패 보고는 아직 호출자가 없다: Keyboard 게시 경로는 오류를 돌려주지 않아 접을 실패 자체가 없고, 신호는 `AXError`를 돌려주는 M5 AX 어댑터가 만든다.
 
 ## 불변식·계약
 
