@@ -43,6 +43,8 @@ sequenceDiagram
 
 - **탭 콜백의 동기 구간은 "번역 + 순수 엔진 step + 캐시된 컨텍스트 읽기"까지만** — AX 등 블로킹 가능 호출은 콜백에 들어오지 않는다(프로브는 포커스 변경 시 캐시 갱신, 실행은 콜백 밖 직렬 큐). OS 탭 타임아웃은 콜백 스레드와 무관하므로 탭 생존은 스레드 배치가 아니라 이 불변식이 지킨다. 탭 소스는 메인 런루프 유지 확정 ([20260725_callback-light-invariant.md](../../decisions/references/20260725_callback-light-invariant.md), [20260725_tap-main-runloop-retention.md](../../decisions/references/20260725_tap-main-runloop-retention.md)).
 - 이벤트 게시는 반드시 `ActionExecutor`를 거친다 — 우회 경로가 생기면 마커 불변식을 감사할 수 없다.
+- **`ActionExecutor`와 `SyntheticEventMarker`는 스레드 자유 타입이다** — 둘 다 타입 단위 `nonisolated`이고(멤버별이 아니라 타입에 붙여 `magic`·`postEvent`까지 기본 MainActor 격리에서 벗어난다) `ActionExecutor`는 `Sendable`을 명시한다. 게시는 콜백 밖 직렬 큐에서, 마커 판독은 메인 탭 콜백과 킬 탭 전용 스레드 양쪽에서 일어나므로 어느 격리도 가정할 수 없다. 게시 클로저 계약은 **`@Sendable (CGEvent) -> Void`** — 이것이 있어야 `ActionExecutor`가 `Sendable`이 되어 큐로 넘어간다.
+- **합성 `CGEvent`는 `post`를 호출하는 그 컨텍스트(직렬 큐)에서 만든다** — `CGEvent`는 `Sendable`이 아니라 격리를 건너면 안 된다. 어댑터가 큐 위에서 시퀀스를 생성하면 건너갈 값이 애초에 없다. 콜백에서 만들어 큐로 넘기는 형태는 `nonisolated(unsafe)` 없이는 성립하지 않으며, 그 우회가 필요해졌다는 것은 곧 이 계약을 재검토할 시점이라는 뜻이다 ([20260726_action-executor-nonisolated-sendable.md](../../decisions/references/20260726_action-executor-nonisolated-sendable.md)).
 - 마커 없는 합성 이벤트는 존재하지 않는다. **마커를 빠뜨리면 탭이 자기 출력을 재해석해 무한 루프** — 이벤트 탭 기반 도구의 병적 루프의 가장 흔한 원인.
 - 마커 확인은 `handleKeyDown`의 **최우선 판정**이다 — 마스터 토글을 포함한 어떤 상태 가드보다 앞. 상태 무관 불변식을 상태 뒤로 미루면 상태 조합 하나가 루프의 입구가 된다 ([20260725_marker-guard-highest-precedence.md](../../decisions/references/20260725_marker-guard-highest-precedence.md)).
 - 안전장치 탭은 메인 탭과 생명주기를 공유하지 않는다 — 메인 탭의 off/failed/재설치와 무관하게 살아 있고, 정리 시점은 앱 종료뿐이다.
