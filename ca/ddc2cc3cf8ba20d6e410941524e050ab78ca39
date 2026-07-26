@@ -1,0 +1,27 @@
+VimActionTests/TapWatchdogTests.swift
+  s_979edb6e0a2fdb::t_d820721b7bf7b6 153,156,158
+  s_979edb6e0a2fdb::t_14065f18884f84 52-56,66-86
+  s_979edb6e0a2fdb::t_88bde49122f74d 93-94
+VimAction/EventTapController.swift
+  s_979edb6e0a2fdb::t_422cfbe2f0edd2 470-478
+  s_979edb6e0a2fdb::t_75ef22b740c691 498-504
+  s_979edb6e0a2fdb::t_c589e7ae5e10ba 28-35
+  s_979edb6e0a2fdb::t_f99426b7d76fcb 362-365,367-368
+  s_979edb6e0a2fdb::t_3f9c0fcdaf450f 529
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "caddc2cc3cf8ba20d6e410941524e050ab78ca39",
+  "prompts": {},
+  "sessions": {
+    "s_979edb6e0a2fdb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "411c1157-890d-4903-b9f9-91d81b94205a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
