@@ -1,0 +1,33 @@
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_f4f2e03ab2adb5::t_24673f99d90106 46-47
+.claude/skills/decisions/references/20260726_action-executor-nonisolated-sendable.md
+  s_f4f2e03ab2adb5::t_a221a741455e64 1-38
+.claude/skills/decisions/SKILL.md
+  s_f4f2e03ab2adb5::t_5b893b334ae733 90
+VimAction/ActionExecutor.swift
+  s_f4f2e03ab2adb5::t_6111189e1f6416 15-18,23,27
+  s_f4f2e03ab2adb5::t_e6df9471961854 14
+  s_f4f2e03ab2adb5::t_184ae94820513f 36-44,48,50,56
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_f4f2e03ab2adb5::t_64853d746c3d02 38
+  s_f4f2e03ab2adb5::t_abc07bbfdc35c9 20
+  s_f4f2e03ab2adb5::t_139c7866a87dd3 32-34
+.claude/skills/plans/SKILL.md
+  s_f4f2e03ab2adb5::t_17921b7822ad8a 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "96b66d98a13ee5c64b6675899eb504cd99cf7b84",
+  "prompts": {},
+  "sessions": {
+    "s_f4f2e03ab2adb5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4cd9342a-14b5-4280-8073-cba9b48586de",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
