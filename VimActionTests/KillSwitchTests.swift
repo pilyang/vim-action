@@ -87,6 +87,26 @@ struct KillSwitchGuardTests {
         #expect(!KillSwitchTap.shouldFire(try keyDown(kVK_Escape)))
         #expect(!KillSwitchTap.shouldFire(try keyDown(kVK_Space, Self.combo)))
     }
+
+    /// 삼킴은 발동보다 넓다 — 오토리핏 콤보는 발동하지 않지만 포커스 앱으로 새서도 안 된다.
+    /// (HID 계층이 콤보를 꾹 누르는 동안 초당 10여 건을 계속 올려보낸다.)
+    @Test("오토리핏 콤보: 미발동이지만 삼킨다")
+    func autorepeatComboIsStillSwallowed() throws {
+        let event = try keyDown(kVK_Escape, Self.combo)
+        event.setIntegerValueField(.keyboardEventAutorepeat, value: 1)
+        #expect(KillSwitchTap.shouldSwallow(event))
+        #expect(!KillSwitchTap.shouldFire(event))
+    }
+
+    /// 삼킴은 콤보에만 — 무관한 키와 우리 합성 출력은 그대로 통과해야 한다.
+    @Test("콤보 아님·합성 마커: 삼키지 않는다")
+    func nonComboAndMarkedAreNotSwallowed() throws {
+        #expect(!KillSwitchTap.shouldSwallow(try keyDown(kVK_Escape)))
+        #expect(!KillSwitchTap.shouldSwallow(try keyDown(kVK_Space, Self.combo)))
+        let marked = try keyDown(kVK_Escape, Self.combo)
+        SyntheticEventMarker.mark(marked)
+        #expect(!KillSwitchTap.shouldSwallow(marked))
+    }
 }
 
 @MainActor
@@ -106,6 +126,30 @@ struct KillSwitchTriggerTests {
         await drainMainQueue()
 
         #expect(!controller.isInterceptionEnabled)
+        // 존재 확인이 먼저 — `bool(forKey:)`는 미설정 키에도 false라 이것 없이는
+        // 영속을 통째로 지워도 통과한다.
+        #expect(defaults.object(forKey: PreferenceKeys.interceptionEnabled) != nil)
+        #expect(defaults.bool(forKey: PreferenceKeys.interceptionEnabled) == false)
+    }
+
+    /// 킬스위치가 존재하는 시나리오는 "메인이 굳었다"이다 — 그 상태에서 메인 홉은 영원히
+    /// 착지하지 않는다. off의 **영속**이 홉에만 매달려 있으면 강제 종료 후 재실행에서 init이
+    /// 다시 on을 읽어 사용자를 같은 상태로 돌려보낸다. 그래서 이 테스트는 홉을 배수하지
+    /// 않는다 — @MainActor 테스트 본문에 suspension이 없어 main.async 블록은 실행될 수 없다.
+    @Test("triggerKillSwitch: 메인 홉을 기다리지 않고 off를 영속한다")
+    func triggerPersistsOffWithoutMainHop() {
+        let suiteName = "VimActionTests." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let controller = EventTapController(defaults: defaults)
+        #expect(controller.isInterceptionEnabled)
+
+        controller.triggerKillSwitch()
+
+        // `bool(forKey:)`는 **미설정 키에도** false를 준다 — 값이 실제로 쓰였는지는
+        // object 존재로만 구분된다 (이게 없으면 아무것도 안 쓴 코드에서도 통과한다).
+        #expect(defaults.object(forKey: PreferenceKeys.interceptionEnabled) != nil)
         #expect(defaults.bool(forKey: PreferenceKeys.interceptionEnabled) == false)
     }
 
@@ -129,6 +173,37 @@ struct KillSwitchTriggerTests {
 
         controller.isInterceptionEnabled = true
         #expect(!controller.isKillSwitchRequested)
+    }
+
+    /// 래치의 **소비처** 계약 — 래치 플래그가 서는 것만으로는 안전하지 않다. 킬 스레드가
+    /// 탭을 끄는 즉시 OS가 `tapDisabledBy*`를 보내는데, 그 통지는 발동 ②의 메인 홉보다
+    /// 먼저 도착하므로 토글 가드는 아직 on을 보고 있다 — 래치 가드만이 되살림을 막는다.
+    ///
+    /// 반환값으로 검증하는 이유: TEST_HOST는 포트가 항상 nil이라 가드를 지워도
+    /// `enableTapAndVerify`가 no-op이고 status가 그대로다 (관측 불가).
+    @Test("킬스위치 래치 중 tapDisabledBy* 통지: 메인 홉 전에도 재활성화 거절")
+    func disableNoticeDeclinedWhileLatchedBeforeHop() async {
+        let suiteName = "VimActionTests." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let controller = EventTapController(defaults: defaults)
+        // 래치 없음 + 토글 on = 정상 재활성화 경로.
+        #expect(controller.reenableAfterDisable(type: .tapDisabledByTimeout))
+
+        controller.triggerKillSwitch()
+        // 홉 전이라 토글은 아직 on — 이 가드를 통과시키는 건 래치뿐이다.
+        #expect(controller.isInterceptionEnabled)
+        #expect(!controller.reenableAfterDisable(type: .tapDisabledByTimeout))
+        #expect(!controller.reenableAfterDisable(type: .tapDisabledByUserInput))
+
+        // 홉이 착지해 토글이 off가 된 뒤에도 계속 거절.
+        await drainMainQueue()
+        #expect(!controller.reenableAfterDisable(type: .tapDisabledByTimeout))
+
+        // 토글 on 복귀가 래치를 내리면 다시 정상 경로로 돌아온다.
+        controller.isInterceptionEnabled = true
+        #expect(controller.reenableAfterDisable(type: .tapDisabledByTimeout))
     }
 
     /// `main.async`로 게시된 블록이 소진될 때까지 기다린다. 메인 큐는 FIFO라 뒤에 하나 더
@@ -156,5 +231,15 @@ struct KillSwitchStatusTextTests {
             killSwitchStatusText(installation: .notInstalled, isTrusted: false)
                 == "Waiting for Permission")
         #expect(killSwitchStatusText(installation: .notInstalled, isTrusted: true) == "Unavailable")
+    }
+
+    /// 활성화가 먹지 않은 탭은 "설치됨"으로 보이면 안 된다 — 안전장치가 조용히 부재하는
+    /// 것이 최악의 실패 모드라, 권한 대기(`Waiting`)나 생성 실패(`Unavailable`)와도
+    /// 구분되는 자기 문구를 갖는다.
+    @Test("활성화 실패: 설치됨으로 보이지 않는다")
+    func failedIsNotReportedAsActive() {
+        let text = killSwitchStatusText(installation: .failed, isTrusted: true)
+        #expect(text == "Failed (tap inactive)")
+        #expect(!text.contains("Active"))
     }
 }

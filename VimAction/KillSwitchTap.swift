@@ -29,6 +29,12 @@ final class KillSwitchTap {
         case hid
         /// `kCGSessionEventTap` 폴백. HID 생성이 거부됐을 때만 — 아래 설치 순서 주석 참고.
         case session
+        /// 탭은 만들어졌으나 활성화가 먹지 않았다 — 콤보가 오지 않는다.
+        ///
+        /// `.notInstalled`로 되돌리지 않는 이유: 그러면 `startIfPermitted`의 설치 가드가
+        /// 다시 열리는데 `portBox`에는 살아 있는 포트가 남아 있어, 권한 재부여 경로가
+        /// 두 번째 탭을 만들고 첫 탭을 고아로 남긴다.
+        case failed
     }
 
     private(set) var installation: Installation = .notInstalled
@@ -77,13 +83,19 @@ final class KillSwitchTap {
             port = hidPort
             installation = .hid
         } else if let sessionPort = create(at: .cgSessionEventTap) {
-            // HID 능동 탭이 거부되는 환경(문서상 root 제약)에서의 폴백. 메인 탭과 같은
-            // 위치라 우선순위가 설치 순서에 의존하고, 메인 탭이 off→on으로 재설치되면
-            // 킬 탭이 뒤로 밀린다 — 그때 메인 탭이 콤보를 삼키면 발동하지 못한다.
+            // 방어적 폴백 — **실제로 타는 경로가 아니다.** `CGEvent.h`의 "HID 탭은 root만"
+            // 문구는 낡았다: Accessibility를 부여받은 비root 프로세스도 능동 HID 탭을
+            // 정상 생성한다(macOS 26.5 실측). 그래도 남겨 두는 이유는 안전장치가 아예
+            // 없는 것보다 우선순위가 밀린 안전장치가 낫기 때문이다.
+            //
+            // 이 경로에서만 두 탭이 같은 위치에 들어가 우선순위가 설치 순서에 의존한다.
+            // 순서를 지키는 것은 `EventTapController.onTapInstalled` 훅이다 — 메인 탭이
+            // (재)설치될 때마다 킬 탭 설치가 그 **뒤에** 이어진다. off→on 토글은 포트를
+            // 유지한 채 tapEnable만 하므로 재삽입도 순서 역전도 일으키지 않는다.
             port = sessionPort
             installation = .session
             Logger.eventTap.notice(
-                "킬스위치 HID 탭 생성 실패 — 세션 탭으로 폴백 (메인 탭 재설치 시 우선순위 밀림)")
+                "킬스위치 HID 탭 생성 실패 — 세션 탭으로 폴백 (메인 탭과 같은 위치, 순서 의존)")
         } else {
             Logger.eventTap.fault("킬스위치 탭 생성 실패 — 안전장치 부재")
             return
@@ -110,14 +122,25 @@ final class KillSwitchTap {
         // Thread 블록은 @Sendable이고 CFMachPort는 Sendable이 아니다 — 워치독의 강캡처와
         // 같은 근거(스레드 안전 C API, invalidate 후 no-op)로 안전하다.
         nonisolated(unsafe) let port = port
-        let thread = Thread {
-            let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0)
+        let thread = Thread { [self] in
+            // 소스 생성은 nil일 수 있다 — `thread.start()`는 블록을 기다리지 않으므로
+            // 그 사이에 stop()이 포트를 invalidate하면 여기서 NULL이 온다. 그대로 넘기면
+            // CoreFoundation 안에서 널 역참조로 프로세스가 죽는다 (Swift 가드 없음:
+            // 반환형도 파라미터도 Optional이라 nil이 그대로 C로 건너간다).
+            guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0) else {
+                Logger.eventTap.notice("킬스위치 런루프 소스 생성 실패 — 포트가 이미 무효 (종료 경합)")
+                return
+            }
             CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
             // 활성화는 소스를 붙인 **뒤에** — 설치 경로가 부착 전까지 탭을 꺼 두므로
             // (startIfPermitted의 선제 disable) 여기가 킬 탭의 유일한 활성화 지점이다.
             CGEvent.tapEnable(tap: port, enable: true)
+            // 켰다고 믿지 않는다 — 메인 탭의 `enableAndCheck`와 같은 검증 계약이다.
+            // 여기가 유일한 활성화 지점이고 재시도가 없으므로, 실패를 놓치면 Settings가
+            // 세션 내내 "Active"를 주장하는 채로 안전장치만 조용히 부재한다.
+            if !CGEvent.tapIsEnabled(tap: port) { reportEnableFailure(reason: "설치") }
             // stop()의 CFMachPortInvalidate가 소스를 무효화하면 남은 소스가 없어 이 호출이
-            // 반환하고 스레드가 끝난다.
+            // 반환하고 스레드가 끝난다 (활성화 실패와 무관하게 수명 계약은 동일하다).
             CFRunLoopRun()
         }
         thread.name = "dev.pilyang.VimAction.killSwitchTap"
@@ -151,14 +174,43 @@ final class KillSwitchTap {
 
     /// 시스템이 킬 탭을 비활성화(타임아웃/사용자 개입)했을 때의 자체 재활성화.
     ///
-    /// 킬 탭에는 **전용 워치독을 두지 않는다** — 메인 탭이 워치독을 필요로 한 이유는
-    /// "스톨로 통지 자체가 유실되는" 실패 모드인데, 이 콜백은 `(keycode, flags)` 비교뿐이라
-    /// 그 상황에 놓이지 않는다. 없는 실패 모드에 폴링을 다는 것은 과잉 방어다.
+    /// 킬 탭에는 **전용 워치독을 두지 않는다** — 근거는 두 겹이다.
+    ///
+    /// ① 메인 탭이 워치독을 필요로 한 이유 하나는 "스톨로 통지 자체가 유실되는" 실패
+    ///    모드인데, 이 콜백은 `(keycode, flags)` 비교뿐이라 그 상황에 놓이지 않는다.
+    /// ② **더 결정적인 쪽**: 메인 탭의 재활성화는 *게이트가 걸려 있다*(킬 래치·토글 off).
+    ///    의도적으로 건너뛴 재활성화는 나중에 폴링이 풀어 줘야 한다. 이 함수에는 게이트가
+    ///    하나도 없어 "보류됐다가 잊히는" 상태 자체가 존재하지 않는다.
+    ///
+    /// 폴링 대신 필요한 것은 **검증**이다 — 아래 `tapIsEnabled` 확인이 그 몫이다.
+    /// 재시도 타이머는 두지 않는다: 반복 타이머는 런루프를 영구히 붙잡아 `stop()`의
+    /// invalidate로 스레드가 끝난다는 아래 수명 계약을 깨고, 거부는 일시적이 아니라
+    /// 영구적(포트/신원) 성격이라 재시도의 기대값이 없다.
     fileprivate nonisolated func reenableAfterDisable(type: CGEventType) {
         guard let port = portBox.get() else { return }
         CGEvent.tapEnable(tap: port, enable: true)
+        // 설치 경로와 같은 검증 계약. 여기서 특히 중요한 이유: `tapDisabledBy*` 통지는
+        // **한 번뿐이다** — 꺼진 탭은 이벤트를 못 받으므로 두 번째 통지가 오지 않는다
+        // (실측 확인). 재활성화가 먹지 않은 것을 여기서 놓치면 복구 기회가 영영 없다.
+        guard CGEvent.tapIsEnabled(tap: port) else {
+            reportEnableFailure(reason: "비활성화 통지(type=\(type.rawValue))")
+            return
+        }
         Logger.eventTap.notice(
             "킬스위치 탭 재활성화 (type=\(type.rawValue, privacy: .public))")
+    }
+
+    /// 활성화 실패 보고 — 킬 스레드에서 호출된다.
+    ///
+    /// 로그는 **여기서 직접** 남긴다 (메인이 굳어도 기록은 남아야 한다). UI 강등은
+    /// 메인 홉의 부차 채널이다 — Settings 자체가 메인 구동이라 홉이 못 가는 상황에서는
+    /// 어차피 볼 수 없고, `async`라 킬 스레드를 붙잡지도 않는다.
+    private nonisolated func reportEnableFailure(reason: String) {
+        Logger.eventTap.fault(
+            "킬스위치 탭 활성화 실패 — 안전장치 부재 (\(reason, privacy: .public))")
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { self.installation = .failed }
+        }
     }
 
     /// 콤보 발동 — 킬 탭 전용 스레드에서 실행된다 (메인 스톨과 무관).
@@ -183,18 +235,27 @@ final class KillSwitchTap {
         return flags.intersection(intentional) == [.maskControl, .maskAlternate, .maskCommand]
     }
 
-    /// keyDown 하나가 발동 대상인지 — 콤보 판정 앞의 방어 가드 두 겹.
-    nonisolated static func shouldFire(_ event: CGEvent) -> Bool {
-        // 우리가 게시한 합성 이벤트로는 발동하지 않는다. 지금 세션에 게시한 이벤트는 HID
+    /// keyDown 하나를 삼킬지 — 안전장치 조합이 포커스 앱까지 새지 않게 한다.
+    ///
+    /// 삼킴은 발동보다 넓다: 오토리핏 콤보는 발동하지 않지만(아래 `shouldFire`) **삼키기는
+    /// 한다**. 콤보를 꾹 누르면 HID 계층이 초당 10여 건의 Esc keyDown을 계속 올려보내는데,
+    /// 발동 판정만으로 통과시키면 그 전부가 포커스 앱에 쏟아진다.
+    nonisolated static func shouldSwallow(_ event: CGEvent) -> Bool {
+        // 우리가 게시한 합성 이벤트는 건드리지 않는다. 지금 세션에 게시한 이벤트는 HID
         // 탭까지 오지 않지만 **세션 폴백 경로에서는 들어오고**, 어댑터가 modifier 조합 Esc를
         // 합성하게 되면 앱이 자기 출력으로 자기를 끄게 된다 (메인 탭의 마커 최우선 판정과
         // 같은 정신 — 상태 무관 불변식이다).
         guard !SyntheticEventMarker.isMarked(event) else { return false }
-        // 오토리핏 무시 — 콤보를 꾹 누르면 fault 로그와 메인 홉이 초당 수십 건 도배된다
-        // (효과 자체는 소프트 off didSet의 등가 가드가 이미 멱등하게 만든다).
-        guard event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else { return false }
         return isKillCombo(
             keyCode: event.getIntegerValueField(.keyboardEventKeycode), flags: event.flags)
+    }
+
+    /// 삼킬 콤보 중 실제로 발동시킬 것인지 — 오토리핏 제외.
+    /// 콤보를 꾹 누르면 fault 로그와 메인 홉이 초당 10여 건 도배된다
+    /// (효과 자체는 소프트 off didSet의 등가 가드가 이미 멱등하게 만든다).
+    nonisolated static func shouldFire(_ event: CGEvent) -> Bool {
+        guard shouldSwallow(event) else { return false }
+        return event.getIntegerValueField(.keyboardEventAutorepeat) == 0
     }
 }
 
@@ -225,8 +286,9 @@ private nonisolated func killSwitchTapCallback(
                 "킬스위치 진단 — Esc keyDown flags=\(event.flags.rawValue, privacy: .public)")
         }
         #endif
-        guard KillSwitchTap.shouldFire(event) else { return Unmanaged.passUnretained(event) }
-        tap.fire()
+        // 삼킴이 먼저다 — 오토리핏 콤보는 발동하지 않아도 통과시키지 않는다.
+        guard KillSwitchTap.shouldSwallow(event) else { return Unmanaged.passUnretained(event) }
+        if KillSwitchTap.shouldFire(event) { tap.fire() }
         // 콤보는 삼킨다 — 안전장치 조합이 포커스 앱까지 새지 않게 한다.
         return nil
     default:

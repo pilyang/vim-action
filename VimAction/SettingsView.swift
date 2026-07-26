@@ -91,6 +91,7 @@ func killSwitchStatusText(installation: KillSwitchTap.Installation, isTrusted: B
     switch installation {
     case .hid: "Active (HID)"
     case .session: "Active (Session fallback)"
+    case .failed: "Failed (tap inactive)"
     case .notInstalled: isTrusted ? "Unavailable" : "Waiting for Permission"
     }
 }

@@ -33,9 +33,17 @@ final class AppState {
             Logger.eventTap.notice("XCTest 환경변수 감지 — bootstrap 생략 (탭 설치·권한 폴링 비활성)")
             return
         }
+        // 메인 탭 설치 성공마다 킬 탭 설치를 잇는다 — 순서 계약(킬 탭이 나중에
+        // head-insert)이 호출 순서가 아니라 구조로 지켜지고, bootstrap 시점에 킬 탭
+        // 생성이 실패했던 경우의 유일한 재시도 경로가 된다. 킬 탭 설치는 멱등이다.
+        eventTap.onTapInstalled = { [killSwitch] in
+            killSwitch.startIfPermitted()
+        }
         permissionMonitor.onGranted = { [eventTap, killSwitch] in
             // 순서가 계약이다 — KillSwitchTap.startIfPermitted 주석 참고 (세션 폴백 시
             // 나중에 head-insert된 쪽이 먼저 받으므로 킬 탭이 뒤에 와야 한다).
+            // 메인 탭 설치가 성공하면 위 훅이 이미 킬 탭을 세우고, 아래 호출은 메인 탭
+            // 설치가 실패한 경우에도 킬 탭만은 세우기 위한 것이다 (둘 다 멱등).
             eventTap.startIfPermitted()
             killSwitch.startIfPermitted()
         }

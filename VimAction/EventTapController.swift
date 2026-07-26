@@ -52,7 +52,7 @@ final class EventTapController {
         didSet {
             // didSet은 등가 대입에도 발화한다 — 가드 없이는 엔진 재생성·tapEnable이 중복 실행.
             guard oldValue != isInterceptionEnabled else { return }
-            defaults.set(isInterceptionEnabled, forKey: PreferenceKeys.interceptionEnabled)
+            Self.persistInterceptionEnabled(isInterceptionEnabled, to: defaults)
             if isInterceptionEnabled {
                 // 킬스위치 래치 해제 — on 복귀가 유일한 해제 지점이다. 빠뜨리면 킬스위치
                 // 이후 콜백·워치독 재활성화가 영구 보류되는 조용한 고장이 된다.
@@ -110,7 +110,24 @@ final class EventTapController {
     /// 엔진 소유 — UI 관찰 대상이 아니다. 설정 변경 시 `updateConfiguration`으로 재생성.
     @ObservationIgnored private var engine: VimEngine
     @ObservationIgnored private var configuration: VimEngine.Configuration
-    @ObservationIgnored private let defaults: UserDefaults
+    /// `nonisolated`인 이유는 킬스위치 경로 하나다 — 메인 스톨 중 발동하는
+    /// `triggerKillSwitch`가 홉을 기다리지 않고 off를 영속해야 하기 때문이다
+    /// (`persistInterceptionEnabled` 주석 참고).
+    ///
+    /// `(unsafe)`가 필요한 이유: `UserDefaults`는 SDK에 `Sendable` 표시가 없다. 실제로는
+    /// 문서화된 스레드 안전 타입이라(`TapPortBox`의 CFMachPort 강캡처와 같은 부류의 근거)
+    /// 컴파일러에 없는 사실을 여기서 단언한다.
+    @ObservationIgnored private nonisolated(unsafe) let defaults: UserDefaults
+
+    /// 가로채기 토글의 영속 단일 지점. 소유자는 여전히 didSet이고, 킬스위치 경로만
+    /// 예외적으로 이 함수를 직접 부른다 — 메인이 굳어 홉이 착지하지 않을 때도 off가
+    /// 남아야 재실행이 사용자를 같은 상태로 돌려보내지 않는다. 킬 경로가 먼저 써도
+    /// 뒤늦게 착지한 홉의 didSet이 같은 값을 멱등하게 다시 쓸 뿐이다.
+    private nonisolated static func persistInterceptionEnabled(
+        _ enabled: Bool, to defaults: UserDefaults
+    ) {
+        defaults.set(enabled, forKey: PreferenceKeys.interceptionEnabled)
+    }
 
     /// 실행 실패 폭주 감지기 — `reportExecutionFailure`가 유일한 소비자다.
     @ObservationIgnored private var failureBurst = FailureBurstCounter()
@@ -140,6 +157,15 @@ final class EventTapController {
 
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
+
+    /// 메인 탭 설치가 성공할 때마다 호출된다 — `AppState`가 킬 탭 설치(재)시도를 여기 건다.
+    /// 컨트롤러는 킬 탭의 존재를 모른다 (의존은 여전히 단방향).
+    ///
+    /// **설치 뒤에 부르는 것이 계약이다**: 세션 폴백 경로에서 두 탭은 같은 위치에
+    /// head-insert되고 나중에 삽입된 쪽이 먼저 받으므로, 킬 탭은 항상 메인 탭 *다음*에
+    /// 들어가야 한다. 이 훅이 그 순서를 구조적으로 보장한다 — bootstrap의 호출 순서에만
+    /// 의존하면 설치 실패 후 재설치 경로에서 순서가 뒤집힌다.
+    @ObservationIgnored var onTapInstalled: (() -> Void)?
 
     /// 탭 워치독 — 콜백 재활성화가 못 덮는 실패 모드(완전 정지/장기 스톨은 `tapDisabledBy*`
     /// 통지 자체가 유실됨) 대응으로 탭 활성 여부를 백그라운드에서 주기 폴링한다.
@@ -246,6 +272,11 @@ final class EventTapController {
                 }
             }
         }
+
+        // 킬 탭 (재)설치는 반드시 여기 — 메인 탭이 삽입된 **뒤**여야 순서 계약이 지켜진다.
+        // 킬 탭 설치는 멱등이라(자체 설치 가드) 이미 살아 있으면 no-op이고, bootstrap에서
+        // 생성이 실패했던 경우에만 실제로 재시도된다.
+        onTapInstalled?()
     }
 
     /// 탭 정리: 워치독 정지 → 비활성화 → 런루프 소스 제거 → 포트 invalidate. 앱 종료 시 호출된다.
@@ -264,18 +295,25 @@ final class EventTapController {
     }
 
     /// 시스템이 탭을 비활성화(타임아웃/사용자 개입)했을 때 재활성화한다.
-    fileprivate func reenableAfterDisable(type: CGEventType) {
+    ///
+    /// 반환값은 "재활성화를 **시도했는가**"(성공 여부가 아니다) — `applyWatchdogResult`와
+    /// 같은 이유로 internal이다: 두 가드가 실제로 걸리는지는 TEST_HOST에서 포트가 항상
+    /// nil이라 status로는 관측할 수 없고(가드가 없어도 enableTapAndVerify가 no-op), 이
+    /// 판정값만이 유일한 관측 수단이다. 프로덕션 호출자(`eventTapCallback`)는 무시한다.
+    @discardableResult
+    func reenableAfterDisable(type: CGEventType) -> Bool {
         // 킬스위치가 끈 탭은 되살리지 않는다 — 아래 토글 가드는 발동 ②의 메인 홉이
         // 착지해야 참이 되는데, 우리가 끈 데 대한 OS 통지가 그보다 먼저 도착한다.
         guard !isKillSwitchRequested else {
             Logger.eventTap.notice(
                 "킬스위치 요청 — 탭 재활성화 보류 (\(Self.disableReasonName(type), privacy: .public))")
-            return
+            return false
         }
         // off 중에는 되살리지 않는다 — off가 탭을 비활성화하므로 여기서 재활성화하면
         // 안전장치가 풀린다 (비활성화 직전 in-flight 통지가 이 가드에 걸린다).
-        guard isInterceptionEnabled else { return }
+        guard isInterceptionEnabled else { return false }
         enableTapAndVerify(reason: "탭 비활성화 통지(\(Self.disableReasonName(type)))")
+        return true
     }
 
     /// `tapDisabledBy*` 통지의 사람이 읽는 이름 — raw는 0xFFFFFFFE/0xFFFFFFFF라
@@ -367,21 +405,13 @@ final class EventTapController {
             // 킬스위치 게이트: 이 틱은 토글 가드 없이 enableAndCheck를 부르므로
             // (토글 반영은 didSet의 stopWatchdog 몫이고 그건 메인 홉 뒤다) 발동 직후
             // in-flight 틱이 방금 끈 탭을 되살릴 수 있다 — 콜백 경로와 같은 래치로 닫는다.
-            guard !isKillSwitchRequested else { return }
-            let observation = Self.watchdogTick(
+            // 래치 판정은 전부 watchdogTick 안이다 (진입·재활성화 직전·관측 후 3지점).
+            guard let observation = Self.watchdogTick(
+                isKillRequested: { self.isKillSwitchRequested },
                 isEnabled: { CGEvent.tapIsEnabled(tap: port) },
-                enableAndVerify: {
-                    // 위 진입 가드는 틱 **시작 시점**만 막는다 — 래치는 킬 스레드가 세우므로
-                    // 이 틱이 진행 중에 설 수 있고, 그러면 방금 킬스위치가 끈 탭을 되살린다.
-                    // "래치가 서 있으면 아무도 탭을 되살리지 않는다"는 불변식이라 창을 닫는다.
-                    guard !self.isKillSwitchRequested else { return false }
-                    return Self.enableAndCheck(port)
-                },
+                enableAndVerify: { Self.enableAndCheck(port) },
                 isSecureInput: { IsSecureEventInputEnabled() }
-            )
-            // 래치가 이 틱 진행 중에 섰으면 관측값을 통째로 버린다 — 위 클로저의 false를
-            // 그대로 흘리면 .dead가 되어, 홉 착지 순서에 따라 메인이 거짓 .failed를 찍는다.
-            guard !isKillSwitchRequested else { return }
+            ) else { return }
             if observation == .recovered {
                 // 성공 로그만 bg에서 직접 — 희귀 이벤트라 스팸 불가능하고, 메인 스톨
                 // 중에도 즉시 기록돼야 복구를 관측할 수 있다. 실패 로그는 메인 전이
@@ -432,14 +462,31 @@ final class EventTapController {
     /// Secure Input 확인은 탭이 죽어 있을 때만 — 비활성의 원인이 OS 보호(비밀번호 입력
     /// 등)면 재활성화를 시도하지 않는다. 시도하면 매 2초 거부→.failed 반복으로 정상
     /// 보호 동작이 고장(false failure)처럼 표시된다.
+    ///
+    /// 킬스위치 래치도 여기서 본다 — `isKillRequested`는 **매번 다시 읽는다**. 래치는 킬
+    /// 스레드가 세우므로 틱이 도는 **중에** 설 수 있고, 한 번만 읽으면 그 창으로 방금
+    /// 킬스위치가 끈 탭을 되살린다. nil = "관측 없음, 아무것도 하지 않는다" — 래치 중에는
+    /// 되살리지 않을 뿐 아니라 관측값도 흘리지 않는다 (흘리면 메인이 거짓 status를 찍는다).
     nonisolated static func watchdogTick(
+        isKillRequested: () -> Bool,
         isEnabled: () -> Bool,
         enableAndVerify: () -> Bool,
         isSecureInput: () -> Bool
-    ) -> WatchdogObservation {
-        if isEnabled() { return .live }
-        if isSecureInput() { return .secureInput }
-        return enableAndVerify() ? .recovered : .dead
+    ) -> WatchdogObservation? {
+        // ① 진입: 래치가 이미 서 있으면 탭을 건드리지도, 관측하지도 않는다.
+        guard !isKillRequested() else { return nil }
+        let observation: WatchdogObservation
+        if isEnabled() {
+            observation = .live
+        } else if isSecureInput() {
+            observation = .secureInput
+        } else {
+            // ② 재활성화 직전: ①과 이 지점 사이에 래치가 섰으면 되살리면 안 된다.
+            guard !isKillRequested() else { return nil }
+            observation = enableAndVerify() ? .recovered : .dead
+        }
+        // ③ 관측 후: 관측 중에 래치가 섰으면 값을 통째로 버린다 (①이 막았을 틱과 같게).
+        return isKillRequested() ? nil : observation
     }
 
     /// 워치독 관측값의 메인측 status 반영 — `enableTapAndVerify`와 같은 전이 규칙
@@ -514,6 +561,15 @@ final class EventTapController {
         DispatchQueue.main.async {
             MainActor.assumeIsolated { self.isInterceptionEnabled = false }
         }
+        // ③ 영속은 홉과 **독립으로** 한 번 더. 메인이 굳으면 위 홉은 영영 착지하지 않고,
+        // 그 상태의 유일한 탈출구가 강제 종료다 — 홉에만 맡기면 재실행의 init이 다시 on을
+        // 읽어 사용자를 같은 상태로 돌려보낸다. 홉이 정상 착지하면 didSet이 같은 값을
+        // 멱등하게 다시 쓸 뿐이라 어긋나지 않는다 (didSet은 여전히 영속의 소유자 —
+        // 같은 함수를 공유한다).
+        //
+        // **맨 뒤인 것이 계약이다**: 이 호출만 cfprefsd로 나가는 XPC라 유일하게 블록될 수
+        // 있다. 앞의 래치·disable·로그·홉은 어떤 경우에도 이것을 기다리지 않는다.
+        Self.persistInterceptionEnabled(false, to: defaults)
     }
 
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라

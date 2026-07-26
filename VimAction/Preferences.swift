@@ -8,7 +8,9 @@ import VimEngine
 
 /// UserDefaults 키 — 두 키 모두 EventTapController가 로드(init)·저장(didSet)하는
 /// 단일 소유다. (단수형 `PreferenceKey`는 SwiftUI 프로토콜과 이름이 충돌해 피한다.)
-enum PreferenceKeys {
+/// `nonisolated` — 프로젝트 기본이 MainActor 격리라 키 상수까지 메인 격리가 붙는데,
+/// 킬스위치 발동은 전용 스레드에서 이 키로 영속하므로 격리 밖에서 읽을 수 있어야 한다.
+nonisolated enum PreferenceKeys {
     /// 가로채기 마스터 토글. 기본 on.
     static let interceptionEnabled = "interceptionEnabled"
     /// Normal 모드 cmd/opt 콤보 자동 탈출 옵션.
