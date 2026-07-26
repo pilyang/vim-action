@@ -33,13 +33,15 @@ nonisolated struct KeyboardAdapter: Sendable {
         var events: [CGEvent] = []
         var didFail = false
         #if DEBUG
-        var skipped: [VimAction] = []
+        var skippedCount = 0
+        var firstSkipped: VimAction?
         #endif
 
         for action in actions {
             guard case .move(let motion) = action else {
                 #if DEBUG
-                skipped.append(action)
+                skippedCount += 1
+                if firstSkipped == nil { firstSkipped = action }
                 #endif
                 continue
             }
@@ -64,10 +66,11 @@ nonisolated struct KeyboardAdapter: Sendable {
         }
 
         #if DEBUG
-        // 카운트 반복(`100dd` 등)으로 액션이 수천 개일 수 있어 요약 1건으로 접는다.
-        if let first = skipped.first {
+        // 카운트 반복(`9999u`, Visual `9999j` 등)으로 액션이 수천 개일 수 있어 요약 1건으로
+        // 접는다. 요약에 쓰는 건 개수와 첫 1개뿐이라 액션 자체를 쌓아 두지 않는다.
+        if let first = firstSkipped {
             Logger.eventTap.debug(
-                "미지원 액션 스킵 ×\(skipped.count, privacy: .public): \(String(describing: first), privacy: .public)"
+                "미지원 액션 스킵 ×\(skippedCount, privacy: .public): \(String(describing: first), privacy: .public)"
             )
         }
         #endif
