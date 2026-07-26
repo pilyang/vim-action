@@ -1,6 +1,6 @@
 # 시스템 개요
 
-- **Last updated**: 2026-07-20
+- **Last updated**: 2026-07-26
 
 ## 현재 구조
 
@@ -19,14 +19,15 @@ graph LR
 
     Resolver["포커스/컨텍스트 리졸버<br/>NSWorkspace + AXObserver"] -.-> Dispatcher
     Profile["프로파일 로더<br/>~/Library/.../VimAction/*.yaml"] -.-> Dispatcher
-    Failsafe[안전장치 단축키<br/>별도 CGEventTap] -.->|모든 것을 우회| Tap
+    Failsafe["안전장치 킬스위치<br/>별도 CGEventTap (HID)<br/>전용 스레드 런루프"] -.->|모든 것을 우회| Tap
 ```
 
 컴포넌트별 책임:
 
 | 컴포넌트 | 책임 | 상세 reference |
 |---|---|---|
-| 이벤트 탭 | 유일한 키 입력 진입점. 마커 확인, 안전장치 우선 감지, 엔진 결정(삼키기/통과/대체) 적용 | [reentrancy-and-safety.md](reentrancy-and-safety.md) |
+| 이벤트 탭 | 유일한 키 입력 진입점. 마커 확인, 엔진 결정(삼키기/통과/대체) 적용 | [reentrancy-and-safety.md](reentrancy-and-safety.md) |
+| 킬스위치 탭 | 안전장치 콤보 전용 별도 탭. HID 최고 우선순위 + 전용 스레드 런루프라 메인이 스톨해도 발동한다 | [reentrancy-and-safety.md](reentrancy-and-safety.md) |
 | 모드 엔진 | `Key` → `VimAction` 해석. 실행 방법은 전혀 모름 | [mode-engine.md](mode-engine.md) |
 | 포커스/컨텍스트 리졸버 | `(bundleID, focusedRole, selectedRange)` 캐싱, 포커스 변경 시 무효화 | [strategy-dispatch.md](strategy-dispatch.md) |
 | 전략 디스패처 + 어댑터 | `VimAction`마다 AX vs Keyboard 선택 후 실행 | [strategy-dispatch.md](strategy-dispatch.md) |

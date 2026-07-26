@@ -52,6 +52,16 @@ struct SettingsView: View {
                     "Event Tap",
                     value: eventTapStatusText(
                         status: eventTap.status, interceptionEnabled: eventTap.isInterceptionEnabled))
+                LabeledContent(
+                    "Kill Switch",
+                    value: killSwitchStatusText(
+                        installation: appState.killSwitch.installation,
+                        isTrusted: appState.permissionMonitor.isTrusted))
+                Text(
+                    "Press ⌃⌥⌘⎋ (Control-Option-Command-Escape) to turn interception off — it works even if VimAction stops responding. Turn it back on from the menu bar."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -70,6 +80,18 @@ func eventTapStatusText(status: EventTapController.Status, interceptionEnabled: 
     case .running, .secureInput:
         interceptionEnabled ? status.displayName : "Disabled"
     default: status.displayName
+    }
+}
+
+/// "Kill Switch" 행 문구 — 안전장치 탭이 어느 지점에 설치됐는지 보여준다. 안전장치가
+/// 조용히 부재하는 것이 가장 위험한 실패 모드라, 로그를 보지 않고도 알 수 있어야 한다.
+/// `Session (fallback)`은 HID 생성이 거부된 상태로 우선순위가 밀릴 수 있음을 뜻한다.
+/// 미설치는 권한 대기와 실제 실패를 구분한다 — `eventTapStatusText`와 같은 파생 패턴이다.
+func killSwitchStatusText(installation: KillSwitchTap.Installation, isTrusted: Bool) -> String {
+    switch installation {
+    case .hid: "Active (HID)"
+    case .session: "Active (Session fallback)"
+    case .notInstalled: isTrusted ? "Unavailable" : "Waiting for Permission"
     }
 }
 

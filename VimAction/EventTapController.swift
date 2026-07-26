@@ -54,6 +54,9 @@ final class EventTapController {
             guard oldValue != isInterceptionEnabled else { return }
             defaults.set(isInterceptionEnabled, forKey: PreferenceKeys.interceptionEnabled)
             if isInterceptionEnabled {
+                // 킬스위치 래치 해제 — on 복귀가 유일한 해제 지점이다. 빠뜨리면 킬스위치
+                // 이후 콜백·워치독 재활성화가 영구 보류되는 조용한 고장이 된다.
+                killSwitchRequested.withLock { $0 = false }
                 // off가 탭을 비활성화하므로 이 재활성화가 유일한 복귀 경로다
                 // (워치독 첫 폴링을 기다리지 않음).
                 // 이 분기는 TEST_HOST에서 포트가 항상 nil이라 로그가 유일한 관측 수단 —
@@ -112,7 +115,29 @@ final class EventTapController {
     /// 실행 실패 폭주 감지기 — `reportExecutionFailure`가 유일한 소비자다.
     @ObservationIgnored private var failureBurst = FailureBurstCounter()
 
-    @ObservationIgnored private var tapPort: CFMachPort?
+    /// 메인 탭 포트. 저장은 잠금 상자다 — 킬 탭의 전용 스레드가 `triggerKillSwitch`에서
+    /// 같은 포트를 읽어 즉시 비활성화하기 때문이다(메인 격리로는 스톨 중 도달 불가).
+    /// 미러를 따로 두면 두 상태가 어긋날 수 있으므로 상자 하나를 SSOT로 둔다.
+    @ObservationIgnored private nonisolated let tapPortBox = TapPortBox()
+    private var tapPort: CFMachPort? {
+        get { tapPortBox.get() }
+        set { tapPortBox.set(newValue) }
+    }
+
+    /// 킬스위치 요청 래치 — 킬 탭 스레드가 세우고, 토글 on 복귀가 내린다.
+    ///
+    /// `reenableAfterDisable`·워치독 틱의 토글 가드와 역할이 같지만 그 가드들은 발동 ②의
+    /// **메인 홉이 착지한 뒤에야** 참이 된다. 킬 스레드가 탭을 끄는 즉시 OS가 메인 콜백에
+    /// `tapDisabledBy*` 통지를 보내므로 홉보다 통지가 먼저 도착하고, 방금 끈 탭이 되살아난다
+    /// (실기기 로그로 확인). 래치는 그 창을 메인 격리 밖에서 닫는다 — "래치가 서 있으면
+    /// 아무도 탭을 되살리지 않는다"가 불변식이다.
+    @ObservationIgnored private nonisolated let killSwitchRequested =
+        OSAllocatedUnfairLock(initialState: false)
+
+    /// 래치 상태. 읽기는 테스트 검증용으로 연다 — 해제 누락은 "킬스위치 이후 재활성화가
+    /// 영구 보류"라는 조용한 고장이라 계약으로 고정한다.
+    nonisolated var isKillSwitchRequested: Bool { killSwitchRequested.withLock { $0 } }
+
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
 
@@ -240,10 +265,27 @@ final class EventTapController {
 
     /// 시스템이 탭을 비활성화(타임아웃/사용자 개입)했을 때 재활성화한다.
     fileprivate func reenableAfterDisable(type: CGEventType) {
+        // 킬스위치가 끈 탭은 되살리지 않는다 — 아래 토글 가드는 발동 ②의 메인 홉이
+        // 착지해야 참이 되는데, 우리가 끈 데 대한 OS 통지가 그보다 먼저 도착한다.
+        guard !isKillSwitchRequested else {
+            Logger.eventTap.notice(
+                "킬스위치 요청 — 탭 재활성화 보류 (\(Self.disableReasonName(type), privacy: .public))")
+            return
+        }
         // off 중에는 되살리지 않는다 — off가 탭을 비활성화하므로 여기서 재활성화하면
         // 안전장치가 풀린다 (비활성화 직전 in-flight 통지가 이 가드에 걸린다).
         guard isInterceptionEnabled else { return }
-        enableTapAndVerify(reason: "시스템이 탭 비활성화(type=\(type.rawValue))")
+        enableTapAndVerify(reason: "탭 비활성화 통지(\(Self.disableReasonName(type)))")
+    }
+
+    /// `tapDisabledBy*` 통지의 사람이 읽는 이름 — raw는 0xFFFFFFFE/0xFFFFFFFF라
+    /// 로그에서 판독이 안 된다.
+    private nonisolated static func disableReasonName(_ type: CGEventType) -> String {
+        switch type {
+        case .tapDisabledByTimeout: "timeout"
+        case .tapDisabledByUserInput: "userInput"
+        default: "type=\(type.rawValue)"
+        }
     }
 
     /// tapEnable(true)→tapIsEnabled 검증 쌍 — CGEvent는 스레드 안전 C API라 메인
@@ -322,6 +364,10 @@ final class EventTapController {
             // ② 홉 미적재: 장기 스톨에 홉이 2초당 1건씩 메인 큐에 붇는 것을 막는다
             //    (pending 최대 1건). 복구는 스톨 해소 → 홉 소진 → 다음 틱(≤2초)이 한다.
             guard !watchdogHopPending.withLock({ $0 }) else { return }
+            // 킬스위치 게이트: 이 틱은 토글 가드 없이 enableAndCheck를 부르므로
+            // (토글 반영은 didSet의 stopWatchdog 몫이고 그건 메인 홉 뒤다) 발동 직후
+            // in-flight 틱이 방금 끈 탭을 되살릴 수 있다 — 콜백 경로와 같은 래치로 닫는다.
+            guard !isKillSwitchRequested else { return }
             let observation = Self.watchdogTick(
                 isEnabled: { CGEvent.tapIsEnabled(tap: port) },
                 enableAndVerify: { Self.enableAndCheck(port) },
@@ -434,6 +480,31 @@ final class EventTapController {
         guard failureBurst.record(at: now), isInterceptionEnabled else { return }
         Logger.eventTap.fault("실행 실패 폭주 감지 — 가로채기 자동 off")
         isInterceptionEnabled = false
+    }
+
+    /// 안전장치 단축키 발동 — 킬 탭의 **전용 스레드에서** 호출된다. 효과는 두 겹이다.
+    ///
+    /// ① 메인 스톨과 무관하게 스트림을 즉시 놓는다. 새 off "의미론"이 아니라 ②가 멱등하게
+    ///    반복할 disable의 선행 실행이다 — 메인이 굳어 있어도 이 한 줄은 실행된다.
+    /// ② 나머지(엔진 Insert 리셋·워치독 정지·경합 봉인·영속·메뉴바 글리프)는 전부 기존
+    ///    소프트 off의 didSet에 위임한다. `reportExecutionFailure`와 같은 규칙 —
+    ///    자동/외부 off 전용 경로를 만들지 않는다.
+    ///
+    /// ①이 도로 풀리지 않게 하는 것은 `killSwitchRequested` 래치다 — 홉이 착지하기 전까지
+    /// 콜백·워치독의 토글 가드는 아직 on을 보고 있어, 래치 없이는 우리가 끈 탭을 이들이
+    /// 즉시 되살린다. 마지막 방어는 didSet off 분기의 "워치독 시리얼 큐 뒤 최종 disable".
+    nonisolated func triggerKillSwitch() {
+        // 래치는 반드시 disable **앞에** — 순서가 뒤집히면 그 사이에 도착한 비활성화 통지가
+        // 래치 없는 상태로 판정돼 탭이 되살아난다.
+        killSwitchRequested.withLock { $0 = true }
+        if let port = tapPortBox.get() {
+            CGEvent.tapEnable(tap: port, enable: false)
+        }
+        Logger.eventTap.fault("킬스위치 발동 — 메인 탭 즉시 비활성")
+        // 홉은 main.async — 워치독 홉과 같은 이유로 FIFO 보장이 필요하다.
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { self.isInterceptionEnabled = false }
+        }
     }
 
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라
