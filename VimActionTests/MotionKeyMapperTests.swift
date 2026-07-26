@@ -23,20 +23,34 @@ struct MotionMappingFixture: Sendable, CustomTestStringConvertible {
     var testDescription: String { "\(motion)" }
 }
 
-/// 매핑표 전체(근사 3건 포함). 화살표 키코드는 레이아웃 무관 고정값이라
+/// 매핑표 전체(3타 조합 2건 포함). 화살표 키코드는 레이아웃 무관 고정값이라
 /// QWERTY 조건이 필요 없다.
 let motionMappingFixtures: [MotionMappingFixture] = [
     .init(.charLeft, [KeyStroke(kVK_LeftArrow)]),
     .init(.charRight, [KeyStroke(kVK_RightArrow)]),
     .init(.lineUp, [KeyStroke(kVK_UpArrow)]),
     .init(.lineDown, [KeyStroke(kVK_DownArrow)]),
-    // 근사 — "다음 단어 시작"이 macOS에 없어 e와 동일 취급.
-    .init(.wordForward, [KeyStroke(kVK_RightArrow, [.maskAlternate])]),
+    // 3타 조합 — "다음 단어 시작"이 macOS에 없어 단어 끝을 지나친 뒤 시작으로 복귀
+    // (`20260726_word-forward-first-nonblank-multi-stroke.md`).
+    .init(
+        .wordForward,
+        [
+            KeyStroke(kVK_RightArrow, [.maskAlternate]),
+            KeyStroke(kVK_RightArrow, [.maskAlternate]),
+            KeyStroke(kVK_LeftArrow, [.maskAlternate]),
+        ]),
     .init(.wordBackward, [KeyStroke(kVK_LeftArrow, [.maskAlternate])]),
     .init(.wordEndForward, [KeyStroke(kVK_RightArrow, [.maskAlternate])]),
     .init(.lineStart, [KeyStroke(kVK_LeftArrow, [.maskCommand])]),
-    // 근사 — 첫 비공백 개념이 macOS에 없어 0과 동일 취급.
-    .init(.lineFirstNonBlank, [KeyStroke(kVK_LeftArrow, [.maskCommand])]),
+    // 3타 조합 — 첫 비공백 개념이 macOS에 없어 줄 시작에서 첫 단어 끝으로 갔다가
+    // 그 시작으로 복귀. ^와 I(엔진이 같은 모션을 낸다)를 동시에 덮는다.
+    .init(
+        .lineFirstNonBlank,
+        [
+            KeyStroke(kVK_LeftArrow, [.maskCommand]),
+            KeyStroke(kVK_RightArrow, [.maskAlternate]),
+            KeyStroke(kVK_LeftArrow, [.maskAlternate]),
+        ]),
     .init(.lineEnd, [KeyStroke(kVK_RightArrow, [.maskCommand])]),
     .init(.documentStart, [KeyStroke(kVK_UpArrow, [.maskCommand])]),
     .init(.documentEnd, [KeyStroke(kVK_DownArrow, [.maskCommand])]),

@@ -28,10 +28,11 @@ nonisolated struct KeyStroke: Equatable, Sendable {
 /// (예: `w`를 `Opt-→ Opt-→ Opt-←` 3타로)이 이 테이블의 원소 교체만으로 되게 한다.
 /// 어댑터·실행기·테스트는 그대로다.
 ///
-/// Keyboard 전략은 캐럿(문자 사이) 모델이라 Vim 커서(문자 위) 개념 3곳은 근사한다:
-/// `wordForward`≈`wordEndForward`, `lineFirstNonBlank`≈`lineStart`, append 전용 모션은
-/// `charRight`·`lineEnd`와 자연 수렴. 정확한 의미는 AX 어댑터의 몫이다
-/// (`20260726_motion-keystroke-mapping-contract.md`).
+/// Keyboard 전략은 캐럿(문자 사이) 모델이라 macOS에 프리미티브가 없는 곳은 조합·수렴으로
+/// 처리한다: `wordForward`·`lineFirstNonBlank`는 3타 조합(단어 끝을 지나친 뒤 시작 복귀),
+/// append 전용 모션은 `charRight`·`lineEnd`와 자연 수렴. 정확한 의미는 AX 어댑터의 몫이다
+/// (`20260726_motion-keystroke-mapping-contract.md`,
+/// `20260726_word-forward-first-nonblank-multi-stroke.md`).
 nonisolated enum MotionKeyMapper {
     static func keyStrokes(for motion: Motion) -> [KeyStroke] {
         switch motion {
@@ -44,7 +45,13 @@ nonisolated enum MotionKeyMapper {
         case .lineDown:
             return [KeyStroke(kVK_DownArrow)]
         case .wordForward:
-            return [KeyStroke(kVK_RightArrow, [.maskAlternate])]  // 근사 — e와 동일
+            // "다음 단어 시작"이 macOS에 없어 단어 끝을 지나친 뒤 시작으로 복귀
+            // (`20260726_word-forward-first-nonblank-multi-stroke.md` — 수용 엣지 포함).
+            return [
+                KeyStroke(kVK_RightArrow, [.maskAlternate]),
+                KeyStroke(kVK_RightArrow, [.maskAlternate]),
+                KeyStroke(kVK_LeftArrow, [.maskAlternate]),
+            ]
         case .wordBackward:
             return [KeyStroke(kVK_LeftArrow, [.maskAlternate])]
         case .wordEndForward:
@@ -52,7 +59,12 @@ nonisolated enum MotionKeyMapper {
         case .lineStart:
             return [KeyStroke(kVK_LeftArrow, [.maskCommand])]
         case .lineFirstNonBlank:
-            return [KeyStroke(kVK_LeftArrow, [.maskCommand])]  // 근사 — 0과 동일
+            // 첫 비공백 개념이 macOS에 없어 줄 시작 → 첫 단어 끝 → 그 시작으로 복귀.
+            return [
+                KeyStroke(kVK_LeftArrow, [.maskCommand]),
+                KeyStroke(kVK_RightArrow, [.maskAlternate]),
+                KeyStroke(kVK_LeftArrow, [.maskAlternate]),
+            ]
         case .lineEnd:
             return [KeyStroke(kVK_RightArrow, [.maskCommand])]
         case .documentStart:

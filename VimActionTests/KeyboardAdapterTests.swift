@@ -110,6 +110,25 @@ struct KeyboardAdapterTests {
         #expect(posted.isEmpty)
     }
 
+    /// 멀티 스트로크 모션 — 스트로크마다 keyDown+keyUp 쌍이 매핑 순서 그대로 나온다.
+    /// 쌍이 어긋나거나 순서가 섞이면 조합의 착지점이 달라진다.
+    @Test("멀티 스트로크 모션은 스트로크별 쌍이 순서대로 게시된다")
+    func multiStrokeMotionPostsPairsInOrder() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.move(.wordForward)])
+
+        #expect(posted.map(\.type) == [.keyDown, .keyUp, .keyDown, .keyUp, .keyDown, .keyUp])
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+            ])
+        #expect(posted.allSatisfy { $0.flags.contains(.maskAlternate) })
+    }
+
     /// 마커 불변식 — 어댑터가 내는 이벤트는 전부 `ActionExecutor`를 거치므로 마킹돼 있다.
     /// 마킹되지 않은 합성 이벤트는 탭이 재해석해 무한 루프가 된다.
     @Test("게시된 모든 이벤트에 합성 마커가 찍혀 있다")
