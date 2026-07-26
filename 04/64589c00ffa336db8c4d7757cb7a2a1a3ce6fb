@@ -1,0 +1,36 @@
+.claude/skills/decisions/references/20260726_motion-keystroke-mapping-contract.md
+  s_1289f61fb17702::t_73d6a70208b1a1 1-42
+.claude/skills/plans/SKILL.md
+  s_1289f61fb17702::t_7c823e330f9297 53
+.claude/skills/decisions/SKILL.md
+  s_1289f61fb17702::t_c3bfdb7c1f3052 92-94
+.claude/skills/decisions/references/20260726_m2-app-gate-pre-engine-passthrough.md
+  s_1289f61fb17702::t_b85e5e417376c3 1-28
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_1289f61fb17702::t_f79ac4c10252b9 24
+.claude/skills/plans/references/20260726_m2-keyboard-motion-adapter.md
+  s_1289f61fb17702::t_006d487c5cf4c7 1-36
+.claude/skills/decisions/references/20260726_unsupported-action-not-failure.md
+  s_1289f61fb17702::t_a04b72bf226544 1-26
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_1289f61fb17702::t_5f0bb543cd0c95 29
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_1289f61fb17702::t_aed91ad231875e 43-44
+  s_1289f61fb17702::t_2e0f815193df36 11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "0464589c00ffa336db8c4d7757cb7a2a1a3ce6fb",
+  "prompts": {},
+  "sessions": {
+    "s_1289f61fb17702": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "915cd6e3-44dd-47ae-b68f-d35b2665ff64",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
