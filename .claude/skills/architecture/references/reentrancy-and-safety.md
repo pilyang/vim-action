@@ -37,7 +37,7 @@ sequenceDiagram
 
 사용자 노출: 킬 탭이 어느 지점에 설치됐는지(HID / 세션 폴백 / 활성화 실패 / 미설치)는 Settings의 읽기 전용 "Kill Switch" 행과 콤보 안내 각주로 표시한다 — 안전장치가 조용히 부재하는 것이 이 기능의 가장 위험한 실패 모드다. 단축키 커스터마이즈 UI는 아직 없다(고정 콤보).
 
-**과도기 상태 (배선 마일스톤)**: 출력 인프라는 존재하되 **호출자가 없다** — `ActionExecutor`(마커를 찍는 유일한 지점)와 탭측 마커 가드, 폭주 카운터와 보고 훅은 모두 구현·테스트돼 있지만, `VimAction` → CGEvent 시퀀스 매핑이 아직 없어 게시하는 코드도 실패를 보고하는 코드도 없다. 그때까지 엔진의 `.replace` 결정은 실행 없이 삼키고 DEBUG 요약만 로그한다. 릴리스 빌드에선 이 삼킴이 무로그라 사용자에게 "죽은 키"로 보이므로, **디스패처 마일스톤 전 릴리스 배포는 금지**한다 ([20260717_replace-swallow-transitional-rule.md](../../decisions/references/20260717_replace-swallow-transitional-rule.md)).
+**과도기 상태 (배선 마일스톤)**: 출력 계층은 존재하되 **호출자가 없다** — `ActionExecutor`(마커를 찍는 유일한 지점)와 탭측 마커 가드, 폭주 카운터와 보고 훅, 그리고 모션의 `VimAction` → CGEvent 변환(`MotionKeyMapper`·`KeyboardAdapter`)까지 구현·테스트돼 있지만, 탭 콜백이 아직 어댑터를 부르지 않아 실제로 게시하는 코드도 실패를 보고하는 코드도 없다. 그때까지 엔진의 `.replace` 결정은 실행 없이 삼키고 DEBUG 요약만 로그한다. 릴리스 빌드에선 이 삼킴이 무로그라 사용자에게 "죽은 키"로 보이므로, **디스패처 마일스톤 전 릴리스 배포는 금지**한다 ([20260717_replace-swallow-transitional-rule.md](../../decisions/references/20260717_replace-swallow-transitional-rule.md)).
 
 ## 불변식·계약
 
