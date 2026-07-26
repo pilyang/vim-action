@@ -53,11 +53,12 @@ struct MotionKeyMapperTests {
 
     /// 매퍼의 switch가 컴파일러 강제로 전 케이스를 덮으므로, 여기서는 **픽스처 쪽**이
     /// 뒤처지지 않는지를 지킨다 — Motion에 케이스가 늘면 매퍼는 컴파일 에러로,
-    /// 골든 표는 이 개수 단언으로 드러난다.
-    @Test("매핑표가 Motion 전 케이스(14개)를 중복 없이 덮는다")
+    /// 골든 표는 `allCases` 대조로 드러난다.
+    @Test("매핑표가 Motion 전 케이스를 중복 없이 덮는다")
     func goldenTableCoversEveryMotion() {
-        #expect(motionMappingFixtures.count == 14)
-        #expect(Set(motionMappingFixtures.map(\.motion)).count == motionMappingFixtures.count)
+        let covered = Set(motionMappingFixtures.map(\.motion))
+        #expect(covered == Set(Motion.allCases))
+        #expect(covered.count == motionMappingFixtures.count)
     }
 
     /// 모션은 반드시 실행 가능한 형태로 매핑된다 — 빈 배열은 "조용히 아무것도 안 함"이라

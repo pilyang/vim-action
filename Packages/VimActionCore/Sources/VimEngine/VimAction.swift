@@ -100,7 +100,7 @@ public enum VimAction: Hashable, Sendable {
 
 /// 커서 이동의 종류. 단어 경계·줄 경계의 실제 의미(어디까지가 단어인가 등)는
 /// 어댑터가 정하며, 엔진은 추상 케이스만 낸다.
-public enum Motion: Hashable, Sendable {
+public enum Motion: Hashable, Sendable, CaseIterable {
     case charLeft
     case charRight
     case lineUp
