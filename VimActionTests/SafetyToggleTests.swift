@@ -68,6 +68,9 @@ struct SafetyToggleTests {
 
             controller.isNormalModeEscapeEnabled = false
             #expect(controller.mode == .insert)
+            // 존재 확인이 먼저 — `bool(forKey:)`는 미설정 키에도 false라 이것 없이는
+            // 영속을 통째로 지워도 통과한다.
+            #expect(defaults.object(forKey: PreferenceKeys.normalModeEscapeEnabled) != nil)
             #expect(defaults.bool(forKey: PreferenceKeys.normalModeEscapeEnabled) == false)
 
             _ = controller.handleKeyDown(try keyDown(kVK_Escape))
@@ -84,6 +87,7 @@ struct SafetyToggleTests {
             #expect(first.isInterceptionEnabled)  // 미설정 키 → 기본 on
 
             first.isInterceptionEnabled = false
+            #expect(defaults.object(forKey: PreferenceKeys.interceptionEnabled) != nil)
             #expect(defaults.bool(forKey: PreferenceKeys.interceptionEnabled) == false)
 
             let second = EventTapController(defaults: defaults)

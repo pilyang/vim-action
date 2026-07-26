@@ -13,7 +13,16 @@ import VimEngine
 @Observable
 final class AppState {
     let permissionMonitor = AccessibilityPermissionMonitor()
-    let eventTap = EventTapController()
+    let eventTap: EventTapController
+    /// 안전장치 킬스위치 탭 — 메인 탭과 생명주기를 공유하지 않는다. 발동 효과는 여기서
+    /// 주입한다: 킬 탭은 무엇이 꺼지는지 모르고, off 의미론은 전부 컨트롤러가 소유한다.
+    let killSwitch: KillSwitchTap
+
+    init() {
+        let eventTap = EventTapController()
+        self.eventTap = eventTap
+        killSwitch = KillSwitchTap { eventTap.triggerKillSwitch() }
+    }
 
     /// 앱 시작 시 1회: 권한 확인 → 탭 설치 시도, 미허용이면 부여 감지 폴링 시작.
     func bootstrap() {
@@ -24,12 +33,25 @@ final class AppState {
             Logger.eventTap.notice("XCTest 환경변수 감지 — bootstrap 생략 (탭 설치·권한 폴링 비활성)")
             return
         }
-        permissionMonitor.onGranted = { [eventTap] in
+        // 메인 탭 설치 성공마다 킬 탭 설치를 잇는다 — 순서 계약(킬 탭이 나중에
+        // head-insert)이 호출 순서가 아니라 구조로 지켜지고, bootstrap 시점에 킬 탭
+        // 생성이 실패했던 경우의 유일한 재시도 경로가 된다. 킬 탭 설치는 멱등이다.
+        eventTap.onTapInstalled = { [killSwitch] in
+            killSwitch.startIfPermitted()
+        }
+        permissionMonitor.onGranted = { [eventTap, killSwitch] in
+            // 순서가 계약이다 — KillSwitchTap.startIfPermitted 주석 참고 (세션 폴백 시
+            // 나중에 head-insert된 쪽이 먼저 받으므로 킬 탭이 뒤에 와야 한다).
+            // 메인 탭 설치가 성공하면 위 훅이 이미 킬 탭을 세우고, 아래 호출은 메인 탭
+            // 설치가 실패한 경우에도 킬 탭만은 세우기 위한 것이다 (둘 다 멱등).
             eventTap.startIfPermitted()
+            killSwitch.startIfPermitted()
         }
         permissionMonitor.refresh()
         // 미허용이어도 항상 호출한다 — "설치 보류" 로그가 launch 시 관측 가능해야 한다.
+        // 위 onGranted와 같은 순서 계약을 따른다.
         eventTap.startIfPermitted()
+        killSwitch.startIfPermitted()
         if !permissionMonitor.isTrusted {
             permissionMonitor.startPollingUntilGranted()
         }

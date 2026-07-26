@@ -89,6 +89,9 @@ struct ExecutionFailureBurstTests {
             #expect(controller.isInterceptionEnabled == false)
             // 새 off 경로가 아니라 didSet 재사용 — 엔진 Insert 리셋과 영속이 따라온다.
             #expect(controller.mode == .insert)
+            // 존재 확인이 먼저 — `bool(forKey:)`는 미설정 키에도 false라 이것 없이는
+            // 영속을 통째로 지워도 통과한다.
+            #expect(defaults.object(forKey: PreferenceKeys.interceptionEnabled) != nil)
             #expect(defaults.bool(forKey: PreferenceKeys.interceptionEnabled) == false)
         }
     }
