@@ -24,14 +24,8 @@ nonisolated struct KeyboardAdapter: Sendable {
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.
-    ///
-    /// 반환값은 **실행을 시도했는데 깨진 것이 하나라도 있었는가** — 호출자는 이 한 값으로
-    /// `reportExecutionFailure`를 원인 키 입력당 최대 1회 호출한다 (action별 보고는
-    /// 카운트 반복 출력이 폭주 임계를 즉시 압도하는 오탐이 된다). 미지원 액션 스킵은
-    /// 여기 포함되지 않는다.
-    func execute(_ actions: [VimAction]) -> Bool {
+    func execute(_ actions: [VimAction]) {
         var events: [CGEvent] = []
-        var didFail = false
         #if DEBUG
         var skippedCount = 0
         var firstSkipped: VimAction?
@@ -51,11 +45,7 @@ nonisolated struct KeyboardAdapter: Sendable {
                         keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: true),
                     let up = CGEvent(
                         keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: false)
-                else {
-                    // 여기까지 왔다면 실행을 시도했는데 깨진 것 — 보고 대상인 진짜 실패다.
-                    didFail = true
-                    continue
-                }
+                else { continue }
                 // 소스가 nil인 이벤트는 flags 기본값이 **실행 시점의 실제 modifier 상태**라,
                 // 대입은 선택이 아니라 필수다 — 사용자가 누르고 있던 키가 새어 들어간다.
                 down.flags = stroke.flags
@@ -76,6 +66,5 @@ nonisolated struct KeyboardAdapter: Sendable {
         #endif
 
         executor.post(events)
-        return didFail
     }
 }

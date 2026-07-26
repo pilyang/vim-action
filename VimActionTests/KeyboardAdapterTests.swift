@@ -25,9 +25,8 @@ struct KeyboardAdapterTests {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let adapter = makeAdapter { posted.append($0) }
 
-        let didFail = adapter.execute([.move(.wordBackward)])
+        adapter.execute([.move(.wordBackward)])
 
-        #expect(!didFail)
         #expect(posted.map(\.type) == [.keyDown, .keyUp])
         #expect(keyCodes(of: posted) == [Int64(kVK_LeftArrow), Int64(kVK_LeftArrow)])
         // 플래그는 keyUp에도 실린다 — 앱이 보는 modifier 상태가 쌍 사이에서 흔들리지 않게.
@@ -40,7 +39,7 @@ struct KeyboardAdapterTests {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let adapter = makeAdapter { posted.append($0) }
 
-        _ = adapter.execute([.move(.charLeft)])
+        adapter.execute([.move(.charLeft)])
 
         #expect(keyCodes(of: posted) == [Int64(kVK_LeftArrow), Int64(kVK_LeftArrow)])
         #expect(posted.allSatisfy { $0.flags.isDisjoint(with: [.maskAlternate, .maskCommand, .maskControl, .maskShift]) })
@@ -52,9 +51,8 @@ struct KeyboardAdapterTests {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let adapter = makeAdapter { posted.append($0) }
 
-        let didFail = adapter.execute([.move(.lineDown), .move(.lineDown), .move(.lineEnd)])
+        adapter.execute([.move(.lineDown), .move(.lineDown), .move(.lineEnd)])
 
-        #expect(!didFail)
         #expect(posted.count == 6)
         #expect(
             keyCodes(of: posted) == [
@@ -67,12 +65,12 @@ struct KeyboardAdapterTests {
 
     /// 미지원 액션은 **실패가 아니다** — 조용히 스킵한다. 실패로 보고하면 정상 사용의
     /// `dd` 연타가 폭주 자동 off를 트립하는 오탐이 된다.
-    @Test("미지원 액션은 게시 없이 스킵되고 실패로 보고되지 않는다")
-    func unsupportedActionsAreSkippedNotFailed() {
+    @Test("미지원 액션은 게시 없이 스킵된다")
+    func unsupportedActionsAreSkipped() {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let adapter = makeAdapter { posted.append($0) }
 
-        let didFail = adapter.execute([
+        adapter.execute([
             .edit(.delete, .line(count: 1)),
             .paste(before: false, count: 1),
             .beginSelection(linewise: false),
@@ -85,7 +83,6 @@ struct KeyboardAdapterTests {
             .switchSelectionWise(linewise: true),
         ])
 
-        #expect(!didFail)
         #expect(posted.isEmpty)
     }
 
@@ -94,13 +91,12 @@ struct KeyboardAdapterTests {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let adapter = makeAdapter { posted.append($0) }
 
-        let didFail = adapter.execute([
+        adapter.execute([
             .edit(.delete, .line(count: 1)),
             .move(.charRight),
             .undo,
         ])
 
-        #expect(!didFail)
         #expect(keyCodes(of: posted) == [Int64(kVK_RightArrow), Int64(kVK_RightArrow)])
     }
 
@@ -109,7 +105,8 @@ struct KeyboardAdapterTests {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let adapter = makeAdapter { posted.append($0) }
 
-        #expect(!adapter.execute([]))
+        adapter.execute([])
+
         #expect(posted.isEmpty)
     }
 
@@ -120,7 +117,7 @@ struct KeyboardAdapterTests {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let adapter = makeAdapter { posted.append($0) }
 
-        _ = adapter.execute([.move(.documentEnd), .move(.charLeft)])
+        adapter.execute([.move(.documentEnd), .move(.charLeft)])
 
         #expect(posted.count == 4)
         #expect(posted.allSatisfy { SyntheticEventMarker.isMarked($0) })
