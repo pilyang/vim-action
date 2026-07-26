@@ -17,10 +17,11 @@ Normal 모드의 이동 계열 `VimAction`이 실제 앱에서 합성 CGEvent로
 
 <!-- 다음에 할 것이 맨 위. 인계 단위(세션/마일스톤 수준)로 — 함수 단위 세부 todo는 세션 내 TodoList의 몫. -->
 
-- [ ] **매퍼 + 어댑터**: `MotionKeyMapper`(순수, 골든 테이블 테스트 — 결정 문서의 매핑표가 픽스처) + `KeyboardAdapter`(직렬 큐 위에서 KeyStroke → keyDown+keyUp CGEvent 쌍 생성 → `ActionExecutor.post`, 미지원 액션 스킵+DEBUG 로그, 실패 보고는 키 입력당 1회 접기). 파일은 앱 타깃.
-- [ ] **게이트 + 배선**: 최전면 bundleID 캐시(`@MainActor`, `NSWorkspace` 활성화 알림 구독) → `handleKeyDown` 가드 체인에 게이트 삽입(마커·토글 뒤, 번역 앞) → `.replace` 분기에서 actions를 직렬 큐로 전달. 기존 DEBUG 요약 로그 유지 여부는 구현 시 판단.
-- [ ] **실기기 도그푸딩 확인**: 주력 앱에서 h/j/k/l·w/b/e·0/$/gg/G 동작, Ghostty에서 완전 통과(Esc 포함), 근사 3건 체감 평가, `100j` 등 카운트 폭탄 실측. 문제 발견 시 매핑표만 조정.
-- [ ] **마무리**: 릴리스 배포 금지 규칙 해제 여부 판단(모션은 실행되지만 편집은 여전히 죽은 키 — M3까지 유지가 유력), 플랜 갱신·MVP 마일스톤 플랜에 M2 완료 반영.
+M2는 **2세션 + 2PR**로 진행한다 — 세션 A는 호출자 없는 순수 실행 계층(런타임 변화 0, M1 세션 A 패턴), 세션 B는 콜백 가드 체인을 건드리는 행동 변화 + 실기기 검증. 도그푸딩發 매핑 조정 diff가 순수 로직 PR에 섞이지 않게 하는 분리다.
+
+- [ ] **세션 A — 매퍼 + 어댑터** (goal 모드, TDD): `MotionKeyMapper`(순수, 골든 테이블 테스트 — 결정 문서의 매핑표가 픽스처) + `KeyboardAdapter`(직렬 큐 위에서 KeyStroke → keyDown+keyUp CGEvent 쌍 생성 → `ActionExecutor.post`, 미지원 액션 스킵+DEBUG 로그, 실패는 키 입력당 1회 접기 — 단 `reportExecutionFailure` 호출 배선은 세션 B). 파일은 앱 타깃. `EventTapController`는 건드리지 않는다.
+- [ ] **세션 B — 게이트 + 배선 + 도그푸딩** (plan 모드 → 구현): 최전면 bundleID 캐시(`@MainActor`, `NSWorkspace` 활성화 알림 구독) → `handleKeyDown` 가드 체인에 게이트 삽입(마커·토글 뒤, 번역 앞) → `.replace` 분기에서 actions를 직렬 큐로 전달. plan 모드에서 확정할 마이크로 결정: 직렬 큐 소유자·수명, 기존 DEBUG 요약 로그 유지 여부, 게이트 캐시 초기값(앱 시작 시 최전면 앱). 구현 후 실기기 도그푸딩: 주력 앱에서 h/j/k/l·w/b/e·0/$/gg/G 동작, Ghostty 완전 통과(Esc 포함), 근사 3건 체감 평가, `100j` 카운트 폭탄 실측 — 문제 발견 시 매핑표만 조정.
+- [ ] **마무리** (세션 B 말미): 릴리스 배포 금지 규칙 해제 여부 판단(모션은 실행되지만 편집은 여전히 죽은 키 — M3까지 유지가 유력), 플랜 갱신·MVP 마일스톤 플랜에 M2 완료 반영.
 
 ## 진행 중 컨텍스트
 
