@@ -12,8 +12,8 @@ import VimEngine
 
 /// 유일한 메인 CGEventTap의 소유자. keyDown을 `KeyTranslator`→`VimEngine`으로 흘려
 /// 엔진 결정(통과/삼킴/대체)을 이벤트에 적용하고, `ActionExecutor`가 마킹한 합성
-/// 이벤트는 재해석 없이 통과시킨다. 대체(replace)의 실제 실행은 디스패처 마일스톤 —
-/// 지금은 삼키고 로그만 남긴다.
+/// 이벤트는 재해석 없이 통과시킨다. 대체(replace)의 actions는 게시 직렬 큐로 넘긴다 —
+/// 콜백은 큐에 넣기만 하고, `CGEvent` 생성·게시는 큐 위에서 어댑터가 한다.
 @MainActor
 @Observable
 final class EventTapController {
@@ -134,6 +134,33 @@ final class EventTapController {
         defaults.set(enabled, forKey: PreferenceKeys.interceptionEnabled)
     }
 
+    /// 앱 수준 게이트 — disable 앱에서는 엔진 진입 **전에** 원본 키를 통과시킨다.
+    /// 콜백은 캐시만 읽고, 캐시 갱신은 앱 활성화 알림이 한다 (콜백 경량 불변식).
+    @ObservationIgnored private let frontmostAppGate: FrontmostAppGate
+
+    /// 실행 시퀀스의 유일한 출구. 기본값(`keyboardActionSink`)이 게시 직렬 큐와
+    /// `KeyboardAdapter`를 캡처하므로 큐의 수명은 이 프로퍼티(= 컨트롤러)와 같다.
+    ///
+    /// 클로저인 이유는 `ActionExecutor.postEvent`와 같다 — 테스트가 동기 수집기로 대체해
+    /// 큐 홉 없이 배선을 단언하고, 실제 키를 머신에 주입하지 않는다.
+    @ObservationIgnored private let dispatchActions: @Sendable ([VimAction]) -> Void
+
+    /// 프로덕션 실행 경로: 게시 직렬 큐 위에서 `KeyboardAdapter`를 부른다.
+    ///
+    /// **어댑터 호출이 큐 안인 것이 계약이다** — `CGEvent`는 비-`Sendable`이라 생성과 게시가
+    /// 같은 컨텍스트여야 한다 (격리를 건너는 값이 애초에 없게). 큐가 직렬인 것도 계약이다:
+    /// 키 입력 여러 건의 키스트로크 순서가 뒤섞이면 캐럿이 엉뚱한 곳으로 간다.
+    ///
+    /// 단위 테스트에서는 no-op이다 — TEST_HOST가 앱 프로세스라 그냥 두면 `.replace`를 만드는
+    /// 테스트가 개발자 머신에 실제 화살표 키를 주입한다 (`startIfPermitted`의 XCTest 가드와
+    /// 같은 규칙). 배선을 관측하는 테스트는 자체 sink를 명시 주입한다.
+    private static func keyboardActionSink() -> @Sendable ([VimAction]) -> Void {
+        guard !isRunningUnderXCTest() else { return { _ in } }
+        let queue = DispatchQueue(label: "dev.pilyang.VimAction.execution", qos: .userInitiated)
+        let adapter = KeyboardAdapter()
+        return { actions in queue.async { adapter.execute(actions) } }
+    }
+
     /// 실행 실패 폭주 감지기 — `reportExecutionFailure`가 유일한 소비자다.
     @ObservationIgnored private var failureBurst = FailureBurstCounter()
 
@@ -183,10 +210,21 @@ final class EventTapController {
     @ObservationIgnored private nonisolated let watchdogHopPending =
         OSAllocatedUnfairLock(initialState: false)
 
-    /// `defaults` 주입은 테스트용 — 실제 앱은 `.standard`. 테스트가 `.standard`를 쓰면
-    /// TEST_HOST가 앱 프로세스라 실기기에서 영속된 값이 새어 들어온다.
-    init(defaults: UserDefaults = .standard) {
+    /// 주입 3종 모두 테스트용이다. `defaults`는 `.standard`를 쓰면 TEST_HOST가 앱
+    /// 프로세스라 실기기에서 영속된 값이 새어 들어온다. `frontmostAppGate`·`dispatchActions`는
+    /// 각자의 기본 팩토리가 XCTest 하위에서 이미 무해하지만(실제 최전면 앱 미조회 / 게시
+    /// no-op), 게이트·배선 **동작을 검증**하는 테스트는 여기로 자기 것을 넣는다.
+    ///
+    /// 뒤 두 개가 `nil` 기본값인 것은 격리 때문이다 — 기본 인수 식은 nonisolated 컨텍스트에서
+    /// 평가되므로 `@MainActor` 팩토리를 그 자리에 둘 수 없다. `nil` = "프로덕션 기본을 쓴다".
+    init(
+        defaults: UserDefaults = .standard,
+        frontmostAppGate: FrontmostAppGate? = nil,
+        dispatchActions: (@Sendable ([VimAction]) -> Void)? = nil
+    ) {
         self.defaults = defaults
+        self.frontmostAppGate = frontmostAppGate ?? .forCurrentEnvironment()
+        self.dispatchActions = dispatchActions ?? Self.keyboardActionSink()
         self.isInterceptionEnabled = defaults.bool(
             forKey: PreferenceKeys.interceptionEnabled, default: true)
         let escapeEnabled = defaults.bool(
@@ -604,6 +642,13 @@ final class EventTapController {
         guard isInterceptionEnabled else {
             return Unmanaged.passUnretained(event)
         }
+        // 앱 게이트 — disable 앱에서는 VimAction이 존재하지 않는 것처럼 통과시킨다.
+        // 엔진 진입 **전**이라 모드 상태는 자연히 동결된다: 리셋하지 않으므로 disable 앱에
+        // 다녀와도 이전 모드 그대로다. 디스패치 시점에 막으면 엔진이 평소처럼 키를 삼키는데
+        // 실행만 안 돼 "죽은 키"가 된다 (20260726_m2-app-gate-pre-engine-passthrough).
+        guard !frontmostAppGate.isFrontmostAppDisabled else {
+            return Unmanaged.passUnretained(event)
+        }
         // 번역 불가는 무조건 통과 — 번역기 계약.
         guard let key = KeyTranslator.translate(event) else {
             return Unmanaged.passUnretained(event)
@@ -623,13 +668,18 @@ final class EventTapController {
             #endif
             return nil
         case .replace:
-            // 과도기: 실행 없이 삼키고 요약 1건만 로그. actions는 수천 개일 수 있어
-            // (카운트 도입 예정) 콜백 내 다발 로그는 탭 타임아웃을 유발한다.
+            // 원본은 삼키고 actions는 게시 직렬 큐로 넘긴다 — 콜백은 큐에 넣기만 하고
+            // `CGEvent` 생성·게시는 큐 위에서 어댑터가 한다 (콜백 경량 불변식).
+            //
+            // 로그는 요약 1건만: 카운트 반복으로 actions가 수천 개일 수 있어 콜백 내 다발
+            // 로그는 탭 타임아웃을 유발한다. 어댑터의 "미지원 액션 스킵" 요약과 대조하면
+            // 게이트·배선 문제와 매핑 문제를 가를 수 있어 배선 후에도 유지한다.
             #if DEBUG
             Logger.eventTap.debug(
                 "replace ×\(output.actions.count, privacy: .public): \(String(describing: output.actions.first), privacy: .public)"
             )
             #endif
+            dispatchActions(output.actions)
             return nil
         }
     }

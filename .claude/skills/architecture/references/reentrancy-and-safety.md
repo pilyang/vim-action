@@ -37,7 +37,9 @@ sequenceDiagram
 
 사용자 노출: 킬 탭이 어느 지점에 설치됐는지(HID / 세션 폴백 / 활성화 실패 / 미설치)는 Settings의 읽기 전용 "Kill Switch" 행과 콤보 안내 각주로 표시한다 — 안전장치가 조용히 부재하는 것이 이 기능의 가장 위험한 실패 모드다. 단축키 커스터마이즈 UI는 아직 없다(고정 콤보).
 
-**과도기 상태 (배선 마일스톤)**: 출력 계층은 존재하되 **호출자가 없다** — `ActionExecutor`(마커를 찍는 유일한 지점)와 탭측 마커 가드, 폭주 카운터와 보고 훅, 그리고 모션의 `VimAction` → CGEvent 변환(`MotionKeyMapper`·`KeyboardAdapter`)까지 구현·테스트돼 있지만, 탭 콜백이 아직 어댑터를 부르지 않아 실제로 게시하는 코드도 실패를 보고하는 코드도 없다. 그때까지 엔진의 `.replace` 결정은 실행 없이 삼키고 DEBUG 요약만 로그한다. 릴리스 빌드에선 이 삼킴이 무로그라 사용자에게 "죽은 키"로 보이므로, **디스패처 마일스톤 전 릴리스 배포는 금지**한다 ([20260717_replace-swallow-transitional-rule.md](../../decisions/references/20260717_replace-swallow-transitional-rule.md)).
+**과도기 상태 (모션까지 배선됨)**: `.replace` 결정은 이제 실제로 실행된다 — 콜백은 원본을 삼킨 뒤 actions를 **실행 sink**로 넘기고, 그 클로저가 게시 직렬 큐 위에서 `KeyboardAdapter`를 부른다(`CGEvent` 생성·게시가 같은 컨텍스트여야 하는 계약). 컨트롤러는 sink 클로저 하나만 알고, 큐의 소유자·수명이 곧 그 클로저다. 기본 sink와 앱 게이트는 XCTest 하위에서 무해한 것으로 바꿔치기된다 — 그냥 두면 테스트가 개발자 머신에 실제 키를 주입하거나, disable 앱(Ghostty) 터미널에서 테스트를 돌릴 때 게이트가 켜져 결정 테스트가 통째로 뒤집힌다 ([20260726_m2-execution-wiring-shape.md](../../decisions/references/20260726_m2-execution-wiring-shape.md)).
+
+실행 범위는 **이동 계열뿐**이다: 어댑터는 `.move`만 CGEvent로 바꾸고 나머지(편집·Visual·붙여넣기 등)는 스킵+DEBUG 로그다(미지원≠실패). 즉 릴리스 빌드에서 편집 키는 여전히 무로그로 삼켜져 "죽은 키"로 보이므로, **릴리스 배포 금지는 유지**된다 — 게이트는 이제 편집 실행이 붙는 M3다 ([20260717_replace-swallow-transitional-rule.md](../../decisions/references/20260717_replace-swallow-transitional-rule.md)). 실패 보고는 아직 호출자가 없다: Keyboard 게시 경로는 오류를 돌려주지 않아 접을 실패 자체가 없고, 신호는 `AXError`를 돌려주는 M5 AX 어댑터가 만든다.
 
 ## 불변식·계약
 

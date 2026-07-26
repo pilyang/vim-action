@@ -57,7 +57,7 @@ let qwertyDecisionFixtures: [EventTapDecisionFixture] = [
         passesThrough: true, finalMode: .insert
     ),
     .init(
-        "Normal: h 삼킴 (replace — 실행은 다음 마일스톤)",
+        "Normal: h 삼킴 (replace — actions는 실행 큐로)",
         [KeyStroke(kVK_Escape), KeyStroke(kVK_ANSI_H)],
         passesThrough: false, finalMode: .normal
     ),
