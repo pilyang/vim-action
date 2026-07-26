@@ -370,9 +370,18 @@ final class EventTapController {
             guard !isKillSwitchRequested else { return }
             let observation = Self.watchdogTick(
                 isEnabled: { CGEvent.tapIsEnabled(tap: port) },
-                enableAndVerify: { Self.enableAndCheck(port) },
+                enableAndVerify: {
+                    // 위 진입 가드는 틱 **시작 시점**만 막는다 — 래치는 킬 스레드가 세우므로
+                    // 이 틱이 진행 중에 설 수 있고, 그러면 방금 킬스위치가 끈 탭을 되살린다.
+                    // "래치가 서 있으면 아무도 탭을 되살리지 않는다"는 불변식이라 창을 닫는다.
+                    guard !self.isKillSwitchRequested else { return false }
+                    return Self.enableAndCheck(port)
+                },
                 isSecureInput: { IsSecureEventInputEnabled() }
             )
+            // 래치가 이 틱 진행 중에 섰으면 관측값을 통째로 버린다 — 위 클로저의 false를
+            // 그대로 흘리면 .dead가 되어, 홉 착지 순서에 따라 메인이 거짓 .failed를 찍는다.
+            guard !isKillSwitchRequested else { return }
             if observation == .recovered {
                 // 성공 로그만 bg에서 직접 — 희귀 이벤트라 스팸 불가능하고, 메인 스톨
                 // 중에도 즉시 기록돼야 복구를 관측할 수 있다. 실패 로그는 메인 전이

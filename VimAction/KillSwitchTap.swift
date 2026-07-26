@@ -89,6 +89,10 @@ final class KillSwitchTap {
             return
         }
 
+        // 탭은 생성 즉시 활성이다 — 전용 스레드가 소스를 붙이기 전까지 어느 런루프에도
+        // 없는 활성 탭이 되고, 그 사이 들어온 이벤트가 서비스되지 않으면 OS가 탭을 도로
+        // 꺼버린다. 부착 전까지 꺼 두고, 소스를 붙인 뒤에만 켠다 (startRunLoopThread).
+        CGEvent.tapEnable(tap: port, enable: false)
         portBox.set(port)
         startRunLoopThread(port: port)
         registerTerminationObserverIfNeeded()
@@ -109,8 +113,8 @@ final class KillSwitchTap {
         let thread = Thread {
             let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0)
             CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
-            // 활성화는 소스를 붙인 **뒤에** — 탭은 생성 즉시 활성이라, 아직 어느 런루프에도
-            // 없는 동안 들어온 이벤트가 서비스되지 않으면 OS가 탭을 도로 꺼버린다.
+            // 활성화는 소스를 붙인 **뒤에** — 설치 경로가 부착 전까지 탭을 꺼 두므로
+            // (startIfPermitted의 선제 disable) 여기가 킬 탭의 유일한 활성화 지점이다.
             CGEvent.tapEnable(tap: port, enable: true)
             // stop()의 CFMachPortInvalidate가 소스를 무효화하면 남은 소스가 없어 이 호출이
             // 반환하고 스레드가 끝난다.
