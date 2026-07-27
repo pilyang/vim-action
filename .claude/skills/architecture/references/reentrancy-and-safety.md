@@ -1,6 +1,6 @@
 # 재진입과 안전장치
 
-- **Last updated**: 2026-07-26
+- **Last updated**: 2026-07-27
 
 ## 현재 구조
 
@@ -37,9 +37,9 @@ sequenceDiagram
 
 사용자 노출: 킬 탭이 어느 지점에 설치됐는지(HID / 세션 폴백 / 활성화 실패 / 미설치)는 Settings의 읽기 전용 "Kill Switch" 행과 콤보 안내 각주로 표시한다 — 안전장치가 조용히 부재하는 것이 이 기능의 가장 위험한 실패 모드다. 단축키 커스터마이즈 UI는 아직 없다(고정 콤보).
 
-**과도기 상태 (모션까지 배선됨)**: `.replace` 결정은 이제 실제로 실행된다 — 콜백은 원본을 삼킨 뒤 actions를 **실행 sink**로 넘기고, 그 클로저가 게시 직렬 큐 위에서 `KeyboardAdapter`를 부른다(`CGEvent` 생성·게시가 같은 컨텍스트여야 하는 계약). 컨트롤러는 sink 클로저 하나만 알고, 큐의 소유자·수명이 곧 그 클로저다. 기본 sink와 앱 게이트는 XCTest 하위에서 무해한 것으로 바꿔치기된다 — 그냥 두면 테스트가 개발자 머신에 실제 키를 주입하거나, disable 앱(Ghostty) 터미널에서 테스트를 돌릴 때 게이트가 켜져 결정 테스트가 통째로 뒤집힌다 ([20260726_m2-execution-wiring-shape.md](../../decisions/references/20260726_m2-execution-wiring-shape.md)).
+**과도기 상태 (모션·Normal 편집까지 배선됨)**: `.replace` 결정은 이제 실제로 실행된다 — 콜백은 원본을 삼킨 뒤 actions를 **실행 sink**로 넘기고, 그 클로저가 게시 직렬 큐 위에서 `KeyboardAdapter`를 부른다(`CGEvent` 생성·게시가 같은 컨텍스트여야 하는 계약). 컨트롤러는 sink 클로저 하나만 알고, 큐의 소유자·수명이 곧 그 클로저다. 기본 sink와 앱 게이트는 XCTest 하위에서 무해한 것으로 바꿔치기된다 — 그냥 두면 테스트가 개발자 머신에 실제 키를 주입하거나, disable 앱(Ghostty) 터미널에서 테스트를 돌릴 때 게이트가 켜져 결정 테스트가 통째로 뒤집힌다 ([20260726_m2-execution-wiring-shape.md](../../decisions/references/20260726_m2-execution-wiring-shape.md)).
 
-실행 범위는 **이동 계열뿐**이다: 어댑터는 `.move`만 CGEvent로 바꾸고 나머지(편집·Visual·붙여넣기 등)는 스킵+DEBUG 로그다(미지원≠실패). 즉 릴리스 빌드에서 편집 키는 여전히 무로그로 삼켜져 "죽은 키"로 보이므로, **릴리스 배포 금지는 유지**된다 — 게이트는 이제 편집 실행이 붙는 M3다 ([20260726_release-block-gate-moves-to-m3.md](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)). 실패 보고는 아직 호출자가 없다: Keyboard 게시 경로는 오류를 돌려주지 않아 접을 실패 자체가 없고, 신호는 `AXError`를 돌려주는 M5 AX 어댑터가 만든다.
+실행 범위는 **이동(`.move`)과 Normal 편집(`.edit`)**이다: 어댑터는 액션을 두 매퍼(`MotionKeyMapper`/`EditKeyMapper`) 중 하나로 보내고, 매퍼가 `nil`을 내는 것(Visual `.selection`, aw·따옴표·괄호쌍 오브젝트)과 나머지 액션(Visual·붙여넣기·undo·스크롤)은 스킵+DEBUG 로그다(미지원≠실패). **릴리스 배포 금지는 아직 유지**된다 — 남은 어휘가 여전히 무로그로 삼켜지며, 게이트 해제는 M3 단계 4(미지원 스킵 로그 전수 확인 + 실행 중단 래치)의 몫이다 ([20260726_release-block-gate-moves-to-m3.md](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)). 실패 보고는 아직 호출자가 없다: Keyboard 게시 경로는 오류를 돌려주지 않아 접을 실패 자체가 없고, 신호는 `AXError`를 돌려주는 M5 AX 어댑터가 만든다.
 
 ## 불변식·계약
 
