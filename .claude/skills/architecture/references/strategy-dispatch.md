@@ -66,6 +66,7 @@ flowchart TD
 - 일회성 Accessibility → Keyboard 다운그레이드 수정 키 (kindaVim의 `fn` 방식) — 채택 여부와 키 선택.
 - "AX 거짓말" 감지 휴리스틱 (왕복 테스트, 번들 거부 목록) — `strategy: auto` 신뢰 전 결정.
 - `key-mapping` → `force-text` 자동 폴백 휴리스틱 존재 여부.
+- **AX 읽기 + Keyboard 쓰기 혼용의 적용 범위** — 리졸버는 이미 AX로 읽고 Keyboard 시퀀스를 고르지만(`focusedRole`), `AXValue`·`AXSelectedTextRange`까지 읽어 정확 오프셋을 계산하고 실행만 합성 이벤트로 하는 형태를 어디까지 허용할지. 읽기는 실패가 즉시 드러나 폴백이 안전한 반면(쓰기와 비대칭), 오프셋만큼 스트로크를 보내면 버스트가 되어 실행 중단 래치와 묶인다. M5 착수 시 결정.
 
 ## 관련
 
