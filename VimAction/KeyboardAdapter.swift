@@ -14,8 +14,9 @@ import VimEngine
 /// 게시까지 끝내야 하고(격리를 건너는 값이 애초에 없게), 탭 콜백은 경량 불변식에 묶여 있다.
 /// 그래서 타입 단위 `nonisolated`다 — 메인 격리를 가정하지 않는다.
 ///
-/// M2 시점의 실행 범위는 `.move`뿐이다. 아직 구현하지 않은 액션은 **실패가 아니다** —
-/// 조용히 스킵하고 DEBUG 로그만 남긴다 (`20260726_unsupported-action-not-failure.md`).
+/// 실행 범위는 이동(`.move`)과 Normal 편집(`.edit`)이다. 아직 구현하지 않은 액션은
+/// **실패가 아니다** — 조용히 스킵하고 DEBUG 로그만 남긴다
+/// (`20260726_unsupported-action-not-failure.md`).
 nonisolated struct KeyboardAdapter: Sendable {
     private let executor: ActionExecutor
 
@@ -32,14 +33,14 @@ nonisolated struct KeyboardAdapter: Sendable {
         #endif
 
         for action in actions {
-            guard case .move(let motion) = action else {
+            guard let strokes = Self.keyStrokes(for: action) else {
                 #if DEBUG
                 skippedCount += 1
                 if firstSkipped == nil { firstSkipped = action }
                 #endif
                 continue
             }
-            for stroke in MotionKeyMapper.keyStrokes(for: motion) {
+            for stroke in strokes {
                 guard
                     let down = CGEvent(
                         keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: true),
@@ -66,5 +67,21 @@ nonisolated struct KeyboardAdapter: Sendable {
         #endif
 
         executor.post(events)
+    }
+
+    /// 액션 → 합성할 키스트로크. `nil`은 **미지원**(스킵+로그) — 실패와 구분된다.
+    ///
+    /// `VimAction`에 exhaustive switch를 걸지 않는 것이 계약이다 — 엔진에 케이스가 늘어도
+    /// `default:`가 흡수해 어댑터가 컴파일 에러로 무너지지 않는다.
+    private static func keyStrokes(for action: VimAction) -> [KeyStroke]? {
+        switch action {
+        case .move(let motion):
+            return MotionKeyMapper.keyStrokes(for: motion)
+        case .edit(let op, let range):
+            // 요소 계열은 단계 3의 focusedRole 리졸버가 채운다 — 그때까지 TextArea 고정.
+            return EditKeyMapper.keyStrokes(for: op, range: range, family: .textArea)
+        default:
+            return nil
+        }
     }
 }

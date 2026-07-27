@@ -71,7 +71,9 @@ struct KeyboardAdapterTests {
         let adapter = makeAdapter { posted.append($0) }
 
         adapter.execute([
-            .edit(.delete, .line(count: 1)),
+            // 지원하는 `.edit`이라도 이 계열에서 미지원인 범위는 같은 스킵 경로다.
+            .edit(.change, .textObject(.quote(.double, .inner))),
+            .edit(.yank, .selection),
             .paste(before: false, count: 1),
             .beginSelection(linewise: false),
             .extendSelection(.charRight),
@@ -92,12 +94,57 @@ struct KeyboardAdapterTests {
         let adapter = makeAdapter { posted.append($0) }
 
         adapter.execute([
-            .edit(.delete, .line(count: 1)),
+            .paste(before: false, count: 1),
             .move(.charRight),
             .undo,
         ])
 
         #expect(keyCodes(of: posted) == [Int64(kVK_RightArrow), Int64(kVK_RightArrow)])
+    }
+
+    /// 편집 배선 — 매퍼가 낸 시퀀스가 순서 그대로 쌍이 되어 나간다. `dd`는 줄 시작으로
+    /// 이동 → 아래로 선택 확장 → 잘라내기 3타다.
+    @Test("편집 액션은 매퍼 시퀀스대로 게시된다")
+    func editProducesMappedSequence() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_DownArrow), Int64(kVK_DownArrow),
+                Int64(kVK_ANSI_X), Int64(kVK_ANSI_X),
+            ])
+        #expect(posted.map(\.type) == [.keyDown, .keyUp, .keyDown, .keyUp, .keyDown, .keyUp])
+        // 선택 확장 구간에만 Shift가 실린다 — 접두와 오퍼레이터 키에 새면 범위가 어긋난다.
+        #expect(posted.prefix(2).allSatisfy { !$0.flags.contains(.maskShift) })
+        #expect(posted.dropFirst(2).prefix(2).allSatisfy { $0.flags.contains(.maskShift) })
+        #expect(posted.suffix(2).allSatisfy { $0.flags == .maskCommand })
+    }
+
+    /// 지원하는 `.edit`이라도 범위가 미지원이면 게시가 아예 없어야 한다 — 절반만 나가면
+    /// 선택만 해 놓고 멈춘 상태가 된다.
+    @Test("미지원 범위의 편집은 게시 0건이다")
+    func unsupportedEditRangePostsNothing() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.edit(.delete, .textObject(.pair(.paren, .around)))])
+
+        #expect(posted.isEmpty)
+    }
+
+    @Test("편집이 낸 이벤트에도 합성 마커가 찍혀 있다")
+    func editedEventsAreMarked() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.edit(.yank, .motion(.wordForward, count: 1))])
+
+        #expect(!posted.isEmpty)
+        #expect(posted.allSatisfy { SyntheticEventMarker.isMarked($0) })
     }
 
     @Test("빈 액션 시퀀스는 아무것도 게시하지 않는다")
