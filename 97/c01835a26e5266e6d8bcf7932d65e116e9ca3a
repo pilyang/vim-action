@@ -1,0 +1,21 @@
+VimAction/EditKeyMapper.swift
+  s_3c2f95dcb9e83d::t_d669faa6aa9fcb 1-142
+VimActionTests/EditKeyMapperTests.swift
+  s_3c2f95dcb9e83d::t_6a3861f0a5e1f7 1-221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "97c01835a26e5266e6d8bcf7932d65e116e9ca3a",
+  "prompts": {},
+  "sessions": {
+    "s_3c2f95dcb9e83d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfaac0c0-100e-4823-947b-c2135acc905b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
