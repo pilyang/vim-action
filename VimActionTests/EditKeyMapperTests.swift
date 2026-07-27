@@ -18,6 +18,7 @@ private let cmdRight = KeyStroke(kVK_RightArrow, [.maskCommand])
 private let up = KeyStroke(kVK_UpArrow)
 private let down = KeyStroke(kVK_DownArrow)
 private let optLeft = KeyStroke(kVK_LeftArrow, [.maskAlternate])
+private let optRight = KeyStroke(kVK_RightArrow, [.maskAlternate])
 
 // 선택 확장 — 모션 스트로크에 Shift를 얹은 형태.
 private let selLeft = KeyStroke(kVK_LeftArrow, [.maskShift])
@@ -125,9 +126,11 @@ let linewiseEditFixtures: [EditMappingFixture] = [
 
 /// word 텍스트 오브젝트 근사 — 단어 시작으로 물러난 뒤 단어 끝까지 선택.
 let wordObjectEditFixtures: [EditMappingFixture] = [
-    .init("diw", .delete, .textObject(.word(.inner)), [optLeft, selOptRight, cutKey]),
-    .init("ciw", .change, .textObject(.word(.inner)), [optLeft, selOptRight, cutKey]),
-    .init("yiw", .yank, .textObject(.word(.inner)), [optLeft, selOptRight, copyKey, collapseLeft]),
+    .init("diw", .delete, .textObject(.word(.inner)), [optRight, optLeft, selOptRight, cutKey]),
+    .init("ciw", .change, .textObject(.word(.inner)), [optRight, optLeft, selOptRight, cutKey]),
+    .init(
+        "yiw", .yank, .textObject(.word(.inner)),
+        [optRight, optLeft, selOptRight, copyKey, collapseLeft]),
 ]
 
 /// 카운트 변형 — 엔진이 두 카운트를 곱으로 접어 전달하므로 매퍼는 선택만 그만큼 반복한다.

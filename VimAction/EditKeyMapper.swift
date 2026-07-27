@@ -56,9 +56,10 @@ nonisolated enum EditKeyMapper {
             return linewiseMotionSelection(motion, count, op)
 
         case .textObject(.word(.inner)):
-            // 근사 — 단어 시작으로 물러난 뒤 단어 끝까지 선택. 캐럿이 단어 시작에 있으면
-            // 앞 단어를 잡는 엣지가 있다 (정확한 오브젝트 경계는 M5 AX 몫).
-            return move(.wordBackward) + select(.wordEndForward)
+            // 근사 — 단어 끝을 지나친 뒤 시작으로 복귀해 앵커를 잡고 끝까지 선택한다
+            // (`^`와 같은 패턴). 물러나기만 하면 캐럿이 단어 시작일 때 앞 단어를 잡는다.
+            // 수용 엣지: 캐럿이 단어 뒤 공백 위면 다음 단어를 잡는다 (Vim은 공백 런).
+            return move(.wordEndForward) + move(.wordBackward) + select(.wordEndForward)
 
         default:
             // Visual `.selection`(단계 2), aw·따옴표·괄호쌍 오브젝트(M5 AX) — 미지원.
