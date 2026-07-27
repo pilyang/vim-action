@@ -1,0 +1,41 @@
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_3c2f95dcb9e83d::t_196613be6fe5bf 42
+  s_3c2f95dcb9e83d::t_56f78aad9441db 3
+  s_3c2f95dcb9e83d::t_579733582a0882 40
+.claude/skills/decisions/references/20260727_edit-keystroke-mapping-contract.md
+  s_3c2f95dcb9e83d::t_8a5bd419052003 1-47
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_3c2f95dcb9e83d::t_ad91da8a5891bb 43-47
+  s_3c2f95dcb9e83d::t_dd055d36464828 3
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_3c2f95dcb9e83d::t_43b83c520e1b32 20
+  s_3c2f95dcb9e83d::t_d2e9cdc15d698d 24
+  s_3c2f95dcb9e83d::t_8c3b1d7dc1436c 6
+  s_3c2f95dcb9e83d::t_4c30f0543b583d 31-34
+.claude/skills/decisions/references/20260727_operator-key-ansi-layout-assumption.md
+  s_3c2f95dcb9e83d::t_4b5d8ef1738fc0 1-34
+.claude/skills/decisions/SKILL.md
+  s_3c2f95dcb9e83d::t_84ebda57acd7db 101-104
+.claude/skills/decisions/references/20260727_yank-collapse-to-range-start.md
+  s_3c2f95dcb9e83d::t_2283f987286930 1-28
+.claude/skills/decisions/references/20260727_linewise-newline-rounding.md
+  s_3c2f95dcb9e83d::t_d408572b367134 1-45
+.claude/skills/plans/SKILL.md
+  s_3c2f95dcb9e83d::t_0d7f627188f478 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "5c526207191d9636adf6a6cc3d77454e1889f771",
+  "prompts": {},
+  "sessions": {
+    "s_3c2f95dcb9e83d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfaac0c0-100e-4823-947b-c2135acc905b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
