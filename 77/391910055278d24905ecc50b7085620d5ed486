@@ -1,0 +1,24 @@
+VimActionTests/KeyboardAdapterTests.swift
+  s_75bbbca18983d3::t_68666c6aaec304 176-227
+  s_75bbbca18983d3::t_19b7a90505ad3d 81-82
+  s_75bbbca18983d3::t_3d8b29d5c51667 228
+VimAction/KeyboardAdapter.swift
+  s_75bbbca18983d3::t_b9b26e2df4fb81 17
+  s_75bbbca18983d3::t_1e81581636f1d1 98-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "77391910055278d24905ecc50b7085620d5ed486",
+  "prompts": {},
+  "sessions": {
+    "s_75bbbca18983d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2023fca5-e367-4baa-b5a8-3e83f3871878",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
