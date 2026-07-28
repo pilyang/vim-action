@@ -40,20 +40,35 @@ nonisolated struct KeyboardAdapter: Sendable {
                 #endif
                 continue
             }
+            // 액션 단위 all-or-nothing — 스트로크 하나라도 CGEvent 생성에 실패하면 그 액션
+            // 전체를 버린다. 부분 시퀀스는 편집에서 "선택은 어긋난 채 Cmd-X만 나가는"
+            // 파괴적 실행이 된다 (이동만 실행하던 시절의 스킵-계속은 한 타 누락으로 무해했다).
+            var actionEvents: [CGEvent] = []
+            var creationFailed = false
             for stroke in strokes {
                 guard
                     let down = CGEvent(
                         keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: true),
                     let up = CGEvent(
                         keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: false)
-                else { continue }
+                else {
+                    creationFailed = true
+                    break
+                }
                 // 소스가 nil인 이벤트는 flags 기본값이 **실행 시점의 실제 modifier 상태**라,
                 // 대입은 선택이 아니라 필수다 — 사용자가 누르고 있던 키가 새어 들어간다.
                 down.flags = stroke.flags
                 up.flags = stroke.flags
-                events.append(down)
-                events.append(up)
+                actionEvents.append(down)
+                actionEvents.append(up)
             }
+            guard !creationFailed else {
+                // 미지원 스킵(DEBUG)과 달리 실제 이상 상황이라 항상 남긴다.
+                Logger.eventTap.error(
+                    "CGEvent 생성 실패 — 액션 폐기: \(String(describing: action), privacy: .public)")
+                continue
+            }
+            events.append(contentsOf: actionEvents)
         }
 
         #if DEBUG
