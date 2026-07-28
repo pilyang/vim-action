@@ -14,7 +14,7 @@ import VimEngine
 /// 게시까지 끝내야 하고(격리를 건너는 값이 애초에 없게), 탭 콜백은 경량 불변식에 묶여 있다.
 /// 그래서 타입 단위 `nonisolated`다 — 메인 격리를 가정하지 않는다.
 ///
-/// 실행 범위는 이동(`.move`)과 Normal 편집(`.edit`)이다. 아직 구현하지 않은 액션은
+/// 실행 범위는 이동(`.move`), 편집(`.edit`), Visual 선택 세션이다. 아직 구현하지 않은 액션은
 /// **실패가 아니다** — 조용히 스킵하고 DEBUG 로그만 남긴다
 /// (`20260726_unsupported-action-not-failure.md`).
 nonisolated struct KeyboardAdapter: Sendable {
@@ -95,6 +95,8 @@ nonisolated struct KeyboardAdapter: Sendable {
         case .edit(let op, let range):
             // 요소 계열은 단계 3의 focusedRole 리졸버가 채운다 — 그때까지 TextArea 고정.
             return EditKeyMapper.keyStrokes(for: op, range: range, family: .textArea)
+        case .beginSelection, .extendSelection, .switchSelectionWise, .clearSelection:
+            return VisualKeyMapper.keyStrokes(for: action, family: .textArea)
         default:
             return nil
         }

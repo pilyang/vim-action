@@ -73,16 +73,13 @@ struct KeyboardAdapterTests {
         adapter.execute([
             // 지원하는 `.edit`이라도 이 계열에서 미지원인 범위는 같은 스킵 경로다.
             .edit(.change, .textObject(.quote(.double, .inner))),
-            .edit(.yank, .selection),
             .paste(before: false, count: 1),
-            .beginSelection(linewise: false),
-            .extendSelection(.charRight),
             .openLine(above: false),
             .undo,
             .redo,
             .scroll(.halfPage, forward: true),
-            .clearSelection,
-            .switchSelectionWise(linewise: true),
+            // `V`→`v`는 줄 반올림에 역연산이 없어 미지원이다 — 무게시가 아니라 정직한 스킵.
+            .switchSelectionWise(linewise: false),
         ])
 
         #expect(posted.isEmpty)
@@ -174,6 +171,59 @@ struct KeyboardAdapterTests {
                 Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
             ])
         #expect(posted.allSatisfy { $0.flags.contains(.maskAlternate) })
+    }
+
+    /// Visual `y` 회귀 방어 — 엔진은 `.edit(.yank, .selection)`과 `clearSelection`을 **두 액션**으로
+    /// 낸다. collapse는 `clearSelection`이 전담하므로 `←`는 **정확히 한 번**만 나가야 한다.
+    /// 양쪽이 다 내면 캐럿이 범위 시작에서 한 칸 더 밀린다.
+    @Test("Visual y는 Cmd-C 뒤에 ←를 한 번만 낸다")
+    func visualYankThenClearPostsCopyThenSingleLeft() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.edit(.yank, .selection), .clearSelection])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_ANSI_C), Int64(kVK_ANSI_C),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+            ])
+        #expect(posted.prefix(2).allSatisfy { $0.flags == .maskCommand })
+        // collapse의 `←`는 맨 키다 — 수식자가 실리면 범위 시작이 아닌 곳으로 간다.
+        #expect(posted.suffix(2).allSatisfy { $0.flags.isDisjoint(with: .maskCommand) })
+    }
+
+    /// `v` 진입은 무게시가 아니다 — Vim의 charwise Visual은 inclusive라 커서 문자가 이미
+    /// 잡혀 있어야 하고, 그래야 이탈 시 `←`가 접을 선택을 찾아 캐럿이 제자리에 남는다.
+    @Test("v 진입은 Shift-→ 1타로 커서 문자를 선택한다")
+    func charwiseEntrySelectsOneCharacter() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.beginSelection(linewise: false)])
+
+        #expect(keyCodes(of: posted) == [Int64(kVK_RightArrow), Int64(kVK_RightArrow)])
+        #expect(posted.allSatisfy { $0.flags.contains(.maskShift) })
+    }
+
+    /// Visual 세션 배선 — `V` 진입 후 `j` 확장이 매퍼 시퀀스대로 이어 나간다.
+    @Test("Visual 세션은 매퍼 시퀀스대로 게시된다")
+    func visualSessionProducesMappedSequence() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.beginSelection(linewise: true), .extendSelection(.lineDown)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_DownArrow), Int64(kVK_DownArrow),
+                Int64(kVK_DownArrow), Int64(kVK_DownArrow),
+            ])
+        // 진입의 `Cmd-←`만 선택이 아니다 — 나머지는 전부 선택 확장이라 Shift가 실린다.
+        #expect(posted.prefix(2).allSatisfy { $0.flags == .maskCommand })
+        #expect(posted.dropFirst(2).allSatisfy { $0.flags.contains(.maskShift) })
+        #expect(posted.allSatisfy { SyntheticEventMarker.isMarked($0) })
     }
 
     /// 마커 불변식 — 어댑터가 내는 이벤트는 전부 `ActionExecutor`를 거치므로 마킹돼 있다.
