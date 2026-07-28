@@ -1,0 +1,21 @@
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_41bad0866c681c::t_75d34229dcfbce 20
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_41bad0866c681c::t_1bda367e9e6540 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "08f60a6e0218152f5ac8c75db765e34db02ae0a3",
+  "prompts": {},
+  "sessions": {
+    "s_41bad0866c681c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a8ddc27a-2f41-4056-bea5-55ad7a567749",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
