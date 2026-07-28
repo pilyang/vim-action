@@ -77,4 +77,14 @@ nonisolated enum MotionKeyMapper {
             return [KeyStroke(kVK_RightArrow, [.maskCommand])]
         }
     }
+
+    /// 같은 모션을 **선택 확장**으로 바꾼다 — 스트로크마다 Shift를 얹는다.
+    ///
+    /// 앵커는 고정된 채 엔드포인트만 캐럿처럼 움직이므로 `w`·`^`의 3타 조합도 특례 없이
+    /// 그대로 성립한다(중간 위치는 관측되지 않는다). 편집의 범위 선택과 Visual의 선택 확장이
+    /// 둘 다 이 함수를 쓰는 것이 레이어링의 핵심이다 — **모션 매핑이 개선되면 양쪽이 자동으로
+    /// 따라온다**.
+    static func selectionStrokes(for motion: Motion) -> [KeyStroke] {
+        keyStrokes(for: motion).map { KeyStroke(Int($0.keyCode), $0.flags.union(.maskShift)) }
+    }
 }
