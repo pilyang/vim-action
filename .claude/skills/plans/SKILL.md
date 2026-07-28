@@ -50,4 +50,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
 | 2026-07-25 | 2026-07-26 | MVP 1단계 마일스톤 | 실행 계층 구축 순서 M1~M5 (Keyboard 베이스 → AX 확장) — M1 출력 인프라·안전망 → M2 Keyboard 모션 → M3 편집·Visual·요소 리졸버 → M4 프로파일(=MVP 완료선) → M5 AX. **M1·M2 완전 종료**(M2 = PR #20·#21 + 매핑 정확도 후속 PR #23 병합, 릴리스 금지 게이트는 M3로 이동), 다음 착수: M3 | [20260725_mvp-milestones.md](references/20260725_mvp-milestones.md) |
-| 2026-07-26 | 2026-07-27 | M3 Keyboard 편집·Visual·리졸버 | MVP M3 — 편집 실행(본체)·Visual·o/p/u·스크롤 + focusedRole 리졸버, 끝나면 릴리스 금지 게이트 해제. **단계 0·1 종료**(도그푸딩까지 — 편차 2건 처리: `iw` 앵커 수정, Notion `Shift-Cmd-↑/↓` 수용), 다음: 단계 2 Visual | [20260726_m3-keyboard-edit-visual-resolver.md](references/20260726_m3-keyboard-edit-visual-resolver.md) |
+| 2026-07-26 | 2026-07-28 | M3 Keyboard 편집·Visual·리졸버 | MVP M3 — 편집 실행(본체)·Visual·o/p/u·스크롤 + focusedRole 리졸버, 끝나면 릴리스 금지 게이트 해제. **단계 0·1·2(2a+2b) 종료** — Visual 실행 배선 + 도그푸딩 완료, 결정 5건. 다음: 2c(o/p/u/스크롤, 방향 확정됨) → 2.5 래치 → 3 리졸버 → 4 게이트 | [20260726_m3-keyboard-edit-visual-resolver.md](references/20260726_m3-keyboard-edit-visual-resolver.md) |

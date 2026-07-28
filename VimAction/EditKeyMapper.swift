@@ -19,9 +19,13 @@ nonisolated enum ElementFamily: Sendable {
 /// `.edit(Operator, TextRange)` → 합성 키스트로크 시퀀스. `MotionKeyMapper`와 같은 순수 함수이며,
 /// CGEvent 변환은 매퍼 밖 게시 직렬 큐 위에서 한다.
 ///
-/// 모든 편집은 한 형태다: **범위를 Shift+모션으로 선택한 뒤 오퍼레이터 1타**.
+/// 거의 모든 편집은 한 형태다: **범위를 Shift+모션으로 선택한 뒤 오퍼레이터 1타**.
 /// 선택 스트로크는 모션 매핑의 재사용으로 전부 나오므로(`select(_:)`), `w`·`^`의 3타 조합도
 /// 추가 규칙 없이 선택 확장으로 성립한다.
+///
+/// 예외는 Visual의 `.selection` 하나다 — 화면에 선택이 이미 있어 선택 시퀀스가 없고,
+/// yank의 collapse도 엔진이 뒤이어 내는 `clearSelection`이 전담한다
+/// (`20260728_visual-clear-selection-collapse-left.md`).
 ///
 /// 반환 `nil`은 **이 계열에서 미지원**이라는 뜻이다 — 실패가 아니라 어댑터의 스킵+로그 대상이며,
 /// "빈 배열"과 구분되어야 무로그 삼킴이 생기지 않는다.
@@ -31,6 +35,11 @@ nonisolated enum EditKeyMapper {
         range: VimAction.TextRange,
         family: ElementFamily
     ) -> [KeyStroke]? {
+        // `.selection`은 계열 분기 **밖**이다: 이미 있는 선택에 대한 `Cmd-X`/`Cmd-C`는
+        // TextField에서도 같고, 무엇보다 `apply(_:)`가 yank에 무조건 붙이는 `←`를 피해야 한다.
+        if case .selection = range {
+            return op == .yank ? [copy] : [cut]
+        }
         switch family {
         case .textArea:
             guard let selection = textAreaSelection(op, range) else { return nil }
@@ -62,7 +71,7 @@ nonisolated enum EditKeyMapper {
             return move(.wordEndForward) + move(.wordBackward) + select(.wordEndForward)
 
         default:
-            // Visual `.selection`(단계 2), aw·따옴표·괄호쌍 오브젝트(M5 AX) — 미지원.
+            // aw·따옴표·괄호쌍 오브젝트(M5 AX) — 미지원. (`.selection`은 호출자가 먼저 처리한다.)
             // `TextRange`에 exhaustive switch를 걸지 않는 것이 엔진 케이스 추가에 견디는 계약이다.
             return nil
         }
@@ -108,6 +117,9 @@ nonisolated enum EditKeyMapper {
     /// 선택 후의 오퍼레이터 1타. `change`도 잘라내기다 — 엔진이 이미 Insert로 전이했으므로
     /// 뒤에 붙일 키가 없고, 클립보드에 실리는 것이 v1의 "시스템 클립보드 = 무명 레지스터"
     /// 설계(`p`와의 정합)와도 맞는다. yank만 선택을 소비하지 않아 collapse가 뒤따른다.
+    ///
+    /// `.selection`은 이 경로를 타지 않는다 — collapse를 `clearSelection`이 전담하므로
+    /// 여기서 `←`를 또 붙이면 캐럿이 한 칸 더 밀린다.
     private static func apply(_ op: VimAction.Operator) -> [KeyStroke] {
         switch op {
         case .delete, .change:
@@ -123,12 +135,9 @@ nonisolated enum EditKeyMapper {
         MotionKeyMapper.keyStrokes(for: motion)
     }
 
-    /// 모션을 선택 확장으로 바꾼다. 3타 조합(`w`·`^`)도 앵커가 고정된 채 엔드포인트만
-    /// 캐럿처럼 움직이므로 그대로 성립한다 — 그래서 편집 시퀀스에 모션별 특례가 없다.
+    /// 모션을 선택 확장으로 바꾼다 — Visual의 선택 확장과 같은 변환을 공유한다.
     private static func select(_ motion: Motion) -> [KeyStroke] {
-        MotionKeyMapper.keyStrokes(for: motion).map {
-            KeyStroke(Int($0.keyCode), $0.flags.union(.maskShift))
-        }
+        MotionKeyMapper.selectionStrokes(for: motion)
     }
 
     /// 카운트는 엔진이 두 카운트의 곱으로 접어 전달한다 — 여기서는 반복만 한다.

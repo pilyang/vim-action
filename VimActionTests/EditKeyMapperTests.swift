@@ -170,17 +170,26 @@ let unsupportedEditFixtures: [EditMappingFixture] = [
     .init("daw", .delete, .textObject(.word(.around)), nil),
     .init("ci\"", .change, .textObject(.quote(.double, .inner)), nil),
     .init("ya(", .yank, .textObject(.pair(.paren, .around)), nil),
-    // Visual 선택 범위는 단계 2 몫이다.
-    .init("v_d", .delete, .selection, nil),
-    .init("v_c", .change, .selection, nil),
-    .init("v_y", .yank, .selection, nil),
     // 엔진은 내지 않지만 매퍼는 total function이다 — linewise 자리의 낯선 모션도 답이 있다.
     .init("d<linewise w>", .delete, .linewiseMotion(.wordForward, count: 1), nil),
 ]
 
+/// Visual 선택 동작 — 화면에 선택이 이미 있으므로 **선택 시퀀스 없이 오퍼레이터 1타뿐**이고,
+/// 요소 계열과도 무관하다(이미 있는 선택에 대한 `Cmd-X`/`Cmd-C`는 TextField에서도 같다).
+///
+/// `v_y`에 `←`가 없는 것이 핵심이다 — Visual `y`는 엔진이 `.edit(.yank, .selection)`과
+/// `clearSelection`을 연달아 내므로 collapse는 뒤따르는 `clearSelection`이 전담한다.
+/// 양쪽이 다 내면 캐럿이 한 칸 더 밀린다
+/// (`20260728_visual-clear-selection-collapse-left.md`). Normal의 `yw`는 그대로 `Cmd-C`+`←`다.
+let selectionEditFixtures: [EditMappingFixture] = [
+    .init("v_d", .delete, .selection, [cutKey]),
+    .init("v_c", .change, .selection, [cutKey]),
+    .init("v_y", .yank, .selection, [copyKey]),
+]
+
 let editMappingFixtures: [EditMappingFixture] =
     charwiseEditFixtures + linewiseEditFixtures + wordObjectEditFixtures + countEditFixtures
-    + unsupportedEditFixtures
+    + unsupportedEditFixtures + selectionEditFixtures
 
 // MARK: - 테스트
 
@@ -201,12 +210,17 @@ struct EditKeyMapperTests {
 
     /// 모든 편집은 선택 후 오퍼레이터 1타로 끝난다 — yank만 collapse가 뒤따른다.
     /// 접미가 어긋나면 선택만 해 놓고 아무것도 안 하거나, 선택이 남아 다음 입력을 오염시킨다.
+    ///
+    /// `.selection` yank만 예외로 collapse가 없다 — 엔진이 뒤이어 내는 `clearSelection`이
+    /// 전담하므로 여기서 또 내면 캐럿이 한 칸 더 밀린다. **이 분기가 그 함정의 방어선이다.**
     @Test("시퀀스는 오퍼레이터 키로 끝난다", arguments: editMappingFixtures)
     func sequenceEndsWithOperatorKey(_ fixture: EditMappingFixture) {
         guard let expected = fixture.expected else { return }
         switch fixture.op {
         case .delete, .change:
             #expect(expected.last == cutKey, "\(fixture.vim)")
+        case .yank where fixture.range == .selection:
+            #expect(expected == [copyKey], "\(fixture.vim)")
         case .yank:
             #expect(expected.suffix(2) == [copyKey, collapseLeft], "\(fixture.vim)")
         }
