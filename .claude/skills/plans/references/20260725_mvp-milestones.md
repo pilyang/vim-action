@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-25
-- **갱신일**: 2026-07-26 (M3 상세 플랜 수립 — 이관 항목 2건은 M3 플랜의 단계 0·4로 편입)
+- **갱신일**: 2026-07-28 (M3 진행 중 — 단계 0·1·2 종료, 편집·Visual이 실제로 실행된다)
 
 ## 목표
 
@@ -21,14 +21,14 @@
 - [x] **M2 종료 — Keyboard 어댑터 ① 모션** (PR #20 `0eb2187` + PR #21 `bd643e1` 병합): 세션 A가 순수 실행 계층(`MotionKeyMapper`·`KeyboardAdapter`), 세션 B가 앱 게이트(`FrontmostAppGate`)와 실행 배선을 붙였다. 이동 계열이 실제 앱에서 캐럿을 움직이고 disable 앱(Ghostty)은 완전 통과하며, 실기기 도그푸딩으로 게이트 전이·모션 디스패치(`10w` 카운트 포함)·미지원 스킵·실패 보고 0건을 확인했다. 릴리스 배포 금지 게이트는 M3로 이동([결정](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)). **매핑 정확도 후속도 종료** (PR #23 `4f2dd65` 병합): w·^(I)를 3타 조합으로 교체([결정](../../decisions/references/20260726_word-forward-first-nonblank-multi-stroke.md)), Shift 누출은 미재현·기존 flags 명시 대입으로 종결([결정](../../decisions/references/20260726_shift-leak-event-flags-sufficient.md)), 탭 들여쓰기 ^·I의 Chromium 퇴행 엣지는 수용([결정](../../decisions/references/20260726_tab-indent-first-nonblank-chromium-edge.md)). 실기기 재검증 완료 — M2 상세 플랜은 완료 정리로 삭제됨.
 
 ## 남은 것
-- [ ] **M3 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버**: 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), Visual=Shift+모션, y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
+- [ ] **M3 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버** (**진행 중 — 단계 0·1·2 종료**, PR #24·#25 병합): Normal 편집(`d`/`c`/`y`/`x`)과 Visual(`v`/`V`+모션+오퍼레이터)이 실제로 실행된다. 남은 것은 나머지 어휘(`o`/`p`/`u`/스크롤) → 실행 중단 래치 → 요소 리졸버 → 게이트 해제. 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
 - [ ] **M4 — 프로파일 배관 + 앱별 on/off** ← **MVP 1단계 완료선**: Yams YAML 3계층 로더 + 핫 리로드, M2 하드코딩 게이트를 프로파일로 교체, 내장 프로파일(주력 앱 + VS Code류 enabled: false), 설정 UI 앱별 목록. per_element 스키마 시점에 캐시 충분성 최종 확정.
 - [ ] **M5 — AX 어댑터 + auto 전략 (MVP 이후 1차 확장)**: AX 어댑터(AXSelectedTextRange 직접 조작), auto 프로브 → key-mapping 폴백, force-text 계열, per_element 재정의 본격화. `AXUIElementSetMessagingTimeout` 실기기 계측(콜백 경량 불변식 위임 ①)은 여기.
 - [ ] (MVP 밖) M6 — 서명·공증 배포는 외부 공유 시점에 별도 플랜으로.
 
 ## 진행 중 컨텍스트
 
-- **M3 착수 — 상세 플랜 수립됨**: [20260726_m3-keyboard-edit-visual-resolver.md](20260726_m3-keyboard-edit-visual-resolver.md) (단계 0 실측 → 편집 본체 → Visual·나머지 어휘 → 리졸버 → 게이트 해제, 범위 확정 3건 포함). M1·M2는 완전 종료 (M2 상세 플랜은 완료 정리로 삭제).
+- **M3 진행 중 — 단계 0·1·2 종료**: 상세는 [20260726_m3-keyboard-edit-visual-resolver.md](20260726_m3-keyboard-edit-visual-resolver.md)가 SSOT다(단계별 상태·수용 엣지·인계 계약). 실행 계층은 이제 순수 매퍼 3종(`MotionKeyMapper`/`EditKeyMapper`/`VisualKeyMapper`) 구조이며, **미지원은 `nil`→스킵+로그**라 릴리스 금지 게이트("`.replace` 무로그 삼킴")의 해제 판정은 단계 4에 남아 있다. M1·M2는 완전 종료 (M2 상세 플랜은 완료 정리로 삭제).
 - **M2에서 이관된 미확인 항목 2건**은 M3 상세 플랜의 단계 0(카운트 폭탄 실측)·단계 4(킬스위치 회귀)로 편입됐다.
 - **도그푸딩 관측 방법**: `.debug` 로그는 로그 저장소에 남지 않아 `log show`로는 판정 불가 — `/usr/bin/log stream --level debug --predicate 'subsystem == "dev.pilyang.VimAction"'` (zsh에서 `log`가 가려져 절대 경로 필요).
 - **테스트 seam (M2가 만든 것, M3 어댑터 테스트도 같은 방식)**: `ActionExecutor(postEvent:)` 수집기 주입으로 키코드·플래그·마커 검증 (CGEvent 생성은 TCC 불요라 headless 가능). 실행 sink와 앱 게이트의 기본값은 **XCTest 하위에서 무해한 것으로 바꿔치기**된다 — 그냥 두면 테스트가 실제 화살표 키를 머신에 주입하거나, Ghostty에서 테스트를 돌릴 때 게이트가 켜져 결정 테스트가 뒤집힌다. 동작을 검증하는 테스트는 init으로 자기 것을 주입한다.
