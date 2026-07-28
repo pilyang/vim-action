@@ -1,0 +1,19 @@
+VimAction/KeyboardAdapter.swift
+  s_d4ca90840ec96a::t_942b92aa4ae9cb 43-47,54-57,62-63,65-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "f480e35c71a1d0a21b4a0dbf75ebe7e00d19c345",
+  "prompts": {},
+  "sessions": {
+    "s_d4ca90840ec96a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a4cda83b-f47d-4c69-8f38-ea787bce7ceb",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
