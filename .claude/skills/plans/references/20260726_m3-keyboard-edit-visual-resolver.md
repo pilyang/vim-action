@@ -17,7 +17,7 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 ## 완료된 것
 
 - [x] **단계 2a+2b 종료 — Visual 실행 + 도그푸딩 완료** (2026-07-28): `VisualKeyMapper` 신규 + `MotionKeyMapper.selectionStrokes` 공유 추출 + `EditKeyMapper` `.selection` + 어댑터 배선, 골든 신규 21행. 도그푸딩에서 `v`/`Esc` 캐럿 무표류·`vwd`·`vwy` 정상 확인, `V` 세션 편차는 전부 예측대로. 편차 1건(`vb` 빈 선택)만 신규 — 코드 무변경 수용. 설계 결정 5건은 아래 "진행 중 컨텍스트" 참조.
-- [x] (선행 상태) M1·M2 종료 — 모션 실행·앱 게이트·킬스위치·출력 인프라 완비. 편집·Visual·paste·undo·스크롤은 아직 무로그 스킵.
+- [x] (선행 상태, **M3 착수 시점**) M1·M2 종료 — 모션 실행·앱 게이트·킬스위치·출력 인프라 완비. 당시 편집·Visual·paste·undo·스크롤은 전부 스킵 상태였다(편집·Visual은 단계 1·2로 해소, 나머지는 2c).
 - [x] **단계 1 도그푸딩 완료** (2026-07-27 실기기): `x`·charwise 모션·`cw`(뒤 공백 유지 + Insert 전이)·`dd/cc/yy`·`j k`·`diw/ciw/yiw`(수정 후 단어 시작·중간 정확) 확인. 편차 2건은 아래 "진행 중 컨텍스트" 참조 — 1건 수정, 1건 수용. **단계 1 종료**.
 - [x] **단계 1 — Normal 편집 실행 (본체) 코드 완료** (2026-07-27): 신규 순수 매퍼 `EditKeyMapper`(선택 후 오퍼레이터 1타, 선택은 모션 매핑 재사용) + `KeyboardAdapter` `.edit` 배선 + 골든 57행. 범위: `x`, d/c/y + charwise 8모션, cw→ce 특례, `dd/cc/yy`, `j k G gg`, `diw/ciw/yiw`. 미지원(aw·따옴표·괄호쌍·Visual selection)은 `nil` → 스킵+로그. 설계 결정 4건은 아래 "진행 중 컨텍스트" 참조. **도그푸딩 미완**.
 - [x] **단계 0 — 사전 실측 2건 완료** (2026-07-26 실기기): ① 카운트 폭탄 — 100j 1초 이내·9999j 수 초 폭주(비치볼), 킬스위치 발동 즉시지만 in-flight 못 멈춤, 버스트 중 타이핑 순서 역전 실증, Notion 이벤트 드랍 → **실행 중단 래치 단계 4 승격 확정** ([결정](../../decisions/references/20260726_count-burst-abort-latch-promotion.md)). ② undo — 선택+잘라내기/붙여넣기/새줄 시퀀스 전부 1 undo 단위, change만 삭제+타이핑 분리 → **u=Cmd-Z 유지·시퀀스 설계 자유 확정** ([결정](../../decisions/references/20260726_undo-unit-cmdz-policy.md)).
