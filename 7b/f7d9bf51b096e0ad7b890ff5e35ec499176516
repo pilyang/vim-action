@@ -1,0 +1,33 @@
+.claude/skills/decisions/SKILL.md
+  s_d4ca90840ec96a::t_adfa12ac099d5d 107
+  s_d4ca90840ec96a::t_d9f5e1799c4b3c 108
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_d4ca90840ec96a::t_3b325751330f89 36
+  s_d4ca90840ec96a::t_b0facfa027083b 6
+  s_d4ca90840ec96a::t_859bddfe15b183 26,28
+  s_d4ca90840ec96a::t_416308457a03b6 32-33
+.claude/skills/decisions/references/20260728_edit-boundary-saturation-accepted-edges.md
+  s_d4ca90840ec96a::t_20a817805f41d3 1-38
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_d4ca90840ec96a::t_89667316272078 3
+  s_d4ca90840ec96a::t_63ff19661f991d 43
+  s_d4ca90840ec96a::t_150f4f89e685c2 45
+.claude/skills/decisions/references/20260728_linewise-visual-line-wrap-accepted-edge.md
+  s_d4ca90840ec96a::t_0381535a1c97d6 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "7bf7d9bf51b096e0ad7b890ff5e35ec499176516",
+  "prompts": {},
+  "sessions": {
+    "s_d4ca90840ec96a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a4cda83b-f47d-4c69-8f38-ea787bce7ceb",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
