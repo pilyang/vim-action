@@ -52,12 +52,17 @@ struct CommandMappingFixture: Sendable, CustomTestStringConvertible {
     var testDescription: String { vim }
 
     /// 진입점 선택까지 픽스처가 안다 — 테스트 본문이 분기를 들지 않게.
+    ///
+    /// paste는 실행 중단 래치를 위해 **원자 그룹**으로 갈라져 오지만 여기서는 평탄화해서
+    /// 비교한다 — 골든이 고정하는 것은 "어떤 키가 어떤 순서로 나가는가"이고, 그룹 경계는
+    /// 아래 `pasteSplitsIntoAbortableGroups`가 따로 본다. 이 분리 덕에 그룹화가 매핑을
+    /// 바꾸지 않았음이 기존 골든 전부로 확인된다.
     var actual: [KeyStroke]? {
         guard case .paste(let before, let count) = action, let wise else {
             return CommandKeyMapper.keyStrokes(for: action, family: .textArea)
         }
-        return CommandKeyMapper.pasteStrokes(
-            before: before, count: count, wise: wise, family: .textArea)
+        return CommandKeyMapper.pasteStrokeGroups(
+            before: before, count: count, wise: wise, family: .textArea)?.flatMap { $0 }
     }
 }
 
@@ -251,6 +256,31 @@ struct CommandKeyMapperTests {
             #expect(full?.allSatisfy { $0 == arrow } == true, "forward: \(forward)")
             #expect(full?.count == (half?.count ?? 0) * 2, "forward: \(forward)")
         }
+    }
+
+    /// paste만 **원자 그룹이 여럿**이다 — 액션 1개 안에서 카운트가 곱해지는 유일한 액션이라
+    /// (`9999p` = `Cmd-V` 9,999타) 실행 중단 래치가 파고들 틈을 매퍼가 직접 낸다.
+    ///
+    /// 가를 수 없는 것은 `접두 + 첫 Cmd-V` 하나뿐이다: 접두만 게시되고 끊기면 붙여넣기 없이
+    /// 캐럿만 움직이는 조용한 오동작이 된다. 그 뒤의 `Cmd-V`는 각각 독립이라 어디서 끊겨도
+    /// "덜 붙여넣음"으로 끝난다.
+    @Test("paste는 [접두+첫 Cmd-V] + 낱개 Cmd-V 그룹으로 갈라진다")
+    func pasteSplitsIntoAbortableGroups() {
+        let groups = CommandKeyMapper.pasteStrokeGroups(
+            before: false, count: 3, wise: .linewise, family: .textArea)
+
+        #expect(groups?.count == 3)
+        #expect(groups?.first == [cmdRight, right, cmdLeft, pasteKey], "접두는 첫 붙여넣기와 한 몸")
+        #expect(groups?.dropFirst().allSatisfy { $0 == [pasteKey] } == true)
+    }
+
+    /// count 1은 그룹도 1개다 — 낱개 반복분이 없으므로 `count - 1`이 음수 개수로 새지 않는다.
+    @Test("count 1 paste는 단일 그룹이다")
+    func singlePasteIsOneGroup() {
+        let groups = CommandKeyMapper.pasteStrokeGroups(
+            before: true, count: 1, wise: .charwise, family: .textArea)
+
+        #expect(groups == [[pasteKey]])
     }
 
     @Test("wise 휴리스틱 — 끝 개행이 linewise를 가른다", arguments: pasteWiseFixtures)

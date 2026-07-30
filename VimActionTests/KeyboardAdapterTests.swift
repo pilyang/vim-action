@@ -455,3 +455,105 @@ struct KeyboardAdapterTests {
         #expect(posted.allSatisfy { SyntheticEventMarker.isMarked($0) })
     }
 }
+
+/// 실행 중단 래치가 어댑터에서 실제로 게시를 끊는가.
+///
+/// 수집기 seam(`ActionExecutor(postEvent:)`)이 두 역할을 겸한다 — 무엇이 나갔는지 세면서
+/// **동시에 중단 신호를 세운다**. 그래야 "게시가 시작된 뒤 중단됐다"는 실제 상황을 headless로
+/// 재현할 수 있다 (실기기에서는 킬스위치·새 키가 그 자리를 맡는다).
+struct KeyboardAdapterAbortTests {
+    /// dispatch와 실행 사이에 다음 키가 들어온 경우 — 한 이벤트도 나가면 안 된다.
+    @Test("이미 밀려난 실행은 아무것도 게시하지 않는다")
+    func supersededRunPostsNothing() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute(Array(repeating: .move(.charLeft), count: 20), isCurrent: { false })
+
+        #expect(posted.isEmpty)
+    }
+
+    /// 폭주의 핵심 계약 — 중단 신호가 서면 **잔여는 게시되지 않는다**. 첫 청크는 이미
+    /// 나갔으므로 0건은 아니고, 전량(50 스트로크 = 100 이벤트)에는 한참 못 미쳐야 한다.
+    @Test("중단되면 잔여 청크가 게시되지 않는다")
+    func abortDiscardsRemainingChunks() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        // 한 이벤트라도 나가면 곧바로 밀려난 것으로 본다.
+        adapter.execute(
+            Array(repeating: .move(.charLeft), count: 50), isCurrent: { posted.isEmpty })
+
+        #expect(!posted.isEmpty, "첫 청크는 지연 없이 나간다")
+        #expect(posted.count < 100, "잔여가 폐기됐다")
+    }
+
+    /// 원자 그룹 제약 A — Visual `y`가 내는 `[.edit(.yank, .selection), .clearSelection]`
+    /// 사이에서는 절대 끊지 않는다. 끊기면 **살아 있는 선택이 Normal로 넘어오고**, 그 상태의
+    /// `x`(`Shift-→, Cmd-X`)가 선택을 통째로 잘라낸다.
+    ///
+    /// 청크 경계가 정확히 쌍 한가운데 오도록 모션으로 패딩한 뒤, 첫 이벤트에서 중단시킨다.
+    @Test("yank(selection)과 clearSelection 사이는 중단되지 않는다")
+    func selectionYankAndClearAreNeverSplit() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        let actions: [VimAction] =
+            Array(repeating: .move(.charLeft), count: 7)
+            + [.edit(.yank, .selection), .clearSelection]
+
+        adapter.execute(actions, isCurrent: { posted.isEmpty })
+
+        // 9 스트로크 전부 = 18 이벤트. 쌍이 갈렸다면 `Cmd-C`에서 끊겨 16건이 됐을 것이다.
+        #expect(posted.count == 18)
+        #expect(keyCodes(of: posted).suffix(2) == [Int64(kVK_LeftArrow), Int64(kVK_LeftArrow)])
+        #expect(posted.suffix(2).allSatisfy { $0.flags.isDisjoint(with: .maskCommand) })
+    }
+
+    /// 위 테스트의 대조군 — 잠금이 없는 배치에서는 같은 지점에서 실제로 끊긴다.
+    /// (없으면 "쌍이 안 갈렸다"가 "애초에 끊길 일이 없었다"와 구분되지 않는다.)
+    @Test("잠금이 없는 액션 사이에서는 같은 지점에서 끊긴다")
+    func unlockedBoundaryDoesSplit() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute(
+            Array(repeating: .move(.charLeft), count: 9), isCurrent: { posted.isEmpty })
+
+        #expect(posted.count < 18)
+    }
+
+    /// 원자 그룹 제약 B — `.paste`는 액션 **1개** 안에서 카운트가 곱해지므로 액션 내부가
+    /// 갈라져야 끊긴다. 단, `접두 + 첫 Cmd-V`만은 한 몸이다: 접두만 나가고 끊기면 붙여넣기
+    /// 없이 캐럿만 움직이는 조용한 오동작이 된다.
+    @Test("paste는 내부에서 끊기되 접두와 첫 Cmd-V는 함께 나간다")
+    func pasteSplitsInsideButKeepsPrefixWithFirstPaste() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.paste(before: false, count: 20)], isCurrent: { posted.isEmpty })
+
+        let codes = keyCodes(of: posted)
+        #expect(codes.prefix(4) == [
+            Int64(kVK_RightArrow), Int64(kVK_RightArrow),  // charwise 접두
+            Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),  // 첫 붙여넣기 — 같은 청크
+        ])
+        let pastes = codes.filter { $0 == Int64(kVK_ANSI_V) }.count / 2
+        #expect(pastes >= 1, "붙여넣기 없이 접두만 나가지 않는다")
+        #expect(pastes < 20, "잔여 Cmd-V가 폐기됐다")
+    }
+
+    /// 중단은 게시 **여부**만 가르고 내용은 바꾸지 않는다 — 중단이 없으면 청크 분할 전과
+    /// 똑같은 시퀀스가 나온다 (청크가 순서를 흔들거나 이벤트를 빠뜨리지 않는다).
+    @Test("중단이 없으면 청크 분할과 무관하게 전량이 순서대로 나간다")
+    func uninterruptedRunPostsEverythingInOrder() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute(Array(repeating: .move(.charLeft), count: 20))
+
+        #expect(posted.count == 40)
+        #expect(keyCodes(of: posted).allSatisfy { $0 == Int64(kVK_LeftArrow) })
+        #expect(posted.allSatisfy { SyntheticEventMarker.isMarked($0) })
+    }
+}
