@@ -131,3 +131,84 @@ struct ExecutionWiringTests {
         }
     }
 }
+
+/// 실행 중단 래치를 **세우는 쪽**의 배선 — 어댑터가 그것을 어떻게 소비하는지는
+/// `KeyboardAdapterAbortTests`가 본다.
+///
+/// 무효화 지점 누락은 조용한 고장이다: 킬스위치를 눌러도 문서가 계속 바뀌거나, 토글을 껐는데
+/// 출력이 이어지거나, 폭주 중 타이핑이 순서 역전을 일으킨다. 전부 실기기에서만 드러나므로
+/// 여기서 계약으로 고정한다.
+@MainActor
+struct ExecutionAbortWiringTests {
+    private static func controller(_ defaults: UserDefaults) -> EventTapController {
+        EventTapController(
+            defaults: defaults,
+            frontmostAppGate: FrontmostAppGate(
+                notificationCenter: NotificationCenter(), frontmostBundleID: "com.apple.TextEdit"),
+            dispatchActions: { _ in })
+    }
+
+    /// **가장 중요한 한 건**: 우리가 게시한 합성 이벤트는 탭으로 되돌아온다. 그것이 래치를
+    /// 세우면 버스트가 첫 청크 직후 자기 자신을 끊는다 — 무효화가 마커 가드 **뒤**여야 하는 이유.
+    @Test("마커 찍힌 합성 이벤트는 실행을 끊지 않는다")
+    func markedSyntheticEventDoesNotAbort() throws {
+        try withTemporaryDefaults { defaults in
+            let controller = Self.controller(defaults)
+            let run = controller.executionAbort.beginRun()
+
+            let synthetic = try keyDown(kVK_ANSI_H)
+            SyntheticEventMarker.mark(synthetic)
+            #expect(controller.handleKeyDown(synthetic) != nil, "합성 이벤트는 통과")
+
+            #expect(controller.executionAbort.isCurrent(run), "우리 출력이 우리 버스트를 끊으면 안 된다")
+        }
+    }
+
+    /// 결정 종류를 가리지 않는다 — 실증된 순서 역전(`9999j` 중 `i`+`abc`)의 `abc`는
+    /// passthrough라, replace만 보면 목표를 못 이룬다.
+    @Test("passthrough·swallow·replace 어느 사용자 키든 실행을 끊는다")
+    func anyUserKeyAbortsInFlightExecution() throws {
+        try withTemporaryDefaults { defaults in
+            let controller = Self.controller(defaults)
+
+            // passthrough (Insert 타이핑)
+            let space = try keyDown(kVK_Space)
+            var run = controller.executionAbort.beginRun()
+            #expect(controller.handleKeyDown(space) != nil)
+            #expect(!controller.executionAbort.isCurrent(run))
+
+            // swallow (Esc — Normal 진입)
+            let escape = try keyDown(kVK_Escape)
+            run = controller.executionAbort.beginRun()
+            #expect(controller.handleKeyDown(escape) == nil)
+            #expect(!controller.executionAbort.isCurrent(run))
+        }
+    }
+
+    /// off가 통과만 시키고 이미 나가던 출력은 끝까지 소진하면 "껐는데 문서가 계속 바뀐다"가 된다.
+    @Test("마스터 토글 off는 게시 중인 실행을 끊는다")
+    func togglingOffAbortsInFlightExecution() throws {
+        try withTemporaryDefaults { defaults in
+            let controller = Self.controller(defaults)
+            let run = controller.executionAbort.beginRun()
+
+            controller.isInterceptionEnabled = false
+
+            #expect(!controller.executionAbort.isCurrent(run))
+        }
+    }
+
+    /// 단계 0이 실증한 킬스위치의 한계 — 발동은 즉시였지만 이미 게시된 이벤트는 끝까지
+    /// 소진됐다. 이 배선이 그 창을 닫는다.
+    @Test("킬스위치는 게시 중인 실행을 끊는다")
+    func killSwitchAbortsInFlightExecution() throws {
+        try withTemporaryDefaults { defaults in
+            let controller = Self.controller(defaults)
+            let run = controller.executionAbort.beginRun()
+
+            controller.triggerKillSwitch()
+
+            #expect(!controller.executionAbort.isCurrent(run))
+        }
+    }
+}
