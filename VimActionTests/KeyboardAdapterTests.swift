@@ -11,8 +11,19 @@ import VimEngine
 
 /// 게시 함수를 가로챈 어댑터 — 실제 키를 테스트 머신에 주입하지 않는다.
 /// CGEvent **생성**은 TCC 권한이 필요 없어 headless로 돈다.
-private func makeAdapter(collecting posted: @escaping @Sendable (CGEvent) -> Void) -> KeyboardAdapter {
-    KeyboardAdapter(executor: ActionExecutor(postEvent: posted))
+///
+/// 클립보드도 **항상 주입한다** — 프로덕션 기본값으로 흘러가면 `.paste` 테스트가 개발자의
+/// 실제 클립보드를 읽어 비결정적이 된다(`defaults` 주입과 같은 이유).
+/// `changeCount`도 주입한다 — 기본값은 **변하지 않는** 카운터라 "우리 편집 기억"이 발동하지
+/// 않고 클립보드 휴리스틱만 쓰인다. 기억 경로는 그것을 검증하는 테스트가 직접 올린다.
+private func makeAdapter(
+    clipboard wise: PasteWise? = .charwise,
+    changeCount: @escaping @Sendable () -> Int = { 0 },
+    collecting posted: @escaping @Sendable (CGEvent) -> Void
+) -> KeyboardAdapter {
+    KeyboardAdapter(
+        executor: ActionExecutor(postEvent: posted),
+        pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount))
 }
 
 private func keyCodes(of events: [CGEvent]) -> [Int64] {
@@ -73,14 +84,21 @@ struct KeyboardAdapterTests {
         adapter.execute([
             // 지원하는 `.edit`이라도 이 계열에서 미지원인 범위는 같은 스킵 경로다.
             .edit(.change, .textObject(.quote(.double, .inner))),
-            .paste(before: false, count: 1),
-            .openLine(above: false),
-            .undo,
-            .redo,
-            .scroll(.halfPage, forward: true),
             // `V`→`v`는 줄 반올림에 역연산이 없어 미지원이다 — 무게시가 아니라 정직한 스킵.
             .switchSelectionWise(linewise: false),
         ])
+
+        #expect(posted.isEmpty)
+    }
+
+    /// 클립보드에 텍스트가 없으면 `p`는 **미지원이 아니라** "붙여넣을 것이 없음"이다 —
+    /// 어느 쪽이든 게시는 0건이지만, 접두만 나가면 붙여넣기 없이 캐럿이 움직이는 오동작이 된다.
+    @Test("텍스트 없는 클립보드의 paste는 게시 0건이다")
+    func pasteWithoutClipboardTextPostsNothing() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(clipboard: nil) { posted.append($0) }
+
+        adapter.execute([.paste(before: false, count: 1), .paste(before: true, count: 3)])
 
         #expect(posted.isEmpty)
     }
@@ -91,12 +109,210 @@ struct KeyboardAdapterTests {
         let adapter = makeAdapter { posted.append($0) }
 
         adapter.execute([
-            .paste(before: false, count: 1),
+            .edit(.delete, .textObject(.pair(.paren, .around))),
             .move(.charRight),
-            .undo,
+            .switchSelectionWise(linewise: false),
         ])
 
         #expect(keyCodes(of: posted) == [Int64(kVK_RightArrow), Int64(kVK_RightArrow)])
+    }
+
+    /// `o` 배선 — 줄 끝으로 간 뒤 개행. 엔진이 이미 Insert로 전이했으므로 뒤에 붙일 키가 없다.
+    @Test("o는 Cmd-→ 뒤 Return을 낸다")
+    func openLineBelowPostsLineEndThenReturn() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.openLine(above: false)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_Return), Int64(kVK_Return),
+            ])
+        #expect(posted.prefix(2).allSatisfy { $0.flags == .maskCommand })
+        // `Return`은 맨 키다 — Cmd가 실리면 앱별 전용 단축키로 나간다.
+        #expect(posted.suffix(2).allSatisfy { $0.flags.isDisjoint(with: [.maskCommand, .maskShift]) })
+    }
+
+    /// `O`는 **명령 키로 끝나지 않는다** — 개행이 현재 줄을 아래로 밀고, 새로 생긴 빈 줄로
+    /// `↑`가 올라가야 한다. 이 3타 순서가 첫 줄에서도 맞는 것이 설계의 요점이다.
+    @Test("O는 Cmd-←, Return, ↑ 3타를 순서대로 낸다")
+    func openLineAbovePostsThreeStrokesEndingWithUp() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.openLine(above: true)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_Return), Int64(kVK_Return),
+                Int64(kVK_UpArrow), Int64(kVK_UpArrow),
+            ])
+        #expect(posted.suffix(2).allSatisfy { $0.flags.isDisjoint(with: [.maskCommand, .maskShift]) })
+    }
+
+    @Test("u는 Cmd-Z, Ctrl-r은 Shift-Cmd-Z다")
+    func undoRedoPostCommandZ() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.undo, .redo])
+
+        #expect(keyCodes(of: posted).allSatisfy { $0 == Int64(kVK_ANSI_Z) })
+        #expect(posted.prefix(2).allSatisfy { $0.flags == .maskCommand })
+        #expect(posted.suffix(2).allSatisfy { $0.flags == [.maskShift, .maskCommand] })
+    }
+
+    /// 스크롤은 화살표 반복이다 — 페이지 키가 뷰만 옮기고 다음 모션에 되돌아오기 때문이다.
+    /// **modifier가 하나도 없어야** 한다: Shift가 새면 스크롤이 선택이 되고, Cmd가 새면
+    /// 문서 끝으로 튄다.
+    @Test("스크롤은 화살표 반복이고 full은 half의 2배다")
+    func scrollPostsArrowRepetition() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([.scroll(.halfPage, forward: true)])
+        let half = keyCodes(of: posted)
+        posted = []
+        adapter.execute([.scroll(.fullPage, forward: false)])
+        let full = keyCodes(of: posted)
+
+        // keyDown/keyUp 쌍이라 이벤트 수는 스트로크의 2배다.
+        #expect(half == Array(repeating: Int64(kVK_DownArrow), count: 15 * 2))
+        #expect(full == Array(repeating: Int64(kVK_UpArrow), count: 30 * 2))
+        #expect(posted.allSatisfy { $0.flags.isDisjoint(with: [.maskCommand, .maskShift]) })
+    }
+
+    /// 우리가 낸 `dd`가 클립보드를 쓰면 뒤따르는 `p`는 **끝 개행 휴리스틱을 쓰지 않는다** —
+    /// Notion처럼 끝 개행을 안 붙이는 앱에서 linewise 내용이 charwise로 오판되던 것을 막는다.
+    @Test("직전 dd 뒤의 p는 클립보드가 charwise로 보여도 linewise로 붙여넣는다")
+    func lineEditIsRememberedAsLinewise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        // 클립보드는 charwise로 보인다(Notion이 끝 개행을 안 붙인 상황).
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+        posted = []
+        count += 1  // 대상 앱이 잘라내기를 처리해 클립보드를 썼다.
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // linewise `p` 접두 = `Cmd-→, →, Cmd-←` 뒤에 `Cmd-V`.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 기억이 내용을 설명하지 못하면 휴리스틱으로 돌아간다 — 우리 편집 뒤에 **다른 무언가가**
+    /// 클립보드를 덮었으면(2회 이상 증가) 그 내용은 더 이상 우리 것이 아니다.
+    @Test("우리 편집 뒤 외부 복사가 끼면 휴리스틱으로 폴백한다")
+    func externalCopyAfterOurEditFallsBackToHeuristic() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+        posted = []
+        count += 2  // 우리 잘라내기 + 외부 복사.
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // charwise `p` = `→` 뒤에 `Cmd-V`.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// `cc`는 줄 끝까지만 선택해 개행을 남기지 않는다 — 내용이 실제로 charwise이므로
+    /// 줄 단위로 기억하면 안 된다.
+    @Test("change는 줄 범위여도 linewise로 기억하지 않는다")
+    func changeIsNotRememberedAsLinewise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.change, .line(count: 1))])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// charwise `3p` — 위치 접두는 **1회만**이고 `Cmd-V`만 반복한다. 접두가 반복되면
+    /// 두 번째 붙여넣기가 한 칸씩 밀린 곳으로 간다.
+    @Test("charwise 3p는 → 1타 뒤 Cmd-V 3연타다")
+    func charwisePasteRepeatsOnlyTheCommandKey() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(clipboard: .charwise) { posted.append($0) }
+
+        adapter.execute([.paste(before: false, count: 3)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+        // 접두 `→`에 Shift가 새면 선택이 되고 뒤이은 `Cmd-V`가 그 선택을 덮어쓴다.
+        #expect(posted.prefix(2).allSatisfy { $0.flags.isEmpty })
+        #expect(posted.dropFirst(2).allSatisfy { $0.flags == .maskCommand })
+    }
+
+    /// linewise `p` — 다음 줄 시작으로 3타 이동 후 붙여넣기. 꼬리 `Cmd-←`가 마지막 줄의
+    /// `→` 포화를 보정하는 멱등 보정자다.
+    @Test("linewise p는 Cmd-→, →, Cmd-← 뒤 Cmd-V다")
+    func linewisePasteNormalizesToNextLineStart() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(clipboard: .linewise) { posted.append($0) }
+
+        adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+        #expect(posted.prefix(2).allSatisfy { $0.flags == .maskCommand })
+        #expect(posted.dropFirst(2).prefix(2).allSatisfy { $0.flags.isEmpty })
+        #expect(posted.suffix(4).allSatisfy { $0.flags == .maskCommand })
+    }
+
+    /// linewise `P`는 줄 시작에서 바로 붙여넣는다 — 클립보드가 개행으로 끝나 현재 줄이 밀린다.
+    @Test("linewise P는 Cmd-← 뒤 Cmd-V다")
+    func linewisePasteBeforePostsLineStartThenPaste() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(clipboard: .linewise) { posted.append($0) }
+
+        adapter.execute([.paste(before: true, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+        #expect(posted.allSatisfy { $0.flags == .maskCommand })
+        #expect(posted.allSatisfy { SyntheticEventMarker.isMarked($0) })
     }
 
     /// 편집 배선 — 매퍼가 낸 시퀀스가 순서 그대로 쌍이 되어 나간다. `dd`는 줄 시작으로
