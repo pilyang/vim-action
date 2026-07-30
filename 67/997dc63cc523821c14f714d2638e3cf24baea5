@@ -1,0 +1,25 @@
+VimAction/CommandKeyMapper.swift
+  s_5f0bdd03af541d::t_b3ebfadabb39d5 15
+  s_5f0bdd03af541d::t_33297cdade1ed7 1-14,16-72,77-109,111-130
+  s_5f0bdd03af541d::t_a8dd2edce75664 73-76
+  s_5f0bdd03af541d::t_d464aca83a2761 110
+VimActionTests/CommandKeyMapperTests.swift
+  s_5f0bdd03af541d::t_2bf016dca8134e 251
+  s_5f0bdd03af541d::t_f2a97ff5b05416 1-250,252-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "67997dc63cc523821c14f714d2638e3cf24baea5",
+  "prompts": {},
+  "sessions": {
+    "s_5f0bdd03af541d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21a63685-f2ea-4752-acfd-a42c41fb268e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
