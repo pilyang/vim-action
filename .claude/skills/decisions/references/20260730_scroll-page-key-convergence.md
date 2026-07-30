@@ -1,3 +1,5 @@
+> Superseded by [20260730_scroll-arrow-repetition.md](20260730_scroll-arrow-repetition.md)
+
 # 스크롤은 half/full 모두 페이지 키로 수렴
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

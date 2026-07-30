@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-26
-- **갱신일**: 2026-07-30 (**단계 2c 코드 완료, 도그푸딩 미완** — 나머지 어휘 배선 + 결정 6건. 다음: 2c 도그푸딩 → PR ready → 단계 2.5)
+- **갱신일**: 2026-07-30 (**단계 2c 도그푸딩 완료 → 수정 2건 반영**: 스크롤을 화살표 반복으로 교체, paste wise를 우리 편집 기억으로 교체. 결정 8건. 다음: 수정분 재도그푸딩 → PR ready → 단계 2.5)
 
 ## 목표
 
@@ -24,24 +24,26 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 - [x] **단계 0 — 사전 실측 2건 완료** (2026-07-26 실기기): ① 카운트 폭탄 — 100j 1초 이내·9999j 수 초 폭주(비치볼), 킬스위치 발동 즉시지만 in-flight 못 멈춤, 버스트 중 타이핑 순서 역전 실증, Notion 이벤트 드랍 → **실행 중단 래치 단계 4 승격 확정** ([결정](../../decisions/references/20260726_count-burst-abort-latch-promotion.md)). ② undo — 선택+잘라내기/붙여넣기/새줄 시퀀스 전부 1 undo 단위, change만 삭제+타이핑 분리 → **u=Cmd-Z 유지·시퀀스 설계 자유 확정** ([결정](../../decisions/references/20260726_undo-unit-cmdz-policy.md)).
 
 ## 남은 것
-- [ ] **단계 2c 도그푸딩 + PR ready** ← **다음 세션이 여기서 시작한다.** 코드는 완료돼 Draft PR에 올라가 있다. 아래 "2c 도그푸딩 확인 항목"을 실기기에서 훑고, 편차를 수용/수정 판정한 뒤 ready 전환 → 병합.
+- [ ] **단계 2c 수정분 재도그푸딩 + PR ready** ← **다음 세션이 여기서 시작한다.** 1차 도그푸딩은 끝났고 거기서 나온 수정 2건이 코드에 반영돼 있다(검증 3종 그린). 재확인할 것은 아래 "2c 재도그푸딩 확인 항목" 3건뿐이며, 통과하면 Draft → ready 전환 후 병합.
 - [ ] **단계 2.5 — 실행 중단 래치** (2026-07-28 리뷰 트리아지로 단계 4에서 앞당김): 방향은 청크 게시 + 청크 사이 중단 체크(단계 0 실측 확정), 순서 역전 방지("새 입력 시 잔여 큐 폐기")·Notion 드랍 완화 겸용 검토, 클램프 값 재검토 포함. **단계 2 직후에 두는 이유**: `.edit` 배선으로 버스트가 파괴적(`Cmd-X`로 종결)으로 격상됐는데, Visual까지 본 뒤 설계해야 "선택 확장 도중 중단" 의미론의 재작업이 없다 — 단계 3(읽기 전용 AX, 래치 무관)보다는 앞선다.
 - [ ] **단계 3 — 요소 리졸버 + TextField 분기**: `AXObserver`(kAXFocusedUIElementChanged) + NSWorkspace 활성화로 focusedRole 캐시(콜백은 캐시만 읽음 — 콜백 경량 불변식 위임 ②), TextField 시퀀스 분기(예: `delete(.line)` → `Cmd-A, Delete`), **캐시 충분성 1차 확정**(결정 문서). 앱 최초의 실질 AX 의존(읽기 전용) — 실기기 검증 비중 큼.
 - [ ] **단계 4 — 안전망 회귀 + 게이트 해제**: 킬스위치 회귀 확인(래치와의 상호작용 포함), 미지원 스킵 로그 전수 확인 → `.replace` 무로그 삼킴 해소 → 릴리스 금지 게이트 해제 결정 문서.
 
 ## 진행 중 컨텍스트
 
-- **단계 2c 코드 완료** (2026-07-30, Draft PR). 신규 `CommandKeyMapper`(진입점 2개 — openLine·undo·redo·scroll / paste) + `Clipboard`(`nonisolated`, 패스트보드 읽기만) + 어댑터의 `readPasteWise` 주입·`Mapping` 3갈래. **엔진·모션·편집·Visual 매퍼·게시 인프라 무변경.** 시퀀스: `o`=`Cmd-→,Return`, `O`=`Cmd-←,Return,↑`, `u`=`Cmd-Z`, `Ctrl-r`=`Shift-Cmd-Z`, 스크롤=`PageDown`/`PageUp`(half·full 수렴), paste=wise별 접두 1회+`Cmd-V`×count.
-- **단계 2c 설계 결정 6건**: [매퍼 신설](../../decisions/references/20260730_command-key-mapper-scope.md), [o/O 시퀀스](../../decisions/references/20260730_openline-return-sequence.md), [paste wise 휴리스틱](../../decisions/references/20260730_paste-wise-trailing-newline-heuristic.md), [스크롤 수렴](../../decisions/references/20260730_scroll-page-key-convergence.md), [Cmd-Z ANSI 위험 확대](../../decisions/references/20260730_cmd-z-ansi-layout-escalation.md), [비텍스트 UI 발사](../../decisions/references/20260730_native-command-non-text-ui-hazard.md). 설계 리뷰에서 잡혀 반영된 것 3건: linewise `p`에 꼬리 `Cmd-←`가 없으면 **마지막 줄에서 텍스트를 훼손**한다(추가함), 텍스트 없는 클립보드의 `p`를 미지원으로 집계하면 **단계 4 게이트 심사자가 paste를 미구현으로 읽는다**(스킵 2종 분리), `Cmd-Z`의 AZERTY 위험은 기존 ANSI 결정이 수용한 등급과 **다르다**(별 결정으로 승격).
-- **2c 도그푸딩 확인 항목 (우선순위 순)**:
-  1. **`ddp`의 stale 클립보드 경합** — wise 판정은 `p` 매핑 시점에 읽지만 `dd`의 `Cmd-X`는 대상 앱이 **비동기로** 처리하며 패스트보드를 쓴다. 오판되면 `"line\n"`이 charwise로 분류돼 `→`+`Cmd-V`가 줄 중간을 쪼갠다. `ddp`가 Vim의 가장 정석 관용구라 최우선. 폴백 후보: `NSPasteboard.changeCount` 폴링 또는 읽기 전 짧은 정착 지연
-  2. `o`/`O` 직후 **즉시 타이핑** — 통과되는 첫 글자가 큐의 `Cmd-→, Return`보다 먼저 착지하는 순서 역전(`cw`는 통과했지만 `o`+타이핑이 훨씬 반사적이다)
-  3. `O`의 `↑` **착지 열** — 20열쯤에서 `O`를 눌러 새 빈 줄의 0열에 오는지(sticky-column이 `Cmd-←`+`Return`으로 무효화된다는 가정. TextKit은 성립, Chromium/Electron은 미확인)
-  4. **스크롤 캐럿** — 네이티브·Notion·Chrome 3앱에서 캐럿이 따라오는지, 안 따라오면 다음 모션 키에 뷰가 되돌아오는지. `Opt-PageDown`/`Opt-PageUp` A/B도 함께(네이티브는 `pageDown:`으로 캐럿 동반, 웹에서는 미바인딩이면 스크롤 자체가 사라질 위험)
-  5. **소프트 랩 문단**에서 `O`와 linewise paste — `Cmd-←`/`Cmd-→`가 시각 행 연산이라 `O`는 빈 줄을 아예 못 만들고 문단이 하드 분리된다
-  6. `Ctrl-O`(`insertNewlineIgnoringFieldEditor:`) 측정 — 네이티브 필드의 Return-submit 회피 수단이 되는지, 캐럿이 개행 앞/뒤 어디에 남는지(`O` 프리미티브인지 `o` 프리미티브인지가 갈린다)
-  7. **한글 IME** — 조합 중 Esc 후 `o`/`p`가 조합을 깨끗이 커밋하는지, 첫 합성 스트로크를 삼키지 않는지
-  8. Electron 앱 redo — `Shift-Cmd-Z` 대신/추가로 `Cmd-Y`만 받는 앱이 있는지
+- **단계 2c 코드 완료** (2026-07-30, Draft PR). 신규 `CommandKeyMapper`(진입점 2개 — openLine·undo·redo·scroll / paste) + `Clipboard`(`nonisolated`, 패스트보드 읽기만) + `PasteWiseResolver` 주입·`Mapping` 3갈래. **엔진·모션·편집·Visual 매퍼·게시 인프라 무변경.** 시퀀스: `o`=`Cmd-→,Return`, `O`=`Cmd-←,Return,↑`, `u`=`Cmd-Z`, `Ctrl-r`=`Shift-Cmd-Z`, **스크롤=`↓`/`↑` 반복(half 15·full 30)**, paste=wise별 접두 1회+`Cmd-V`×count(wise는 **우리 편집 기억 우선, 끝 개행 휴리스틱은 폴백**).
+- **단계 2c 설계 결정 8건**: [매퍼 신설](../../decisions/references/20260730_command-key-mapper-scope.md), [o/O 시퀀스](../../decisions/references/20260730_openline-return-sequence.md), [paste wise 휴리스틱](../../decisions/references/20260730_paste-wise-trailing-newline-heuristic.md), [Cmd-Z ANSI 위험 확대](../../decisions/references/20260730_cmd-z-ansi-layout-escalation.md), [비텍스트 UI 발사](../../decisions/references/20260730_native-command-non-text-ui-hazard.md), 그리고 도그푸딩이 낳은 2건 — [스크롤 화살표 반복](../../decisions/references/20260730_scroll-arrow-repetition.md)(스크롤 수렴 결정을 **supersede**), [wise는 우리 편집 기억](../../decisions/references/20260730_paste-wise-from-our-own-edit.md). 설계 리뷰에서 잡혀 반영된 것 3건: linewise `p`에 꼬리 `Cmd-←`가 없으면 **마지막 줄에서 텍스트를 훼손**한다(추가함), 텍스트 없는 클립보드의 `p`를 미지원으로 집계하면 **단계 4 게이트 심사자가 paste를 미구현으로 읽는다**(스킵 2종 분리), `Cmd-Z`의 AZERTY 위험은 기존 ANSI 결정이 수용한 등급과 **다르다**(별 결정으로 승격).
+- **2c 1차 도그푸딩 결과 (2026-07-30 실기기)** — 8항목 중 6건 통과, **2건이 수정으로 이어졌다**:
+  - 통과: `o`/`O` 직후 즉시 타이핑(순서 역전 없음), `O`의 `↑` 착지 열, 한글 IME(조합 중 Esc 후 `o`/`p`), Electron redo(`Shift-Cmd-Z` 수용). 소프트 랩 문단의 `O`는 **예측대로** 빈 줄을 못 만들고 문단을 하드 분리 — 수용 편차 확인.
+  - **수정 ① 스크롤** — 페이지 키가 만든 스크롤이 **다음 모션 한 번에 원위치**함을 정량 확인(AX). Vim 레이어는 모든 키가 모션이라 죽은 기능이었다 → 화살표 반복(15/30)으로 교체. `Opt-Page*`·`Shift-PageDown`·스크롤 휠 모두 실측 후 기각. [결정](../../decisions/references/20260730_scroll-arrow-repetition.md)
+  - **수정 ② Notion `ddp`** — 지목했던 stale 경합이 **아니었다**(느리게 눌러도 재현). 비파괴 `yy`로 클립보드를 실측해 원인 확정: **Notion은 블록을 잘라내도 끝 개행을 안 붙인다**(TextEdit 44B·개행 1 vs Notion 12B·개행 0) → 우리 편집을 `changeCount`와 함께 기억하는 방식으로 교체. [결정](../../decisions/references/20260730_paste-wise-from-our-own-edit.md)
+  - **오진 정정**: 1차 관찰에서 "Notion `dd`가 6줄을 지운다"고 봤으나 통제된 재현에서 **선택은 정확히 한 블록**이었다. 그때 읽은 6줄 클립보드는 그 `dd`의 산물이 아니라 이전 내용이 남아 있던 것이다 — **과잉 삭제 버그는 없다.**
+  - **미측정 1건**: `Ctrl-O`(`insertNewlineIgnoringFieldEditor:`)는 우리 엔진이 매핑 없는 키를 **삼켜서**(`VimEngine.swift`의 Normal 최종 fallthrough) 측정이 무효였다. 재려면 **가로채기를 끄고** 재야 한다. 네이티브 필드의 Return-submit 회피 수단이 되는지, 캐럿이 개행 앞/뒤 어디에 남는지가 `o`/`O` 프리미티브 교체 여부를 가른다.
+- **2c 재도그푸딩 확인 항목** (수정분만 — 3건):
+  1. **`Ctrl-d`/`Ctrl-u`/`Ctrl-f`/`Ctrl-b`** — 캐럿이 따라오는지, 큰 창에서 체감이 쓸 만한지(15/30이 근사라 창 크기에 따라 약할 수 있다). 네이티브·Notion·브라우저 3앱. Notion은 **버스트 드랍**이 있어 30타가 온전히 도달하는지 함께 본다
+  2. **Notion `ddp`/`yyp`** — 이제 줄이 쪼개지지 않고 줄 단위로 붙는지. TextEdit에서도 회귀 없는지
+  3. **외부 복사 폴백** — 다른 앱에서 `Cmd-C`로 복사한 뒤 `p`(휴리스틱 경로가 살아 있는지), 그리고 `dd` **직후 외부 복사** 후 `p`(기억이 폐기되고 폴백하는지)
+- **측정 도구 (다음 세션이 재사용할 것)**: 화면 기록 권한이 없어 스크린샷은 못 쓰지만, **AX로 정량 관측이 된다** — 터미널이 이미 Accessibility 권한을 갖고 있어 `AXFocusedUIElement`의 `AXSelectedTextRange`(캐럿)와 `AXVisibleCharacterRange`(보이는 줄 범위)를 읽을 수 있다(Notion도 `AXTextArea`를 연다). 여기에 `osascript`의 `key code` 주입을 붙이면 **주입 → 관측 → 판정** 루프가 사용자 눈 없이 돈다. 파괴적 검증은 `dd` 대신 **같은 선택 시퀀스의 `yy`**로 대체하면 비파괴로 같은 것을 잰다.
 - **도그푸딩 버그 오인 금지 (2c 추가분)** — 전부 설계상 수용된 편차다:
   - **charwise `p`는 줄 끝·빈 줄에서 다음 줄 시작에 붙여넣는다** (`→`가 개행을 넘는다 — 줄 끝 `x`의 줄 병합과 같은 계열)
   - **linewise `p`는 마지막 줄에서 `P`처럼 위에 붙여넣는다** — `Cmd-←` 보정자의 **의도된** 퇴행이다(그것이 없으면 텍스트 훼손이었다)
@@ -51,7 +53,7 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
   - **소프트 랩 문단에서 `O`는 빈 줄을 아예 안 만든다**, `o`는 문단 중간에 하드 개행을 넣는다
   - **`o`/`O`가 단일행 필드에서 submit, Slack류 컴포저에서 전송**된다(후자는 단계 3 리졸버로도 해소되지 않는다 — M4 프로파일)
   - **Finder·Mail에서 `u`/`p`/`o`가 앱 수준 명령으로 나간다** → 도그푸딩은 스크래치 문서 **+ 스크래치 폴더**에서만(기존 "실문서 금지" 규율의 확대)
-  - **스크롤이 네이티브 앱에서 캐럿을 두고 간다**(다음 모션 키에 뷰가 되돌아온다). Chromium에서는 캐럿도 움직여 앱마다 다르다
+  - **스크롤이 화면을 안 움직이고 캐럿만 내려갈 수 있다** — 15/30줄은 뷰포트 높이를 모르는 근사값이라, 한 화면이 그보다 크면(실측한 창은 118줄이었다) 캐럿이 아래 경계에 닿기 전까지 뷰가 그대로다. 버그가 아니라 근사의 대가이며 M4 프로파일에서 조절값이 된다
   - 기존 목록 유지: change 후 `u` 2회가 정상, Notion 버스트 드랍, Notion `Shift-Cmd-↑/↓` 충돌 6조합(+Visual 4조합), 편집 경계 포화 5종, Visual 후진 편차
 - **단계 2.5 래치 입력 2건 추가 (2c가 만든 것)**: ① `.paste`는 **액션 카운트에 묶이지 않는 첫 액션**이다 — `9999p`는 액션 **1개**로 `Cmd-V` 9,999타 = CGEvent 19,998개이며, all-or-nothing 게이트가 게시 전에 통째로 만든다. 래치의 "청크 게시 + 청크 사이 중단 체크"가 **액션 내부**를 쪼개야 하거나 매퍼에 paste 클램프가 필요하다. ② 스크롤은 비파괴적이면서 가장 값싼 버스트라(`9999 Ctrl-f`) 래치 검증의 안전한 카나리아다.
 - **단계 2a+2b 종료** (2026-07-28, PR #25 `fba92bd` 병합). 신규 순수 매퍼 `VisualKeyMapper`(세션 진입·확장·wise 전환·이탈) + `MotionKeyMapper.selectionStrokes(for:)` 공유 추출 + `EditKeyMapper`의 `.selection` 분기(계열 분기 **밖**) + 어댑터 4케이스 배선. 검증 3종 통과(엔진 무변경, 앱 391 테스트, 빌드) + 실기기 도그푸딩 통과. **엔진·게시 인프라 무변경.** 다음은 **2c**, 그다음 단계 2.5 래치.
