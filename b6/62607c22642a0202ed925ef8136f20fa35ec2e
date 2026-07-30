@@ -1,0 +1,35 @@
+VimActionTests/KeyboardAdapterTests.swift
+  s_cb0f1b23036224::t_e1a912ca4c8847 458-559
+VimAction/CommandKeyMapper.swift
+  s_cb0f1b23036224::t_bfc0043e5544b8 73-81,83,87-88
+  s_cb0f1b23036224::t_630cc729d3e595 46
+VimAction/KeyboardAdapter.swift
+  s_cb0f1b23036224::t_3aaca93529a1c4 106
+  s_cb0f1b23036224::t_8a682a6aef4955 179-181
+  s_cb0f1b23036224::t_c94067887d8a6c 198
+  s_cb0f1b23036224::t_62d6708f72d748 85-91
+  s_cb0f1b23036224::t_b31c9a813fbeba 219-223
+  s_cb0f1b23036224::t_156c29531274ee 39-50,55-68,71,73-74,84,92-105,107-112,127-172
+  s_cb0f1b23036224::t_9774463365347e 245-247,249
+  s_cb0f1b23036224::t_f77d0e308fed86 7
+VimActionTests/CommandKeyMapperTests.swift
+  s_cb0f1b23036224::t_d91e4aae2e67d4 55-59,64-65
+  s_cb0f1b23036224::t_0a5d8ff9fcc2bd 261-284
+  s_cb0f1b23036224::t_9674c53e7d0db2 285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "b662607c22642a0202ed925ef8136f20fa35ec2e",
+  "prompts": {},
+  "sessions": {
+    "s_cb0f1b23036224": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "439f9541-dc82-41f0-a6fb-3a37008187ef",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
