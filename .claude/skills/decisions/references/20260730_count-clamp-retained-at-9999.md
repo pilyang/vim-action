@@ -1,3 +1,5 @@
+> Superseded by [20260731_count-clamp-lowered-to-1000.md](20260731_count-clamp-lowered-to-1000.md)
+
 # 카운트 클램프는 9,999 유지
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
