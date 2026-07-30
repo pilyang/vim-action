@@ -556,4 +556,24 @@ struct KeyboardAdapterAbortTests {
         #expect(keyCodes(of: posted).allSatisfy { $0 == Int64(kVK_LeftArrow) })
         #expect(posted.allSatisfy { SyntheticEventMarker.isMarked($0) })
     }
+
+    /// 재확인 위치의 계약 — **게시 직전**(페이싱 뒤)이다. 체크가 sleep보다 앞이면 무효화
+    /// 뒤에도 청크 하나가 더 나가고, 실기기에서 그 화살표들이 새 사용자 키와 인터리브되는
+    /// 1청크 폭 순서 역전으로 실증됐다. 진입 체크만 통과시키고 첫 flush의 재확인에서
+    /// 밀려나게 하면, 옛 배치는 16건을 게시하고 지금 배치는 0건이어야 한다.
+    @Test("게시 직전에 밀려나면 그 청크도 나가지 않는다")
+    func chunkInvalidatedRightBeforePostIsDiscarded() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        nonisolated(unsafe) var checks = 0
+        adapter.execute(
+            Array(repeating: .move(.charLeft), count: 20),
+            isCurrent: {
+                checks += 1
+                return checks == 1
+            })
+
+        #expect(posted.isEmpty)
+    }
 }

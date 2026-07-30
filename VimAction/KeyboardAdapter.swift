@@ -58,13 +58,27 @@ nonisolated struct KeyboardAdapter: Sendable {
         var postedChunks = 0
 
         /// 미뤄 둔 이벤트를 게시한다. 두 번째 청크부터는 앞에 간격을 둔다.
-        func flush() {
-            guard !pending.isEmpty else { return }
+        ///
+        /// 최신 여부 재확인은 **페이싱 뒤, 게시 직전**이다 — 간격에 잠들어 있는 동안 무효화가
+        /// 오면 이 청크째 폐기된다. 체크가 sleep보다 앞이면 무효화 **뒤에도** 청크 하나가 더
+        /// 나가고, 그 화살표들이 새 사용자 키와 인터리브돼 문서를 오염시킨다 (실기기 실증 —
+        /// 도그푸딩에서 3ms 창이 정확히 1청크 폭의 순서 역전으로 나타났다).
+        /// 반환 false = 이 실행이 밀려남 — 호출자는 즉시 그만둔다.
+        @discardableResult
+        func flush() -> Bool {
+            guard !pending.isEmpty else { return true }
             if postedChunks > 0 { Thread.sleep(forTimeInterval: Self.chunkInterval) }
+            guard isCurrent() else {
+                #if DEBUG
+                Logger.eventTap.debug("실행 중단 — 잔여 폐기 (게시 청크 \(postedChunks, privacy: .public))")
+                #endif
+                return false
+            }
             executor.post(pending)
             pending.removeAll(keepingCapacity: true)
             pendingStrokes = 0
             postedChunks += 1
+            return true
         }
 
         for action in actions {
@@ -104,13 +118,7 @@ nonisolated struct KeyboardAdapter: Sendable {
                 pendingStrokes += group.count
                 // 원자 그룹은 절대 가르지 않는다 — 경계는 그룹 **사이**에만 온다.
                 guard pendingStrokes >= Self.chunkStrokes, !holdsNextAction else { continue }
-                flush()
-                guard isCurrent() else {
-                    #if DEBUG
-                    Logger.eventTap.debug("실행 중단 — 잔여 폐기 (게시 청크 \(postedChunks, privacy: .public))")
-                    #endif
-                    return
-                }
+                guard flush() else { return }
             }
         }
 
