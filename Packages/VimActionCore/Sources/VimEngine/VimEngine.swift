@@ -165,7 +165,7 @@ public struct VimEngine: Sendable {
             }
 
             // 유효 카운트는 두 카운트의 곱 — 2d3w = 6단어. 곱은 개별 카운트의
-            // 9,999 클램프를 우회할 수 있어(9999d9999w ≈ 1e8) 동일 상한으로 다시
+            // 1,000 클램프를 우회할 수 있어(1000d1000w ≈ 1e6) 동일 상한으로 다시
             // 클램프한다 — 소비자가 신뢰하는 카운트 상한을 곱 경로도 지키게 한다.
             let effectiveCount = min((current.count ?? 1) * (current.opCount ?? 1), Self.maxCount)
             // 오퍼레이터 키 반복(dd/cc/yy)은 줄 단위 범위다. 혼합(dc, yd 등)은
@@ -421,7 +421,9 @@ public struct VimEngine: Sendable {
 
     /// 카운트 누적 상한. 무제한이면 Int 오버플로 트랩(시스템 전역 훅 크래시)과
     /// 반복 출력 배열 폭주(탭 콜백 타임아웃) 리스크가 있어 여기서 클램프한다.
-    private static let maxCount = 9_999
+    /// 값은 일상 사용 상한 기준 — 1,000 초과 카운트는 실사용에서 의도가 아니라
+    /// 오타·폭주로 보고, 실행 시간(1,000j도 수 초)이 이미 실용 한계다.
+    private static let maxCount = 1_000
 
     /// digit 하나를 카운트에 누적한다 — 상한 도달 후의 초과 자리 digit은
     /// 무시하고 누적 상태를 유지한다.

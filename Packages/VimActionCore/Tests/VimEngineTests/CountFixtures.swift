@@ -59,12 +59,12 @@ func countMotions(_ fixture: KeySequenceFixture) {
     expectFixture(fixture)
 }
 
-// 카운트 누적은 9,999에서 클램프한다 — 초과 자리 digit은 무시하고 누적 상태를
+// 카운트 누적은 1,000에서 클램프한다 — 초과 자리 digit은 무시하고 누적 상태를
 // 유지한다. 무제한이면 Int 오버플로 트랩(시스템 전역 훅 크래시)과 반복 출력
-// 배열 폭주(탭 콜백 타임아웃) 리스크가 있다.
+// 배열 폭주(탭 콜백 타임아웃) 리스크가 있고, 1,000 초과는 일상 사용 범위 밖이다.
 let countClampFixtures: [KeySequenceFixture] = [
     KeySequenceFixture(
-        "99999j → 9,999로 클램프된 lineDown 반복",
+        "99999j → 1,000으로 클램프된 lineDown 반복",
         startMode: .normal,
         steps: [
             step(.char("9"), .swallow),
@@ -72,7 +72,7 @@ let countClampFixtures: [KeySequenceFixture] = [
             step(.char("9"), .swallow),
             step(.char("9"), .swallow),
             step(.char("9"), .swallow),
-            step(.char("j"), .replace(Array(repeating: VimAction.move(.lineDown), count: 9_999))),
+            step(.char("j"), .replace(Array(repeating: VimAction.move(.lineDown), count: 1_000))),
         ],
         finalMode: .normal
     )
