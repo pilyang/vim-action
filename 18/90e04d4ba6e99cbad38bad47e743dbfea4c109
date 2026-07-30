@@ -1,0 +1,36 @@
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_6247ae69edc006::t_d582177b145773 53
+.claude/skills/plans/SKILL.md
+  s_6247ae69edc006::t_fee1c4b5a970d2 53
+.claude/skills/decisions/references/20260730_paste-wise-from-our-own-edit.md
+  s_6247ae69edc006::t_2bf99be21f18a0 1-45
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_6247ae69edc006::t_d1422d32acf3f0 27
+  s_6247ae69edc006::t_2f4cbccd1415fd 6
+  s_6247ae69edc006::t_0964d2ac32fcce 34
+  s_6247ae69edc006::t_e1d298641b6e6a 35
+  s_6247ae69edc006::t_c727d724ef5ab3 56
+  s_6247ae69edc006::t_6714253c54965c 36-46
+.claude/skills/decisions/SKILL.md
+  s_6247ae69edc006::t_cb681bbf961041 117-118
+.claude/skills/decisions/references/20260730_scroll-page-key-convergence.md
+  s_6247ae69edc006::t_584804e6bc244f 1-2
+.claude/skills/decisions/references/20260730_scroll-arrow-repetition.md
+  s_6247ae69edc006::t_be1a4fcddc0559 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "1890e04d4ba6e99cbad38bad47e743dbfea4c109",
+  "prompts": {},
+  "sessions": {
+    "s_6247ae69edc006": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "89b8252e-5792-4149-90c7-53c3ba296f87",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
