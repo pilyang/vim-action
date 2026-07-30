@@ -1,0 +1,32 @@
+.claude/skills/decisions/SKILL.md
+  s_a1b2e0ea97f8a2::t_794df1c6029ed2 123
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_a1b2e0ea97f8a2::t_cb4ae585e0d588 6
+  s_a1b2e0ea97f8a2::t_1c59fe4c44a240 19
+.claude/skills/architecture/references/mode-engine.md
+  s_a1b2e0ea97f8a2::t_cd6f7df120e8de 28
+.claude/skills/decisions/references/20260730_count-clamp-retained-at-9999.md
+  s_a1b2e0ea97f8a2::t_5a8e6601761fae 1-2
+.claude/skills/plans/SKILL.md
+  s_a1b2e0ea97f8a2::t_1e2c1135b58146 53
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_a1b2e0ea97f8a2::t_cd6f7df120e8de 36,64
+.claude/skills/decisions/references/20260731_count-clamp-lowered-to-1000.md
+  s_a1b2e0ea97f8a2::t_cd5e9805694a1e 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "c0b397214ad375f7fe0435040ecf76a820fb0c51",
+  "prompts": {},
+  "sessions": {
+    "s_a1b2e0ea97f8a2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5d50d90-362d-4027-b7f0-bc2e0b89d95c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
