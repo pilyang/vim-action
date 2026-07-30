@@ -21,17 +21,17 @@ import VimEngine
 nonisolated struct KeyboardAdapter: Sendable {
     private let executor: ActionExecutor
 
-    /// 붙여넣기 단위 판정에 필요한 클립보드 읽기. 클로저인 이유는 `ActionExecutor.postEvent`와
-    /// 같다 — 테스트가 결정적인 값을 주입한다. 실제 패스트보드를 읽으면 테스트가 **개발자의
-    /// 클립보드**에 따라 결과가 갈려 비결정적이 된다.
-    private let readPasteWise: @Sendable () -> PasteWise?
+    /// 붙여넣기 단위 판정. 우리가 게시한 줄 단위 편집을 기억하므로 **상태를 가진 참조 타입**이며,
+    /// 게시 직렬 큐가 단독 소유한다. 주입하는 이유는 `ActionExecutor.postEvent`와 같다 —
+    /// 실제 패스트보드를 읽으면 테스트가 **개발자의 클립보드**에 따라 갈려 비결정적이 된다.
+    private let pasteWise: PasteWiseResolver
 
     init(
         executor: ActionExecutor = ActionExecutor(),
-        readPasteWise: @escaping @Sendable () -> PasteWise? = { Clipboard.pasteWise() }
+        pasteWise: PasteWiseResolver = PasteWiseResolver()
     ) {
         self.executor = executor
-        self.readPasteWise = readPasteWise
+        self.pasteWise = pasteWise
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.
@@ -124,6 +124,9 @@ nonisolated struct KeyboardAdapter: Sendable {
             return .strokes(MotionKeyMapper.keyStrokes(for: motion))
 
         case .edit(let op, let range):
+            // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
+            // 휴리스틱(앱마다 틀린다)에 기대지 않게 그 사실을 기억해 둔다.
+            if Self.isLinewise(op, range) { pasteWise.recordLinewiseEdit() }
             return Self.mapping(EditKeyMapper.keyStrokes(for: op, range: range, family: .textArea))
 
         case .beginSelection, .extendSelection, .switchSelectionWise, .clearSelection:
@@ -135,7 +138,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         case .paste(let before, let count):
             // 텍스트가 없는 클립보드(이미지만 있는 등)는 미지원이 아니라 "붙여넣을 것이 없음"이다.
             // 접두만 게시하면 붙여넣기 없이 캐럿만 움직이는 조용한 오동작이 된다.
-            guard let wise = readPasteWise() else {
+            guard let wise = pasteWise.resolve() else {
                 Logger.eventTap.debug("paste 스킵 — 클립보드에 텍스트가 없다")
                 return .skipped
             }
@@ -145,6 +148,21 @@ nonisolated struct KeyboardAdapter: Sendable {
 
         default:
             return .unsupported
+        }
+    }
+
+    /// 이 편집이 클립보드에 **줄 단위** 내용을 남기는가.
+    ///
+    /// `change`는 제외한다 — `cc`는 마지막 확장을 줄 끝으로 바꿔 개행을 남기지 않으므로
+    /// 내용이 실제로 charwise이고, 그렇게 붙여넣는 것이 맞다.
+    /// `TextRange`에 exhaustive switch를 걸지 않는 것은 매퍼와 같은 계약이다.
+    private static func isLinewise(_ op: VimAction.Operator, _ range: VimAction.TextRange) -> Bool {
+        guard op != .change else { return false }
+        switch range {
+        case .line, .linewiseMotion:
+            return true
+        default:
+            return false
         }
     }
 

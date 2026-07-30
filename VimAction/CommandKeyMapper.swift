@@ -9,9 +9,10 @@ import VimEngine
 
 /// 붙여넣기 단위 — Vim 레지스터의 charwise/linewise에 해당한다.
 ///
-/// v1은 레지스터가 없고 시스템 클립보드가 무명 레지스터라, wise는 저장된 상태가 아니라
-/// **클립보드 내용에서 추론**해야 한다. 끝 개행 휴리스틱이 그 추론이다
-/// (`20260730_paste-wise-trailing-newline-heuristic.md`).
+/// v1은 레지스터가 없고 시스템 클립보드가 무명 레지스터다. 우리가 방금 게시한 편집이라면
+/// wise를 우리가 알고 있고(`PasteWiseResolver`), **외부에서 복사된 내용만** 아래 끝 개행
+/// 휴리스틱으로 추론한다 (`20260730_paste-wise-trailing-newline-heuristic.md`,
+/// `20260730_paste-wise-from-our-own-edit.md`).
 nonisolated enum PasteWise: Equatable, Sendable {
     case charwise
     case linewise
@@ -54,10 +55,12 @@ nonisolated enum CommandKeyMapper {
         case .redo:
             return [redoKey]
 
-        case .scroll(_, let forward):
-            // half/full 모두 같은 시퀀스다 — macOS에 half-page 프리미티브가 없다
-            // (`20260730_scroll-page-key-convergence.md`).
-            return [forward ? pageDown : pageUp]
+        case .scroll(let extent, let forward):
+            // macOS에는 **캐럿을 한 뷰포트만큼 옮기는 키 프리미티브가 없다**. PageUp/PageDown은
+            // 뷰만 옮기고 캐럿을 두고 가며, Vim 레이어는 모든 키가 모션이라 다음 키 한 번에
+            // 스크롤이 통째로 되돌아온다(실측). Vim의 `Ctrl-d`/`Ctrl-f`는 본래 **커서 이동**이므로
+            // 화살표 반복으로 근사한다 (`20260730_scroll-arrow-repetition.md`).
+            return repeated(move(forward ? .lineDown : .lineUp), lineCount(for: extent))
 
         default:
             // `VimAction`에 exhaustive switch를 걸지 않는 것이 계약이다.
@@ -109,16 +112,28 @@ nonisolated enum CommandKeyMapper {
     /// (`20260730_openline-return-sequence.md`).
     private static let openAbove = move(.lineStart) + [returnKey] + move(.lineUp)
 
+    /// 스크롤 1회가 옮길 줄 수. 뷰포트 높이를 모르는 상태의 **근사값**이다 — 실제 높이는
+    /// 요소 리졸버가 AX(`AXVisibleCharacterRange`)로 읽을 수 있게 되는 M5에서 정확해지고,
+    /// 그전까지는 M4 프로파일의 조절값이 된다.
+    private static let halfPageLines = 15
+    private static let fullPageLines = 30
+
+    private static func lineCount(for extent: VimAction.ScrollExtent) -> Int {
+        extent == .halfPage ? halfPageLines : fullPageLines
+    }
+
     /// 모션 스트로크 그대로 — 위치를 잡는 접두에 쓴다. `EditKeyMapper`와 같은 재사용이라
     /// 모션 매핑이 개선되면 이 시퀀스들이 함께 따라온다.
     private static func move(_ motion: Motion) -> [KeyStroke] {
         MotionKeyMapper.keyStrokes(for: motion)
     }
 
-    /// 페이지 키·`Return`은 화살표처럼 레이아웃 무관 고정 키코드다.
+    private static func repeated(_ strokes: [KeyStroke], _ count: Int) -> [KeyStroke] {
+        Array(repeating: strokes, count: count).flatMap { $0 }
+    }
+
+    /// `Return`은 화살표처럼 레이아웃 무관 고정 키코드다.
     private static let returnKey = KeyStroke(kVK_Return)
-    private static let pageUp = KeyStroke(kVK_PageUp)
-    private static let pageDown = KeyStroke(kVK_PageDown)
 
     /// 명령 단축키는 ANSI 키코드라 QWERTY 계열을 가정한다
     /// (`20260727_operator-key-ansi-layout-assumption.md`). **`Cmd-Z`는 그 가정의 위험 등급이

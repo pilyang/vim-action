@@ -14,11 +14,16 @@ import VimEngine
 ///
 /// 클립보드도 **항상 주입한다** — 프로덕션 기본값으로 흘러가면 `.paste` 테스트가 개발자의
 /// 실제 클립보드를 읽어 비결정적이 된다(`defaults` 주입과 같은 이유).
+/// `changeCount`도 주입한다 — 기본값은 **변하지 않는** 카운터라 "우리 편집 기억"이 발동하지
+/// 않고 클립보드 휴리스틱만 쓰인다. 기억 경로는 그것을 검증하는 테스트가 직접 올린다.
 private func makeAdapter(
     clipboard wise: PasteWise? = .charwise,
+    changeCount: @escaping @Sendable () -> Int = { 0 },
     collecting posted: @escaping @Sendable (CGEvent) -> Void
 ) -> KeyboardAdapter {
-    KeyboardAdapter(executor: ActionExecutor(postEvent: posted), readPasteWise: { wise })
+    KeyboardAdapter(
+        executor: ActionExecutor(postEvent: posted),
+        pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount))
 }
 
 private func keyCodes(of events: [CGEvent]) -> [Int64] {
@@ -160,25 +165,95 @@ struct KeyboardAdapterTests {
         #expect(posted.suffix(2).allSatisfy { $0.flags == [.maskShift, .maskCommand] })
     }
 
-    /// half/full 수렴이 계약이다 — 같은 방향이면 extent가 달라도 같은 이벤트가 나간다.
-    @Test("스크롤은 extent와 무관하게 PageDown/PageUp 1타다")
-    func scrollPostsPageKeys() {
+    /// 스크롤은 화살표 반복이다 — 페이지 키가 뷰만 옮기고 다음 모션에 되돌아오기 때문이다.
+    /// **modifier가 하나도 없어야** 한다: Shift가 새면 스크롤이 선택이 되고, Cmd가 새면
+    /// 문서 끝으로 튄다.
+    @Test("스크롤은 화살표 반복이고 full은 half의 2배다")
+    func scrollPostsArrowRepetition() {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let adapter = makeAdapter { posted.append($0) }
 
-        adapter.execute([
-            .scroll(.halfPage, forward: true), .scroll(.fullPage, forward: true),
-            .scroll(.halfPage, forward: false), .scroll(.fullPage, forward: false),
-        ])
+        adapter.execute([.scroll(.halfPage, forward: true)])
+        let half = keyCodes(of: posted)
+        posted = []
+        adapter.execute([.scroll(.fullPage, forward: false)])
+        let full = keyCodes(of: posted)
+
+        // keyDown/keyUp 쌍이라 이벤트 수는 스트로크의 2배다.
+        #expect(half == Array(repeating: Int64(kVK_DownArrow), count: 15 * 2))
+        #expect(full == Array(repeating: Int64(kVK_UpArrow), count: 30 * 2))
+        #expect(posted.allSatisfy { $0.flags.isDisjoint(with: [.maskCommand, .maskShift]) })
+    }
+
+    /// 우리가 낸 `dd`가 클립보드를 쓰면 뒤따르는 `p`는 **끝 개행 휴리스틱을 쓰지 않는다** —
+    /// Notion처럼 끝 개행을 안 붙이는 앱에서 linewise 내용이 charwise로 오판되던 것을 막는다.
+    @Test("직전 dd 뒤의 p는 클립보드가 charwise로 보여도 linewise로 붙여넣는다")
+    func lineEditIsRememberedAsLinewise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        // 클립보드는 charwise로 보인다(Notion이 끝 개행을 안 붙인 상황).
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+        posted = []
+        count += 1  // 대상 앱이 잘라내기를 처리해 클립보드를 썼다.
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // linewise `p` 접두 = `Cmd-→, →, Cmd-←` 뒤에 `Cmd-V`.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 기억이 내용을 설명하지 못하면 휴리스틱으로 돌아간다 — 우리 편집 뒤에 **다른 무언가가**
+    /// 클립보드를 덮었으면(2회 이상 증가) 그 내용은 더 이상 우리 것이 아니다.
+    @Test("우리 편집 뒤 외부 복사가 끼면 휴리스틱으로 폴백한다")
+    func externalCopyAfterOurEditFallsBackToHeuristic() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+        posted = []
+        count += 2  // 우리 잘라내기 + 외부 복사.
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // charwise `p` = `→` 뒤에 `Cmd-V`.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// `cc`는 줄 끝까지만 선택해 개행을 남기지 않는다 — 내용이 실제로 charwise이므로
+    /// 줄 단위로 기억하면 안 된다.
+    @Test("change는 줄 범위여도 linewise로 기억하지 않는다")
+    func changeIsNotRememberedAsLinewise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.change, .line(count: 1))])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
 
         #expect(
             keyCodes(of: posted) == [
-                Int64(kVK_PageDown), Int64(kVK_PageDown),
-                Int64(kVK_PageDown), Int64(kVK_PageDown),
-                Int64(kVK_PageUp), Int64(kVK_PageUp),
-                Int64(kVK_PageUp), Int64(kVK_PageUp),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
             ])
-        #expect(posted.allSatisfy { $0.flags.isDisjoint(with: [.maskCommand, .maskShift]) })
     }
 
     /// charwise `3p` — 위치 접두는 **1회만**이고 `Cmd-V`만 반복한다. 접두가 반복되면

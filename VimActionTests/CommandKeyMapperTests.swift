@@ -15,19 +15,18 @@ import VimEngine
 // 위치 잡는 접두 — 전부 모션 매핑의 재사용이다.
 private let right = KeyStroke(kVK_RightArrow)
 private let up = KeyStroke(kVK_UpArrow)
+private let down = KeyStroke(kVK_DownArrow)
 private let cmdLeft = KeyStroke(kVK_LeftArrow, [.maskCommand])
 private let cmdRight = KeyStroke(kVK_RightArrow, [.maskCommand])
 
-// 명령 키 — 시퀀스의 끝(단 `O`만 예외로 `↑`로 끝난다).
+// 명령 키 — 시퀀스의 끝(단 `O`는 `↑`로, 스크롤은 아예 명령 키 없이 끝난다).
 private let ret = KeyStroke(kVK_Return)
 private let pasteKey = KeyStroke(kVK_ANSI_V, [.maskCommand])
 private let undoKey = KeyStroke(kVK_ANSI_Z, [.maskCommand])
 private let redoKey = KeyStroke(kVK_ANSI_Z, [.maskShift, .maskCommand])
-private let pageUp = KeyStroke(kVK_PageUp)
-private let pageDown = KeyStroke(kVK_PageDown)
 
-/// 명령 키 집합 — "명령 키는 시퀀스당 1타"(paste 제외) 불변식이 이 집합을 센다.
-private let commandKeys: Set<CGKeyCode> = [ret.keyCode, pasteKey.keyCode, undoKey.keyCode, pageUp.keyCode, pageDown.keyCode]
+/// 명령 키 집합 — "명령 키는 시퀀스당 1타"(paste·스크롤 제외) 불변식이 이 집합을 센다.
+private let commandKeys: Set<CGKeyCode> = [ret.keyCode, pasteKey.keyCode, undoKey.keyCode]
 
 // MARK: - 픽스처
 
@@ -78,14 +77,15 @@ let undoRedoFixtures: [CommandMappingFixture] = [
     .init("Ctrl-r", .redo, [redoKey]),
 ]
 
-/// 스크롤 4조합 — **half와 full이 같은 시퀀스로 수렴한다**. macOS에 half-page 프리미티브가
-/// 없고, N타 화살표는 캐럿을 끌고 다니며 버스트를 곱한다
-/// (`20260730_scroll-page-key-convergence.md`).
+/// 스크롤 4조합 — 화살표 반복이다. 이 매퍼에서 **유일하게 네이티브 명령에 위임하지 않는**
+/// 어휘인데, macOS에 "캐럿을 한 뷰포트만큼 옮기는" 프리미티브가 없기 때문이다. PageUp/PageDown은
+/// 뷰만 옮겨 다음 모션 한 번에 되돌아온다(실측). Vim의 `Ctrl-d`/`Ctrl-f`도 본래 커서 이동이다
+/// (`20260730_scroll-arrow-repetition.md`).
 let scrollFixtures: [CommandMappingFixture] = [
-    .init("Ctrl-d", .scroll(.halfPage, forward: true), [pageDown]),
-    .init("Ctrl-u", .scroll(.halfPage, forward: false), [pageUp]),
-    .init("Ctrl-f", .scroll(.fullPage, forward: true), [pageDown]),
-    .init("Ctrl-b", .scroll(.fullPage, forward: false), [pageUp]),
+    .init("Ctrl-d", .scroll(.halfPage, forward: true), Array(repeating: down, count: 15)),
+    .init("Ctrl-u", .scroll(.halfPage, forward: false), Array(repeating: up, count: 15)),
+    .init("Ctrl-f", .scroll(.fullPage, forward: true), Array(repeating: down, count: 30)),
+    .init("Ctrl-b", .scroll(.fullPage, forward: false), Array(repeating: up, count: 30)),
 ]
 
 /// 붙여넣기 8조합 — wise 2종 × before 2종 × count 변형.
@@ -212,11 +212,15 @@ struct CommandKeyMapperTests {
     }
 
     /// 명령 키는 시퀀스당 1타다 — 접두가 명령 키를 섞으면 위치잡기가 부작용을 낸다.
-    /// paste만 예외로 `Cmd-V`가 count만큼이며, **연속 런**이어야 한다(사이에 이동이 끼면
-    /// 두 번째 붙여넣기가 엉뚱한 곳으로 간다).
-    @Test("명령 키는 1타, paste만 연속 런 × count", arguments: commandMappingFixtures)
+    /// 예외가 둘이다: paste는 `Cmd-V`가 count만큼이며 **연속 런**이어야 하고(사이에 이동이
+    /// 끼면 두 번째 붙여넣기가 엉뚱한 곳으로 간다), 스크롤은 화살표뿐이라 명령 키가 **0타**다.
+    @Test("명령 키는 1타, paste만 연속 런 × count, 스크롤은 0타", arguments: commandMappingFixtures)
     func commandKeyAppearsOnce(_ fixture: CommandMappingFixture) {
         guard let expected = fixture.expected else { return }
+        if case .scroll = fixture.action {
+            #expect(expected.allSatisfy { !commandKeys.contains($0.keyCode) }, "\(fixture.vim)")
+            return
+        }
         guard case .paste(_, let count) = fixture.action else {
             #expect(expected.filter { commandKeys.contains($0.keyCode) }.count == 1, "\(fixture.vim)")
             return
@@ -234,15 +238,18 @@ struct CommandKeyMapperTests {
         #expect(strokes?.contains(ret) == true)
     }
 
-    /// half/full 수렴이 계약이다 — 방향만 같으면 extent가 달라도 출력이 같아야 한다.
-    @Test("스크롤은 extent와 무관하게 방향만 반영한다")
-    func scrollConvergesAcrossExtents() {
-        for forward in [true, false] {
+    /// 스크롤은 **한 종류의 화살표만** 반복한다 — 다른 키가 섞이면 캐럿이 옆으로 새거나
+    /// 편집이 나간다. full은 half의 정확히 2배이며, 방향은 화살표 종류로만 갈린다.
+    @Test("스크롤은 한 종류 화살표의 반복이고 full은 half의 2배다")
+    func scrollRepeatsSingleArrow() {
+        for (forward, arrow) in [(true, down), (false, up)] {
             let half = CommandKeyMapper.keyStrokes(
                 for: .scroll(.halfPage, forward: forward), family: .textArea)
             let full = CommandKeyMapper.keyStrokes(
                 for: .scroll(.fullPage, forward: forward), family: .textArea)
-            #expect(half == full, "forward: \(forward)")
+            #expect(half?.allSatisfy { $0 == arrow } == true, "forward: \(forward)")
+            #expect(full?.allSatisfy { $0 == arrow } == true, "forward: \(forward)")
+            #expect(full?.count == (half?.count ?? 0) * 2, "forward: \(forward)")
         }
     }
 
