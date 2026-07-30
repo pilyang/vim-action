@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-26
-- **갱신일**: 2026-07-30 (**단계 2.5 코드 완료** — 실행 중단 래치 + 청크 게시. 결정 3건. **실기기 도그푸딩만 남음**, 그다음 **단계 3 리졸버**)
+- **갱신일**: 2026-07-31 (**단계 2.5 도그푸딩 자동화분 완료 — 수정 1건 반영**(flush 재확인을 게시 직전으로). 남은 확인: 물리 킬 콤보 1건 + 체감 2건. 그다음 **단계 3 리졸버**)
 
 ## 목표
 
@@ -25,7 +25,7 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 - [x] **단계 0 — 사전 실측 2건 완료** (2026-07-26 실기기): ① 카운트 폭탄 — 100j 1초 이내·9999j 수 초 폭주(비치볼), 킬스위치 발동 즉시지만 in-flight 못 멈춤, 버스트 중 타이핑 순서 역전 실증, Notion 이벤트 드랍 → **실행 중단 래치 단계 4 승격 확정** ([결정](../../decisions/references/20260726_count-burst-abort-latch-promotion.md)). ② undo — 선택+잘라내기/붙여넣기/새줄 시퀀스 전부 1 undo 단위, change만 삭제+타이핑 분리 → **u=Cmd-Z 유지·시퀀스 설계 자유 확정** ([결정](../../decisions/references/20260726_undo-unit-cmdz-policy.md)).
 
 ## 남은 것
-- [ ] **단계 2.5 도그푸딩** (사용자 개입 필요): 카나리아는 **`9999 Ctrl-f` 스크롤 버스트**(비파괴). 확인 6항목 — ① 폭주 중 킬스위치 즉시 정지(in-flight 폐기) ② 폭주 중 타이핑 순서 역전 소멸(`9999j` 후 `i`+`abc`) ③ 폭주 중 토글 off 정지 ④ Notion 드랍 완화 여부(`999j` 근처 정지 재현?) ⑤ 일상 입력(`h j k l`·`dw`·`p`) 체감 반응성 불변 ⑥ `9999j` 총 소요 수용 가능한가(페이싱 하한 ~2.5초). ⑤·⑥이 걸리면 `KeyboardAdapter`의 `chunkStrokes`(8)·`chunkInterval`(2ms)이 조절 손잡이다. 관측은 `log stream`, 정량은 아래 "측정 도구".
+- [ ] **단계 2.5 도그푸딩 마무리** (사용자 물리 조작 필요, 나머지는 2026-07-31 자동화로 완료 — 결과는 "진행 중 컨텍스트"): ① **물리 킬 콤보** `Ctrl-Opt-Cmd-Esc`를 폭주 중 실제 키보드로 — 합성 주입은 HID 킬 탭에 원리적으로 안 닿아 이것만 자동화 불가(`킬스위치 콤보 감지` fault 로그 + 즉시 정지 + 글리프 off 확인, 발동 후 메뉴바 재토글) ② ⑤ 일상 입력(`h j k l`·`dw`·`p`) 체감 반응성 ③ (선택) 폭주 중 메뉴바 토글 off — didSet 경로는 유닛 테스트로 고정돼 있어 물리 확인은 선택. ⑤가 걸리면 `KeyboardAdapter`의 `chunkStrokes`(8)·`chunkInterval`(2ms)이 조절 손잡이다.
 - [ ] **단계 3 — 요소 리졸버 + TextField 분기**: `AXObserver`(kAXFocusedUIElementChanged) + NSWorkspace 활성화로 focusedRole 캐시(콜백은 캐시만 읽음 — 콜백 경량 불변식 위임 ②), TextField 시퀀스 분기(예: `delete(.line)` → `Cmd-A, Delete`), **캐시 충분성 1차 확정**(결정 문서). 앱 최초의 실질 AX 의존(읽기 전용) — 실기기 검증 비중 큼.
 - [ ] **단계 4 — 안전망 회귀 + 게이트 해제**: 킬스위치 회귀 확인(래치와의 상호작용 포함), 미지원 스킵 로그 전수 확인 → `.replace` 무로그 삼킴 해소 → 릴리스 금지 게이트 해제 결정 문서.
 
@@ -34,6 +34,12 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 - **단계 2.5 코드 완료** (2026-07-30). 신규 `ExecutionAbortLatch`(세대 카운터 — 해제 API 없음) + `EventTapController` 소유·`keyboardActionSink(abort:)` 주입 + `KeyboardAdapter.execute(_:isCurrent:)` 청크 루프 + `CommandKeyMapper.pasteStrokeGroups`. `dispatchActions` 시그니처는 불변(세대는 sink 안에서 오간다). **결정 3건**: [세대 카운터 래치](../../decisions/references/20260730_execution-abort-generation-latch.md), [청크 게시와 페이싱](../../decisions/references/20260730_chunked-posting-with-pacing.md), [클램프 9,999 유지](../../decisions/references/20260730_count-clamp-retained-at-9999.md). 설계 중 방향을 가른 것: **지연 없는 청크 분할은 아무것도 못 끊는다** — 게시는 순식간이고 느린 쪽은 대상 앱이라, 간격이 없으면 2만 이벤트를 수십 ms에 다 넘겨 잔여가 안 남는다. 구현 중 잡은 버그 1건: "다음 액션과 붙는다" 잠금을 액션 처리 **후에** 세우면 이미 그 안에서 끊긴 뒤다 → 진입 시점 판정으로 수정.
 - **단계 2.5가 남긴 계약 (다음 세션이 깨지 말 것)**: ① 래치 무효화는 **마커 가드 뒤** — 앞이면 우리 합성 이벤트가 자기 버스트를 끊는다(첫 청크 만에 죽는 조용한 고장). ② 무효화는 **결정 종류 불문**(passthrough 포함) — 실증된 순서 역전의 `abc`가 passthrough다. ③ 청크 경계는 원자 그룹 사이에만 — 액션 전체 / `.edit(_,.selection)`+`clearSelection` / `.paste`의 `접두+첫 Cmd-V`. ④ `beginRun()`은 게시 큐 **밖**에서. 넷 다 테스트로 고정돼 있다(`ExecutionAbortWiringTests`, `KeyboardAdapterAbortTests` — 후자엔 "잠금 없으면 실제로 끊긴다"는 대조군 테스트가 함께 있다).
 - **단계 2c 코드 완료** (2026-07-30, Draft PR). 신규 `CommandKeyMapper`(진입점 2개 — openLine·undo·redo·scroll / paste) + `Clipboard`(`nonisolated`, 패스트보드 읽기만) + `PasteWiseResolver` 주입·`Mapping` 3갈래. **엔진·모션·편집·Visual 매퍼·게시 인프라 무변경.** 시퀀스: `o`=`Cmd-→,Return`, `O`=`Cmd-←,Return,↑`, `u`=`Cmd-Z`, `Ctrl-r`=`Shift-Cmd-Z`, **스크롤=`↓`/`↑` 반복(half 15·full 30)**, paste=wise별 접두 1회+`Cmd-V`×count(wise는 **우리 편집 기억 우선, 끝 개행 휴리스틱은 폴백**).
+- **2.5 도그푸딩 결과 (2026-07-31, osascript 주입 + AX 관측 자동화)** — **수정 1건**이 나와 반영됐다:
+  - **② 순서 역전**: 1차에서 폭주 중 타이핑이 마지막 청크 8스트로크와 인터리브(4줄에 흩어짐) → 원인은 flush의 재확인이 페이싱 sleep **앞**이라 잠든 사이 무효화를 놓치는 3ms 창 → **재확인을 게시 직전으로 이동**(판별 테스트 `chunkInvalidatedRightBeforePostIsDiscarded` 추가, 앱 516 그린). 재검증에서 인터리브 1스트로크로 축소 — 무효화 순간 in-flight 꼬리는 환원 불가라 **≤1 스트로크 수용**.
+  - **⑥ 총 소요**: `9999j` 정확 도달(드랍 0)·~27.5초, 병목은 TextEdit 소비(~2.7ms/이벤트)라 **페이싱 기여 ≈ 0초**.
+  - **④ Notion**: `999j` 전량 게시 확인(로그 ×999·중단 없음)에도 도달 984·977줄 — **앱 측 드랍 1.5~2.2% 잔존**(완화됐지만 완전 해소 아님, `chunkInterval` 증가가 다음 튜닝 카드).
+  - **① 킬스위치(부분)**: 합성 콤보는 세션 레벨 진입이라 HID 킬 탭이 못 본다 — 대신 메인 탭의 "새 사용자 입력" 경로가 래치를 끊어 **심층 방어를 실측**(1,680 화살표에서 정확 동결, 이후 유출 0). 킬 탭 자체 발동은 물리 키만 가능.
+  - 자동화 교훈: 한글 IM에서 System Events `keystroke`는 문자 합성 조합이 전역 핫키(⌥⌘N Little Arc)를 오발 — **`key code`만 사용**. Insert passthrough 타이핑은 IM을 타 한글 자모로 삽입된다(엔진 커맨드는 ASCII 번역이라 무관).
 - **단계 2c 설계 결정 8건**: [매퍼 신설](../../decisions/references/20260730_command-key-mapper-scope.md), [o/O 시퀀스](../../decisions/references/20260730_openline-return-sequence.md), [paste wise 휴리스틱](../../decisions/references/20260730_paste-wise-trailing-newline-heuristic.md), [Cmd-Z ANSI 위험 확대](../../decisions/references/20260730_cmd-z-ansi-layout-escalation.md), [비텍스트 UI 발사](../../decisions/references/20260730_native-command-non-text-ui-hazard.md), 그리고 도그푸딩이 낳은 2건 — [스크롤 화살표 반복](../../decisions/references/20260730_scroll-arrow-repetition.md)(스크롤 수렴 결정을 **supersede**), [wise는 우리 편집 기억](../../decisions/references/20260730_paste-wise-from-our-own-edit.md). 설계 리뷰에서 잡혀 반영된 것 3건: linewise `p`에 꼬리 `Cmd-←`가 없으면 **마지막 줄에서 텍스트를 훼손**한다(추가함), 텍스트 없는 클립보드의 `p`를 미지원으로 집계하면 **단계 4 게이트 심사자가 paste를 미구현으로 읽는다**(스킵 2종 분리), `Cmd-Z`의 AZERTY 위험은 기존 ANSI 결정이 수용한 등급과 **다르다**(별 결정으로 승격).
 - **2c 1차 도그푸딩 결과 (2026-07-30 실기기)** — 8항목 중 6건 통과, **2건이 수정으로 이어졌다**:
   - 통과: `o`/`O` 직후 즉시 타이핑(순서 역전 없음), `O`의 `↑` 착지 열, 한글 IME(조합 중 Esc 후 `o`/`p`), Electron redo(`Shift-Cmd-Z` 수용). 소프트 랩 문단의 `O`는 **예측대로** 빈 줄을 못 만들고 문단을 하드 분리 — 수용 편차 확인.
