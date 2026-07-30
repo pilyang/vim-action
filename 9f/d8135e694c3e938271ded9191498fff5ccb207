@@ -1,0 +1,46 @@
+.claude/skills/decisions/references/20260730_cmd-z-ansi-layout-escalation.md
+  s_5f0bdd03af541d::t_38e2ddf45648be 1-30
+.claude/skills/decisions/references/20260730_command-key-mapper-scope.md
+  s_5f0bdd03af541d::t_5988ed95d81008 1-35
+.claude/skills/decisions/references/20260730_native-command-non-text-ui-hazard.md
+  s_5f0bdd03af541d::t_569e04b60b062d 1-37
+.claude/skills/decisions/references/20260730_openline-return-sequence.md
+  s_5f0bdd03af541d::t_304e572d10cc1e 1-48
+.claude/skills/decisions/references/20260730_scroll-page-key-convergence.md
+  s_5f0bdd03af541d::t_115d1c61d89614 1-33
+.claude/skills/decisions/SKILL.md
+  s_5f0bdd03af541d::t_94bb6e079fcbb8 114-119
+.claude/skills/plans/SKILL.md
+  s_5f0bdd03af541d::t_972777a1e3293b 53
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_5f0bdd03af541d::t_50e09d48d521ee 53-54
+  s_5f0bdd03af541d::t_b3fd16314cc5f2 3
+  s_5f0bdd03af541d::t_dcd71df0086d85 43-44
+  s_5f0bdd03af541d::t_6c891dd8ac3c87 45-47
+.claude/skills/decisions/references/20260730_paste-wise-trailing-newline-heuristic.md
+  s_5f0bdd03af541d::t_11163f5993db6d 1-53
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_5f0bdd03af541d::t_d6762ca96e9eb6 73
+  s_5f0bdd03af541d::t_d44a84f4bed189 19
+  s_5f0bdd03af541d::t_7458f8d8d97e60 75
+  s_5f0bdd03af541d::t_e7c73d74a9fa4d 27
+  s_5f0bdd03af541d::t_4ad44821798fda 34-56
+  s_5f0bdd03af541d::t_a4ec12090b48e6 85
+  s_5f0bdd03af541d::t_a315b24c6cc93f 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.18",
+  "base_commit_sha": "9fd8135e694c3e938271ded9191498fff5ccb207",
+  "prompts": {},
+  "sessions": {
+    "s_5f0bdd03af541d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21a63685-f2ea-4752-acfd-a42c41fb268e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
