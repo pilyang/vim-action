@@ -141,12 +141,22 @@ final class EventTapController {
     /// 콜백은 캐시만 읽고, 캐시 갱신은 앱 활성화 알림이 한다 (콜백 경량 불변식).
     @ObservationIgnored private let frontmostAppGate: FrontmostAppGate
 
+    /// 요소 수준 리졸버 — 포커스 요소가 텍스트인지 아닌지를 캐시한다. 앱 게이트와 나란한
+    /// 자리이고 규칙도 같다: **콜백은 캐시만 읽고**, 갱신은 알림(앱 활성화·`AXObserver`)이 한다.
+    ///
+    /// 게이트가 아니라 **디스패치 페이로드**인 것이 차이다 — 앱 게이트는 엔진 진입 전에 키를
+    /// 통과시키지만, 요소 계열은 엔진이 낸 액션을 어댑터가 걸러낼지에만 쓰인다.
+    @ObservationIgnored private let focusedElement: FocusedElementResolver
+
     /// 실행 시퀀스의 유일한 출구. 기본값(`keyboardActionSink`)이 게시 직렬 큐와
     /// `KeyboardAdapter`를 캡처하므로 큐의 수명은 이 프로퍼티(= 컨트롤러)와 같다.
     ///
     /// 클로저인 이유는 `ActionExecutor.postEvent`와 같다 — 테스트가 동기 수집기로 대체해
     /// 큐 홉 없이 배선을 단언하고, 실제 키를 머신에 주입하지 않는다.
-    @ObservationIgnored private let dispatchActions: @Sendable ([VimAction]) -> Void
+    ///
+    /// 계열이 인자로 실리는 것은 계약이다 — 콜백(메인)에서 읽은 **키 입력 시점의 값**이어야
+    /// 하며, 게시 큐가 나중에 캐시를 읽으면 그 사이 옮겨간 포커스를 기준으로 걸러진다.
+    @ObservationIgnored private let dispatchActions: @Sendable ([VimAction], ElementFamily) -> Void
 
     /// 프로덕션 실행 경로: 게시 직렬 큐 위에서 `KeyboardAdapter`를 부른다.
     ///
@@ -162,16 +172,18 @@ final class EventTapController {
     /// 계층의 관심사라 컨트롤러가 세대를 들고 다닐 이유가 없다.
     private static func keyboardActionSink(
         abort: ExecutionAbortLatch
-    ) -> @Sendable ([VimAction]) -> Void {
-        guard !isRunningUnderXCTest() else { return { _ in } }
+    ) -> @Sendable ([VimAction], ElementFamily) -> Void {
+        guard !isRunningUnderXCTest() else { return { _, _ in } }
         let queue = DispatchQueue(label: "dev.pilyang.VimAction.execution", qos: .userInitiated)
         let adapter = KeyboardAdapter()
-        return { actions in
+        return { actions, family in
             // `beginRun`은 **큐 밖**(탭 콜백 스레드)이어야 한다 — 큐 안이면 이미 도는 버스트가
             // 끝난 뒤에야 세대가 올라가 아무것도 끊지 못한다. 비용은 잠금 1회 + 증가 1회라
             // 콜백 경량 불변식을 지킨다.
             let run = abort.beginRun()
-            queue.async { adapter.execute(actions, isCurrent: { abort.isCurrent(run) }) }
+            queue.async {
+                adapter.execute(actions, family: family, isCurrent: { abort.isCurrent(run) })
+            }
         }
     }
 
@@ -235,20 +247,22 @@ final class EventTapController {
     @ObservationIgnored private nonisolated let watchdogHopPending =
         OSAllocatedUnfairLock(initialState: false)
 
-    /// 주입 3종 모두 테스트용이다. `defaults`는 `.standard`를 쓰면 TEST_HOST가 앱
-    /// 프로세스라 실기기에서 영속된 값이 새어 들어온다. `frontmostAppGate`·`dispatchActions`는
-    /// 각자의 기본 팩토리가 XCTest 하위에서 이미 무해하지만(실제 최전면 앱 미조회 / 게시
-    /// no-op), 게이트·배선 **동작을 검증**하는 테스트는 여기로 자기 것을 넣는다.
+    /// 주입 4종 모두 테스트용이다. `defaults`는 `.standard`를 쓰면 TEST_HOST가 앱
+    /// 프로세스라 실기기에서 영속된 값이 새어 들어온다. 나머지 셋은 각자의 기본 팩토리가
+    /// XCTest 하위에서 이미 무해하지만(실제 최전면 앱 미조회 / AX·알림 미구독 / 게시 no-op),
+    /// 게이트·리졸버·배선 **동작을 검증**하는 테스트는 여기로 자기 것을 넣는다.
     ///
-    /// 뒤 두 개가 `nil` 기본값인 것은 격리 때문이다 — 기본 인수 식은 nonisolated 컨텍스트에서
+    /// 뒤 세 개가 `nil` 기본값인 것은 격리 때문이다 — 기본 인수 식은 nonisolated 컨텍스트에서
     /// 평가되므로 `@MainActor` 팩토리를 그 자리에 둘 수 없다. `nil` = "프로덕션 기본을 쓴다".
     init(
         defaults: UserDefaults = .standard,
         frontmostAppGate: FrontmostAppGate? = nil,
-        dispatchActions: (@Sendable ([VimAction]) -> Void)? = nil
+        focusedElement: FocusedElementResolver? = nil,
+        dispatchActions: (@Sendable ([VimAction], ElementFamily) -> Void)? = nil
     ) {
         self.defaults = defaults
         self.frontmostAppGate = frontmostAppGate ?? .forCurrentEnvironment()
+        self.focusedElement = focusedElement ?? .forCurrentEnvironment()
         // 기본값 대신 지역 변수를 거치는 이유: 프로덕션 sink가 **같은 인스턴스**를 캡처해야
         // 하는데, 저장 프로퍼티가 다 채워지기 전에는 `self.executionAbort`를 읽을 수 없다.
         let abort = ExecutionAbortLatch()
@@ -722,7 +736,9 @@ final class EventTapController {
                 "replace ×\(output.actions.count, privacy: .public): \(String(describing: output.actions.first), privacy: .public)"
             )
             #endif
-            dispatchActions(output.actions)
+            // 계열은 **여기서** 읽는다 — 콜백은 메인 격리라 캐시 읽기가 동기 프로퍼티 접근
+            // 하나이고(콜백 경량 불변식), 그 값이 곧 키 입력 시점의 스냅샷이다.
+            dispatchActions(output.actions, focusedElement.family)
             return nil
         }
     }

@@ -23,9 +23,12 @@ import VimEngine
 /// 세 매퍼 공통으로 "지원 ⟹ 빈 시퀀스 아님"이 불변식이라, 게시할 것이 없는 경우도
 /// `nil`(정직한 스킵)이거나 실제 스트로크이거나 둘 중 하나다.
 nonisolated enum VisualKeyMapper {
-    /// `family`는 아직 쓰이지 않지만 시그니처에 처음부터 둔다 — Visual은 모션과 달리 계열
-    /// 불변이 아니다(TextField의 `V`는 `Cmd-←, Shift-↓`가 아니라 `Cmd-A`여야 한다).
-    /// 단계 3의 리졸버가 붙을 때 시퀀스 표만 늘리면 되게 하는 것이 이 자리의 목적이다.
+    /// `family`는 쓰이지 않는다. 리졸버가 붙은 지금도 그대로인 것은 **계열별 Visual 시퀀스를
+    /// 만들지 않기로 했기** 때문이다 — TextField에서도 TextArea 시퀀스가 자연 수렴하고,
+    /// 비텍스트 걸러내기는 어댑터 게이트가 전담한다
+    /// (`20260801_textfield-edit-sequences-scrapped.md`,
+    /// `20260801_non-text-filter-keeps-motion-and-scroll.md`). 시그니처에 남겨 두는 것은
+    /// M5 AX에서 계열이 실제로 갈릴 여지를 열어 두기 위해서다.
     static func keyStrokes(for action: VimAction, family: ElementFamily) -> [KeyStroke]? {
         switch action {
         case .beginSelection(let linewise):

@@ -44,7 +44,14 @@ nonisolated struct KeyboardAdapter: Sendable {
     ///
     /// 기본값 `{ true }`는 "중단 없음" — 중단이 관심사가 아닌 호출자(대부분의 테스트)를 위한
     /// 것이고, 프로덕션 경로는 `EventTapController.keyboardActionSink`가 항상 주입한다.
-    func execute(_ actions: [VimAction], isCurrent: () -> Bool = { true }) {
+    ///
+    /// `family`는 **키 입력 시점의 스냅샷**이다 — 컨트롤러가 콜백에서 캐시를 읽어 넘긴다.
+    /// 게시 큐 위에서 뒤늦게 읽으면 그 사이 포커스가 옮겨간 뒤일 수 있고, 그러면 이미 결정된
+    /// 시퀀스가 다른 요소를 기준으로 걸러지거나 통과한다. 기본값 `.textArea`는 계열이 관심사가
+    /// 아닌 호출자(대부분의 테스트)를 위한 것이며 폴백 기본값과 같은 값이다.
+    func execute(
+        _ actions: [VimAction], family: ElementFamily = .textArea, isCurrent: () -> Bool = { true }
+    ) {
         // dispatch 직후 곧바로 다음 키에 밀려난 경우 — 한 이벤트도 내보내지 않는다.
         guard isCurrent() else { return }
 
@@ -83,7 +90,7 @@ nonisolated struct KeyboardAdapter: Sendable {
 
         for action in actions {
             let groups: [[KeyStroke]]
-            switch mapping(for: action) {
+            switch mapping(for: action, family: family) {
             case .groups(let mapped):
                 groups = mapped
             case .unsupported:
@@ -126,8 +133,11 @@ nonisolated struct KeyboardAdapter: Sendable {
         // 카운트 반복(`1000u`, Visual `1000j` 등)으로 액션이 수백~천 개일 수 있어 요약 1건으로
         // 접는다. 요약에 쓰는 건 개수와 첫 1개뿐이라 액션 자체를 쌓아 두지 않는다.
         if let first = firstSkipped {
+            // 계열을 함께 남기는 것이 요점이다 — 단계 4의 게이트 판정은 이 로그의 전수 확인인데,
+            // 걸러내기 스킵(계열이 `.nonText`/`.textField`)과 진짜 미구현이 섞이면 심사자가
+            // 구현된 어휘를 미구현으로 읽는다.
             Logger.eventTap.debug(
-                "미지원 액션 스킵 ×\(skippedCount, privacy: .public): \(String(describing: first), privacy: .public)"
+                "미지원 액션 스킵 ×\(skippedCount, privacy: .public) [\(String(describing: family), privacy: .public)]: \(String(describing: first), privacy: .public)"
             )
         }
         #endif
@@ -199,8 +209,17 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// `default:`가 흡수해 어댑터가 컴파일 에러로 무너지지 않는다.
     ///
     /// `static`이 아닌 이유는 `.paste`가 주입된 클립보드 읽기를 쓰기 때문이다.
-    private func mapping(for action: VimAction) -> Mapping {
-        // 요소 계열은 단계 3의 focusedRole 리졸버가 채운다 — 그때까지 TextArea 고정.
+    private func mapping(for action: VimAction, family: ElementFamily) -> Mapping {
+        // 비텍스트 걸러내기는 **여기 한 곳**이다 — 매퍼가 아니라 어댑터인 이유가 셋 있고,
+        // 셋 다 "게이트가 부수효과보다 앞이어야 한다"로 모인다
+        // (`20260801_non-text-filter-keeps-motion-and-scroll.md`):
+        //   ① `.move`에는 family가 없다 (모션은 계열 무관이 계약).
+        //   ② 아래 `.edit`은 매퍼 호출 **전에** `recordLinewiseEdit()`을 부른다 — 게시하지도
+        //      않을 편집을 기억하면 뒤따르는 `p`의 wise가 오염된다.
+        //   ③ 아래 `.paste`는 매퍼 호출 전에 클립보드를 읽는다 — 순서가 반대면 걸러내기가
+        //      "클립보드에 텍스트 없음"(`.skipped`)으로 잘못 집계돼 스킵 2종 구분이 무너진다.
+        guard Self.survivesFilterGate(action, family: family) else { return .unsupported }
+
         switch action {
         case .move(let motion):
             return Self.mapping(MotionKeyMapper.keyStrokes(for: motion))
@@ -209,13 +228,13 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
             // 휴리스틱(앱마다 틀린다)에 기대지 않게 그 사실을 기억해 둔다.
             if Self.isLinewise(op, range) { pasteWise.recordLinewiseEdit() }
-            return Self.mapping(EditKeyMapper.keyStrokes(for: op, range: range, family: .textArea))
+            return Self.mapping(EditKeyMapper.keyStrokes(for: op, range: range, family: family))
 
         case .beginSelection, .extendSelection, .switchSelectionWise, .clearSelection:
-            return Self.mapping(VisualKeyMapper.keyStrokes(for: action, family: .textArea))
+            return Self.mapping(VisualKeyMapper.keyStrokes(for: action, family: family))
 
         case .openLine, .undo, .redo, .scroll:
-            return Self.mapping(CommandKeyMapper.keyStrokes(for: action, family: .textArea))
+            return Self.mapping(CommandKeyMapper.keyStrokes(for: action, family: family))
 
         case .paste(let before, let count):
             // 텍스트가 없는 클립보드(이미지만 있는 등)는 미지원이 아니라 "붙여넣을 것이 없음"이다.
@@ -227,11 +246,51 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 유일하게 그룹이 여럿인 액션 — 액션 1개 안에서 카운트가 곱해지므로 래치가
             // 파고들 틈을 매퍼가 직접 낸다.
             return CommandKeyMapper.pasteStrokeGroups(
-                before: before, count: count, wise: wise, family: .textArea)
+                before: before, count: count, wise: wise, family: family)
                 .map(Mapping.groups) ?? .unsupported
 
         default:
             return .unsupported
+        }
+    }
+
+    /// 이 계열에서 이 액션을 게시하는가 — 걸러내기 게이트 본체다.
+    ///
+    /// `.unresolved`가 `.nonText`와 같은 편에 서는 것이 요점이다. 앱 전환 직후 첫 읽기가
+    /// 착지하기 전(콜드 ~20ms)에는 요소를 **모르는** 상태이고, 그때 폴백으로 판정하면 실측된
+    /// 방향으로 틀린다 — TextEdit→Finder 전환 직후의 `u`가 그 창을 타고 `Cmd-Z`로 Finder에
+    /// 도달했다. 모르는 동안은 위험 어휘를 보류하고, 모션·스크롤만 흘려보낸다
+    /// (`20260801_unresolved-window-after-app-switch.md`).
+    ///
+    /// `ElementFamily`에는 exhaustive switch를 건다 — 계열이 늘면 "어느 편인가"를 반드시
+    /// 결정해야 하고, 조용한 기본값은 곧 무언의 통과다.
+    private static func survivesFilterGate(_ action: VimAction, family: ElementFamily) -> Bool {
+        switch family {
+        case .textArea, .textField:
+            return true
+        case .nonText, .unresolved:
+            return survivesNonTextGate(action)
+        }
+    }
+
+    /// 비텍스트 요소에서도 게시되는 액션인가.
+    ///
+    /// 위험 등급을 가르는 축은 "비텍스트인가"가 아니라 **"앱이 이미 아는 명령인가"** 다.
+    /// 화살표는 텍스트가 아닌 곳에서도 무해하게 흘러가고(리스트 선택 이동, 페이지 스크롤)
+    /// 전부 막으면 M2부터 살아 있던 그 동작이 죽는다 — 엔진이 이미 키를 삼킨 뒤라 스킵은
+    /// 네이티브 동작으로의 복귀가 아니라 **완전 무동작**이기 때문이다.
+    ///
+    /// `.scroll`이 여기 속하는 것은 `CommandKeyMapper` 소속이지만 그 매퍼에서 **유일하게
+    /// 네이티브 명령에 위임하지 않는** 액션이기 때문이다 — 실체가 화살표 반복이라 위험 축에서는
+    /// 모션 편이다 (`20260730_scroll-arrow-repetition.md`).
+    ///
+    /// `VimAction`에 exhaustive switch를 걸지 않는 것은 매퍼와 같은 계약이다.
+    private static func survivesNonTextGate(_ action: VimAction) -> Bool {
+        switch action {
+        case .move, .scroll:
+            return true
+        default:
+            return false
         }
     }
 

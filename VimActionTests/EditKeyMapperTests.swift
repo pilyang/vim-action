@@ -200,6 +200,27 @@ struct EditKeyMapperTests {
         #expect(actual == fixture.expected, "\(fixture.vim)")
     }
 
+    /// **TextField 전용 시퀀스를 만들지 않기로 한 결정을 표 전체에 대해 못박는다**
+    /// (`20260801_textfield-edit-sequences-scrapped.md`). 단일행 필드에서는 TextArea 시퀀스가
+    /// 자연 수렴하고(주소창에서 `Shift-↓`는 끝까지 선택된다), 전용 분기는 role 오보고 시
+    /// 여러 줄 검색창의 `dd` 1줄 삭제를 전체 삭제로 개악한다 — 실패 방향이 비대칭이다.
+    @Test("TextField는 TextArea와 같은 시퀀스를 낸다", arguments: editMappingFixtures)
+    func textFieldConvergesOnTextArea(_ fixture: EditMappingFixture) {
+        let asField = EditKeyMapper.keyStrokes(
+            for: fixture.op, range: fixture.range, family: .textField)
+        #expect(asField == fixture.expected, "\(fixture.vim)")
+    }
+
+    /// 비텍스트는 어댑터 게이트가 먼저 걸러내므로 실제로는 도달하지 않지만, 매퍼의 봉쇄가
+    /// 살아 있어야 게이트를 매퍼로 옮기려는 변경이 Finder 선택에 `Cmd-X`를 내지 않는다.
+    /// **`.selection`이 계열 분기보다 앞에 있던 구조가 정확히 그 함정이었다.**
+    @Test("비텍스트에서는 전부 미지원이다", arguments: editMappingFixtures)
+    func nonTextIsAlwaysUnsupported(_ fixture: EditMappingFixture) {
+        let asNonText = EditKeyMapper.keyStrokes(
+            for: fixture.op, range: fixture.range, family: .nonText)
+        #expect(asNonText == nil, "\(fixture.vim)")
+    }
+
     /// 지원 범위는 반드시 실행 가능한 형태로 매핑된다 — 빈 배열은 "조용히 아무것도 안 함"이라
     /// 미지원(`nil` → 스킵+로그)과 구분되지 않는다.
     @Test("지원 범위는 빈 시퀀스로 매핑되지 않는다", arguments: editMappingFixtures)
