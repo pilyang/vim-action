@@ -1,0 +1,42 @@
+.claude/skills/decisions/references/20260801_unresolved-window-after-app-switch.md
+  s_cd4ca38c8c6301::t_d23cf957b0f185 1-51
+VimActionTests/KeyboardAdapterTests.swift
+  s_cd4ca38c8c6301::t_38e29ecc6b2234 661-700
+VimAction/FocusedElementResolver.swift
+  s_cd4ca38c8c6301::t_e085f642d363c5 25-31
+  s_cd4ca38c8c6301::t_301ee5bc7aff26 167-179
+VimAction/EditKeyMapper.swift
+  s_cd4ca38c8c6301::t_387703344b4a29 39,42-44
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_cd4ca38c8c6301::t_8ac0364ead80f8 3
+  s_cd4ca38c8c6301::t_b8a2e78bb2b43c 73
+  s_cd4ca38c8c6301::t_5d0ef07eb8f057 53-54
+  s_cd4ca38c8c6301::t_cc8405826ec752 38
+  s_cd4ca38c8c6301::t_8399a89e5e6bdf 45-49
+VimActionTests/FocusedElementResolverTests.swift
+  s_cd4ca38c8c6301::t_e7dfe195cd4e28 99-101,107-118
+  s_cd4ca38c8c6301::t_2a8846a3698f95 119-120
+VimAction/KeyboardAdapter.swift
+  s_cd4ca38c8c6301::t_2e19f34fb96293 221
+  s_cd4ca38c8c6301::t_c46b368378ed26 257-275
+.claude/skills/decisions/SKILL.md
+  s_cd4ca38c8c6301::t_565ac5e11d7a62 128-129
+.claude/skills/decisions/references/20260801_cache-only-callback-confirmed-sufficient.md
+  s_cd4ca38c8c6301::t_0c797ad7b48504 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "485c8e84aff7acf8572c4e6b9074077a726291dc",
+  "prompts": {},
+  "sessions": {
+    "s_cd4ca38c8c6301": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7adc4bc3-f9fc-4443-a667-a7a7ecdfb557",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
