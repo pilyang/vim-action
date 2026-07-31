@@ -3,11 +3,11 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-26
-- **갱신일**: 2026-07-31 (**단계 2.5 완전 종료** — 도그푸딩 6항목 전부 확인, 수정 2건: flush 재확인 게시 직전 이동 + **클램프 1,000 하향**. 다음은 **단계 3 리졸버**)
+- **갱신일**: 2026-07-31 (**단계 3 범위 축소 확정** — TextField 전용 편집 시퀀스 폐기, 리졸버는 "걸러내기" 중심으로. 실측 근거는 "진행 중 컨텍스트" 참조)
 
 ## 목표
 
-v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실제 실행되고, 요소 리졸버(focusedRole 캐시)가 TextArea/TextField 시퀀스를 가르는 상태. 끝나면 릴리스 배포 금지 게이트(`.replace` 무로그 삼킴 규칙)가 해제된다 — [게이트 이동 결정](../../decisions/references/20260726_release-block-gate-moves-to-m3.md). 상위 마일스톤: [20260725_mvp-milestones.md](20260725_mvp-milestones.md).
+v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실제 실행되고, 요소 리졸버(focusedRole 캐시)가 위험 컨텍스트(비텍스트 UI, TextField의 Return 어휘)를 걸러내는 상태. 끝나면 릴리스 배포 금지 게이트(`.replace` 무로그 삼킴 규칙)가 해제된다 — [게이트 이동 결정](../../decisions/references/20260726_release-block-gate-moves-to-m3.md). 상위 마일스톤: [20260725_mvp-milestones.md](20260725_mvp-milestones.md).
 
 **범위 확정 3건 (2026-07-26 사용자 확인)**:
 - 텍스트 오브젝트는 **word만 근사 지원**(diw/ciw ≈ `Opt-←, Shift-Opt-→`) — aw·quote·pair는 미지원 스킵(로그), M5 AX에서 정식 지원.
@@ -26,11 +26,12 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 - [x] **단계 0 — 사전 실측 2건 완료** (2026-07-26 실기기): ① 카운트 폭탄 — 100j 1초 이내·9999j 수 초 폭주(비치볼), 킬스위치 발동 즉시지만 in-flight 못 멈춤, 버스트 중 타이핑 순서 역전 실증, Notion 이벤트 드랍 → **실행 중단 래치 단계 4 승격 확정** ([결정](../../decisions/references/20260726_count-burst-abort-latch-promotion.md)). ② undo — 선택+잘라내기/붙여넣기/새줄 시퀀스 전부 1 undo 단위, change만 삭제+타이핑 분리 → **u=Cmd-Z 유지·시퀀스 설계 자유 확정** ([결정](../../decisions/references/20260726_undo-unit-cmdz-policy.md)).
 
 ## 남은 것
-- [ ] **단계 3 — 요소 리졸버 + TextField 분기**: `AXObserver`(kAXFocusedUIElementChanged) + NSWorkspace 활성화로 focusedRole 캐시(콜백은 캐시만 읽음 — 콜백 경량 불변식 위임 ②), TextField 시퀀스 분기(예: `delete(.line)` → `Cmd-A, Delete`), **캐시 충분성 1차 확정**(결정 문서). 앱 최초의 실질 AX 의존(읽기 전용) — 실기기 검증 비중 큼.
+- [ ] **단계 3 — 요소 리졸버 (걸러내기 중심)**: `AXObserver`(kAXFocusedUIElementChanged) + NSWorkspace 활성화로 focusedRole 캐시(콜백은 캐시만 읽음 — 콜백 경량 불변식 위임 ②). 리졸버의 역할은 시퀀스 다변화가 아니라 **걸러내기**: ① 비텍스트 계열 전체 `nil` 스킵(Finder `p`/`u` 발사 해소 — [위험 결정](../../decisions/references/20260730_native-command-non-text-ui-hazard.md)의 구조적 해소), ② TextField는 **`o`/`O`만 `nil` 스킵**(Return=submit 회피) — 편집 어휘는 TextField 전용 시퀀스 없이 TextArea 시퀀스 유지(자연 수렴, 아래 범위 축소 컨텍스트 참조). **캐시 충분성 1차 확정**(결정 문서). 앱 최초의 실질 AX 의존(읽기 전용) — 실기기 검증 비중 큼(role 보고가 앱마다 다름).
 - [ ] **단계 4 — 안전망 회귀 + 게이트 해제**: 킬스위치 회귀 확인(래치와의 상호작용 포함), 미지원 스킵 로그 전수 확인 → `.replace` 무로그 삼킴 해소 → 릴리스 금지 게이트 해제 결정 문서.
 
 ## 진행 중 컨텍스트
 
+- **단계 3 범위 축소 확정 (2026-07-31 사용자 확인)**: TextField 전용 편집 시퀀스(원래 예시: `delete(.line)` → `Cmd-A, Delete`)는 **만들지 않는다**. 근거 실측 2건 — ① 단일행 필드에서 TextArea 시퀀스가 자연 수렴한다(브라우저 주소창에서 `Shift-↓`가 끝까지 선택 = `dd`가 전체 선택 후 잘라내기로 퇴행, 사용자 실측). ② 여러 줄 입력 가능한 검색창의 `dd`는 1줄 삭제가 원하는 동작인데, TextField 분기가 있으면 role 오보고 시 이를 전체 삭제로 개악한다. TextField에서 남는 실제 위험은 `o`/`O`의 Return(=submit)뿐이라 그것만 `nil` 스킵. `o` 스킵 시 "줄 없이 Insert 전이" 불일치는 수용(실패 모드가 무해 — Esc 한 번). Slack류 컴포저(role은 TextArea인데 Return=전송)는 role로 구별 불가 — 예정대로 M4 프로파일. **착수 시 이 범위를 결정 문서로 기록할 것**(아직 미기록).
 - **단계 2.5 코드 완료** (2026-07-30). 신규 `ExecutionAbortLatch`(세대 카운터 — 해제 API 없음) + `EventTapController` 소유·`keyboardActionSink(abort:)` 주입 + `KeyboardAdapter.execute(_:isCurrent:)` 청크 루프 + `CommandKeyMapper.pasteStrokeGroups`. `dispatchActions` 시그니처는 불변(세대는 sink 안에서 오간다). **결정 3건**: [세대 카운터 래치](../../decisions/references/20260730_execution-abort-generation-latch.md), [청크 게시와 페이싱](../../decisions/references/20260730_chunked-posting-with-pacing.md), [클램프 9,999 유지](../../decisions/references/20260730_count-clamp-retained-at-9999.md). 설계 중 방향을 가른 것: **지연 없는 청크 분할은 아무것도 못 끊는다** — 게시는 순식간이고 느린 쪽은 대상 앱이라, 간격이 없으면 2만 이벤트를 수십 ms에 다 넘겨 잔여가 안 남는다. 구현 중 잡은 버그 1건: "다음 액션과 붙는다" 잠금을 액션 처리 **후에** 세우면 이미 그 안에서 끊긴 뒤다 → 진입 시점 판정으로 수정.
 - **단계 2.5가 남긴 계약 (다음 세션이 깨지 말 것)**: ① 래치 무효화는 **마커 가드 뒤** — 앞이면 우리 합성 이벤트가 자기 버스트를 끊는다(첫 청크 만에 죽는 조용한 고장). ② 무효화는 **결정 종류 불문**(passthrough 포함) — 실증된 순서 역전의 `abc`가 passthrough다. ③ 청크 경계는 원자 그룹 사이에만 — 액션 전체 / `.edit(_,.selection)`+`clearSelection` / `.paste`의 `접두+첫 Cmd-V`. ④ `beginRun()`은 게시 큐 **밖**에서. 넷 다 테스트로 고정돼 있다(`ExecutionAbortWiringTests`, `KeyboardAdapterAbortTests` — 후자엔 "잠금 없으면 실제로 끊긴다"는 대조군 테스트가 함께 있다).
 - **단계 2c 코드 완료** (2026-07-30, Draft PR). 신규 `CommandKeyMapper`(진입점 2개 — openLine·undo·redo·scroll / paste) + `Clipboard`(`nonisolated`, 패스트보드 읽기만) + `PasteWiseResolver` 주입·`Mapping` 3갈래. **엔진·모션·편집·Visual 매퍼·게시 인프라 무변경.** 시퀀스: `o`=`Cmd-→,Return`, `O`=`Cmd-←,Return,↑`, `u`=`Cmd-Z`, `Ctrl-r`=`Shift-Cmd-Z`, **스크롤=`↓`/`↑` 반복(half 15·full 30)**, paste=wise별 접두 1회+`Cmd-V`×count(wise는 **우리 편집 기억 우선, 끝 개행 휴리스틱은 폴백**).
@@ -79,7 +80,7 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 - **도그푸딩 1차 결과 (2026-07-27)**: 편차 2건. ① `iw` 앵커가 `Opt-←` 1타라 캐럿이 단어 시작이면 앞 단어를 지웠다 → `Opt-→,Opt-←` 경유 3타로 수정([결정](../../decisions/references/20260727_inner-word-anchor-via-word-end.md)). ② Notion은 `Shift-Cmd-↑/↓`가 블록 이동이라 `d/c/y`+`G`·`gg` 6조합이 파괴적 오동작 → **수용**, M4 프로파일이 해소([결정](../../decisions/references/20260727_notion-cmd-shift-vertical-conflict.md)).
 - **M5 AX 인계 메모**: 지금 수용해 둔 엣지 상당수가 쓰기가 아니라 **읽기** 문제다 — `iw` 단어 경계(캐럿 좌우가 공백인지), 마지막 줄 `dd`·`dG`(캐럿이 마지막 줄인지), 탭 들여쓰기 `^`(앱별 단어 경계), `cw`→`ce` 특례, 경계 포화 5종(줄 끝 `x`·첫 줄 `dk`·마지막 단어 `dw`·마지막 줄 `dgg`·빈 선택)과 소프트 랩 시각 줄(2026-07-28 수용 엣지 결정 2건). **2c 편차도 대부분 읽기 문제다** — charwise `p`의 줄 끝(캐럿이 줄 끝인지), linewise `p`의 마지막 줄(마지막 줄인지), 소프트 랩의 `o`/`O`(논리 줄 경계), charwise `P`의 살아 있는 선택(`AXSelectedTextRange` 길이), 그리고 paste wise 자체(레지스터가 있으면 휴리스틱이 필요 없다 — v2 레지스터 또는 AX 어댑터의 yank 경로가 wise를 기억하면 해소). **Visual 편차는 통째로 여기 속한다** — `V` 세션 후진(`Vk`·`Vkk`)과 charwise 후진(`vb`·`vh`)은 앵커가 앱 안에 점으로 박혀 읽을 수 없어서 생기며, `AXSelectedTextRange`를 읽고 쓰면 원점 이동·정적 앵커 문제가 함께 사라진다. `AXValue`+`AXSelectedTextRange`로 정확 오프셋을 계산하고 실행은 키보드로 하는 혼용이면 전부 해소된다(적용 범위는 [strategy-dispatch.md](../../architecture/references/strategy-dispatch.md)의 미결 질문).
 - **단계 4로 넘긴 항목 2건 추가**: ① 비-QWERTY 레이아웃에서 오퍼레이터 키가 엉뚱한 `Cmd-` 단축키로 나간다 — 게이트 해제 시 안전판 필요 여부 판단. ② Notion `G`·`gg` 파괴적 오동작 — "무로그 삼킴 없음"과 별개 축이라 게이트 판정 시 재검토.
-- 규모 추정: 남은 것(2c 도그푸딩 + 단계 2.5·3·4) 3~4세션, PR 3개.
+- 규모 추정: 남은 것(단계 3·4) 2~3세션, PR 1~2개 — 단계 3은 2세션(코드 / 실기기 검증+결정 문서), 경계는 "검증 3종 그린 + 도그푸딩 미완" 체크포인트.
 - **단계 0 실측이 남긴 주의사항 (단계 1·2 설계 참고)**: ① Notion은 버스트에서 합성 이벤트를 드랍한다 — 편집 시퀀스 도그푸딩 시 Notion에서 어긋나면 드랍 가능성부터 의심. ② TextEdit 등 일부 네이티브 앱은 Opt-화살표 계열이 표준대로 안 먹힌다 — 시퀀스 검증은 표준 바인딩 앱(Notion·Chrome·VS Code) 기준, 네이티브 편차는 M5 AX 영역으로 수용. ③ change 실행 후 u는 2회(타이핑→삭제 복원)가 정상 동작이다 — 버그로 오인 금지.
 - **인계 계약 (M2에서 그대로)**: 합성 게시는 반드시 `ActionExecutor.post` 경유, CGEvent는 게시 직렬 큐 위에서 생성(비-Sendable), 실패 보고는 `reportExecutionFailure`로 원인 키 1건당 최대 1회 — 단 Keyboard 게시 경로는 오류를 돌려주지 않아 M3에서도 호출자 없음 유지(신호는 M5 AX가 만든다).
 - **실행 구조 (M2가 남긴 것)**: `.replace` → sink 클로저 → 게시 직렬 큐 → `KeyboardAdapter` → `ActionExecutor`. 앱 게이트는 마커·토글 뒤·번역 앞. 세부: [실행 배선 결정](../../decisions/references/20260726_m2-execution-wiring-shape.md).
