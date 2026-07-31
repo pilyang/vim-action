@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-25
-- **갱신일**: 2026-07-28 (M3 진행 중 — 단계 0·1·2 종료, 편집·Visual이 실제로 실행된다)
+- **갱신일**: 2026-08-01 (M3 진행 중 — 단계 0~2.5 종료 + 단계 3 코드 완료, 남은 것은 단계 3 도그푸딩과 단계 4 게이트 해제)
 
 ## 목표
 
@@ -21,14 +21,14 @@
 - [x] **M2 종료 — Keyboard 어댑터 ① 모션** (PR #20 `0eb2187` + PR #21 `bd643e1` 병합): 세션 A가 순수 실행 계층(`MotionKeyMapper`·`KeyboardAdapter`), 세션 B가 앱 게이트(`FrontmostAppGate`)와 실행 배선을 붙였다. 이동 계열이 실제 앱에서 캐럿을 움직이고 disable 앱(Ghostty)은 완전 통과하며, 실기기 도그푸딩으로 게이트 전이·모션 디스패치(`10w` 카운트 포함)·미지원 스킵·실패 보고 0건을 확인했다. 릴리스 배포 금지 게이트는 M3로 이동([결정](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)). **매핑 정확도 후속도 종료** (PR #23 `4f2dd65` 병합): w·^(I)를 3타 조합으로 교체([결정](../../decisions/references/20260726_word-forward-first-nonblank-multi-stroke.md)), Shift 누출은 미재현·기존 flags 명시 대입으로 종결([결정](../../decisions/references/20260726_shift-leak-event-flags-sufficient.md)), 탭 들여쓰기 ^·I의 Chromium 퇴행 엣지는 수용([결정](../../decisions/references/20260726_tab-indent-first-nonblank-chromium-edge.md)). 실기기 재검증 완료 — M2 상세 플랜은 완료 정리로 삭제됨.
 
 ## 남은 것
-- [ ] **M3 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버** (**진행 중 — 단계 0·1·2 종료**, PR #24·#25 병합): Normal 편집(`d`/`c`/`y`/`x`)과 Visual(`v`/`V`+모션+오퍼레이터)이 실제로 실행된다. 남은 것은 나머지 어휘(`o`/`p`/`u`/스크롤) → 실행 중단 래치 → 요소 리졸버 → 게이트 해제. 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
+- [ ] **M3 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버** (**진행 중 — 단계 0~2.5 종료 + 단계 3 코드 완료**, PR #24·#25·#26·#27 병합 + #28 Draft): v1 어휘 전체가 실행되고, 실행 중단 래치가 버스트를 끊으며, 요소 리졸버가 비텍스트 UI에서 편집·명령을 걸러낸다. 남은 것은 단계 3 도그푸딩 → 게이트 해제. 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
 - [ ] **M4 — 프로파일 배관 + 앱별 on/off** ← **MVP 1단계 완료선**: Yams YAML 3계층 로더 + 핫 리로드, M2 하드코딩 게이트를 프로파일로 교체, 내장 프로파일(주력 앱 + VS Code류 enabled: false), 설정 UI 앱별 목록. per_element 스키마 시점에 캐시 충분성 최종 확정.
 - [ ] **M5 — AX 어댑터 + auto 전략 (MVP 이후 1차 확장)**: AX 어댑터(AXSelectedTextRange 직접 조작), auto 프로브 → key-mapping 폴백, force-text 계열, per_element 재정의 본격화. `AXUIElementSetMessagingTimeout` 실기기 계측(콜백 경량 불변식 위임 ①)은 여기.
 - [ ] (MVP 밖) M6 — 서명·공증 배포는 외부 공유 시점에 별도 플랜으로.
 
 ## 진행 중 컨텍스트
 
-- **M3 진행 중 — 단계 0·1·2 종료**: 상세는 [20260726_m3-keyboard-edit-visual-resolver.md](20260726_m3-keyboard-edit-visual-resolver.md)가 SSOT다(단계별 상태·수용 엣지·인계 계약). 실행 계층은 이제 순수 매퍼 3종(`MotionKeyMapper`/`EditKeyMapper`/`VisualKeyMapper`) 구조이며, **미지원은 `nil`→스킵+로그**라 릴리스 금지 게이트("`.replace` 무로그 삼킴")의 해제 판정은 단계 4에 남아 있다. M1·M2는 완전 종료 (M2 상세 플랜은 완료 정리로 삭제).
+- **M3 진행 중 — 단계 0~2.5 종료 + 단계 3 코드 완료**: 상세는 [20260726_m3-keyboard-edit-visual-resolver.md](20260726_m3-keyboard-edit-visual-resolver.md)가 SSOT다(단계별 상태·수용 엣지·인계 계약). 실행 계층은 이제 순수 매퍼 4종(`MotionKeyMapper`/`EditKeyMapper`/`VisualKeyMapper`/`CommandKeyMapper`) + 요소 리졸버(`FocusedElementResolver`) 구조이며, **미지원은 `nil`→스킵+로그**라 릴리스 금지 게이트("`.replace` 무로그 삼킴")의 해제 판정은 단계 4에 남아 있다. M1·M2는 완전 종료 (M2 상세 플랜은 완료 정리로 삭제).
 - **M2에서 이관된 미확인 항목 2건**은 M3 상세 플랜의 단계 0(카운트 폭탄 실측)·단계 4(킬스위치 회귀)로 편입됐다.
 - **도그푸딩 관측 방법**: `.debug` 로그는 로그 저장소에 남지 않아 `log show`로는 판정 불가 — `/usr/bin/log stream --level debug --predicate 'subsystem == "dev.pilyang.VimAction"'` (zsh에서 `log`가 가려져 절대 경로 필요).
 - **테스트 seam (M2가 만든 것, M3 어댑터 테스트도 같은 방식)**: `ActionExecutor(postEvent:)` 수집기 주입으로 키코드·플래그·마커 검증 (CGEvent 생성은 TCC 불요라 headless 가능). 실행 sink와 앱 게이트의 기본값은 **XCTest 하위에서 무해한 것으로 바꿔치기**된다 — 그냥 두면 테스트가 실제 화살표 키를 머신에 주입하거나, Ghostty에서 테스트를 돌릴 때 게이트가 켜져 결정 테스트가 뒤집힌다. 동작을 검증하는 테스트는 init으로 자기 것을 주입한다.
@@ -38,7 +38,7 @@
 - **`.secureInput` 축 분리는 이연**: SEI가 탭 건강과 무관한 별개 축이라는 것이 실측으로 확정됐지만, `Status` 소비자(글리프·Settings·접근성 레이블) 전면 재설계라 M1 범위 밖으로 뒀다. 필요해지면 [SEI 결정 문서](../../decisions/references/20260726_secure-input-suppresses-delivery-not-enablement.md)를 supersede한다.
 - **마커 왕복 보존 실기 확인 완료 (2026-07-26)**: 외부 프로세스가 `.eventSourceUserData`에 매직값을 찍어 `.cgSessionEventTap`에 게시 → 우리 탭에서 마커가 그대로 읽혔다. 같은 키를 마킹 없이 게시하면 0ms 만에 `replace(wordForward)`로 잡히고, 마킹하면 로그 없이 앱까지 전달돼 문자가 입력된다. `CGEventSource.userData` 폴백은 불필요 — M2는 이 전제 위에서 게시해도 된다.
 - M2가 인계받는 계약 **네 가지**: 합성 CGEvent 게시는 반드시 `ActionExecutor.post`를 거친다(우회 시 마커 불변식 붕괴), **CGEvent 시퀀스는 `post`를 호출할 그 직렬 큐 위에서 만든다**(CGEvent가 비-Sendable이라 격리를 건너면 안 된다 — [ActionExecutor 격리 결정](../../decisions/references/20260726_action-executor-nonisolated-sendable.md)), 실행 실패는 `EventTapController.reportExecutionFailure`로 보고한다(새 off 경로 금지), 그 보고는 **원인 키 입력 1건당 최대 1회**다(어댑터가 action 시퀀스 실패를 접는다). 세부는 [20260725_failure-burst-autodisable-shape.md](../../decisions/references/20260725_failure-burst-autodisable-shape.md), [20260725_marker-guard-highest-precedence.md](../../decisions/references/20260725_marker-guard-highest-precedence.md), [20260726_execution-failure-report-granularity.md](../../decisions/references/20260726_execution-failure-report-granularity.md).
-- 릴리스 배포 금지 규칙(`.replace` 무로그 삼킴)은 **M3로 옮겨졌다**([결정](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)). 편집·Visual은 단계 1·2로 실행되기 시작했고 남은 "죽은 키"는 `o`/`p`/`u`/스크롤뿐이다 — 해제 판정 자체는 M3 단계 4(미지원 스킵 로그 전수 확인)의 몫이다.
+- 릴리스 배포 금지 규칙(`.replace` 무로그 삼킴)은 **M3로 옮겨졌다**([결정](../../decisions/references/20260726_release-block-gate-moves-to-m3.md)). v1 어휘 전체가 실행되므로 남은 "죽은 키"는 미구현 텍스트 오브젝트(aw·따옴표·괄호쌍)와 `V`→`v`뿐이다 — 해제 판정 자체는 M3 단계 4(미지원 스킵 로그 전수 확인)의 몫이며, 그 로그에는 이제 요소 계열이 태그돼 "미구현"과 "의도적 걸러내기"가 갈린다.
 - **M2가 남긴 실행 계층 구조** (M3가 그대로 쓴다): `.replace` → 컨트롤러가 든 sink 클로저 → 게시 직렬 큐 → `KeyboardAdapter` → `ActionExecutor`. 어댑터를 큐 **안에서** 부르는 것이 계약이고(CGEvent 비-Sendable), 앱 게이트는 마커·토글 뒤·번역 앞에 있다. 계약 ③④(실패 보고)는 M2에서도 호출자가 없다 — Keyboard 게시 경로가 오류를 돌려주지 않아 접을 실패가 없고, 신호는 M5 AX 어댑터가 만든다. 세부: [실행 배선 형태 결정](../../decisions/references/20260726_m2-execution-wiring-shape.md).
 - M2~M4 동안 번들 기본 전략 = keyboard 고정 (과도기, [strategy-dispatch.md](../../architecture/references/strategy-dispatch.md)에 표기).
 

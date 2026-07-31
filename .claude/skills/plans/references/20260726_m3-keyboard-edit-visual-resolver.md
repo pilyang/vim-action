@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-26
-- **갱신일**: 2026-07-31 (**단계 3 범위 축소 확정** — TextField 전용 편집 시퀀스 폐기, 리졸버는 "걸러내기" 중심으로. 실측 근거는 "진행 중 컨텍스트" 참조)
+- **갱신일**: 2026-08-01 (**단계 3 코드 완료 — Draft PR #28**. 검증 3종 그린, 도그푸딩 미완. 다음 세션은 아래 "단계 3 도그푸딩 체크리스트"부터)
 
 ## 목표
 
@@ -16,6 +16,7 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 
 ## 완료된 것
 
+- [x] **단계 3 — 요소 리졸버 코드 완료** (2026-08-01, Draft PR #28): 신규 `FocusedElementResolver`(`@MainActor` 캐시 + `AXObserver`/앱 활성화 2경로 + 전용 읽기 큐) + `ElementFamily` 3케이스(`.textArea`/`.textField`/`.nonText`, 정의는 리졸버 파일로 이동) + `KeyboardAdapter`의 게이트 1개·`execute(_:family:isCurrent:)` + `EditKeyMapper`/`CommandKeyMapper` 계열 분기 + sink 시그니처 확장. **엔진·모션 매퍼·게시 인프라·래치·킬스위치·앱 게이트 무변경.** 검증 3종 그린(엔진 40 / 앱 **685** / 빌드, 신규 경고 0). 결정 5건은 아래 "진행 중 컨텍스트" 참조. **도그푸딩 미완**.
 - [x] **단계 2.5 도그푸딩 완료 — 단계 종료** (2026-07-31): 6항목 전부 확인. 자동화분(순서 역전·총 소요·Notion·래치 경로)은 아래 "진행 중 컨텍스트"의 결과 참조 — 수정 1건(flush 재확인 게시 직전 이동, `04f1de5`). 사용자 물리 확인: **킬 콤보 정상 발동**(감지 로그·즉시 정지), Normal→Insert 전환 즉각, 폭주 중 시스템 부하로 느려지는 체감은 수용. 후속 결정: **클램프 9,999 → 1,000 하향**([결정](../../decisions/references/20260731_count-clamp-lowered-to-1000.md) — 전일 유지 결정 supersede, 엔진 픽스처 3건 갱신).
 - [x] **단계 2.5 — 실행 중단 래치 코드 완료** (2026-07-30): 신규 `ExecutionAbortLatch`(세대 카운터, 컨트롤러 소유·sink 팩토리 주입) + `KeyboardAdapter.execute` 청크 루프(8 스트로크, 첫 청크 즉시·이후 2ms) + `CommandKeyMapper.pasteStrokeGroups`(paste 내부 분할). 무효화 3주체 배선(새 사용자 키 **전부**·토글 off·킬스위치), 원자 그룹 2종 반영. **엔진·모션·편집·Visual 매퍼·`ActionExecutor` 무변경**, 카운트 클램프도 9,999 유지. 검증 3종 그린(엔진 40 / 앱 514 / 빌드). 결정 3건은 아래 "진행 중 컨텍스트" 참조. **도그푸딩 미완**.
 - [x] **단계 2c 종료 — 나머지 어휘 실행 + 도그푸딩 완료** (2026-07-30): 신규 순수 매퍼 `CommandKeyMapper`(네이티브 명령 위임 계열) + `Clipboard`/`PasteWiseResolver` + 어댑터 배선. 이제 **v1 어휘 전체가 실행된다** — `default: nil`에 남은 것은 미구현 텍스트 오브젝트(aw·따옴표·괄호쌍)와 `V`→`v`뿐이다. 도그푸딩에서 **수정 2건**이 나와 반영됐다(스크롤 화살표 반복, paste wise 우리 편집 기억) — 재확인까지 정상 동작. 설계 결정 8건은 아래 "진행 중 컨텍스트" 참조. 검증 3종 + CI 2잡 그린, **PR #26 ready**.
@@ -26,12 +27,31 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 - [x] **단계 0 — 사전 실측 2건 완료** (2026-07-26 실기기): ① 카운트 폭탄 — 100j 1초 이내·9999j 수 초 폭주(비치볼), 킬스위치 발동 즉시지만 in-flight 못 멈춤, 버스트 중 타이핑 순서 역전 실증, Notion 이벤트 드랍 → **실행 중단 래치 단계 4 승격 확정** ([결정](../../decisions/references/20260726_count-burst-abort-latch-promotion.md)). ② undo — 선택+잘라내기/붙여넣기/새줄 시퀀스 전부 1 undo 단위, change만 삭제+타이핑 분리 → **u=Cmd-Z 유지·시퀀스 설계 자유 확정** ([결정](../../decisions/references/20260726_undo-unit-cmdz-policy.md)).
 
 ## 남은 것
-- [ ] **단계 3 — 요소 리졸버 (걸러내기 중심)**: `AXObserver`(kAXFocusedUIElementChanged) + NSWorkspace 활성화로 focusedRole 캐시(콜백은 캐시만 읽음 — 콜백 경량 불변식 위임 ②). 리졸버의 역할은 시퀀스 다변화가 아니라 **걸러내기**: ① 비텍스트 계열 전체 `nil` 스킵(Finder `p`/`u` 발사 해소 — [위험 결정](../../decisions/references/20260730_native-command-non-text-ui-hazard.md)의 구조적 해소), ② TextField는 **`o`/`O`만 `nil` 스킵**(Return=submit 회피) — 편집 어휘는 TextField 전용 시퀀스 없이 TextArea 시퀀스 유지(자연 수렴, 아래 범위 축소 컨텍스트 참조). **캐시 충분성 1차 확정**(결정 문서). 앱 최초의 실질 AX 의존(읽기 전용) — 실기기 검증 비중 큼(role 보고가 앱마다 다름).
+- [ ] **단계 3 도그푸딩 (세션 2) — 이것으로 단계 3이 닫힌다**. 앱 최초의 실질 AX 의존이라 검증 비중이 크다. 아래 "단계 3 도그푸딩 체크리스트" 참조. 끝에 **캐시 충분성 1차 확정 결정 문서**를 쓴다([콜백 경량 불변식](../../decisions/references/20260725_callback-light-invariant.md)이 위임한 확인 항목 ②).
 - [ ] **단계 4 — 안전망 회귀 + 게이트 해제**: 킬스위치 회귀 확인(래치와의 상호작용 포함), 미지원 스킵 로그 전수 확인 → `.replace` 무로그 삼킴 해소 → 릴리스 금지 게이트 해제 결정 문서.
+
+## 단계 3 도그푸딩 체크리스트 (세션 2가 여기서 시작)
+
+관측 도구: `/usr/bin/log stream --level debug --predicate 'subsystem == "dev.pilyang.VimAction"'`. 리졸버는 계열 **전이 시점마다** `포커스 요소 계열 → …`를 남기고, 걸러진 액션은 `미지원 액션 스킵 ×N [nonText]: …`로 계열이 태그된 채 나온다. 도그푸딩 규율은 그대로 — 스크래치 문서 **+ 스크래치 폴더**, Finder·Mail은 의도적으로만.
+
+1. **앱별 role 실보고 vs 실측표 대조** — 실측표는 [분류표 결정](../../decisions/references/20260801_element-family-classification-table.md)에 있고 그대로 골든 픽스처다. 실제 앱에서 전이 로그의 계열이 표와 어긋나면 표가 틀린 것이다. 특히 **VS Code·Notion(Electron 오보고)**.
+2. **포커스 전환 직후 첫 키 레이스** — AX 읽기가 비동기라 앱 전환과 결과 착지 사이 **~20ms 창**이 있다(콜드 실측). 그 사이 캐시는 폴백 `.textArea`다. TextEdit → Finder로 즉시 전환하며 `p`를 눌러 **파일이 붙여넣어지는지** 본다. 재현되면 창을 줄이는 방법(활성화 시점 선제 읽기 등)이 다음 카드다.
+3. **`AXObserver` 등록 실패 앱 목록화** — 실패는 `.notice`로 `AXObserver 생성/등록 실패 (pid …)`가 앱당 1회 나온다. 실패한 앱은 포커스 **변경**을 못 받아 앱 전환 시점 값에 굳는다.
+4. **Finder** — `p`/`u`/`dd`가 스킵되고(로그에 `[nonText]`), `j`/`k`는 리스트 이동이 살아 있는지. **둘 다 확인해야 의미가 있다** — 후자가 죽으면 걸러내기 범위 결정이 틀린 것이다.
+5. **Chrome 주소창** — `o` 스킵 확인(주소창이 submit되지 않아야 한다) + `dd`가 자연 수렴(전체 선택 후 잘라내기)하는지.
+6. **여러 줄 검색창의 `dd`가 1줄만 지우는지** — TextField 전용 분기를 만들지 않은 근거의 실증이다. role이 `AXTextField`로 오보고되는 여러 줄 입력창을 찾아야 한다.
+7. **Chrome 페이지 본문 (미측정)** — 자동화로는 포커스가 옴니박스를 벗어나지 않아 세션 1에서 못 쟀다. 클릭으로 페이지에 포커스를 준 뒤 계열을 확인한다. 비텍스트로 나오면 `j`/`k` 스크롤이 살아 있는지가 4번과 같은 관심사다.
+8. **Slack 컴포저** — role이 `AXTextArea`라 `.textArea`로 분류된다(실측). `o`가 **메시지를 전송**하는지 확인 — 예정된 M4 프로파일 항목이며 리졸버로는 해소되지 않음의 실증이다.
+9. **캐시 충분성 1차 확정 결정 문서 작성** — 콜백이 캐시만 읽어도 충분한지(라이브 AX 읽기가 필요한 케이스가 없는지). 위 1~8이 입력이다.
 
 ## 진행 중 컨텍스트
 
-- **단계 3 범위 축소 확정 (2026-07-31 사용자 확인)**: TextField 전용 편집 시퀀스(원래 예시: `delete(.line)` → `Cmd-A, Delete`)는 **만들지 않는다**. 근거 실측 2건 — ① 단일행 필드에서 TextArea 시퀀스가 자연 수렴한다(브라우저 주소창에서 `Shift-↓`가 끝까지 선택 = `dd`가 전체 선택 후 잘라내기로 퇴행, 사용자 실측). ② 여러 줄 입력 가능한 검색창의 `dd`는 1줄 삭제가 원하는 동작인데, TextField 분기가 있으면 role 오보고 시 이를 전체 삭제로 개악한다. TextField에서 남는 실제 위험은 `o`/`O`의 Return(=submit)뿐이라 그것만 `nil` 스킵. `o` 스킵 시 "줄 없이 Insert 전이" 불일치는 수용(실패 모드가 무해 — Esc 한 번). Slack류 컴포저(role은 TextArea인데 Return=전송)는 role로 구별 불가 — 예정대로 M4 프로파일. **착수 시 이 범위를 결정 문서로 기록할 것**(아직 미기록).
+- **단계 3 코드 완료 (2026-08-01)**. 설계를 바꾼 **실측 2건**이 있다 — 착수 전 읽기 전용 AX 서베이(osascript 활성화 + 터미널 AX 읽기, 무인):
+  - **판별자가 role이 아니다.** Finder는 리스트 포커스에서도 **`AXGroup`** 을 보고하는데, 그 role은 Chromium·Electron이 편집 영역에도 붙인다 — 텍스트로 두면 Finder를 못 막고 비텍스트로 두면 웹 앱이 죽는 양자택일이었다. **`AXSelectedTextRange` 노출 여부**는 깨끗하게 갈린다(Finder 속성 13개엔 없음 / TextEdit·Notion·Slack·Chrome엔 있음). **값 조회는 판별자가 못 된다** — Finder도 `.success`를 돌려주므로 `AXUIElementCopyAttributeNames` 목록만 유효하다.
+  - **3ms 캡은 앱 최초 접촉에서 6/6 실패한다**(`kAXErrorCannotComplete`, 콜드는 ~20ms 필요·웜은 0.2~1.7ms). 지키면 앱 전환 직후 첫 판정이 반드시 폴백이라 리졸버가 겨냥한 순간을 구조적으로 놓친다 → **AX 읽기를 전용 직렬 큐로 빼고 50ms**. 메인은 AX를 아예 호출하지 않는다(콜백 경량 불변식보다 강한 보장). [3ms 캡 결정](../../decisions/references/20260712_ax-probe-hard-timeout-3ms.md)이 요구한 재계측의 이행이지만, 그 결정이 규율하는 `strategy: auto` 프로브는 아직 코드가 없어 **supersede는 보류**했다 — M5 착수 시 판단.
+- **단계 3 결정 5건**: [TextField 시퀀스 폐기](../../decisions/references/20260801_textfield-edit-sequences-scrapped.md), [폴백은 `.textArea`](../../decisions/references/20260801_resolver-fallback-defaults-to-text-area.md), [걸러내기 범위 — 모션·스크롤 유지](../../decisions/references/20260801_non-text-filter-keeps-motion-and-scroll.md), [분류표](../../decisions/references/20260801_element-family-classification-table.md), [캐시 형태](../../decisions/references/20260801_focused-role-cache-shape.md).
+- **단계 3이 남긴 계약 (깨지 말 것)**: ① **걸러내기 게이트는 어댑터 한 곳**(`mapping(for:family:)` 최상단) — 매퍼로 옮기면 family 없는 `.move`, 매퍼 호출 전의 `recordLinewiseEdit()`, 매퍼 호출 전의 클립보드 읽기 셋을 앞설 수 없다(테스트 `nonTextEditDoesNotRecordPasteWise`가 ②를 고정한다). ② **계열은 키 입력 시점 스냅샷**으로 sink에 실린다 — 게시 큐가 캐시를 나중에 읽으면 버스트 도중 옮겨간 포커스로 걸러진다. ③ 큐로 넘기는 값은 `pid_t`뿐 — `AXUIElement`를 격리 경계로 넘기지 않는다. ④ 앱 전환 시 캐시는 **즉시 폴백 리셋** — 이전 앱 계열을 들고 있으면 Finder→편집기 직후 편집이 통째로 죽는다.
+- **단계 3 범위 축소 확정 (2026-07-31 사용자 확인, 2026-08-01 결정 문서화 완료)**: TextField 전용 편집 시퀀스(원래 예시: `delete(.line)` → `Cmd-A, Delete`)는 **만들지 않는다**. 근거 실측 2건 — ① 단일행 필드에서 TextArea 시퀀스가 자연 수렴한다(브라우저 주소창에서 `Shift-↓`가 끝까지 선택 = `dd`가 전체 선택 후 잘라내기로 퇴행, 사용자 실측). ② 여러 줄 입력 가능한 검색창의 `dd`는 1줄 삭제가 원하는 동작인데, TextField 분기가 있으면 role 오보고 시 이를 전체 삭제로 개악한다. TextField에서 남는 실제 위험은 `o`/`O`의 Return(=submit)뿐이라 그것만 `nil` 스킵. `o` 스킵 시 "줄 없이 Insert 전이" 불일치는 수용(실패 모드가 무해 — Esc 한 번). Slack류 컴포저(role은 TextArea인데 Return=전송)는 role로 구별 불가 — 예정대로 M4 프로파일(**실측으로 확인됨**: Slack 컴포저는 `AXTextArea` + 텍스트 속성 50개로 진짜 TextArea와 구별되지 않는다). **비텍스트 걸러내기는 "전체"가 아니라 편집·Visual·명령 위임까지다** — `.move`·`.scroll`은 게시한다(2026-08-01 사용자 확인, [결정](../../decisions/references/20260801_non-text-filter-keeps-motion-and-scroll.md)).
 - **단계 2.5 코드 완료** (2026-07-30). 신규 `ExecutionAbortLatch`(세대 카운터 — 해제 API 없음) + `EventTapController` 소유·`keyboardActionSink(abort:)` 주입 + `KeyboardAdapter.execute(_:isCurrent:)` 청크 루프 + `CommandKeyMapper.pasteStrokeGroups`. `dispatchActions` 시그니처는 불변(세대는 sink 안에서 오간다). **결정 3건**: [세대 카운터 래치](../../decisions/references/20260730_execution-abort-generation-latch.md), [청크 게시와 페이싱](../../decisions/references/20260730_chunked-posting-with-pacing.md), [클램프 9,999 유지](../../decisions/references/20260730_count-clamp-retained-at-9999.md). 설계 중 방향을 가른 것: **지연 없는 청크 분할은 아무것도 못 끊는다** — 게시는 순식간이고 느린 쪽은 대상 앱이라, 간격이 없으면 2만 이벤트를 수십 ms에 다 넘겨 잔여가 안 남는다. 구현 중 잡은 버그 1건: "다음 액션과 붙는다" 잠금을 액션 처리 **후에** 세우면 이미 그 안에서 끊긴 뒤다 → 진입 시점 판정으로 수정.
 - **단계 2.5가 남긴 계약 (다음 세션이 깨지 말 것)**: ① 래치 무효화는 **마커 가드 뒤** — 앞이면 우리 합성 이벤트가 자기 버스트를 끊는다(첫 청크 만에 죽는 조용한 고장). ② 무효화는 **결정 종류 불문**(passthrough 포함) — 실증된 순서 역전의 `abc`가 passthrough다. ③ 청크 경계는 원자 그룹 사이에만 — 액션 전체 / `.edit(_,.selection)`+`clearSelection` / `.paste`의 `접두+첫 Cmd-V`. ④ `beginRun()`은 게시 큐 **밖**에서. 넷 다 테스트로 고정돼 있다(`ExecutionAbortWiringTests`, `KeyboardAdapterAbortTests` — 후자엔 "잠금 없으면 실제로 끊긴다"는 대조군 테스트가 함께 있다).
 - **단계 2c 코드 완료** (2026-07-30, Draft PR). 신규 `CommandKeyMapper`(진입점 2개 — openLine·undo·redo·scroll / paste) + `Clipboard`(`nonisolated`, 패스트보드 읽기만) + `PasteWiseResolver` 주입·`Mapping` 3갈래. **엔진·모션·편집·Visual 매퍼·게시 인프라 무변경.** 시퀀스: `o`=`Cmd-→,Return`, `O`=`Cmd-←,Return,↑`, `u`=`Cmd-Z`, `Ctrl-r`=`Shift-Cmd-Z`, **스크롤=`↓`/`↑` 반복(half 15·full 30)**, paste=wise별 접두 1회+`Cmd-V`×count(wise는 **우리 편집 기억 우선, 끝 개행 휴리스틱은 폴백**).
