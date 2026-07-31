@@ -47,6 +47,11 @@ nonisolated enum CommandKeyMapper {
     static func keyStrokes(for action: VimAction, family: ElementFamily) -> [KeyStroke]? {
         switch action {
         case .openLine(let above):
+            // **여기가 계열이 실제로 시퀀스를 가르는 유일한 자리다.** 단일행 필드에서 `Return`은
+            // 줄을 만드는 대신 대개 **submit**이라(폼 전송·주소창 이동) 되돌릴 수 없다.
+            // 엔진은 이미 Insert로 전이한 뒤라 "줄 없이 Insert"라는 불일치가 남지만, 그 실패
+            // 모드는 Esc 한 번으로 끝나 무해하다 (`20260801_textfield-edit-sequences-scrapped.md`).
+            guard family != .textField else { return nil }
             return above ? openAbove : openBelow
 
         case .undo:

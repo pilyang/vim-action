@@ -57,12 +57,14 @@ struct CommandMappingFixture: Sendable, CustomTestStringConvertible {
     /// 비교한다 — 골든이 고정하는 것은 "어떤 키가 어떤 순서로 나가는가"이고, 그룹 경계는
     /// 아래 `pasteSplitsIntoAbortableGroups`가 따로 본다. 이 분리 덕에 그룹화가 매핑을
     /// 바꾸지 않았음이 기존 골든 전부로 확인된다.
-    var actual: [KeyStroke]? {
+    var actual: [KeyStroke]? { actual(family: .textArea) }
+
+    func actual(family: ElementFamily) -> [KeyStroke]? {
         guard case .paste(let before, let count) = action, let wise else {
-            return CommandKeyMapper.keyStrokes(for: action, family: .textArea)
+            return CommandKeyMapper.keyStrokes(for: action, family: family)
         }
         return CommandKeyMapper.pasteStrokeGroups(
-            before: before, count: count, wise: wise, family: .textArea)?.flatMap { $0 }
+            before: before, count: count, wise: wise, family: family)?.flatMap { $0 }
     }
 }
 
@@ -182,6 +184,19 @@ struct CommandKeyMapperTests {
     @Test("매핑표 골든 — 명령 어휘가 계약대로 키스트로크가 된다", arguments: commandMappingFixtures)
     func mapsCommandsAsContracted(_ fixture: CommandMappingFixture) {
         #expect(fixture.actual == fixture.expected, "\(fixture.vim)")
+    }
+
+    /// **계열이 실제로 시퀀스를 가르는 유일한 자리**가 `o`/`O`라는 계약. 단일행 필드에서
+    /// `Return`은 줄을 만드는 대신 대개 submit이라 되돌릴 수 없다
+    /// (`20260801_textfield-edit-sequences-scrapped.md`).
+    @Test("TextField에서는 o·O만 미지원이고 나머지는 그대로다", arguments: commandMappingFixtures)
+    func textFieldFiltersOnlyOpenLine(_ fixture: CommandMappingFixture) {
+        let asField = fixture.actual(family: .textField)
+        if case .openLine = fixture.action {
+            #expect(asField == nil, "\(fixture.vim)")
+        } else {
+            #expect(asField == fixture.expected, "\(fixture.vim)")
+        }
     }
 
     /// 네 매퍼 공통 불변식 — 빈 배열은 "조용히 아무것도 안 함"이라 미지원(`nil` → 스킵+로그)과

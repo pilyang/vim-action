@@ -7,15 +7,6 @@ import Carbon.HIToolbox
 import CoreGraphics
 import VimEngine
 
-/// 리졸버가 보고하는 요소 계열 — 같은 편집이라도 계열마다 다른 키 시퀀스가 필요하다
-/// (예: `delete(.line)`이 TextArea에서는 줄 선택 후 잘라내기, TextField에서는 `Cmd-A, Delete`).
-///
-/// 지금은 TextArea 하나뿐이다. 리졸버(focusedRole 캐시)가 붙기 전까지 어댑터가 고정 주입하지만,
-/// 테이블 키를 처음부터 `(action, family)`로 둬 계열이 늘 때 시퀀스 표만 확장되게 한다.
-nonisolated enum ElementFamily: Sendable {
-    case textArea
-}
-
 /// `.edit(Operator, TextRange)` → 합성 키스트로크 시퀀스. `MotionKeyMapper`와 같은 순수 함수이며,
 /// CGEvent 변환은 매퍼 밖 게시 직렬 큐 위에서 한다.
 ///
@@ -35,16 +26,29 @@ nonisolated enum EditKeyMapper {
         range: VimAction.TextRange,
         family: ElementFamily
     ) -> [KeyStroke]? {
+        // 계열 판정이 **가장 먼저**다 — `.selection` 조기 반환보다 앞이어야 한다. 뒤에 두면
+        // 비텍스트에서도 살아 있는 선택에 `Cmd-X`가 나가는데, Finder에서 그것은 파일 이동이다.
+        switch family {
+        case .textArea, .textField:
+            // **의도된 수렴이다** — TextField 전용 시퀀스를 만들지 않는다. 단일행 필드에서는
+            // TextArea 시퀀스가 저절로 같은 결과로 수렴하고(주소창에서 `Shift-↓`는 끝까지
+            // 선택된다), 전용 분기는 role 오보고 시 여러 줄 검색창의 `dd` 1줄 삭제를 전체
+            // 삭제로 개악한다 (`20260801_textfield-edit-sequences-scrapped.md`).
+            break
+
+        case .nonText:
+            // 어댑터 게이트가 먼저 걸러 실제로는 도달하지 않는다. 봉쇄를 남기는 것은 게이트를
+            // 매퍼로 옮기려는 미래의 변경에 대한 안전판이다
+            // (`20260801_non-text-filter-keeps-motion-and-scroll.md`).
+            return nil
+        }
         // `.selection`은 계열 분기 **밖**이다: 이미 있는 선택에 대한 `Cmd-X`/`Cmd-C`는
         // TextField에서도 같고, 무엇보다 `apply(_:)`가 yank에 무조건 붙이는 `←`를 피해야 한다.
         if case .selection = range {
             return op == .yank ? [copy] : [cut]
         }
-        switch family {
-        case .textArea:
-            guard let selection = textAreaSelection(op, range) else { return nil }
-            return selection + apply(op)
-        }
+        guard let selection = textAreaSelection(op, range) else { return nil }
+        return selection + apply(op)
     }
 
     /// 범위 → 선택 스트로크 (TextArea 계열).

@@ -577,3 +577,105 @@ struct KeyboardAdapterAbortTests {
         #expect(posted.isEmpty)
     }
 }
+
+/// 요소 계열 게이트 — 리졸버가 보고한 계열에 따라 어댑터가 무엇을 걸러내는가.
+///
+/// 걸러내기는 시퀀스 다변화가 아니다: `.textField`는 `o`/`O`만, `.nonText`는 편집·Visual·명령
+/// 위임만 막고 **모션과 스크롤은 그대로 게시한다**. 전부 막으면 엔진이 이미 키를 삼킨 뒤라
+/// 스킵이 네이티브 동작으로의 복귀가 아니라 완전 무동작이 되어, Finder 리스트 이동과 Chrome
+/// 페이지 스크롤이 죽는다 (`20260801_non-text-filter-keeps-motion-and-scroll.md`).
+struct KeyboardAdapterElementFamilyTests {
+    /// 비텍스트에서 살아남는 두 액션. 화살표는 텍스트가 아닌 곳에서도 무해하게 흘러간다.
+    @Test(
+        "비텍스트에서도 모션·스크롤은 게시된다",
+        arguments: [VimAction.move(.lineDown), .scroll(.halfPage, forward: true)] as [VimAction])
+    func nonTextStillPostsArrowOnlyActions(_ action: VimAction) {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([action], family: .nonText)
+
+        #expect(!posted.isEmpty, "\(action)")
+        #expect(posted.allSatisfy { $0.flags.isEmpty }, "화살표뿐이라 수정키가 실리지 않는다")
+    }
+
+    /// Finder에서 `p`는 파일을 붙여넣고 `u`는 파일 조작을 되돌린다 — 걸러내기의 동기다.
+    /// `.edit`은 살아 있는 선택에 `Cmd-X`(= 파일 이동)를 내므로 같은 등급이다.
+    @Test(
+        "비텍스트에서 편집·Visual·명령 위임은 한 이벤트도 나가지 않는다",
+        arguments: [
+            VimAction.edit(.delete, .line(count: 1)),
+            .edit(.yank, .selection),
+            .beginSelection(linewise: false),
+            .extendSelection(.wordForward),
+            .clearSelection,
+            .openLine(above: false),
+            .paste(before: false, count: 1),
+            .undo,
+            .redo,
+        ] as [VimAction])
+    func nonTextFiltersEditingAndCommands(_ action: VimAction) {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([action], family: .nonText)
+
+        #expect(posted.isEmpty, "\(action)")
+    }
+
+    /// TextField에서 걸러내는 것은 `o`/`O` 하나뿐이다 — `Return`이 대개 submit이라 되돌릴 수 없다.
+    @Test(
+        "TextField에서 o·O만 걸러진다",
+        arguments: [VimAction.openLine(above: false), .openLine(above: true)] as [VimAction])
+    func textFieldFiltersOpenLine(_ action: VimAction) {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([action], family: .textField)
+
+        #expect(posted.isEmpty, "\(action)")
+    }
+
+    /// **의도된 수렴** — TextField 전용 편집 시퀀스를 만들지 않기로 한 결정을 어댑터 층에서도
+    /// 고정한다 (`20260801_textfield-edit-sequences-scrapped.md`). 매퍼 층 고정은
+    /// `EditKeyMapperTests`에 있다.
+    @Test(
+        "TextField의 나머지 어휘는 TextArea와 같은 이벤트를 낸다",
+        arguments: [
+            VimAction.edit(.delete, .line(count: 1)),
+            .edit(.change, .motion(.wordForward, count: 1)),
+            .beginSelection(linewise: true),
+            .paste(before: false, count: 1),
+            .undo,
+        ] as [VimAction])
+    func textFieldMatchesTextAreaElsewhere(_ action: VimAction) {
+        nonisolated(unsafe) var fromTextArea: [CGEvent] = []
+        nonisolated(unsafe) var fromTextField: [CGEvent] = []
+        makeAdapter { fromTextArea.append($0) }.execute([action], family: .textArea)
+        makeAdapter { fromTextField.append($0) }.execute([action], family: .textField)
+
+        #expect(!fromTextArea.isEmpty, "\(action)")
+        #expect(keyCodes(of: fromTextField) == keyCodes(of: fromTextArea), "\(action)")
+    }
+
+    /// **게이트가 부수효과보다 앞이라는 계약.** `.edit`의 `recordLinewiseEdit()`은 매퍼 호출
+    /// 전에 불리므로, 게이트가 뒤에 있으면 게시하지도 않은 편집이 기억돼 다음 `p`의 wise가
+    /// 오염된다. `recordLinewiseEdit()`이 주입된 `changeCount`를 읽는다는 사실로 관측한다.
+    @Test("비텍스트 편집은 붙여넣기 단위 기억을 남기지 않는다")
+    func nonTextEditDoesNotRecordPasteWise() {
+        nonisolated(unsafe) var changeCountReads = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            changeCount: {
+                changeCountReads += 1
+                return 0
+            }, collecting: { posted.append($0) })
+
+        adapter.execute([.edit(.delete, .line(count: 1))], family: .nonText)
+        #expect(changeCountReads == 0, "게이트가 기억보다 앞이다")
+
+        // 대조군: 같은 액션이 TextArea에서는 실제로 기억을 남긴다 (관측 수단이 유효하다는 확인).
+        adapter.execute([.edit(.delete, .line(count: 1))], family: .textArea)
+        #expect(changeCountReads == 1)
+    }
+}

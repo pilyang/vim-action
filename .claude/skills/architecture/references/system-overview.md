@@ -29,7 +29,7 @@ graph LR
 | 이벤트 탭 | 유일한 키 입력 진입점. 마커 확인, 엔진 결정(삼키기/통과/대체) 적용 | [reentrancy-and-safety.md](reentrancy-and-safety.md) |
 | 킬스위치 탭 | 안전장치 콤보 전용 별도 탭. HID 최고 우선순위 + 전용 스레드 런루프라 메인이 스톨해도 발동한다 | [reentrancy-and-safety.md](reentrancy-and-safety.md) |
 | 모드 엔진 | `Key` → `VimAction` 해석. 실행 방법은 전혀 모름 | [mode-engine.md](mode-engine.md) |
-| 포커스/컨텍스트 리졸버 | `(bundleID, focusedRole, selectedRange)` 캐싱, 포커스 변경 시 무효화 | [strategy-dispatch.md](strategy-dispatch.md) |
+| 포커스/컨텍스트 리졸버 | 포커스 요소 계열 캐싱(앱 활성화·`AXObserver`가 갱신, AX 읽기는 전용 큐). `selectedRange`는 M5 몫 | [strategy-dispatch.md](strategy-dispatch.md) |
 | 전략 디스패처 + 어댑터 | `VimAction`마다 AX vs Keyboard 선택 후 실행 | [strategy-dispatch.md](strategy-dispatch.md) |
 | ActionExecutor | 모든 출력(AX 쓰기, 이벤트 게시)의 단일 통로. 재진입 마커 강제 | [reentrancy-and-safety.md](reentrancy-and-safety.md) |
 | 프로파일 로더 | YAML 계층 설정 로드/감시 | [profiles-and-config.md](profiles-and-config.md) |

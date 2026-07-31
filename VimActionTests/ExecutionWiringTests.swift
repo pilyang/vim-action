@@ -31,7 +31,7 @@ struct ExecutionWiringTests {
             let gate = Self.gate(frontmost: "com.mitchellh.ghostty")
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: gate,
-                dispatchActions: { dispatched.append($0) })
+                dispatchActions: { actions, _ in dispatched.append(actions) })
 
             // `#expect`에 코멘트를 붙이면 매크로 확장 안의 `try`가 처리되지 않아, 이벤트
             // 생성은 항상 문장으로 뺀다.
@@ -62,13 +62,42 @@ struct ExecutionWiringTests {
             nonisolated(unsafe) var dispatched: [[VimAction]] = []
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: Self.gate(frontmost: "com.apple.TextEdit"),
-                dispatchActions: { dispatched.append($0) })
+                dispatchActions: { actions, _ in dispatched.append(actions) })
             _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
 
             let motionKey = try keyDown(kVK_ANSI_H)
             #expect(controller.handleKeyDown(motionKey) == nil, "원본 h는 삼킴")
 
             #expect(dispatched == [[.move(.charLeft)]])
+        }
+    }
+
+    /// 계열은 **콜백에서 읽어 페이로드로 실린다** — 게시 큐가 나중에 캐시를 읽으면 그 사이
+    /// 옮겨간 포커스를 기준으로 걸러진다. 배선이 끊기면 리졸버가 무엇을 보고하든 어댑터는
+    /// 늘 폴백으로 실행하므로, 걸러내기가 통째로 죽는 조용한 고장이 된다.
+    @Test(
+        "디스패치 페이로드에 키 입력 시점의 요소 계열이 실린다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func replaceCarriesFocusedElementFamily() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var families: [ElementFamily] = []
+            let resolver = FocusedElementResolver(
+                notificationCenter: NotificationCenter(), frontmostProcessID: nil)
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: Self.gate(frontmost: "com.apple.TextEdit"),
+                focusedElement: resolver,
+                dispatchActions: { _, family in families.append(family) })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(families == [.textArea], "AX를 못 읽는 리졸버는 폴백을 보고한다")
+
+            resolver.update(family: .nonText)
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(families == [.textArea, .nonText])
         }
     }
 
@@ -86,7 +115,7 @@ struct ExecutionWiringTests {
             let gate = Self.gate(frontmost: "com.apple.TextEdit")
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: gate,
-                dispatchActions: { dispatched.append($0) })
+                dispatchActions: { actions, _ in dispatched.append(actions) })
             _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
             gate.update(bundleID: "com.mitchellh.ghostty")
 
@@ -103,7 +132,7 @@ struct ExecutionWiringTests {
             nonisolated(unsafe) var dispatched: [[VimAction]] = []
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: Self.gate(frontmost: "com.apple.TextEdit"),
-                dispatchActions: { dispatched.append($0) })
+                dispatchActions: { actions, _ in dispatched.append(actions) })
 
             let space = try keyDown(kVK_Space)
             let escape = try keyDown(kVK_Escape)
@@ -122,7 +151,7 @@ struct ExecutionWiringTests {
             nonisolated(unsafe) var dispatched: [[VimAction]] = []
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: Self.gate(frontmost: "com.apple.TextEdit"),
-                dispatchActions: { dispatched.append($0) })
+                dispatchActions: { actions, _ in dispatched.append(actions) })
             _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
             controller.isInterceptionEnabled = false
 
@@ -145,7 +174,7 @@ struct ExecutionAbortWiringTests {
             defaults: defaults,
             frontmostAppGate: FrontmostAppGate(
                 notificationCenter: NotificationCenter(), frontmostBundleID: "com.apple.TextEdit"),
-            dispatchActions: { _ in })
+            dispatchActions: { _, _ in })
     }
 
     /// **가장 중요한 한 건**: 우리가 게시한 합성 이벤트는 탭으로 되돌아온다. 그것이 래치를
