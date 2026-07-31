@@ -79,6 +79,9 @@ final class EventTapController {
                     startIfPermitted()
                 }
             } else {
+                // 게시 중인 버스트 폐기 — off가 통과만 시키고 이미 나가던 출력은 끝까지
+                // 소진하면 "껐는데 문서가 계속 바뀐다"가 된다. 잠금+증가뿐이라 맨 앞에 둔다.
+                executionAbort.invalidate()
                 resetEngine()
                 // cancel을 비활성화보다 먼저 — 이후 새 폴링은 안 뜨므로, 남는 경합은
                 // in-flight 핸들러 하나뿐.
@@ -154,11 +157,22 @@ final class EventTapController {
     /// 단위 테스트에서는 no-op이다 — TEST_HOST가 앱 프로세스라 그냥 두면 `.replace`를 만드는
     /// 테스트가 개발자 머신에 실제 화살표 키를 주입한다 (`startIfPermitted`의 XCTest 가드와
     /// 같은 규칙). 배선을 관측하는 테스트는 자체 sink를 명시 주입한다.
-    private static func keyboardActionSink() -> @Sendable ([VimAction]) -> Void {
+    ///
+    /// 래치는 여기서 세대만 오가고 **`dispatchActions`의 시그니처는 그대로다** — 중단은 실행
+    /// 계층의 관심사라 컨트롤러가 세대를 들고 다닐 이유가 없다.
+    private static func keyboardActionSink(
+        abort: ExecutionAbortLatch
+    ) -> @Sendable ([VimAction]) -> Void {
         guard !isRunningUnderXCTest() else { return { _ in } }
         let queue = DispatchQueue(label: "dev.pilyang.VimAction.execution", qos: .userInitiated)
         let adapter = KeyboardAdapter()
-        return { actions in queue.async { adapter.execute(actions) } }
+        return { actions in
+            // `beginRun`은 **큐 밖**(탭 콜백 스레드)이어야 한다 — 큐 안이면 이미 도는 버스트가
+            // 끝난 뒤에야 세대가 올라가 아무것도 끊지 못한다. 비용은 잠금 1회 + 증가 1회라
+            // 콜백 경량 불변식을 지킨다.
+            let run = abort.beginRun()
+            queue.async { adapter.execute(actions, isCurrent: { abort.isCurrent(run) }) }
+        }
     }
 
     /// 실행 실패 폭주 감지기 — `reportExecutionFailure`가 유일한 소비자다.
@@ -186,6 +200,17 @@ final class EventTapController {
     /// 래치 상태. 읽기는 테스트 검증용으로 연다 — 해제 누락은 "킬스위치 이후 재활성화가
     /// 영구 보류"라는 조용한 고장이라 계약으로 고정한다.
     nonisolated var isKillSwitchRequested: Bool { killSwitchRequested.withLock { $0 } }
+
+    /// 실행 중단 래치 — 게시 중인 버스트를 끊는 신호. 세우는 주체 셋(새 사용자 입력·마스터
+    /// 토글 off·킬스위치)이 전부 여기 모이고, 소비자는 게시 큐 위의 어댑터 하나다.
+    ///
+    /// 소유자가 컨트롤러인 것이 요점이다 — 큐를 sink 클로저가 단독 소유하던 배선에서는
+    /// 컨트롤러에 취소 핸들이 없어 킬스위치가 in-flight를 못 멈췄다(단계 0 실측). 이제
+    /// 컨트롤러와 sink가 같은 래치를 공유한다.
+    ///
+    /// internal인 이유는 `isKillSwitchRequested`와 같다 — 무효화 지점 누락은 조용한
+    /// 고장이라 테스트가 세대를 직접 관측해 계약으로 고정한다.
+    @ObservationIgnored nonisolated let executionAbort: ExecutionAbortLatch
 
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
@@ -224,7 +249,11 @@ final class EventTapController {
     ) {
         self.defaults = defaults
         self.frontmostAppGate = frontmostAppGate ?? .forCurrentEnvironment()
-        self.dispatchActions = dispatchActions ?? Self.keyboardActionSink()
+        // 기본값 대신 지역 변수를 거치는 이유: 프로덕션 sink가 **같은 인스턴스**를 캡처해야
+        // 하는데, 저장 프로퍼티가 다 채워지기 전에는 `self.executionAbort`를 읽을 수 없다.
+        let abort = ExecutionAbortLatch()
+        self.executionAbort = abort
+        self.dispatchActions = dispatchActions ?? Self.keyboardActionSink(abort: abort)
         self.isInterceptionEnabled = defaults.bool(
             forKey: PreferenceKeys.interceptionEnabled, default: true)
         let escapeEnabled = defaults.bool(
@@ -606,6 +635,10 @@ final class EventTapController {
     /// 콜백·워치독의 토글 가드는 아직 on을 보고 있어, 래치 없이는 우리가 끈 탭을 이들이
     /// 즉시 되살린다. 마지막 방어는 didSet off 분기의 "워치독 시리얼 큐 뒤 최종 disable".
     nonisolated func triggerKillSwitch() {
+        // 실행 중단 래치가 맨 앞이다 — "발동은 즉시인데 이미 게시된 이벤트는 끝까지 소진된다"가
+        // 단계 0이 실증한 킬스위치의 한계였고, 이 한 줄이 그 창을 닫는다. 잠금+증가뿐이라
+        // 아래 어떤 단계도 이것을 기다리지 않는다.
+        executionAbort.invalidate()
         // 래치는 반드시 disable **앞에** — 순서가 뒤집히면 그 사이에 도착한 비활성화 통지가
         // 래치 없는 상태로 판정돼 탭이 되살아난다.
         killSwitchRequested.withLock { $0 = true }
@@ -638,6 +671,16 @@ final class EventTapController {
         guard !SyntheticEventMarker.isMarked(event) else {
             return Unmanaged.passUnretained(event)
         }
+        // 실제 사용자 키다 = 게시 중인 버스트의 잔여를 폐기한다.
+        //
+        // **마커 가드 뒤인 것이 계약이다** — 앞에 두면 우리가 게시한 합성 이벤트가 탭으로
+        // 되돌아오며 자기 버스트를 끊는다(첫 청크 이후 전부 폐기).
+        //
+        // 결정(`.replace`)을 만드는 키만이 아니라 **모든** 사용자 키가 세운다. 단계 0이 실증한
+        // 순서 역전은 버스트 중 `i`+`abc` 타이핑이 캐럿 도착 전에 흩어져 삽입되는 것이었고,
+        // 그 `abc`는 passthrough라 replace만 보면 목표를 못 이룬다. 비용은 잠금 1회 + 증가
+        // 1회로 콜백 경량 불변식 범위 안이다.
+        executionAbort.invalidate()
         // 마스터 토글 off — 번역 전에 전부 통과 (off 의미론).
         guard isInterceptionEnabled else {
             return Unmanaged.passUnretained(event)

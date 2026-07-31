@@ -43,7 +43,7 @@ nonisolated enum PasteWise: Equatable, Sendable {
 /// 불변식이라, 게시할 것이 없는 경우는 `nil`로만 표현한다.
 nonisolated enum CommandKeyMapper {
     /// `.openLine` / `.undo` / `.redo` / `.scroll`. 붙여넣기는 클립보드 판정이 필요해
-    /// `pasteStrokes(before:count:wise:family:)`로 갈라져 있다.
+    /// `pasteStrokeGroups(before:count:wise:family:)`로 갈라져 있다.
     static func keyStrokes(for action: VimAction, family: ElementFamily) -> [KeyStroke]? {
         switch action {
         case .openLine(let above):
@@ -70,13 +70,22 @@ nonisolated enum CommandKeyMapper {
 
     /// `p`/`P` — 위치 접두는 **1회만**, `Cmd-V`만 count만큼 반복한다. 붙여넣기 후 캐럿이
     /// 삽입된 텍스트 끝에 남으므로 연타가 그대로 이어붙는다.
-    static func pasteStrokes(
+    ///
+    /// 다른 매퍼와 달리 **원자 그룹으로 갈라서** 낸다. `.paste`는 액션 **1개** 안에서 카운트가
+    /// 곱해지는 유일한 액션이라(`1000p` = `Cmd-V` 1,000타) 통짜로 내면 실행 중단 래치가
+    /// 파고들 틈이 없다. 가를 수 없는 것은 `접두 + 첫 Cmd-V` 하나뿐이다 — 접두만 게시되고
+    /// 끊기면 "붙여넣기 없이 캐럿만 움직이는" 조용한 오동작이 된다. 그 뒤의 `Cmd-V`는 각각
+    /// 독립이라 어디서 끊겨도 "덜 붙여넣음"으로 끝난다.
+    ///
+    /// 매핑 자체는 그대로다 — 평탄화하면 이전과 같은 시퀀스다.
+    static func pasteStrokeGroups(
         before: Bool, count: Int, wise: PasteWise, family: ElementFamily
-    ) -> [KeyStroke]? {
+    ) -> [[KeyStroke]]? {
         // 엔진은 count 1 이상만 낸다(0은 `0` 모션 규칙이 선점한다). 그래도 가드가 있는 이유는
         // 접두만 남은 시퀀스가 "붙여넣기 없이 캐럿만 움직인다"는 조용한 오동작이기 때문이다.
         guard count >= 1 else { return nil }
-        return prefix(before: before, wise: wise) + Array(repeating: pasteKey, count: count)
+        return [prefix(before: before, wise: wise) + [pasteKey]]
+            + Array(repeating: [pasteKey], count: count - 1)
     }
 
     /// 붙여넣기 지점으로 캐럿을 옮기는 접두. `P`(before)는 Vim에서 캐럿 위치가 곧 삽입점이라

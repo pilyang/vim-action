@@ -4,6 +4,7 @@
 //
 
 import CoreGraphics
+import Foundation
 import os
 import VimEngine
 
@@ -35,18 +36,56 @@ nonisolated struct KeyboardAdapter: Sendable {
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.
-    func execute(_ actions: [VimAction]) {
-        var events: [CGEvent] = []
+    ///
+    /// **통짜로 게시하지 않고 청크로 나눠 게시하며, 청크 사이마다 `isCurrent`에 묻는다.**
+    /// `1000j`·`1000p`급 버스트를 킬스위치·새 입력·토글 off가 도중에 끊을 수 있게 하는 것이
+    /// 목적이고(`ExecutionAbortLatch`), 생성도 청크 단위로 미뤄져 게시 전에 이벤트 2,000개를
+    /// 통째로 만들지 않는다. `isCurrent`가 false를 내는 순간 **잔여는 게시되지 않는다.**
+    ///
+    /// 기본값 `{ true }`는 "중단 없음" — 중단이 관심사가 아닌 호출자(대부분의 테스트)를 위한
+    /// 것이고, 프로덕션 경로는 `EventTapController.keyboardActionSink`가 항상 주입한다.
+    func execute(_ actions: [VimAction], isCurrent: () -> Bool = { true }) {
+        // dispatch 직후 곧바로 다음 키에 밀려난 경우 — 한 이벤트도 내보내지 않는다.
+        guard isCurrent() else { return }
+
         #if DEBUG
         var skippedCount = 0
         var firstSkipped: VimAction?
         #endif
+        /// 아직 청크 크기에 못 미쳐 게시를 미뤄 둔 이벤트.
+        var pending: [CGEvent] = []
+        var pendingStrokes = 0
+        var postedChunks = 0
+
+        /// 미뤄 둔 이벤트를 게시한다. 두 번째 청크부터는 앞에 간격을 둔다.
+        ///
+        /// 최신 여부 재확인은 **페이싱 뒤, 게시 직전**이다 — 간격에 잠들어 있는 동안 무효화가
+        /// 오면 이 청크째 폐기된다. 체크가 sleep보다 앞이면 무효화 **뒤에도** 청크 하나가 더
+        /// 나가고, 그 화살표들이 새 사용자 키와 인터리브돼 문서를 오염시킨다 (실기기 실증 —
+        /// 도그푸딩에서 3ms 창이 정확히 1청크 폭의 순서 역전으로 나타났다).
+        /// 반환 false = 이 실행이 밀려남 — 호출자는 즉시 그만둔다.
+        @discardableResult
+        func flush() -> Bool {
+            guard !pending.isEmpty else { return true }
+            if postedChunks > 0 { Thread.sleep(forTimeInterval: Self.chunkInterval) }
+            guard isCurrent() else {
+                #if DEBUG
+                Logger.eventTap.debug("실행 중단 — 잔여 폐기 (게시 청크 \(postedChunks, privacy: .public))")
+                #endif
+                return false
+            }
+            executor.post(pending)
+            pending.removeAll(keepingCapacity: true)
+            pendingStrokes = 0
+            postedChunks += 1
+            return true
+        }
 
         for action in actions {
-            let strokes: [KeyStroke]
+            let groups: [[KeyStroke]]
             switch mapping(for: action) {
-            case .strokes(let mapped):
-                strokes = mapped
+            case .groups(let mapped):
+                groups = mapped
             case .unsupported:
                 #if DEBUG
                 skippedCount += 1
@@ -56,39 +95,35 @@ nonisolated struct KeyboardAdapter: Sendable {
             case .skipped:
                 continue
             }
-            // 액션 단위 all-or-nothing — 스트로크 하나라도 CGEvent 생성에 실패하면 그 액션
-            // 전체를 버린다. 부분 시퀀스는 편집에서 "선택은 어긋난 채 Cmd-X만 나가는"
-            // 파괴적 실행이 된다 (이동만 실행하던 시절의 스킵-계속은 한 타 누락으로 무해했다).
-            var actionEvents: [CGEvent] = []
-            var creationFailed = false
-            for stroke in strokes {
-                guard
-                    let down = CGEvent(
-                        keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: true),
-                    let up = CGEvent(
-                        keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: false)
-                else {
-                    creationFailed = true
-                    break
+
+            // Visual `y`는 `[.edit(.yank, .selection), .clearSelection]`을 함께 낸다. 그 사이가
+            // 끊기면 **살아 있는 선택이 Normal로 넘어오고**, Normal `x`(`Shift-→, Cmd-X`)가
+            // 그것을 통째로 잘라낸다. 그래서 이 액션을 처리하는 동안에는 flush하지 않고,
+            // 잠금은 **다음 액션의 첫 경계**까지만 이어진다 (판정은 액션 진입 시점이어야
+            // 한다 — 액션을 다 처리한 뒤 세우면 이미 그 안에서 끊긴 뒤다).
+            let holdsNextAction = Self.isSelectionEdit(action)
+
+            for group in groups {
+                // 그룹 단위 all-or-nothing — 스트로크 하나라도 CGEvent 생성에 실패하면 그룹
+                // 전체를 버린다. 부분 시퀀스는 편집에서 "선택은 어긋난 채 Cmd-X만 나가는"
+                // 파괴적 실행이 된다 (이동만 실행하던 시절의 스킵-계속은 한 타 누락으로
+                // 무해했다). `.paste`를 뺀 모든 액션은 그룹이 곧 액션 전체라 의미가 같다.
+                guard let groupEvents = Self.events(for: group) else {
+                    // 미지원 스킵(DEBUG)과 달리 실제 이상 상황이라 항상 남긴다.
+                    Logger.eventTap.error(
+                        "CGEvent 생성 실패 — 액션 폐기: \(String(describing: action), privacy: .public)")
+                    continue
                 }
-                // 소스가 nil인 이벤트는 flags 기본값이 **실행 시점의 실제 modifier 상태**라,
-                // 대입은 선택이 아니라 필수다 — 사용자가 누르고 있던 키가 새어 들어간다.
-                down.flags = stroke.flags
-                up.flags = stroke.flags
-                actionEvents.append(down)
-                actionEvents.append(up)
+                pending.append(contentsOf: groupEvents)
+                pendingStrokes += group.count
+                // 원자 그룹은 절대 가르지 않는다 — 경계는 그룹 **사이**에만 온다.
+                guard pendingStrokes >= Self.chunkStrokes, !holdsNextAction else { continue }
+                guard flush() else { return }
             }
-            guard !creationFailed else {
-                // 미지원 스킵(DEBUG)과 달리 실제 이상 상황이라 항상 남긴다.
-                Logger.eventTap.error(
-                    "CGEvent 생성 실패 — 액션 폐기: \(String(describing: action), privacy: .public)")
-                continue
-            }
-            events.append(contentsOf: actionEvents)
         }
 
         #if DEBUG
-        // 카운트 반복(`9999u`, Visual `9999j` 등)으로 액션이 수천 개일 수 있어 요약 1건으로
+        // 카운트 반복(`1000u`, Visual `1000j` 등)으로 액션이 수백~천 개일 수 있어 요약 1건으로
         // 접는다. 요약에 쓰는 건 개수와 첫 1개뿐이라 액션 자체를 쌓아 두지 않는다.
         if let first = firstSkipped {
             Logger.eventTap.debug(
@@ -97,14 +132,61 @@ nonisolated struct KeyboardAdapter: Sendable {
         }
         #endif
 
-        executor.post(events)
+        flush()
+    }
+
+    /// 한 청크에 담는 키스트로크 수 (스트로크 = keyDown+keyUp 쌍이라 이벤트로는 두 배).
+    ///
+    /// 이 값과 `chunkInterval`은 **도그푸딩 조절값**이다 — 작을수록 중단이 빠르고, 클수록
+    /// 버스트 총 소요가 짧다.
+    private static let chunkStrokes = 8
+
+    /// 두 번째 청크부터 청크 앞에 두는 간격.
+    ///
+    /// 지연이 **중단을 가능하게 하는 장치**다: `CGEvent.post`는 배달만 걸어 두고 즉시 돌아오는
+    /// 반면 소비하는 쪽은 대상 앱이라, 간격이 없으면 수천 개를 수십 ms에 다 넘겨버려 끊을
+    /// 잔여가 남지 않는다(단계 0 실측: 킬스위치 발동은 즉시지만 이미 게시된 이벤트는 끝까지
+    /// 소진됐다). 첫 청크는 지연 없이 나가므로 일상 입력(1~3 스트로크)의 반응성은 그대로다.
+    /// 게시 직렬 큐를 막는 것이 곧 스로틀이며, 새 키는 탭 콜백에서 래치만 세우고 그 뒤에 쌓인다.
+    private static let chunkInterval: TimeInterval = 0.002
+
+    /// 원자 그룹 하나의 CGEvent. 하나라도 생성에 실패하면 `nil` — 부분 시퀀스를 내지 않는다.
+    private static func events(for strokes: [KeyStroke]) -> [CGEvent]? {
+        var events: [CGEvent] = []
+        events.reserveCapacity(strokes.count * 2)
+        for stroke in strokes {
+            guard
+                let down = CGEvent(
+                    keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: true),
+                let up = CGEvent(
+                    keyboardEventSource: nil, virtualKey: stroke.keyCode, keyDown: false)
+            else {
+                return nil
+            }
+            // 소스가 nil인 이벤트는 flags 기본값이 **실행 시점의 실제 modifier 상태**라,
+            // 대입은 선택이 아니라 필수다 — 사용자가 누르고 있던 키가 새어 들어간다.
+            down.flags = stroke.flags
+            up.flags = stroke.flags
+            events.append(down)
+            events.append(up)
+        }
+        return events
+    }
+
+    /// 화면에 이미 있는 선택에 대한 편집인가 — 뒤따르는 `clearSelection`과 갈라지면 안 된다.
+    /// `VimAction`에 exhaustive switch를 걸지 않는 것은 매퍼와 같은 계약이다.
+    private static func isSelectionEdit(_ action: VimAction) -> Bool {
+        guard case .edit(_, .selection) = action else { return false }
+        return true
     }
 
     /// 액션 1건의 매핑 결과. 스킵을 **두 종류로 가르는 것이 요점**이다 — 단계 4의 릴리스
     /// 게이트 판정이 "미지원 스킵 로그 전수 확인"이라, 지원하는데 이번 입력에는 할 일이 없는
     /// 경우가 미지원으로 집계되면 심사자가 그 어휘를 미구현으로 읽는다.
     private enum Mapping {
-        case strokes([KeyStroke])
+        /// **원자 그룹**의 목록. 청크 경계는 그룹 사이에만 올 수 있다 — 대부분의 액션은
+        /// 그룹 1개(액션 전체)이고, `.paste`만 카운트만큼 갈라져 온다.
+        case groups([[KeyStroke]])
         /// 매퍼가 `nil` — 이 어휘가 아직 구현되지 않았다. 요약 로그에 집계된다.
         case unsupported
         /// 지원하지만 이번엔 게시할 것이 없다. 사유를 아는 자리에서 **자체 로그를 이미 남겼다**.
@@ -121,7 +203,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         // 요소 계열은 단계 3의 focusedRole 리졸버가 채운다 — 그때까지 TextArea 고정.
         switch action {
         case .move(let motion):
-            return .strokes(MotionKeyMapper.keyStrokes(for: motion))
+            return Self.mapping(MotionKeyMapper.keyStrokes(for: motion))
 
         case .edit(let op, let range):
             // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
@@ -142,9 +224,11 @@ nonisolated struct KeyboardAdapter: Sendable {
                 Logger.eventTap.debug("paste 스킵 — 클립보드에 텍스트가 없다")
                 return .skipped
             }
-            return Self.mapping(
-                CommandKeyMapper.pasteStrokes(
-                    before: before, count: count, wise: wise, family: .textArea))
+            // 유일하게 그룹이 여럿인 액션 — 액션 1개 안에서 카운트가 곱해지므로 래치가
+            // 파고들 틈을 매퍼가 직접 낸다.
+            return CommandKeyMapper.pasteStrokeGroups(
+                before: before, count: count, wise: wise, family: .textArea)
+                .map(Mapping.groups) ?? .unsupported
 
         default:
             return .unsupported
@@ -166,8 +250,10 @@ nonisolated struct KeyboardAdapter: Sendable {
         }
     }
 
-    /// 매퍼의 `[KeyStroke]?` 계약을 `Mapping`으로 옮긴다 — `nil`은 미지원이다.
+    /// 매퍼의 `[KeyStroke]?` 계약을 `Mapping`으로 옮긴다 — `nil`은 미지원이고, 평평한
+    /// 시퀀스는 **가를 수 없는 그룹 하나**다 (액션 중간에서 끊으면 "선택은 어긋난 채
+    /// `Cmd-X`만 나가는" 파괴적 실행이 된다).
     private static func mapping(_ strokes: [KeyStroke]?) -> Mapping {
-        strokes.map(Mapping.strokes) ?? .unsupported
+        strokes.map { Mapping.groups([$0]) } ?? .unsupported
     }
 }
