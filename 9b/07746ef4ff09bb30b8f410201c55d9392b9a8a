@@ -1,0 +1,25 @@
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_33f72357984a8a::t_78092f9f8e667e 6
+  s_33f72357984a8a::t_d3bb8c8dbd65bf 29
+  s_33f72357984a8a::t_732e43874deb64 83
+  s_33f72357984a8a::t_c94d6dae80e6b0 10
+  s_33f72357984a8a::t_3cb5d3e91ba801 34
+.claude/skills/plans/SKILL.md
+  s_33f72357984a8a::t_edb53e85de976e 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "9b07746ef4ff09bb30b8f410201c55d9392b9a8a",
+  "prompts": {},
+  "sessions": {
+    "s_33f72357984a8a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1c3668f-36bb-4f17-b324-561c1f28fccd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
