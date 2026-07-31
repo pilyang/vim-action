@@ -658,6 +658,46 @@ struct KeyboardAdapterElementFamilyTests {
         #expect(keyCodes(of: fromTextField) == keyCodes(of: fromTextArea), "\(action)")
     }
 
+    /// 앱 전환 직후의 **미확정 창**은 `.nonText`와 같은 편이다 — 요소를 아직 모르는 동안
+    /// 위험 어휘를 내보내면 실측된 방향으로 틀린다(TextEdit→Finder 직후의 `u`가 `Cmd-Z`로
+    /// Finder에 도달했다, `20260801_unresolved-window-after-app-switch.md`).
+    @Test(
+        "미확정 창에서 편집·Visual·명령 위임은 한 이벤트도 나가지 않는다",
+        arguments: [
+            VimAction.edit(.delete, .line(count: 1)),
+            .edit(.yank, .selection),
+            .beginSelection(linewise: false),
+            .extendSelection(.wordForward),
+            .clearSelection,
+            .openLine(above: false),
+            .paste(before: false, count: 1),
+            .undo,
+            .redo,
+        ] as [VimAction])
+    func unresolvedFiltersEditingAndCommands(_ action: VimAction) {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        adapter.execute([action], family: .unresolved)
+
+        #expect(posted.isEmpty, "\(action)")
+    }
+
+    /// 미확정 창이 **모션·스크롤까지 막지는 않는다**. 창은 앱 전환 직후 ~20ms마다 열리므로,
+    /// 여기서 화살표를 막으면 앱을 옮길 때마다 첫 이동이 사라져 체감 고장이 된다.
+    @Test(
+        "미확정 창에서도 모션·스크롤은 게시된다",
+        arguments: [VimAction.move(.lineDown), .scroll(.halfPage, forward: true)] as [VimAction])
+    func unresolvedStillPostsArrowOnlyActions(_ action: VimAction) {
+        nonisolated(unsafe) var fromUnresolved: [CGEvent] = []
+        nonisolated(unsafe) var fromTextArea: [CGEvent] = []
+        makeAdapter { fromUnresolved.append($0) }.execute([action], family: .unresolved)
+        makeAdapter { fromTextArea.append($0) }.execute([action], family: .textArea)
+
+        #expect(!fromUnresolved.isEmpty, "\(action)")
+        #expect(keyCodes(of: fromUnresolved) == keyCodes(of: fromTextArea), "\(action)")
+    }
+
     /// **게이트가 부수효과보다 앞이라는 계약.** `.edit`의 `recordLinewiseEdit()`은 매퍼 호출
     /// 전에 불리므로, 게이트가 뒤에 있으면 게시하지도 않은 편집이 기억돼 다음 `p`의 wise가
     /// 오염된다. `recordLinewiseEdit()`이 주입된 `changeCount`를 읽는다는 사실로 관측한다.

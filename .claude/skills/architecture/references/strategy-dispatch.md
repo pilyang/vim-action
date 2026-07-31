@@ -1,6 +1,6 @@
 # 전략 디스패치
 
-- **Last updated**: 2026-08-01
+- **Last updated**: 2026-08-01 (단계 3 도그푸딩 반영 — 미확정 창, 캐시 충분성 확정)
 
 ## 현재 구조
 
@@ -35,20 +35,22 @@ flowchart TD
 
 ### Keyboard 어댑터 — 요소 계열(element family)
 
-`ElementFamily`는 `.textArea` / `.textField` / `.nonText` 셋이며 리졸버가 보고한다. **계열은 시퀀스를 다변화하지 않는다 — 걸러낼지만 정한다.** `.textField`는 편집·Visual·붙여넣기·undo에서 `.textArea`와 **같은 시퀀스**를 쓴다: 단일행 필드에서 TextArea 시퀀스가 자연 수렴하고(주소창에서 `Shift-↓`는 끝까지 선택된다), 전용 분기는 role 오보고 시 여러 줄 검색창의 `dd` 1줄 삭제를 전체 삭제로 개악한다 — 실패 방향이 비대칭이다 ([20260801_textfield-edit-sequences-scrapped.md](../../decisions/references/20260801_textfield-edit-sequences-scrapped.md)).
+`ElementFamily`는 `.textArea` / `.textField` / `.nonText` / `.unresolved` 넷이며 리졸버가 보고한다. 앞의 셋이 판정 결과이고 `.unresolved`는 **앱 전환 직후 첫 읽기가 아직 착지하지 않은 상태**다 — 폴백(`.textArea`)과 구분되는 별개 값이며, 걸러내기에서는 `.nonText`와 같은 편에 선다. **계열은 시퀀스를 다변화하지 않는다 — 걸러낼지만 정한다.** `.textField`는 편집·Visual·붙여넣기·undo에서 `.textArea`와 **같은 시퀀스**를 쓴다: 단일행 필드에서 TextArea 시퀀스가 자연 수렴하고(주소창에서 `Shift-↓`는 끝까지 선택된다), 전용 분기는 role 오보고 시 여러 줄 검색창의 `dd` 1줄 삭제를 전체 삭제로 개악한다 — 실패 방향이 비대칭이다 ([20260801_textfield-edit-sequences-scrapped.md](../../decisions/references/20260801_textfield-edit-sequences-scrapped.md)).
 
 - **key-mapping 계열**: 리졸버를 참조해 요소 인식 시퀀스 선택. AX 불가 시 자동 감지가 사용하는 기본 폴백.
 - **force-text 계열**: 항상 TextArea 시퀀스 사용. 프로파일 명시 선택 전용, 자동 감지 금지.
 
 **걸러내기 표** — 계열이 실제로 가르는 전부다:
 
-| 액션 | `.textArea` | `.textField` | `.nonText` |
-|---|---|---|---|
-| `.move` · `.scroll` | 게시 | 게시 | **게시** |
-| `.edit` · Visual 4종 · `.paste` · `.undo` · `.redo` | 게시 | 게시 | `nil` 스킵 |
-| `.openLine` (`o`/`O`) | 게시 | **`nil` 스킵** | `nil` 스킵 |
+| 액션 | `.textArea` | `.textField` | `.nonText` | `.unresolved` |
+|---|---|---|---|---|
+| `.move` · `.scroll` | 게시 | 게시 | **게시** | **게시** |
+| `.edit` · Visual 4종 · `.paste` · `.undo` · `.redo` | 게시 | 게시 | `nil` 스킵 | `nil` 스킵 |
+| `.openLine` (`o`/`O`) | 게시 | **`nil` 스킵** | `nil` 스킵 | `nil` 스킵 |
 
 `.nonText`에서 모션·스크롤이 살아남는 것은 위험 등급을 가르는 축이 "비텍스트인가"가 아니라 **"앱이 이미 아는 명령인가"** 이기 때문이다. Finder에서 `p`는 파일을 붙여넣고 `u`는 파일 조작을 되돌리는 반면, 화살표는 무해하게 흘러가며 리스트 이동·페이지 스크롤로 유용하다 — 엔진이 이미 키를 삼킨 뒤라 스킵은 네이티브 동작으로의 복귀가 아니라 **완전 무동작**이다. `.scroll`이 명령 매퍼 소속인데도 여기 속하는 것은 그 매퍼에서 유일하게 네이티브 명령에 위임하지 않는 액션(화살표 반복)이기 때문이다 ([20260801_non-text-filter-keeps-motion-and-scroll.md](../../decisions/references/20260801_non-text-filter-keeps-motion-and-scroll.md)). 이것이 [20260730_native-command-non-text-ui-hazard.md](../../decisions/references/20260730_native-command-non-text-ui-hazard.md)가 단계 3에 위임한 구조적 해소다.
+
+`.unresolved`가 `.nonText`와 같은 열인 것은 **모르는 동안은 위험 어휘를 보류한다**는 규칙이다. 실측에서 앱 전환 후 ~15~20ms에 도착한 첫 키는 이전 앱 계열로 판정돼 게이트를 그대로 통과했고, TextEdit→Finder 직후의 `u`가 그 창을 타고 `Cmd-Z`로 Finder에 도달했다. 모션·스크롤까지 막지 않는 이유는 이 창이 앱을 옮길 때마다 열려서다 — 화살표를 막으면 "앱을 바꾸면 첫 `j`가 사라진다"가 된다 ([20260801_unresolved-window-after-app-switch.md](../../decisions/references/20260801_unresolved-window-after-app-switch.md)).
 
 **걸러내기 게이트는 `KeyboardAdapter.mapping(for:family:)` 최상단 한 곳**이며 매퍼가 아니다. 매퍼에 두면 세 부수효과를 앞설 수 없기 때문이다: `.move`에는 애초에 family가 없고(모션은 계열 무관이 계약), `.edit`은 매퍼 호출 전에 `recordLinewiseEdit()`을 불러 게시하지도 않을 편집을 기억하며, `.paste`는 매퍼 호출 전에 클립보드를 읽어 걸러내기가 "텍스트 없음"(`.skipped`)으로 잘못 집계된다. 매퍼 쪽에는 `.nonText → nil` 봉쇄만 남아 있다(`EditKeyMapper`에서 `.selection` 조기 반환이 계열 분기보다 앞에 있던 함정의 방어선). 걸러내기 스킵은 **미지원(`.unsupported`) 경로로 집계**되고, 요약 로그에 결정된 계열이 함께 실려 단계 4 심사자가 "미구현"과 "의도적 걸러내기"를 구분한다.
 
@@ -68,7 +70,7 @@ flowchart TD
 
 `FocusedElementResolver`(`@MainActor`)가 포커스 요소의 계열을 캐싱해 키 입력마다 AX를 재탐지하지 않는다. **탭 콜백은 캐시만 읽고**(앱 게이트와 같은 형태), 계열은 `.replace` 시점에 콜백이 읽어 디스패치 페이로드로 실린다 — 게시 큐가 나중에 읽으면 버스트 도중 옮겨간 포커스를 기준으로 걸러진다.
 
-갱신 트리거는 둘이다: `NSWorkspace` 앱 활성화 알림(옵저버를 새 앱으로 갈아탄다)과 `AXObserver`의 `kAXFocusedUIElementChangedNotification`(런루프 소스는 메인). **AX 호출은 전용 직렬 큐 위에서만** 하고 메인 스레드는 AX를 아예 호출하지 않는다 — 콜백 경량 불변식보다 강한 보장이며, 그래서 타임아웃 값이 탭 안정성과 무관하다. 타임아웃은 **50ms**다: 실측상 앱 최초 접촉의 focusedRole 읽기는 ~20ms가 걸리고 **3ms 캡에서는 앱 6종 전부 실패**해, 3ms를 지키면 앱 전환 직후 첫 판정이 반드시 폴백이 된다(리졸버가 겨냥한 순간이 정확히 거기다). 큐로 넘기는 값은 `pid_t` 하나뿐이라 비-`Sendable` `AXUIElement`가 격리를 건너지 않는다. 앱 전환 순간 캐시는 즉시 폴백으로 리셋되고(이전 앱 계열을 들고 있으면 편집기 진입 직후 편집이 통째로 죽는다) 늦게 착지한 읽기는 토큰 비교로 폐기된다 ([20260801_focused-role-cache-shape.md](../../decisions/references/20260801_focused-role-cache-shape.md)).
+갱신 트리거는 둘이며 **둘 다 실기기에서 살아 있음이 확인됐다**: `NSWorkspace` 앱 활성화 알림(옵저버를 새 앱으로 갈아탄다)과 `AXObserver`의 `kAXFocusedUIElementChangedNotification`(런루프 소스는 메인). 후자는 앱을 바꾸지 않는 **앱 내부** 포커스 이동도 잡는다 — Chrome 옴니박스→페이지 본문 클릭, Finder 리스트→`Cmd-F` 검색창이 각각 전이로 관측됐다. 그래서 콜백은 캐시만 읽어도 충분하며, 라이브 AX 읽기가 필요한 케이스는 도그푸딩 8항목 어디에서도 나오지 않았다 ([20260801_cache-only-callback-confirmed-sufficient.md](../../decisions/references/20260801_cache-only-callback-confirmed-sufficient.md)). **AX 호출은 전용 직렬 큐 위에서만** 하고 메인 스레드는 AX를 아예 호출하지 않는다 — 콜백 경량 불변식보다 강한 보장이며, 그래서 타임아웃 값이 탭 안정성과 무관하다. 타임아웃은 **50ms**다: 실측상 앱 최초 접촉의 focusedRole 읽기는 ~20ms가 걸리고 **3ms 캡에서는 앱 6종 전부 실패**해, 3ms를 지키면 앱 전환 직후 첫 판정이 반드시 폴백이 된다(리졸버가 겨냥한 순간이 정확히 거기다). 큐로 넘기는 값은 `pid_t` 하나뿐이라 비-`Sendable` `AXUIElement`가 격리를 건너지 않는다. 앱 전환 순간 캐시는 **즉시 리셋**되고(이전 앱 계열을 들고 있으면 편집기 진입 직후 편집이 통째로 죽는다) 늦게 착지한 읽기는 토큰 비교로 폐기된다 ([20260801_focused-role-cache-shape.md](../../decisions/references/20260801_focused-role-cache-shape.md)). 리셋이 채우는 값은 폴백이 아니라 `.unresolved`이며, 읽을 앱이 없을 때(pid `nil`)만 폴백이 곧 최종 판정이다 — 착지할 읽기가 애초에 없기 때문이다.
 
 **계열 판정은 role이 아니라 `AXSelectedTextRange` 노출 여부**다 — `AXUIElementCopyAttributeNames` 목록에 있는가로 보며, 값 조회는 판별자가 되지 못한다(Finder도 `.success`를 돌려준다). role은 텍스트로 판정된 뒤 TextArea/TextField를 가르는 데만 쓴다. role 화이트리스트가 기각된 이유는 실측이다: **Finder는 리스트에 포커스가 있어도 `AXGroup`을 보고**하는데 그 role은 Chromium·Electron이 편집 가능한 영역에도 붙여, 텍스트로 두면 Finder를 못 막고 비텍스트로 두면 웹 앱이 죽는다. 어느 단계에서 실패하든(포커스 요소 없음·속성 조회 실패·미지 role) **폴백은 `.textArea`** 이며, 걸러내기는 확실한 보고에만 발동한다 — AX가 트리를 열지 않는 VS Code가 그 경로의 실증이다 ([20260801_element-family-classification-table.md](../../decisions/references/20260801_element-family-classification-table.md), [20260801_resolver-fallback-defaults-to-text-area.md](../../decisions/references/20260801_resolver-fallback-defaults-to-text-area.md)). `selectedRange`까지 캐싱하는 것은 M5 AX 읽기 혼용의 몫으로 남아 있다.
 

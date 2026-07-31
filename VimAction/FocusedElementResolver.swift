@@ -22,6 +22,13 @@ nonisolated enum ElementFamily: Sendable, CaseIterable {
     case textField
     /// 확실히 비텍스트로 보고된 요소 (Finder 리스트 등).
     case nonText
+    /// 앱 전환 직후, 새 앱의 첫 읽기가 아직 착지하지 않은 상태.
+    ///
+    /// **폴백(`.textArea`)과 구분되는 별개 상태다**: 폴백은 "읽었는데 텍스트로 볼 근거밖에
+    /// 없다"이고 이쪽은 "아직 아무것도 모른다"다. 걸러내기는 `.nonText`와 같게 걸리며,
+    /// 그 대가는 전환 직후 ~20ms 안의 첫 편집 1회가 조용히 떨어지는 것이다
+    /// (`20260801_unresolved-window-after-app-switch.md`).
+    case unresolved
 }
 
 /// 포커스 요소 계열 캐시 — 키 입력마다 AX를 재탐지하지 않기 위한 리졸버.
@@ -157,11 +164,19 @@ final class FocusedElementResolver {
         axObserver = nil
         observedProcessID = processID
 
-        // 읽기가 착지하기 전까지의 공백은 **폴백으로 메운다**. 이전 앱의 계열을 들고 있으면
-        // Finder(`.nonText`)에서 편집기로 넘어온 직후 편집 어휘가 통째로 죽는다.
-        update(family: .textArea)
-
-        guard let processID else { return }
+        // 이전 앱의 계열을 즉시 버리는 것이 계약이다 — 들고 있으면 Finder(`.nonText`)에서
+        // 편집기로 넘어온 직후 편집 어휘가 통째로 죽는다.
+        //
+        // 다만 그 자리를 폴백이 아니라 `.unresolved`로 메운다. 읽기가 착지하기 전(콜드 ~20ms)에
+        // 도착한 첫 키를 폴백으로 판정하면 **반대 방향으로 틀린다**: 실측에서 TextEdit→Finder
+        // 전환 직후의 `u`가 그 창을 타고 나가 `Cmd-Z`가 Finder에 도달했다(3회 중 2회꼴).
+        // 읽을 대상이 없으면(pid nil) 읽기 자체가 없으므로 그때는 폴백이 곧 최종 판정이다
+        // (`20260801_unresolved-window-after-app-switch.md`).
+        guard let processID else {
+            update(family: .textArea)
+            return
+        }
+        update(family: .unresolved)
         axObserver = Self.makeObserver(processID: processID, resolver: self)
         refresh()
     }

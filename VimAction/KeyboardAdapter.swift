@@ -218,7 +218,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         //      않을 편집을 기억하면 뒤따르는 `p`의 wise가 오염된다.
         //   ③ 아래 `.paste`는 매퍼 호출 전에 클립보드를 읽는다 — 순서가 반대면 걸러내기가
         //      "클립보드에 텍스트 없음"(`.skipped`)으로 잘못 집계돼 스킵 2종 구분이 무너진다.
-        guard family != .nonText || Self.survivesNonTextGate(action) else { return .unsupported }
+        guard Self.survivesFilterGate(action, family: family) else { return .unsupported }
 
         switch action {
         case .move(let motion):
@@ -251,6 +251,25 @@ nonisolated struct KeyboardAdapter: Sendable {
 
         default:
             return .unsupported
+        }
+    }
+
+    /// 이 계열에서 이 액션을 게시하는가 — 걸러내기 게이트 본체다.
+    ///
+    /// `.unresolved`가 `.nonText`와 같은 편에 서는 것이 요점이다. 앱 전환 직후 첫 읽기가
+    /// 착지하기 전(콜드 ~20ms)에는 요소를 **모르는** 상태이고, 그때 폴백으로 판정하면 실측된
+    /// 방향으로 틀린다 — TextEdit→Finder 전환 직후의 `u`가 그 창을 타고 `Cmd-Z`로 Finder에
+    /// 도달했다. 모르는 동안은 위험 어휘를 보류하고, 모션·스크롤만 흘려보낸다
+    /// (`20260801_unresolved-window-after-app-switch.md`).
+    ///
+    /// `ElementFamily`에는 exhaustive switch를 건다 — 계열이 늘면 "어느 편인가"를 반드시
+    /// 결정해야 하고, 조용한 기본값은 곧 무언의 통과다.
+    private static func survivesFilterGate(_ action: VimAction, family: ElementFamily) -> Bool {
+        switch family {
+        case .textArea, .textField:
+            return true
+        case .nonText, .unresolved:
+            return survivesNonTextGate(action)
         }
     }
 

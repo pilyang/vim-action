@@ -36,10 +36,12 @@ nonisolated enum EditKeyMapper {
             // 삭제로 개악한다 (`20260801_textfield-edit-sequences-scrapped.md`).
             break
 
-        case .nonText:
+        case .nonText, .unresolved:
             // 어댑터 게이트가 먼저 걸러 실제로는 도달하지 않는다. 봉쇄를 남기는 것은 게이트를
             // 매퍼로 옮기려는 미래의 변경에 대한 안전판이다
-            // (`20260801_non-text-filter-keeps-motion-and-scroll.md`).
+            // (`20260801_non-text-filter-keeps-motion-and-scroll.md`). `.unresolved`가 같은
+            // 편인 이유는 게이트와 같다 — 모르는 동안의 편집은 보류다
+            // (`20260801_unresolved-window-after-app-switch.md`).
             return nil
         }
         // `.selection`은 계열 분기 **밖**이다: 이미 있는 선택에 대한 `Cmd-X`/`Cmd-C`는

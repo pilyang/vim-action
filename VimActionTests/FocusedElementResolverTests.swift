@@ -96,9 +96,26 @@ struct FocusedElementResolverTests {
 
     /// AX가 아무 말도 못 하는 앱(VS Code 실측)에서 리졸버가 무엇을 보고하는가.
     /// 초기값이 곧 폴백이며, 이것이 `.nonText`가 되면 AX 부실 앱에서 Vim 레이어가 통째로 죽는다.
+    ///
+    /// **읽을 앱이 없을 때(pid nil)는 미확정이 아니라 폴백이다** — 착지할 읽기가 애초에 없어
+    /// 미확정으로 두면 영구히 편집이 죽는다.
     @Test("AX를 읽지 못하면 폴백은 textArea")
     func fallbackIsTextArea() {
         #expect(makeResolver().family == .textArea)
+    }
+
+    /// 읽을 앱이 있으면 **첫 읽기가 착지하기 전까지는 미확정**이다. 이 자리를 폴백으로 채우면
+    /// 앱 전환 직후 ~20ms 창의 첫 키가 이전 앱 기준으로 통과한다 — 실측에서 TextEdit→Finder
+    /// 직후의 `u`가 `Cmd-Z`로 Finder에 도달했다
+    /// (`20260801_unresolved-window-after-app-switch.md`).
+    ///
+    /// 생성 직후를 동기적으로 보는 것이 요점이다: 읽기는 전용 큐로 나가므로 이 시점에는
+    /// 아직 착지하지 않았고, 착지 뒤 값은 실기기 검증 몫이다.
+    @Test("읽기가 착지하기 전 계열은 unresolved")
+    func familyIsUnresolvedUntilFirstReadLands() {
+        let resolver = FocusedElementResolver(
+            notificationCenter: NotificationCenter(), frontmostProcessID: getpid())
+        #expect(resolver.family == .unresolved)
     }
 
     @Test("update가 계열을 양방향으로 전환한다")
