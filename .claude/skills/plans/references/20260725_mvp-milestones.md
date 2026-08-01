@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-25
-- **갱신일**: 2026-08-02 (**M4 세션 A 구현 착수** — 착수 시점에 번들 기본값이 병합 계층에서 **파일 단위 시딩**으로 바뀌었다(결정 2건 추가: 시딩, Package.resolved 커밋). architecture `profiles-and-config.md`가 스키마 v1 SSOT)
+- **갱신일**: 2026-08-02 (**M4 세션 A 종료** — PR #31, CI GREEN. 착수 시점에 번들 기본값이 병합 계층에서 **파일 단위 시딩**으로 바뀌었다(결정 2건 추가: 시딩, Package.resolved 커밋). 다음은 세션 B(배선) — architecture `profiles-and-config.md`가 스키마 v1 SSOT)
 
 ## 목표
 
@@ -23,7 +23,7 @@
 ## 남은 것
 - [x] **M3 종료 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버** (PR #24~#29 병합 + 단계 4): v1 어휘 전체가 실행되고, 실행 중단 래치가 버스트를 끊으며, 요소 리졸버가 비텍스트 UI에서 편집·명령을 걸러낸다. 단계 4에서 안전망 회귀(킬 콤보 오토리핏 발동 수정 포함)·무로그 삼킴 0건 전수 확인·위험 심사 4건(레이아웃 가드·스크롤 클램프 33 구현 포함) 종결 — **릴리스 금지 게이트 해제**([결정](../../decisions/references/20260801_release-block-gate-lifted.md)). 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
 - [ ] **M4 — 프로파일 배관 + 앱별 on/off** ← **MVP 1단계 완료선**. **스키마 설계 완료 (2026-08-01)** — 스키마 v1 최종 상태는 architecture [profiles-and-config.md](../../architecture/references/profiles-and-config.md)가 SSOT (루트 `~/.config/vim-action/`, config.yaml `apps` bool 맵, 프로파일 4필드 name/scroll/motions/actions — 모션 단위 재정의·disable(`disabled` 키워드) 자동 전파, 키워드 소문자, 번들 기본 프로파일(Slack·Notion) 동봉, UI 읽기 전용, UserDefaults 경계, 강건성 규칙 포함. 결정 12건: 08-01·08-02 인덱스 참조). 남은 구현 — **M4에서 전부 배선까지** (사용자 확정):
-  - [x] **세션 A 종료 — 순수 설정 계층**: `VimActionConfig` 타깃 신설(의존 `VimEngine`+Yams, Yams는 이 타깃에만) — 스키마 타입(`GlobalConfig`·`AppProfile`·`ConfigKeyStroke`·`MotionOverride`·`ConfigAction`) + Yams `Node` 수동 검증 파서 2종 + `ConfigLoader`(읽기 seam) + `ConfigSeeder`(쓰기 seam). 테스트 37건 GREEN(패키지 전체 80건), 실제 `~/.config` 접근 0. **번들 기본값이 병합 계층에서 파일 단위 시딩으로 바뀌었다**([결정](../../decisions/references/20260802_bundled-defaults-seeded-not-merged.md)) — 병합·`ConfigLayer` 출처가 통째로 사라지고 `ConfigSeeder`가 그 자리를 대신한다.
+  - [x] **세션 A 종료 — 순수 설정 계층**: `VimActionConfig` 타깃 신설(의존 `VimEngine`+Yams, Yams는 이 타깃에만) — 스키마 타입(`GlobalConfig`·`AppProfile`·`ConfigKeyStroke`·`MotionOverride`·`ConfigAction`) + Yams `Node` 수동 검증 파서 2종 + `ConfigLoader`(읽기 seam) + `ConfigSeeder`(쓰기 seam). PR #31 (CI GREEN, 패키지 테스트 81건 — 설정 38건), 실제 `~/.config` 접근 0. **번들 기본값이 병합 계층에서 파일 단위 시딩으로 바뀌었다**([결정](../../decisions/references/20260802_bundled-defaults-seeded-not-merged.md)) — 병합·`ConfigLayer` 출처가 통째로 사라지고 `ConfigSeeder`가 그 자리를 대신한다.
   - **세션 B — 배선·실행**: 핫 리로드(파일 감시, 실패 시 직전 유지) + 시딩 배선(`Bundle` 리소스→문자열, `FileManager`→seam 구현) + `FrontmostAppGate` 하드코딩 교체 + 번들 기본 파일 내용 확정(주력 앱 + VS Code류 off + Slack·Notion 프로파일 — 도그푸딩으로) + scroll 재정의·motions/actions 재정의·disable을 어댑터·매퍼 경로에 배선(모션 재정의·disable은 `MotionKeyMapper` 조회 단일 지점, disable은 기존 스킵 경로 재사용) + 설정 UI 읽기 전용 목록·파일 열기 버튼. 핫 리로드·게이트 전이·Slack/Notion 프로파일은 실기기 도그푸딩으로 확인.
   - per_element 스키마 시점(M5)에 캐시 충분성 최종 확정은 M5로 이동 — M4 스키마에 per_element 없음 확정.
 - [ ] **M5 — AX 어댑터 + auto 전략 (MVP 이후 1차 확장)**: AX 어댑터(AXSelectedTextRange 직접 조작), auto 프로브 → key-mapping 폴백, force-text 계열, per_element 재정의 본격화. `AXUIElementSetMessagingTimeout` 실기기 계측(콜백 경량 불변식 위임 ①)은 여기.
@@ -32,7 +32,7 @@
 
 ## 진행 중 컨텍스트
 
-- **M4 세션 B가 인계받는 것** (세션 A 종료 시점): 소비할 공개 API는 `ConfigLoader(configPath:profilesDirectory:fileSystem:).load() -> ConfigLoadResult`(스냅샷+경고+에러)와 `ConfigSeeder(...).seed(config:profiles:) -> [경로: Outcome]`이다. **둘 다 `Bundle`·`FileManager`를 모른다** — 앱이 seam 클로저를 구현하고(읽기 `readFile`/`listDirectory`, 쓰기 `fileExists`/`createDirectory`/`writeFile`) 번들 리소스는 문자열로 넘긴다. **경고·에러는 로그가 아니라 값으로 나오므로 앱이 os.log로 흘려야 한다** — 안 하면 사용자의 오타가 조용히 무시된다. 모션 재정의 조회는 반드시 `AppProfile.motionOverride(for:)`를 거친다(append 전용 모션의 base 상속이 거기 있다). scroll 기본값 15/30은 여전히 `CommandKeyMapper`의 상수이고, 프로파일은 "값 없음"만 표현한다. 앱 타깃에 `VimActionConfig` 제품을 붙이는 pbxproj 작업도 세션 B다(세션 A는 앱 빌드 무영향).
+- **M4 세션 B가 인계받는 것** (세션 A 종료 시점): 소비할 공개 API는 `ConfigLoader(configPath:profilesDirectory:fileSystem:).load() -> ConfigLoadResult`(스냅샷+경고+에러)와 `ConfigSeeder(...).seed(config:profiles:) -> [경로: Outcome]`이다. **둘 다 `Bundle`·`FileManager`를 모른다** — 앱이 seam 클로저를 구현하고(읽기 `readFile`/`listDirectory`, 쓰기 `fileExists`/`createDirectory`/`writeFile`) 번들 리소스는 문자열로 넘긴다. **경고·에러는 로그가 아니라 값으로 나오므로 앱이 os.log로 흘려야 한다** — 안 하면 사용자의 오타가 조용히 무시된다. **`ConfigError`(파일 통째 실패)는 로그로 부족하다 — 사용자에게 보이게 해야 한다**: YAML 키 중복 하나로 `config.yaml` 전체가 없는 것이 되고(Yams 제약, 우회 불가 — 실측), 그러면 off로 지정한 앱이 전부 켜진다. 모션 재정의 조회는 반드시 `AppProfile.motionOverride(for:)`를 거친다(append 전용 모션의 base 상속이 거기 있다). scroll 기본값 15/30은 여전히 `CommandKeyMapper`의 상수이고, 프로파일은 "값 없음"만 표현한다. 앱 타깃에 `VimActionConfig` 제품을 붙이는 pbxproj 작업도 세션 B다(세션 A는 앱 빌드 무영향).
 
 - **M3 종료** (상세 플랜은 완료 정리로 삭제 — 수용 엣지·계약은 decisions·architecture가, M5 인계 메모는 위 M5 항목이 승계): 실행 계층은 순수 매퍼 4종(`MotionKeyMapper`/`EditKeyMapper`/`VisualKeyMapper`/`CommandKeyMapper`) + 요소 리졸버(`FocusedElementResolver`) + 게이트 2축(요소 걸러내기·비-QWERTY 레이아웃) 구조다. M1·M2·M3 완전 종료.
 - **M2에서 이관된 미확인 항목 2건**은 M3 상세 플랜의 단계 0(카운트 폭탄 실측)·단계 4(킬스위치 회귀)로 편입됐다.
