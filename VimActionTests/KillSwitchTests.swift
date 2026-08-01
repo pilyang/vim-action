@@ -10,9 +10,9 @@ import Testing
 @testable import VimAction
 
 /// 킬스위치의 CI 가능 seam을 검증한다: 콤보 판정(`isKillCombo` — CGEvent 없이 keycode·flags만),
-/// 발동 앞의 방어 가드(`shouldFire`), 그리고 발동이 기존 소프트 off에 위임되는지
-/// (`triggerKillSwitch`). 실탭 설치·전용 스레드 결합은 TEST_HOST에서 도달 불가 —
-/// 실기기 GREEN에서 확인한다.
+/// 삼킴 가드(`shouldSwallow` — 삼킨 콤보가 곧 발동 경로다), 그리고 발동이 기존 소프트 off에
+/// 위임되고 에피소드당 1회로 접히는지(`triggerKillSwitch`). 실탭 설치·전용 스레드 결합은
+/// TEST_HOST에서 도달 불가 — 실기기 GREEN에서 확인한다.
 struct KillSwitchComboTests {
     /// 발동 조합. 콤보 판정이 이 집합과 "정확히" 같아야 참이다.
     private static let combo: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand]
@@ -60,42 +60,19 @@ struct KillSwitchComboTests {
 struct KillSwitchGuardTests {
     private static let combo: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand]
 
-    @Test("가드 통과: 콤보 keyDown은 발동 대상")
-    func plainComboShouldFire() throws {
-        #expect(KillSwitchTap.shouldFire(try keyDown(kVK_Escape, Self.combo)))
+    @Test("콤보 keyDown: 삼킨다 (= 발동 경로)")
+    func plainComboIsSwallowed() throws {
+        #expect(KillSwitchTap.shouldSwallow(try keyDown(kVK_Escape, Self.combo)))
     }
 
-    /// 세션 폴백 경로에서는 우리 합성 이벤트가 킬 탭에도 들어온다 — 앱이 자기 출력으로
-    /// 자기를 끄는 경로를 열지 않는다 (메인 탭의 마커 최우선 판정과 같은 정신).
-    @Test("합성 마커가 찍힌 콤보: 미발동")
-    func markedComboDoesNotFire() throws {
-        let event = try keyDown(kVK_Escape, Self.combo)
-        SyntheticEventMarker.mark(event)
-        #expect(!KillSwitchTap.shouldFire(event))
-    }
-
-    /// 콤보를 꾹 누르면 fault 로그와 메인 홉이 초당 수십 건 도배된다.
-    @Test("오토리핏 콤보: 미발동")
-    func autorepeatComboDoesNotFire() throws {
-        let event = try keyDown(kVK_Escape, Self.combo)
-        event.setIntegerValueField(.keyboardEventAutorepeat, value: 1)
-        #expect(!KillSwitchTap.shouldFire(event))
-    }
-
-    @Test("콤보가 아닌 keyDown: 미발동")
-    func nonComboDoesNotFire() throws {
-        #expect(!KillSwitchTap.shouldFire(try keyDown(kVK_Escape)))
-        #expect(!KillSwitchTap.shouldFire(try keyDown(kVK_Space, Self.combo)))
-    }
-
-    /// 삼킴은 발동보다 넓다 — 오토리핏 콤보는 발동하지 않지만 포커스 앱으로 새서도 안 된다.
-    /// (HID 계층이 콤보를 꾹 누르는 동안 초당 10여 건을 계속 올려보낸다.)
-    @Test("오토리핏 콤보: 미발동이지만 삼킨다")
-    func autorepeatComboIsStillSwallowed() throws {
+    /// Esc가 modifier보다 먼저 눌린 채 꾹 누르면 최초 keyDown은 콤보 미달이고 이후는 전부
+    /// 오토리핏이다 — 오토리핏을 발동에서 제외하면 "꾹 누르면 발동"이 영영 성립하지 않는다
+    /// (실기기 실증). 발동 효과·로그의 1회성은 `triggerKillSwitch`의 test-and-set 몫이다.
+    @Test("오토리핏 콤보: 삼키고 발동 경로로 간다")
+    func autorepeatComboIsSwallowed() throws {
         let event = try keyDown(kVK_Escape, Self.combo)
         event.setIntegerValueField(.keyboardEventAutorepeat, value: 1)
         #expect(KillSwitchTap.shouldSwallow(event))
-        #expect(!KillSwitchTap.shouldFire(event))
     }
 
     /// 삼킴은 콤보에만 — 무관한 키와 우리 합성 출력은 그대로 통과해야 한다.
@@ -204,6 +181,29 @@ struct KillSwitchTriggerTests {
         // 토글 on 복귀가 래치를 내리면 다시 정상 경로로 돌아온다.
         controller.isInterceptionEnabled = true
         #expect(controller.reenableAfterDisable(type: .tapDisabledByTimeout))
+    }
+
+    /// 오토리핏 발동 완화의 짝 — 삼킨 콤보마다 fire가 오므로, 효과·fault 로그의 1회성은
+    /// 킬 요청 래치의 test-and-set이 보장한다. 에피소드 경계는 토글 on 복귀뿐이다.
+    /// 단, 실행 중단 래치 무효화만은 dedupe 앞·무조건이다 — 재발동에서도 버스트를 끊는다.
+    @Test("발동은 에피소드당 1회 — 재발동은 no-op이되 실행 중단만은 무조건")
+    func fireIsOncePerEpisode() async {
+        let suiteName = "VimActionTests." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let controller = EventTapController(defaults: defaults)
+        #expect(controller.triggerKillSwitch(), "에피소드 첫 발동은 킬을 수행한다")
+
+        let run = controller.executionAbort.beginRun()
+        #expect(!controller.triggerKillSwitch(), "같은 에피소드의 재발동(오토리핏·재누름)은 no-op")
+        #expect(!controller.executionAbort.isCurrent(run), "no-op 재발동도 게시 중 버스트는 끊는다")
+        #expect(controller.isKillSwitchRequested)
+
+        // 토글 on 복귀 = 에피소드 종료 — 다음 콤보는 다시 킬을 수행한다.
+        await drainMainQueue()
+        controller.isInterceptionEnabled = true
+        #expect(controller.triggerKillSwitch())
     }
 
     /// `main.async`로 게시된 블록이 소진될 때까지 기다린다. 메인 큐는 FIFO라 뒤에 하나 더
