@@ -1,0 +1,24 @@
+Packages/VimActionCore/Tests/VimEngineTests/CancellationFixtures.swift
+  s_442eb731f31941::t_a705009b76a981 9-10
+  s_442eb731f31941::t_fc1a6f76ea9e79 49-81
+Packages/VimActionCore/Tests/VimEngineTests/CtrlComboFixtures.swift
+  s_442eb731f31941::t_253974ae31d74a 204-206,208,211
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_442eb731f31941::t_d9a47887355294 69-75,77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "0ba5c60adab861e965f074535216605c34886cef",
+  "prompts": {},
+  "sessions": {
+    "s_442eb731f31941": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "54cab68a-c3c8-441e-a43c-a3b4afebe182",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
