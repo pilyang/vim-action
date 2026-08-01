@@ -1,5 +1,7 @@
 # YAML 3계층 설정
 
+> 부분 Superseded by [20260801_config-root-dot-config.md](20260801_config-root-dot-config.md) — 디스크 루트가 `~/.config/vim-action/`으로 변경. YAML·Yams·3계층·핫 리로드는 유효.
+
 - **결정일**: 2026-07-12
 
 ## 결정
