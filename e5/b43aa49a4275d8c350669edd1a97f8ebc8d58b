@@ -1,0 +1,67 @@
+.claude/skills/decisions/references/20260726_release-block-gate-moves-to-m3.md
+  s_8e149595a3f56b::t_5b8b205b0b5a4e 1-2
+Packages/VimActionCore/Tests/VimEngineTests/CtrlComboFixtures.swift
+  s_8e149595a3f56b::t_012e0eea1bf305 93-116
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_8e149595a3f56b::t_bc60bff3297f64 59
+  s_8e149595a3f56b::t_505f6fe53a9469 55
+  s_8e149595a3f56b::t_34a51f000ed1d6 3
+  s_8e149595a3f56b::t_5e5b7d5519195b 65
+.claude/skills/plans/SKILL.md
+  s_8e149595a3f56b::t_8bd3e0f9ee65b0 52-53
+VimAction/KeyboardAdapter.swift
+  s_8e149595a3f56b::t_e5dae66cf41c7f 161-166
+  s_8e149595a3f56b::t_482f987a7c433a 228-230
+  s_8e149595a3f56b::t_e1233c0ee79804 30-35,38-41,45
+  s_8e149595a3f56b::t_28a0ce50769dc4 332-344
+  s_8e149595a3f56b::t_024bade99771cb 116-121
+  s_8e149595a3f56b::t_f7920ffb26059f 249-256
+  s_8e149595a3f56b::t_9529938a27d2f0 71-72
+VimAction/KeyTranslator.swift
+  s_8e149595a3f56b::t_b5c086939685aa 118,122-136,138,144-149
+  s_8e149595a3f56b::t_e8d893320edf74 137,139-143
+  s_8e149595a3f56b::t_8a1af5a9bfe3b9 150-151
+.claude/skills/decisions/references/20260801_non-qwerty-command-key-layout-guard.md
+  s_8e149595a3f56b::t_d233d1f00cc122 1-37
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_8e149595a3f56b::t_db6c7e0279587c 263-269
+  s_8e149595a3f56b::t_f39237e14c73f0 444-445
+.claude/skills/decisions/SKILL.md
+  s_8e149595a3f56b::t_b5a229e5cfc086 133-135
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_8e149595a3f56b::t_297fe4cdaec308 46
+  s_8e149595a3f56b::t_445a981750c7f8 48
+.claude/skills/decisions/references/20260801_scroll-count-clamp-33.md
+  s_8e149595a3f56b::t_f4fd58fc83cc25 1-32
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_8e149595a3f56b::t_063f16315a5ee7 41
+  s_8e149595a3f56b::t_c2892aeb8324ed 31
+  s_8e149595a3f56b::t_8b50f0fd6cf122 6
+  s_8e149595a3f56b::t_1b6d6e96752893 24
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_8e149595a3f56b::t_fb0259300924c2 6
+  s_8e149595a3f56b::t_163b51880386f2 37
+  s_8e149595a3f56b::t_8f7ed76d2d5511 38
+  s_8e149595a3f56b::t_8f58247186e254 35
+VimActionTests/KeyboardAdapterTests.swift
+  s_8e149595a3f56b::t_dc288c0f882428 22,27-28
+  s_8e149595a3f56b::t_08b51577af75ad 724-797
+.claude/skills/decisions/references/20260801_release-block-gate-lifted.md
+  s_8e149595a3f56b::t_ac9bfe34f9b4e9 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "e5b43aa49a4275d8c350669edd1a97f8ebc8d58b",
+  "prompts": {},
+  "sessions": {
+    "s_8e149595a3f56b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90f982e7-e287-4187-90fb-bb37227a9eca",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
