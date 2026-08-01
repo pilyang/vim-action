@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260801_kill-combo-autorepeat-fires.md](20260801_kill-combo-autorepeat-fires.md) — 오토리핏 가드(오토리핏 콤보 미발동) 의미론만. 단방향 off·2겹 효과·킬 요청 래치·콤보 정확 일치·마커 가드는 유효.
+
 # 킬스위치 발동 의미론 — 단방향 off, 2겹 효과 + 킬 요청 래치, 콤보 판정 규칙
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

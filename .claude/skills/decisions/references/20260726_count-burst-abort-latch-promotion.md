@@ -1,3 +1,5 @@
+> 이행 완료 — 승격이 이행되어 래치의 현행 설계는 [20260730_execution-abort-generation-latch.md](20260730_execution-abort-generation-latch.md). 스케줄링 결정이 소진되어 인덱스에서 제외 (실측 기록 보존용으로 파일은 유지).
+
 # 카운트 폭탄 실측 — 실행 중단 래치 M3 승격
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

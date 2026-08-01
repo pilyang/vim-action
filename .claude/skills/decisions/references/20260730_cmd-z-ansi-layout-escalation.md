@@ -1,3 +1,5 @@
+> 이행 완료 — 단계 4 게이트 판정이 [20260801_non-qwerty-command-key-layout-guard.md](20260801_non-qwerty-command-key-layout-guard.md)(레이아웃 가드 구현)로 종결되어 인덱스에서 제외 (위험 분석 기록 보존용으로 파일은 유지).
+
 # Cmd-Z의 ANSI 가정은 위험 등급이 다르다 — 단계 4 게이트 항목
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

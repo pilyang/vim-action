@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260801_kill-combo-autorepeat-fires.md](20260801_kill-combo-autorepeat-fires.md) — `shouldSwallow`/`shouldFire` 술어 분리와 오토리핏 미발동만 (이제 삼킨 콤보는 전부 발동 경로). "오토리핏도 삼킨다"와 keyUp 대칭 삼킴 기각은 유효.
+
 # 킬 콤보 삼킴은 발동과 독립 — 오토리핏도 삼킨다
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
