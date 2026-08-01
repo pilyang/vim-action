@@ -1,0 +1,29 @@
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_61048c1e71cc26::t_7aee421195e872 17-18
+  s_61048c1e71cc26::t_4a7eb037ff660f 3
+  s_61048c1e71cc26::t_a07f7734c1825b 11
+.claude/skills/decisions/references/20260712_yaml-three-layer-config.md
+  s_61048c1e71cc26::t_66c80b10121a1c 3-4
+.claude/skills/decisions/references/20260801_config-root-dot-config.md
+  s_61048c1e71cc26::t_c025ca7e4706e5 1-28
+.claude/skills/architecture/references/profiles-and-config.md
+  s_61048c1e71cc26::t_fcf6754b128c7b 3,7,12-28,34,38-42,44-46,50-51
+.claude/skills/decisions/references/20260801_app-enable-config-yaml-only.md
+  s_61048c1e71cc26::t_372b5cdace9f8a 1-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "7aeb1ed9a4bd5f6d1e66b61d618f01db9f3eff11",
+  "prompts": {},
+  "sessions": {
+    "s_61048c1e71cc26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "13d5cfb0-329a-427e-8bec-480a6ae90a0b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
