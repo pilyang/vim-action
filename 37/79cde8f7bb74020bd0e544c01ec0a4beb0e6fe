@@ -1,0 +1,44 @@
+.claude/skills/decisions/SKILL.md
+  s_1737fe6caf35c6::t_bb65a4de364b46 20-21,23,30,34-169,171-179
+.claude/skills/decisions/references/20260726_kill-switch-trigger-semantics.md
+  s_1737fe6caf35c6::t_cc59db08e1a084 1-2
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_61048c1e71cc26::t_8530063315bcfe 6
+  s_1737fe6caf35c6::t_21e10337aab7b4 21
+  s_61048c1e71cc26::t_00988c8d0642e9 12
+  s_61048c1e71cc26::t_5ff83063f868ed 25
+.claude/skills/decisions/references/20260801_decision-log-pruning-policy.md
+  s_1737fe6caf35c6::t_4f6320b3659c7f 1-22
+.claude/skills/decisions/references/20260730_cmd-z-ansi-layout-escalation.md
+  s_1737fe6caf35c6::t_042fc2c3e116b8 1-2
+.claude/skills/architecture/references/system-overview.md
+  s_1737fe6caf35c6::t_d7b79417ecaacc 55
+.claude/skills/decisions/references/20260726_count-burst-abort-latch-promotion.md
+  s_1737fe6caf35c6::t_01c4db6a31e223 1-2
+.claude/skills/decisions/references/20260726_kill-combo-swallow-independent-of-fire.md
+  s_1737fe6caf35c6::t_0561963ec34e4e 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "3779cde8f7bb74020bd0e544c01ec0a4beb0e6fe",
+  "prompts": {},
+  "sessions": {
+    "s_1737fe6caf35c6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b9fa645a-4b82-49e3-b5cc-22fab8ad8416",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_61048c1e71cc26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "13d5cfb0-329a-427e-8bec-480a6ae90a0b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
