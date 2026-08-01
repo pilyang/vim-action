@@ -1,0 +1,22 @@
+.claude/skills/plans/SKILL.md
+  s_7a2306bdfcfc90::t_ddf23cc0a7ee93 53
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_7a2306bdfcfc90::t_5bcbe34743e607 6
+  s_7a2306bdfcfc90::t_7c2fc2e1a49dcf 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "ef9615c66b29d913cacf1114800704056001230a",
+  "prompts": {},
+  "sessions": {
+    "s_7a2306bdfcfc90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "50223a13-1586-4953-bea7-4ea7a6a8d209",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
