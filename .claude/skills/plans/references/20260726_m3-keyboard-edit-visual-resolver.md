@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-26
-- **갱신일**: 2026-08-01 (**단계 3 종료** — 도그푸딩 8항목 + 레이스 수정(미확정 창) + 결정 2건. 남은 것은 **단계 4** 하나 — 단, 선행 플랜 [20260801_esc-passthrough-and-dc-keys.md](20260801_esc-passthrough-and-dc-keys.md)이 닫힌 뒤 착수)
+- **갱신일**: 2026-08-01 (**선행 플랜(Esc passthrough + D/C) 완료·정리** — PR #29 병합, 플랜 문서 삭제. 남은 것은 **단계 4** 하나 — 즉시 착수 가능)
 
 ## 목표
 
@@ -16,6 +16,7 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 
 ## 완료된 것
 
+- [x] **선행 — Esc passthrough + D/C 종료** (2026-08-01, PR #29 병합): ① Normal Esc는 pending 없을 때만 `.passthrough`(pending 있으면 현행 폐기+swallow), ② `D`/`C`는 최상위에서 `d$`/`c$` 동일 출력·카운트는 invalid. 엔진 중심 변경으로 어댑터·게시 인프라 무변경, 검증 3종 + 수동 체크 그린. 결정 2건: [Esc passthrough](../../decisions/references/20260801_normal-esc-passthrough-when-empty.md), [D/C 축약](../../decisions/references/20260801_line-end-shorthand-d-c.md). **어휘 확정 — 단계 4의 스킵 로그 전수 확인 착수 가능.**
 - [x] **단계 3 종료 — 도그푸딩 8항목 + 레이스 수정 완료** (2026-08-01, PR #28): 체크리스트 8항목 전부 실측. **수정 1건** — 항목 2 레이스가 재현돼(앱 전환 후 ~15~20ms에 도착한 첫 키가 이전 앱 계열로 판정, `u`의 `Cmd-Z`가 실제로 Finder로 나감, 3회 중 2회꼴) `ElementFamily`에 4번째 케이스 `.unresolved`를 도입했다([결정](../../decisions/references/20260801_unresolved-window-after-app-switch.md)). 재검증에서 **레이스 16회 전부 차단**(`p`6/6·`u`4/4, 그중 5건이 `[unresolved]` 태그 = 창에서 잡힌 것), **모션은 생존**(`j` 3/3 게시 + Finder 리스트 이동 정상). 분류표는 **뒤집히지 않아 supersede·골든 갱신 불필요**. 검증 3종 그린(엔진 40 / 앱 **697** / 빌드, 신규 경고 0 — `KeyboardAdapter.swift:252`는 HEAD에도 있던 기존 경고). 커밋 `485c8e8`.
 - [x] **단계 3 — 요소 리졸버 코드 완료** (2026-08-01, Draft PR #28): 신규 `FocusedElementResolver`(`@MainActor` 캐시 + `AXObserver`/앱 활성화 2경로 + 전용 읽기 큐) + `ElementFamily` 3케이스(`.textArea`/`.textField`/`.nonText`, 정의는 리졸버 파일로 이동) + `KeyboardAdapter`의 게이트 1개·`execute(_:family:isCurrent:)` + `EditKeyMapper`/`CommandKeyMapper` 계열 분기 + sink 시그니처 확장. **엔진·모션 매퍼·게시 인프라·래치·킬스위치·앱 게이트 무변경.** 검증 3종 그린(엔진 40 / 앱 **685** / 빌드, 신규 경고 0). 결정 5건은 아래 "진행 중 컨텍스트" 참조. **도그푸딩 미완**.
 - [x] **단계 2.5 도그푸딩 완료 — 단계 종료** (2026-07-31): 6항목 전부 확인. 자동화분(순서 역전·총 소요·Notion·래치 경로)은 아래 "진행 중 컨텍스트"의 결과 참조 — 수정 1건(flush 재확인 게시 직전 이동, `04f1de5`). 사용자 물리 확인: **킬 콤보 정상 발동**(감지 로그·즉시 정지), Normal→Insert 전환 즉각, 폭주 중 시스템 부하로 느려지는 체감은 수용. 후속 결정: **클램프 9,999 → 1,000 하향**([결정](../../decisions/references/20260731_count-clamp-lowered-to-1000.md) — 전일 유지 결정 supersede, 엔진 픽스처 3건 갱신).
@@ -28,7 +29,6 @@ v1 어휘 전체(편집·Visual·o/p/u·스크롤)가 Keyboard 전략으로 실�
 - [x] **단계 0 — 사전 실측 2건 완료** (2026-07-26 실기기): ① 카운트 폭탄 — 100j 1초 이내·9999j 수 초 폭주(비치볼), 킬스위치 발동 즉시지만 in-flight 못 멈춤, 버스트 중 타이핑 순서 역전 실증, Notion 이벤트 드랍 → **실행 중단 래치 단계 4 승격 확정** ([결정](../../decisions/references/20260726_count-burst-abort-latch-promotion.md)). ② undo — 선택+잘라내기/붙여넣기/새줄 시퀀스 전부 1 undo 단위, change만 삭제+타이핑 분리 → **u=Cmd-Z 유지·시퀀스 설계 자유 확정** ([결정](../../decisions/references/20260726_undo-unit-cmdz-policy.md)).
 
 ## 남은 것
-- [ ] **(선행) 어휘·동작 변경 2건 — Esc passthrough + D/C**: 별도 플랜 [20260801_esc-passthrough-and-dc-keys.md](20260801_esc-passthrough-and-dc-keys.md)가 SSOT. 단계 4의 스킵 로그 전수 확인은 어휘 확정 뒤에 돌아야 하므로 **이것이 닫히기 전에 단계 4를 시작하지 않는다.**
 - [ ] **단계 4 — 안전망 회귀 + 게이트 해제**: 킬스위치 회귀 확인(래치와의 상호작용 포함), 미지원 스킵 로그 전수 확인 → `.replace` 무로그 삼킴 해소 → 릴리스 금지 게이트 해제 결정 문서. **이것으로 M3가 닫힌다.**
 
 ## 단계 4 인계 컨텍스트 (다음 세션이 여기서 시작)
