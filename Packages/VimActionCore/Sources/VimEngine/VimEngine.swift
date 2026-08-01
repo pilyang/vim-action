@@ -66,11 +66,15 @@ public struct VimEngine: Sendable {
     private mutating func handleNormal(_ key: Key) -> EngineOutput {
         // 취소 — 어떤 매핑보다 우선하는 cross-cutting 규칙 (step 진입 전).
         //
-        // Esc는 정확 매치(수식자 없음)로 pending을 폐기하고 Normal에 머문다.
-        // 탈출 modifier 콤보는 커맨드 입력 도중이라도 pending을 폐기하고 Insert로
-        // 탈출시킨다 — 시스템 단축키(Spotlight/Raycast 등) 직후 타이핑을 막지
-        // 않기 위함. 수식자 붙은 Esc(Cmd+Esc 등)는 Esc 분기가 아니라 이 판정을 탄다.
+        // Esc는 정확 매치(수식자 없음)로 pending 유무가 가른다 — 어느 쪽도 Normal
+        // 유지: pending이 있으면 폐기하고 삼킨다(취소 Esc가 앱 모달까지 닫는 부작용
+        // 방지). 없으면 앱으로 통과시킨다 — Esc 연타로 "Normal 진입 → 앱에 취소
+        // 전달"이 가능해진다. 탈출 modifier 콤보는 커맨드 입력 도중이라도 pending을
+        // 폐기하고 Insert로 탈출시킨다 — 시스템 단축키(Spotlight/Raycast 등) 직후
+        // 타이핑을 막지 않기 위함. 수식자 붙은 Esc(Cmd+Esc 등)는 Esc 분기가 아니라
+        // 이 판정을 탄다.
         if key == .escape {
+            guard pending != nil else { return .passthrough }
             pending = nil
             return .swallow
         }
@@ -224,6 +228,13 @@ public struct VimEngine: Sendable {
             // 전용 케이스 없이 delete-over-motion 재사용 — 카운트는 반복이 아니라
             // 범위의 count로 담는다 (3x = 3문자를 한 편집 단위로).
             return .replace([.edit(.delete, .motion(.charRight, count: current.count ?? 1))])
+        case .char("D"), .char("C"):
+            // d$/c$의 축약 — 동일 출력이라 어댑터 추가 규칙이 없다. 카운트(3D)는
+            // Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없다 — 파괴적 편집이라
+            // 오해석 대신 invalid다 (d3G와 같은 기준). C의 Insert 전이는 complete가
+            // 담당한다 (c$와 동일).
+            guard current.count == nil else { return .swallow }
+            return complete(key == .char("D") ? .delete : .change, .motion(.lineEnd, count: 1))
         case .char("o"):
             // 새 줄 열기 — change/a/A와 같은 전이+출력 동시 패턴. 선행 카운트는
             // 버린다 (3i 원칙 — Vim 3o의 "입력 반복"은 표현 불가).

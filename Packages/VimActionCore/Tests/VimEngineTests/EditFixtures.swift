@@ -70,6 +70,59 @@ func deleteMotions(_ fixture: KeySequenceFixture) {
     expectFixture(fixture)
 }
 
+// `D`/`C`는 d$/c$의 축약 — 동일 출력이라 어댑터 추가 규칙이 없다. 카운트(3D)는
+// Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없어 invalid다 (d3G와 같은 기준).
+let lineEndShorthandFixtures: [KeySequenceFixture] = [
+    KeySequenceFixture(
+        "D → delete over lineEnd (d$ 동일 출력), Normal 유지",
+        startMode: .normal,
+        steps: [step(.char("D"), .replace([.edit(.delete, .motion(.lineEnd, count: 1))]))],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "C → change over lineEnd (c$ 동일 출력), Insert 전이",
+        startMode: .normal,
+        steps: [step(.char("C"), .replace([.edit(.change, .motion(.lineEnd, count: 1))]))],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "3D → invalid no-op (절대 의미 표현 불가) — 이후 w는 단일 모션",
+        startMode: .normal,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("D"), .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "3C → invalid no-op — Insert 진입 없음, 이후 w는 단일 모션",
+        startMode: .normal,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("C"), .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
+    // 오퍼레이터 대기 중의 D는 화이트리스트 밖이다 — dD가 dd나 d$로 새지 않는다.
+    KeySequenceFixture(
+        "dD → invalid no-op (D는 오퍼레이터 뒤에 못 온다) — 이후 w는 단일 모션",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("D"), .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
+]
+
+@Test(arguments: lineEndShorthandFixtures)
+func lineEndShorthands(_ fixture: KeySequenceFixture) {
+    expectFixture(fixture)
+}
+
 let deleteLineFixtures: [KeySequenceFixture] = [
     KeySequenceFixture(
         "dd → 현재 줄 삭제",

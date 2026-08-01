@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260801_normal-esc-passthrough-when-empty.md](20260801_normal-esc-passthrough-when-empty.md) — "Esc → pending 폐기 + swallow + Normal 유지" 의미론만. 취소 선행 순서와 탈출 콤보 선행의 전제는 유효.
+
 # 취소 최우선 순서의 전제 — 탈출 콤보 선행은 modifier 매핑 부재 위에서만 동치
 
 - **결정일**: 2026-07-17
