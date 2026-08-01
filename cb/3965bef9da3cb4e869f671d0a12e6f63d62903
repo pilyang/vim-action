@@ -1,0 +1,19 @@
+docs/KEYBINDINGS.md
+  s_819de25a27e857::t_f87a4277541347 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "cb3965bef9da3cb4e869f671d0a12e6f63d62903",
+  "prompts": {},
+  "sessions": {
+    "s_819de25a27e857": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e3529c12-3587-4983-81c1-e76ec7756f81",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
