@@ -16,6 +16,7 @@ M3 단계 4(게이트 심사) **전에** 어휘·동작 변경 2건을 끝낸다
 - [x] **② D/C 추가** (2026-08-01): 최상위에서 `d$`/`c$` 동일 출력으로 완결, 카운트는 invalid. 픽스처 5건(D/C 완결·전이, 3D/3C invalid, dD 회귀 핀).
 - [x] **결정 문서 2건 + architecture 갱신** (2026-08-01): [20260801_normal-esc-passthrough-when-empty.md](../../decisions/references/20260801_normal-esc-passthrough-when-empty.md)(20260717 부분 supersede 표기 포함), [20260801_line-end-shorthand-d-c.md](../../decisions/references/20260801_line-end-shorthand-d-c.md). `mode-engine.md` 처리 규칙 ①·키셋 갱신, decisions 인덱스 반영.
 - [x] **검증 3종 그린** (2026-08-01): 엔진 42 테스트 / 앱 VimActionTests TEST SUCCEEDED / CODE_SIGNING_ALLOWED=NO BUILD SUCCEEDED.
+- [x] **수동 체크 완료** (2026-08-01, 사용자 확인): Esc 연타 앱 전달 / 취소 Esc 삼킴 유지 / `D`·`C`·`3D` 전부 정상 동작.
 
 ## 남은 것
 
