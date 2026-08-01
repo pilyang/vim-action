@@ -1,0 +1,36 @@
+.claude/skills/decisions/references/20260801_config-yaml-schema-v1.md
+  s_61048c1e71cc26::t_7fccc7ffd8494d 1-36
+.claude/skills/architecture/references/profiles-and-config.md
+  s_61048c1e71cc26::t_7c021ed059dda3 3,9,11,15,17-18,20,22,24-28,30-63,68,70,74,76,80-82
+.claude/skills/decisions/references/20260801_settings-ui-read-only-yaml.md
+  s_61048c1e71cc26::t_88e9bb72c50b2e 1-24
+.claude/skills/decisions/references/20260801_profile-motion-override-unit.md
+  s_61048c1e71cc26::t_a566c89f882b97 1-32
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_61048c1e71cc26::t_b73a2ddfdefce0 6
+  s_61048c1e71cc26::t_e39a30c86522a1 25-28
+.claude/skills/decisions/references/20260801_userdefaults-yaml-ownership.md
+  s_61048c1e71cc26::t_22b84be568ca41 1-25
+.claude/skills/decisions/SKILL.md
+  s_61048c1e71cc26::t_342a303943a10e 49-53
+.claude/skills/plans/SKILL.md
+  s_61048c1e71cc26::t_5f4db6bd93a3ae 52
+.claude/skills/decisions/references/20260801_profile-schema-v1-fields.md
+  s_61048c1e71cc26::t_0fb8c9bf19c3cd 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "6833f5a7b195a091076a14e8bf73758493169ddc",
+  "prompts": {},
+  "sessions": {
+    "s_61048c1e71cc26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "13d5cfb0-329a-427e-8bec-480a6ae90a0b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
