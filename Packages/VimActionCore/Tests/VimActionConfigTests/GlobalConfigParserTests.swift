@@ -90,6 +90,23 @@ func globalConfigParsing(_ fixture: GlobalConfigFixture) {
     #expect(outcome.error == nil)
 }
 
+/// 손편집에서 흔한 실수인데도 **항목 단위로 접히지 않는다** — Yams `compose`가 매핑 키 중복을
+/// 무조건 던지고 관용 옵션이 없다. 그 파일 전체가 없는 것이 되므로 앱은 이 에러를 반드시 보여야 한다.
+@Test("한 매핑 안의 키 중복은 파일 통째 실패다")
+func duplicateKeysFailTheWholeFile() {
+    let outcome = GlobalConfigParser.parse(
+        """
+        apps:
+          com.a: false
+          com.a: true
+        """,
+        file: testFile
+    )
+
+    #expect(outcome.value == nil)
+    #expect(outcome.error != nil)
+}
+
 @Test("파일 통째 파싱 실패는 부재 취급 + 에러 반환")
 func globalConfigWholeFileFailure() {
     let outcome = GlobalConfigParser.parse("apps:\n  - x\n bad: :", file: testFile)
