@@ -1,0 +1,24 @@
+.claude/skills/plans/references/20260726_m3-keyboard-edit-visual-resolver.md
+  s_a661d7beddfa97::t_f208bc86bfa4f5 6
+  s_a661d7beddfa97::t_e7d7de2dc71c2b 31
+.claude/skills/plans/SKILL.md
+  s_a661d7beddfa97::t_cc2278372a786e 53-54
+.claude/skills/plans/references/20260801_esc-passthrough-and-dc-keys.md
+  s_a661d7beddfa97::t_ee17fb434f2534 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "345eb26038e76ccbfa96377d53fa4067d2a386dd",
+  "prompts": {},
+  "sessions": {
+    "s_a661d7beddfa97": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c8b59d31-d235-4a58-b66d-71da3cd065f6",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
