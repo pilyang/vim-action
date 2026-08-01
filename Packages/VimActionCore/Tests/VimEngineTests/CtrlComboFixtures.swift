@@ -201,11 +201,14 @@ let ctrlComboFixtures: [KeySequenceFixture] = [
         steps: [step(ctrlBracket, .replace([.clearSelection]))],
         finalMode: .normal
     ),
+    // 빈 상태 Esc가 passthrough가 되면서 출력만으로는 탈출 콤보와 구분되지 않는다 —
+    // 판별 신호는 finalMode다: 정규화가 탈출 판정보다 선행하면 Esc 경로라 Normal
+    // 유지, 탈출 콤보로 새면 Insert 전이.
     KeySequenceFixture(
-        "탈출 옵션(ctrl) 켜져도 Ctrl+[는 Esc 취소 — 정규화가 탈출 판정보다 선행",
+        "탈출 옵션(ctrl) 켜져도 Ctrl+[는 Esc — Normal 유지가 정규화 선행의 증거",
         startMode: .normal,
         configuration: escapeOnCtrl,
-        steps: [step(ctrlBracket, .swallow)],
+        steps: [step(ctrlBracket, .passthrough)],
         finalMode: .normal
     ),
 

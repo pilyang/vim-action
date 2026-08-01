@@ -6,7 +6,8 @@ import Testing
 /// 각 깊이(카운트 입력 중 / `d` 후 / `di` 후 / `d3` 후)에서 전수 검증한다.
 ///
 /// 규칙: 취소는 어떤 매핑보다 우선하는 cross-cutting 규칙이다.
-/// - Esc → pending 전체 폐기 + swallow + Normal 유지
+/// - Esc → pending이 있으면 전체 폐기 + swallow(취소 Esc가 앱 모달까지 닫는
+///   부작용 방지), 없으면 passthrough(앱에 취소 전달) — 어느 쪽도 Normal 유지
 /// - 탈출 콤보 → pending 전체 폐기 + passthrough + Insert 전이
 ///
 /// 각 픽스처는 취소 후 후속 키(w)로 pending이 정말 비었는지까지 확인한다.
@@ -42,6 +43,39 @@ let escCancellationFixtures: [KeySequenceFixture] = pendingDepths.map { depth in
 
 @Test(arguments: escCancellationFixtures)
 func escCancellations(_ fixture: KeySequenceFixture) {
+    expectFixture(fixture)
+}
+
+// pending 없는 Normal Esc는 취소할 것이 없다 — 앱으로 통과시켜 Esc 연타로
+// "Normal 진입 → 앱에 취소 전달"이 가능하게 한다. Normal 유지가 핵심 신호다
+// (탈출 콤보의 passthrough는 Insert 전이와 짝이다).
+let escPassthroughFixtures: [KeySequenceFixture] = [
+    KeySequenceFixture(
+        "빈 상태 Esc → 통과, Normal 유지",
+        startMode: .normal,
+        steps: [step(.escape, .passthrough)],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "취소 Esc(삼킴) 후 연속 Esc → 두 번째부터 통과 — Esc 연타 시나리오",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.escape, .swallow),
+            step(.escape, .passthrough),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "빈 상태 Ctrl+[ → Esc 동치로 통과, Normal 유지 (정규화 경유)",
+        startMode: .normal,
+        steps: [step(Key.char("[", [.control]), .passthrough)],
+        finalMode: .normal
+    ),
+]
+
+@Test(arguments: escPassthroughFixtures)
+func escPassthroughs(_ fixture: KeySequenceFixture) {
     expectFixture(fixture)
 }
 
