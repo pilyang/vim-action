@@ -46,6 +46,11 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-01 | 릴리스 배포 금지 게이트 해제 | M3 완료 — 무로그 삼킴 0건+위험 심사 4건 종결, 로그·switch 계약 승계 | [20260801_release-block-gate-lifted.md](references/20260801_release-block-gate-lifted.md) |
 | 08-01 | 설정 루트 `~/.config/vim-action/` | 개발자 친화(dotfiles) — Application Support 부분 supersede | [20260801_config-root-dot-config.md](references/20260801_config-root-dot-config.md) |
 | 08-01 | 앱별 on/off는 config.yaml 단일 소유 | 프로파일 스키마에서 enabled 제거, profiles/는 특수 동작 전용 | [20260801_app-enable-config-yaml-only.md](references/20260801_app-enable-config-yaml-only.md) |
+| 08-01 | config.yaml 스키마 v1 | apps는 bool 맵(되켜기 표현) + 키 단위 병합, 미지 키 warn+무시, 리로드 실패 시 직전 유지 | [20260801_config-yaml-schema-v1.md](references/20260801_config-yaml-schema-v1.md) |
+| 08-01 | 프로파일 재정의는 모션 단위 | motions가 매핑 테이블 원소 교체 — 편집·Visual 자동 전파, 액션 단위 기각 | [20260801_profile-motion-override-unit.md](references/20260801_profile-motion-override-unit.md) |
+| 08-01 | 프로파일 스키마 v1 필드 | name·scroll·disabled_actions·motions, 이름 있는 키만(문자 키 v1 제외), chunk 비노출, M4 전부 구현 | [20260801_profile-schema-v1-fields.md](references/20260801_profile-schema-v1-fields.md) |
+| 08-01 | 설정 UI는 YAML 읽기 전용 | Yams 주석 미보존 — UI는 병합 결과 표시+파일 열기만, 쓰기는 사용자 몫 | [20260801_settings-ui-read-only-yaml.md](references/20260801_settings-ui-read-only-yaml.md) |
+| 08-01 | UserDefaults↔YAML 소유권 경계 | defaults=런타임·안전 상태(마스터 토글·탈출 옵션), YAML=사용자 편집 설정 | [20260801_userdefaults-yaml-ownership.md](references/20260801_userdefaults-yaml-ownership.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 

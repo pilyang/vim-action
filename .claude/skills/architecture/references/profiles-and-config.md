@@ -1,49 +1,85 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-01 (설정 루트 `~/.config/vim-action/` 이동, 앱별 on/off config.yaml 단일 소유 반영)
+- **Last updated**: 2026-08-01 (스키마 v1 확정 — apps 맵, 프로파일 4필드, UI 읽기 전용, UserDefaults 경계)
 
 ## 현재 구조
 
 설정은 전부 YAML이며 **Yams**로 파싱한다. 디스크 루트는 **`~/.config/vim-action/`** — 개발자가 dotfiles로 관리·직접 편집하는 대상이라 `~/Library/Application Support`가 아니다. 3계층 재정의 구조를 가지며, 파일 변경 시(`DispatchSource.makeFileSystemObjectSource`) 자동 리로드한다.
 
-계층 (아래가 위를 재정의):
+계층 (아래가 위를 재정의, **병합은 키 단위** — 같은 키만 이긴다):
 
-1. 번들 기본값 — 앱 내부 읽기 전용 리소스.
+1. 번들 기본값 — 앱 내부 읽기 전용 리소스 (주력 앱 + VS Code류 off 목록 포함).
 2. 사용자 설정 — `~/.config/vim-action/config.yaml`.
 3. 앱별 프로파일 — `~/.config/vim-action/profiles/<bundle-id>.yaml`.
 
-역할 분담이 핵심이다:
+역할 분담:
 
-- **`config.yaml`이 앱별 활성화/비활성화(on/off)를 단일 소유한다.** 프로파일에는 `enabled` 필드가 없다 — 있으면 앱을 끌 때마다 `profiles/`에 그 앱 전용 파일이 증식한다.
-- **`profiles/<bundle-id>.yaml`은 일부 특수한 앱의 동작 고도화 전용**이다 (예: Slack의 Return=전송, Notion의 블록 이동 충돌 같은 앱별 재정의). 대부분의 앱은 프로파일 파일이 필요 없어야 정상이다.
+- **`config.yaml`이 앱별 on/off를 단일 소유한다.** 프로파일에는 `enabled` 필드가 없다.
+- **`profiles/`는 특수 앱의 동작 고도화 전용** — 대부분의 앱은 프로파일 파일이 필요 없어야 정상이다.
 
-## 스키마
+## 스키마 v1 (M4에서 전부 파싱·실행 배선까지 구현)
 
-**정식 스키마는 아직 없다 — M4 프로파일 배관에서 재설계한다.** 기존 스케치(PRD §7.4 유래의 `strategy`/`keyboard_family`/`keymap_overrides`/`per_element`/`disable_in_elements`)는 구현 시작 전 초기 계획 문서에서 온 것으로 신뢰도가 낮아 스키마 SSOT가 아니다. 방향 참고까지만 유효하다. M4 재설계 시 이 파일이 정식 스키마의 최종 상태를 담는다.
+**config.yaml**:
 
-재설계 시 반영해야 할 확정 사항:
+```yaml
+apps:                              # bundle-id → bool 맵. 맵인 이유: 키 단위 병합이라
+  com.mitchellh.ghostty: false     # 번들 기본값이 끈 앱을 사용자가 true로 되켤 수 있다
+  com.exafunction.windsurf: true
+```
 
-- 프로파일에 `enabled` 없음 (config.yaml 단일 소유).
-- MVP 구간(M2~M4) 번들 기본 전략은 `keyboard` 고정 — `strategy`/`per_element` 류 필드는 M5(AX·auto) 전까지 죽은 필드라, M4 로더가 어디까지 파싱할지는 M4에서 결정.
-- M3가 M4 프로파일로 위임한 조절값 후보: 스크롤 half/full 줄 수(15/30 근사), chunkInterval 튜닝, Notion `Shift-Cmd-↑/↓` 충돌 회피, Slack류 Return=전송 컴포저의 `o`/`O` 억제.
+**profiles/\<bundle-id\>.yaml** — 필드 넷, `enabled` 없음:
+
+```yaml
+name: Notion                      # 선택 — 표시용
+scroll:
+  half_page_lines: 20             # 기본 15 — 앱 뷰포트에 맞춘 근사값 재정의
+  full_page_lines: 40             # 기본 30
+disabled_actions:                 # 통제된 어휘 목록 (자유 문자열 아님)
+  - open_line                     #   o/O 억제 — Return=전송 앱 (Slack류)
+  - edit_to_document_edge         #   d/c/y+G·gg 억제 — Shift-Cmd-↑/↓ 충돌 앱 (Notion)
+motions:                          # 모션 단위 시퀀스 재정의
+  document_end: [Cmd-Down]
+```
+
+**모션 재정의는 모션 단위이며 자동 전파된다**: 편집(Shift+모션 선택)·Visual(`selectionStrokes`)이 모션 매핑을 재사용하는 구조라, 재정의 조회를 `MotionKeyMapper` 조회의 단일 지점에 얹으면 `G`를 고칠 때 `dG`·`vG`가 함께 따라온다. 액션 단위 재정의는 없다.
+
+**키 스트로크 표기**: `[Modifier-]KeyName` — modifier는 `Cmd`/`Opt`/`Ctrl`/`Shift`(순서 무관), 키는 이름 있는 키만(`Left`/`Right`/`Up`/`Down`/`Return`/`Escape`/`Tab` 등). 문자 키(`Cmd-Z` 류)는 레이아웃 의존이라 v1 제외.
+
+**로더 강건성 규칙**: 미지 키·미지 모션명·미지 어휘는 해당 항목만 warn+무시(전방 호환 — `strategy`·`per_element` 등 M5 필드는 M4에서 미지 키), 핫 리로드 파싱 실패는 직전 유효 설정 유지 + error 로그.
+
+**YAML 비노출**: `chunkStrokes`/`chunkInterval`(실행 중단 래치의 안전장치 파라미터 — 튜닝은 코드 상수로), 마스터 토글·Normal 탈출 옵션(아래 경계).
+
+## 소비 지점
+
+- 앱별 on/off → `FrontmostAppGate`의 하드코딩 목록을 교체 (M4).
+- `scroll`·`motions`·`disabled_actions` → Keyboard 어댑터·매퍼 경로 (M4 배선).
+- 설정 UI는 **읽기 전용**: 병합 결과와 결정 계층을 표시하고 "설정 파일 열기" 버튼만 — UI는 YAML을 쓰지 않는다 (Yams가 주석을 보존하지 못해, UI 쓰기는 사용자의 주석·서식을 파괴한다).
+
+## UserDefaults↔YAML 경계
+
+**"사용자가 파일로 관리하고 싶은 설정"은 YAML, "앱이 스스로 쓰는 상태"는 UserDefaults.**
+
+- UserDefaults 잔류: `interceptionEnabled`(마스터 토글 — 킬스위치가 전용 스레드에서 직접 영속하는 안전 경로라 파일 IO에 의존시키지 않는다), `normalModeEscapeEnabled`(기존 Settings UI 토글 유지).
+- YAML: 앱별 on/off, 프로파일 전부.
 
 ## 불변식·계약
 
 - 설정 파서는 Yams 단일 의존 — 다른 포맷/파서를 섞지 않는다.
-- 하위 계층은 상위 계층이 정의한 키만 재정의하며, 계층 간 침범이 없다.
+- 병합은 키 단위이며, 하위 계층은 같은 키만 재정의한다.
 - 앱별 on/off는 config.yaml에만 존재한다 — 같은 값이 두 계층에 살지 않는다.
+- 설정 오류는 절대 Vim 레이어를 통째로 죽이지 않는다 — 항목 단위 무시 또는 직전 유효 설정 유지.
 
 ## 근거 요약
 
-번들 기본값으로 바로 동작하되 사용자/앱별 미세 조정을 얹을 수 있어야 하고, YAML을 직접 편집하는 사용자가 앱을 재시작하지 않아도 되도록 파일 감시 리로드를 둔다. 루트가 `~/.config`인 것은 주 사용자층(개발자)의 파일 기반 설정 관리 워크플로우 때문이다.
+번들 기본값으로 바로 동작하되 사용자/앱별 미세 조정을 얹을 수 있어야 하고, 파일을 직접 편집하는 사용자가 재시작 없이 반영을 봐야 한다. 루트가 `~/.config`인 것과 UI가 읽기 전용인 것은 같은 전제(파일이 SSOT, 사용자가 편집자)에서 나온다.
 
-- 관련 결정: [20260712_yaml-three-layer-config.md](../../decisions/references/20260712_yaml-three-layer-config.md), [20260801_config-root-dot-config.md](../../decisions/references/20260801_config-root-dot-config.md), [20260801_app-enable-config-yaml-only.md](../../decisions/references/20260801_app-enable-config-yaml-only.md)
+- 관련 결정: [3계층·Yams·핫 리로드](../../decisions/references/20260712_yaml-three-layer-config.md), [설정 루트](../../decisions/references/20260801_config-root-dot-config.md), [on/off 단일 소유](../../decisions/references/20260801_app-enable-config-yaml-only.md), [config.yaml 스키마 v1](../../decisions/references/20260801_config-yaml-schema-v1.md), [모션 단위 재정의](../../decisions/references/20260801_profile-motion-override-unit.md), [프로파일 v1 필드](../../decisions/references/20260801_profile-schema-v1-fields.md), [UI 읽기 전용](../../decisions/references/20260801_settings-ui-read-only-yaml.md), [UserDefaults 경계](../../decisions/references/20260801_userdefaults-yaml-ownership.md)
 
 ## 미결 질문 (결정 시 decisions에 기록 후 이 파일 갱신)
 
-- 정식 프로파일·config.yaml 스키마 (M4에서 재설계).
-- UserDefaults(마스터 토글·킬스위치 off 영속 등 앱 내부 상태)와 YAML(사용자 편집 설정)의 소유권 경계 세부 — 설정 UI의 앱별 목록이 YAML을 읽고 쓰는 방식 포함, M4 구현 시 확정.
-- `keymap_overrides`(예: Insert 탈출 `jk` 시퀀스)는 엔진 v1 어휘에 없다 — 스키마에 남길지, 남기면 로더가 미지원 필드를 어떻게 다룰지.
+- 설정 계층 코드의 위치 — 순수 파서·병합을 `VimActionCore` 새 타깃으로 둘지(Yams 의존을 그 타깃에만), 앱 타깃에 둘지. M4 구현 착수 시 결정.
+- `strategy`/`per_element`/`keymap_overrides` 등 M5 필드의 정식 스키마 — M5 착수 시 additive로 확장.
+- GUI에서 설정을 편집하려는 요구가 실증되면: 주석 보존 부분 편집 방식 검토 (UI 읽기 전용 결정의 재개 조건).
 
 ## 관련
 

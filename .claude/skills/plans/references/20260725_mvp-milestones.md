@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-25
-- **갱신일**: 2026-08-01 (**M3 종료 — 릴리스 금지 게이트 해제**([결정](../../decisions/references/20260801_release-block-gate-lifted.md)). 다음은 M4 프로파일 = MVP 완료선. M4 선행 결정 2건 반영: [설정 루트 `~/.config/vim-action/`](../../decisions/references/20260801_config-root-dot-config.md)·[앱별 on/off config.yaml 단일 소유](../../decisions/references/20260801_app-enable-config-yaml-only.md))
+- **갱신일**: 2026-08-02 (**M4 스키마 설계 완료** — 결정 7건 기록, architecture `profiles-and-config.md`가 스키마 v1 SSOT. 남은 것은 구현 — 세션 A부터)
 
 ## 목표
 
@@ -22,7 +22,10 @@
 
 ## 남은 것
 - [x] **M3 종료 — Keyboard 어댑터 ② 편집 + Visual + 요소 리졸버** (PR #24~#29 병합 + 단계 4): v1 어휘 전체가 실행되고, 실행 중단 래치가 버스트를 끊으며, 요소 리졸버가 비텍스트 UI에서 편집·명령을 걸러낸다. 단계 4에서 안전망 회귀(킬 콤보 오토리핏 발동 수정 포함)·무로그 삼킴 0건 전수 확인·위험 심사 4건(레이아웃 가드·스크롤 클램프 33 구현 포함) 종결 — **릴리스 금지 게이트 해제**([결정](../../decisions/references/20260801_release-block-gate-lifted.md)). 요소 계열(TextArea/TextField)별 편집 시퀀스, AXObserver 포커스 캐시(focusedRole), y/p/u=Cmd-C/V/Z, 스크롤 실행. 어댑터 위임 계약 이행처: cw→ce 특례, paste charwise/linewise 판정, linewise 줄 반올림, append 줄 끝 시맨틱, Visual y 후 collapse. 확인 항목: 합성 시퀀스의 undo 단위 쪼개짐 실측, 캐시 충분성 1차 확정(콜백 경량 불변식 위임 ②). 되면: 주력 앱에서 편집 실사용 — 도그푸딩 본편.
-- [ ] **M4 — 프로파일 배관 + 앱별 on/off** ← **MVP 1단계 완료선**: Yams YAML 3계층 로더 + 핫 리로드 — 루트는 `~/.config/vim-action/`([결정](../../decisions/references/20260801_config-root-dot-config.md)). **스키마 재설계가 선행 과제**(PRD §7.4 스케치는 신뢰도 낮아 폐기, [결정](../../decisions/references/20260801_app-enable-config-yaml-only.md)): 앱별 on/off는 config.yaml 단일 소유(프로파일에 `enabled` 없음), M4가 파싱할 필드 범위(전략 필드는 M5까지 죽은 필드), M3 이월 조절값(스크롤 half/full 줄 수·chunkInterval·Notion 충돌·Slack Return=전송)의 스키마 자리, UserDefaults↔YAML 소유권 경계. 그 위에 M2 하드코딩 게이트를 config.yaml 목록으로 교체, 내장 기본값(주력 앱 + VS Code류 off), 설정 UI 앱별 목록. per_element 스키마 시점에 캐시 충분성 최종 확정.
+- [ ] **M4 — 프로파일 배관 + 앱별 on/off** ← **MVP 1단계 완료선**. **스키마 설계 완료 (2026-08-01)** — 스키마 v1 최종 상태는 architecture [profiles-and-config.md](../../architecture/references/profiles-and-config.md)가 SSOT (루트 `~/.config/vim-action/`, config.yaml `apps` bool 맵, 프로파일 4필드 name/scroll/disabled_actions/motions — 모션 단위 재정의 자동 전파, UI 읽기 전용, UserDefaults 경계, 강건성 규칙 포함. 결정 7건: 08-01 인덱스 참조). 남은 구현 — **M4에서 전부 배선까지** (사용자 확정):
+  - **세션 A — 순수 설정 계층** (워크트리 적합, headless): Yams 의존성 + 스키마 타입 + 파서 + 3계층 키 단위 병합 + 강건성 규칙(미지 항목 warn+무시), 파일시스템 주입 seam, 유닛 테스트. 배선 없음. 착수 시 첫 결정: 코드 위치(`VimActionCore` 새 타깃 vs 앱 타깃 — architecture 미결 질문).
+  - **세션 B — 배선·실행**: 핫 리로드(파일 감시, 실패 시 직전 유지) + `FrontmostAppGate` 하드코딩 교체 + 번들 기본값(주력 앱 + VS Code류 off) + scroll/disabled_actions/motions 재정의를 어댑터·매퍼 경로에 배선(모션 재정의는 `MotionKeyMapper` 조회 단일 지점) + 설정 UI 읽기 전용 목록·파일 열기 버튼. 핫 리로드·게이트 전이·Slack/Notion 프로파일은 실기기 도그푸딩으로 확인.
+  - per_element 스키마 시점(M5)에 캐시 충분성 최종 확정은 M5로 이동 — M4 스키마에 per_element 없음 확정.
 - [ ] **M5 — AX 어댑터 + auto 전략 (MVP 이후 1차 확장)**: AX 어댑터(AXSelectedTextRange 직접 조작), auto 프로브 → key-mapping 폴백, force-text 계열, per_element 재정의 본격화. `AXUIElementSetMessagingTimeout` 실기기 계측(콜백 경량 불변식 위임 ①)은 여기.
   - **M3가 남긴 인계 메모 (M3 플랜 삭제 시 이관)**: M3에서 수용한 엣지 대부분이 쓰기가 아니라 **읽기** 문제다 — `AXValue`+`AXSelectedTextRange`로 정확 오프셋을 계산하고 실행은 키보드로 하는 혼용이면 해소된다. 목록: `iw` 단어 경계·`cw`→`ce` 특례·경계 포화 5종·소프트 랩 시각 줄([결정](../../decisions/references/20260728_edit-boundary-saturation-accepted-edges.md)·[결정](../../decisions/references/20260728_linewise-visual-line-wrap-accepted-edge.md)), charwise/linewise `p`의 경계·paste wise 자체(레지스터·yank 경로 wise 기억으로 해소), **Visual 후진 전체**(`Vk`·`vb` — 앵커가 앱 안의 점이라 읽을 수 없어 생김, [결정](../../decisions/references/20260728_visual-charwise-backward-origin-shift.md)), 비-QWERTY 정식 해소(문자→키코드 역조회 주입 — [레이아웃 가드 결정](../../decisions/references/20260801_non-qwerty-command-key-layout-guard.md)의 이연 항목), 탭 들여쓰기 `^`·Notion 계열 충돌은 M4 프로파일 우선. 3ms 캡 결정의 supersede 여부 판단도 M5 착수 시([focusedRole 캐시 결정](../../decisions/references/20260801_focused-role-cache-shape.md) 참조 — `strategy: auto` 프로브 코드가 아직 없어 보류됨). 어댑터 `linewise: Bool` 상자 재검토 후보(무게시 모션으로 V 세션 편차 해소)도 여기.
 - [ ] (MVP 밖) M6 — 서명·공증 배포는 외부 공유 시점에 별도 플랜으로.
