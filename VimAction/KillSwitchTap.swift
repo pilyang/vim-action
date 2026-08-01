@@ -214,8 +214,11 @@ final class KillSwitchTap {
     }
 
     /// 콤보 발동 — 킬 탭 전용 스레드에서 실행된다 (메인 스톨과 무관).
+    ///
+    /// 콤보를 꾹 누르면 오토리핏으로 초당 10여 건 불린다 — 로그를 여기서 남기지 않는
+    /// 이유다. 발동 기록(fault 1건)과 효과의 1회성은 `triggerKillSwitch`의 킬 요청 래치
+    /// test-and-set이 보장한다.
     fileprivate nonisolated func fire() {
-        Logger.eventTap.fault("킬스위치 콤보 감지 — 가로채기 off")
         onTrigger()
     }
 
@@ -237,9 +240,11 @@ final class KillSwitchTap {
 
     /// keyDown 하나를 삼킬지 — 안전장치 조합이 포커스 앱까지 새지 않게 한다.
     ///
-    /// 삼킴은 발동보다 넓다: 오토리핏 콤보는 발동하지 않지만(아래 `shouldFire`) **삼키기는
-    /// 한다**. 콤보를 꾹 누르면 HID 계층이 초당 10여 건의 Esc keyDown을 계속 올려보내는데,
-    /// 발동 판정만으로 통과시키면 그 전부가 포커스 앱에 쏟아진다.
+    /// 삼킨 콤보는 **오토리핏 포함 전부 발동 경로로 간다** (별도 발동 술어 없음). Esc가
+    /// modifier보다 먼저 눌린 채 꾹 누르면 최초 keyDown은 콤보 미달이고 이후는 전부
+    /// 오토리핏이라, 오토리핏을 발동에서 제외하면 "꾹 누르면 발동"이 영영 성립하지
+    /// 않는다(실기기 실증 — 83ms 간격 풀 콤보 4연속 무발동). 발동 효과·로그의 1회성은
+    /// `triggerKillSwitch`의 킬 요청 래치 test-and-set이 보장한다.
     nonisolated static func shouldSwallow(_ event: CGEvent) -> Bool {
         // 우리가 게시한 합성 이벤트는 건드리지 않는다. 지금 세션에 게시한 이벤트는 HID
         // 탭까지 오지 않지만 **세션 폴백 경로에서는 들어오고**, 어댑터가 modifier 조합 Esc를
@@ -250,13 +255,6 @@ final class KillSwitchTap {
             keyCode: event.getIntegerValueField(.keyboardEventKeycode), flags: event.flags)
     }
 
-    /// 삼킬 콤보 중 실제로 발동시킬 것인지 — 오토리핏 제외.
-    /// 콤보를 꾹 누르면 fault 로그와 메인 홉이 초당 10여 건 도배된다
-    /// (효과 자체는 소프트 off didSet의 등가 가드가 이미 멱등하게 만든다).
-    nonisolated static func shouldFire(_ event: CGEvent) -> Bool {
-        guard shouldSwallow(event) else { return false }
-        return event.getIntegerValueField(.keyboardEventAutorepeat) == 0
-    }
 }
 
 /// C 함수 포인터 콜백 — 킬 탭 전용 스레드의 `CFRunLoop`에서 실행된다.
@@ -286,9 +284,10 @@ private nonisolated func killSwitchTapCallback(
                 "킬스위치 진단 — Esc keyDown flags=\(event.flags.rawValue, privacy: .public)")
         }
         #endif
-        // 삼킴이 먼저다 — 오토리핏 콤보는 발동하지 않아도 통과시키지 않는다.
         guard KillSwitchTap.shouldSwallow(event) else { return Unmanaged.passUnretained(event) }
-        if KillSwitchTap.shouldFire(event) { tap.fire() }
+        // 삼킨 콤보는 오토리핏 포함 전부 발동 경로로 — 반복 발동의 1회성은
+        // triggerKillSwitch의 킬 요청 래치 test-and-set이 보장한다 (shouldSwallow 주석 참고).
+        tap.fire()
         // 콤보는 삼킨다 — 안전장치 조합이 포커스 앱까지 새지 않게 한다.
         return nil
     default:

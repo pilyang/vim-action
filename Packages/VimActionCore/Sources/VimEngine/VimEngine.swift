@@ -260,7 +260,13 @@ public struct VimEngine: Sendable {
         // 중에는 위 op 분기 화이트리스트 밖이라 invalid로 떨어져 여기 오지
         // 않는다 (do/du 선례).
         if let action = Self.normalCtrlCombos[key] {
-            return .replace(Array(repeating: action, count: current.count ?? 1))
+            var count = current.count ?? 1
+            // 스크롤만 더 낮은 상한 — 액션 1개가 키스트로크 수십 타로 증폭되는 유일한
+            // 반복 출력이라, maxCount만으로는 클램프가 겨냥한 "최악 폭주 총량"을
+            // 사실상 우회한다 (999 Ctrl-f ≈ 3만 타). 33은 fullPage 30타 기준
+            // maxCount 등가(≈990타)다.
+            if case .scroll = action { count = min(count, Self.maxScrollCount) }
+            return .replace(Array(repeating: action, count: count))
         }
 
         // 카운트 붙은 모션은 `.move` 반복으로 낸다 — `.move`에 count 슬롯을
@@ -435,6 +441,8 @@ public struct VimEngine: Sendable {
     /// 값은 일상 사용 상한 기준 — 1,000 초과 카운트는 실사용에서 의도가 아니라
     /// 오타·폭주로 보고, 실행 시간(1,000j도 수 초)이 이미 실용 한계다.
     private static let maxCount = 1_000
+    /// 스크롤 반복 상한 — `maxCount`보다 낮은 이유는 위 normalCtrlCombos 분기 주석 참고.
+    private static let maxScrollCount = 33
 
     /// digit 하나를 카운트에 누적한다 — 상한 도달 후의 초과 자리 digit은
     /// 무시하고 누적 상태를 유지한다.

@@ -1,3 +1,5 @@
+> Superseded by [20260801_release-block-gate-lifted.md](20260801_release-block-gate-lifted.md)
+
 # 릴리스 배포 금지 게이트는 M3(편집 실행)로 이동
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

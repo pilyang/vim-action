@@ -648,14 +648,25 @@ final class EventTapController {
     /// ①이 도로 풀리지 않게 하는 것은 `killSwitchRequested` 래치다 — 홉이 착지하기 전까지
     /// 콜백·워치독의 토글 가드는 아직 on을 보고 있어, 래치 없이는 우리가 끈 탭을 이들이
     /// 즉시 되살린다. 마지막 방어는 didSet off 분기의 "워치독 시리얼 큐 뒤 최종 disable".
-    nonisolated func triggerKillSwitch() {
+    /// 반환값은 "이번 호출이 킬을 수행했는가" — 같은 에피소드(발동~토글 on 복귀)의
+    /// 재발동은 no-op이며 `false`다. 오토리핏 콤보도 발동 경로로 오므로
+    /// (`KillSwitchTap.shouldSwallow` 주석 참고) 여기의 1회성이 fault 로그·홉·영속의
+    /// 도배를 막는다.
+    @discardableResult
+    nonisolated func triggerKillSwitch() -> Bool {
         // 실행 중단 래치가 맨 앞이다 — "발동은 즉시인데 이미 게시된 이벤트는 끝까지 소진된다"가
         // 단계 0이 실증한 킬스위치의 한계였고, 이 한 줄이 그 창을 닫는다. 잠금+증가뿐이라
-        // 아래 어떤 단계도 이것을 기다리지 않는다.
+        // 아래 어떤 단계도 이것을 기다리지 않는다. dedupe **앞**·무조건이다 — 재발동에서도
+        // 게시 중 버스트는 계속 끊는다.
         executionAbort.invalidate()
         // 래치는 반드시 disable **앞에** — 순서가 뒤집히면 그 사이에 도착한 비활성화 통지가
-        // 래치 없는 상태로 판정돼 탭이 되살아난다.
-        killSwitchRequested.withLock { $0 = true }
+        // 래치 없는 상태로 판정돼 탭이 되살아난다. test-and-set인 이유는 위 1회성이다.
+        let alreadyRequested = killSwitchRequested.withLock { requested -> Bool in
+            let was = requested
+            requested = true
+            return was
+        }
+        guard !alreadyRequested else { return false }
         if let port = tapPortBox.get() {
             CGEvent.tapEnable(tap: port, enable: false)
         }
@@ -673,6 +684,7 @@ final class EventTapController {
         // **맨 뒤인 것이 계약이다**: 이 호출만 cfprefsd로 나가는 XPC라 유일하게 블록될 수
         // 있다. 앞의 래치·disable·로그·홉은 어떤 경우에도 이것을 기다리지 않는다.
         Self.persistInterceptionEnabled(false, to: defaults)
+        return true
     }
 
     /// keyDown 하나를 엔진 결정으로 번역해 적용한다. 탭 설치와 무관한 순수 경로라

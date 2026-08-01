@@ -19,11 +19,13 @@ import VimEngine
 private func makeAdapter(
     clipboard wise: PasteWise? = .charwise,
     changeCount: @escaping @Sendable () -> Int = { 0 },
+    qwertyCommandKeys: @escaping @Sendable () -> Bool = { true },
     collecting posted: @escaping @Sendable (CGEvent) -> Void
 ) -> KeyboardAdapter {
     KeyboardAdapter(
         executor: ActionExecutor(postEvent: posted),
-        pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount))
+        pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount),
+        hasQwertyCommandKeys: qwertyCommandKeys)
 }
 
 private func keyCodes(of events: [CGEvent]) -> [Int64] {
@@ -717,5 +719,79 @@ struct KeyboardAdapterElementFamilyTests {
         // 대조군: 같은 액션이 TextArea에서는 실제로 기억을 남긴다 (관측 수단이 유효하다는 확인).
         adapter.execute([.edit(.delete, .line(count: 1))], family: .textArea)
         #expect(changeCountReads == 1)
+    }
+}
+
+/// 비-QWERTY 레이아웃 게이트 — ANSI 문자 키코드를 합성하는 액션(`Cmd-Z/X/C/V`)은 보류하고,
+/// 화살표·Return만 쓰는 액션은 통과한다 (`20260801` 레이아웃 가드 결정).
+struct KeyboardAdapterLayoutGateTests {
+    @Test("비-QWERTY: 편집·paste·undo·redo는 게시되지 않는다")
+    func nonQwertyBlocksLetterCommandActions() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(qwertyCommandKeys: { false }, collecting: { posted.append($0) })
+
+        adapter.execute([
+            .edit(.delete, .line(count: 1)),
+            .edit(.yank, .selection),
+            .paste(before: false, count: 1),
+            .undo,
+            .redo,
+        ])
+
+        #expect(posted.isEmpty)
+    }
+
+    @Test("비-QWERTY: 모션·스크롤·openLine·선택은 그대로 게시된다")
+    func nonQwertyKeepsLayoutIndependentActions() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(qwertyCommandKeys: { false }, collecting: { posted.append($0) })
+
+        adapter.execute([
+            .move(.lineDown),
+            .scroll(.halfPage, forward: true),
+            .openLine(above: false),
+            .beginSelection(linewise: false),
+            .clearSelection,
+        ])
+
+        #expect(!posted.isEmpty)
+        // 화살표·Return·Cmd-화살표만 — ANSI 문자 키코드는 하나도 나가지 않는다.
+        let letterCodes: Set<Int64> = [
+            Int64(kVK_ANSI_Z), Int64(kVK_ANSI_X), Int64(kVK_ANSI_C), Int64(kVK_ANSI_V),
+        ]
+        #expect(keyCodes(of: posted).allSatisfy { !letterCodes.contains($0) })
+    }
+
+    /// 게이트는 부수효과보다 앞이다 — 걸러내기 게이트의 `nonTextEditDoesNotRecordPasteWise`와
+    /// 같은 계약을 레이아웃 축에서도 고정한다.
+    @Test("비-QWERTY 편집은 붙여넣기 단위 기억을 남기지 않는다")
+    func nonQwertyEditDoesNotRecordPasteWise() {
+        nonisolated(unsafe) var changeCountReads = 0
+        let adapter = makeAdapter(
+            changeCount: {
+                changeCountReads += 1
+                return 0
+            },
+            qwertyCommandKeys: { false },
+            collecting: { _ in })
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+
+        #expect(changeCountReads == 0, "게이트가 기억보다 앞이다")
+    }
+
+    @Test("QWERTY 복귀 시 같은 액션이 다시 게시된다 (액션마다 재판정)")
+    func layoutIsReconsultedPerExecution() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var qwerty = false
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { qwerty }, collecting: { posted.append($0) })
+
+        adapter.execute([.undo])
+        #expect(posted.isEmpty)
+
+        qwerty = true
+        adapter.execute([.undo])
+        #expect(keyCodes(of: posted) == [Int64(kVK_ANSI_Z), Int64(kVK_ANSI_Z)])
     }
 }

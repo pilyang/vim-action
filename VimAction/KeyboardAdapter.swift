@@ -27,12 +27,22 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 실제 패스트보드를 읽으면 테스트가 **개발자의 클립보드**에 따라 갈려 비결정적이 된다.
     private let pasteWise: PasteWiseResolver
 
+    /// 합성 명령 키(`Cmd-Z/X/C/V`)의 물리 위치가 QWERTY와 일치하는가. 주입하는 이유는
+    /// `pasteWise`와 같다 — 실제 값(`KeyTranslator.hasQwertyCommandKeys`)을 읽으면 테스트가
+    /// 개발자 머신의 레이아웃에 따라 갈린다. 클로저인 이유: 값은 레이아웃 전환으로 실행 중
+    /// 바뀌므로 액션마다 다시 물어야 한다.
+    private let hasQwertyCommandKeys: @Sendable () -> Bool
+
     init(
         executor: ActionExecutor = ActionExecutor(),
-        pasteWise: PasteWiseResolver = PasteWiseResolver()
+        pasteWise: PasteWiseResolver = PasteWiseResolver(),
+        hasQwertyCommandKeys: @escaping @Sendable () -> Bool = {
+            KeyTranslator.hasQwertyCommandKeys
+        }
     ) {
         self.executor = executor
         self.pasteWise = pasteWise
+        self.hasQwertyCommandKeys = hasQwertyCommandKeys
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.
@@ -58,6 +68,8 @@ nonisolated struct KeyboardAdapter: Sendable {
         #if DEBUG
         var skippedCount = 0
         var firstSkipped: VimAction?
+        var layoutBlockedCount = 0
+        var firstLayoutBlocked: VimAction?
         #endif
         /// 아직 청크 크기에 못 미쳐 게시를 미뤄 둔 이벤트.
         var pending: [CGEvent] = []
@@ -101,6 +113,12 @@ nonisolated struct KeyboardAdapter: Sendable {
                 continue
             case .skipped:
                 continue
+            case .layoutBlocked:
+                #if DEBUG
+                layoutBlockedCount += 1
+                if firstLayoutBlocked == nil { firstLayoutBlocked = action }
+                #endif
+                continue
             }
 
             // Visual `y`는 `[.edit(.yank, .selection), .clearSelection]`을 함께 낸다. 그 사이가
@@ -138,6 +156,12 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 구현된 어휘를 미구현으로 읽는다.
             Logger.eventTap.debug(
                 "미지원 액션 스킵 ×\(skippedCount, privacy: .public) [\(String(describing: family), privacy: .public)]: \(String(describing: first), privacy: .public)"
+            )
+        }
+        if let first = firstLayoutBlocked {
+            // 미지원과 별도 요약인 이유는 Mapping.layoutBlocked 주석 참고.
+            Logger.eventTap.debug(
+                "비-QWERTY 레이아웃 스킵 ×\(layoutBlockedCount, privacy: .public): \(String(describing: first), privacy: .public)"
             )
         }
         #endif
@@ -201,6 +225,9 @@ nonisolated struct KeyboardAdapter: Sendable {
         case unsupported
         /// 지원하지만 이번엔 게시할 것이 없다. 사유를 아는 자리에서 **자체 로그를 이미 남겼다**.
         case skipped
+        /// 지원하지만 현재 레이아웃이 비-QWERTY라 보류했다. 미지원과 별도로 집계된다 —
+        /// 섞이면 게이트 심사자가 구현된 어휘를 미구현으로 읽는다 (스킵 2종 분리와 같은 규칙).
+        case layoutBlocked
     }
 
     /// 액션 → 합성할 키스트로크.
@@ -219,6 +246,14 @@ nonisolated struct KeyboardAdapter: Sendable {
         //   ③ 아래 `.paste`는 매퍼 호출 전에 클립보드를 읽는다 — 순서가 반대면 걸러내기가
         //      "클립보드에 텍스트 없음"(`.skipped`)으로 잘못 집계돼 스킵 2종 구분이 무너진다.
         guard Self.survivesFilterGate(action, family: family) else { return .unsupported }
+        // 비-QWERTY 레이아웃 게이트 — ANSI **문자** 키코드를 합성하는 액션만 보류한다.
+        // 매퍼는 키코드를 고정 게시하고 대상 앱이 활성 레이아웃으로 재해석하므로, AZERTY에서
+        // `u`의 `Cmd-Z`는 `Cmd-W`(창 닫기 — 데이터 손실)가 된다. 화살표·Return만 쓰는
+        // 액션(모션·스크롤·openLine·선택)은 레이아웃 무관이라 통과한다. 걸러내기 게이트와
+        // 같은 이유로 부수효과(`recordLinewiseEdit`·클립보드 읽기)보다 앞이다.
+        guard hasQwertyCommandKeys() || !Self.synthesizesAnsiLetterCommand(action) else {
+            return .layoutBlocked
+        }
 
         switch action {
         case .move(let motion):
@@ -288,6 +323,19 @@ nonisolated struct KeyboardAdapter: Sendable {
     private static func survivesNonTextGate(_ action: VimAction) -> Bool {
         switch action {
         case .move, .scroll:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// ANSI 문자 키코드의 `Cmd-` 조합을 합성하는 액션인가 — 비-QWERTY 레이아웃 게이트 대상.
+    /// `.edit`은 오퍼레이터 스트로크(`Cmd-X`/`Cmd-C`), `.paste`는 `Cmd-V`,
+    /// `.undo`/`.redo`는 `Cmd-Z`다. `VimAction`에 exhaustive switch를 걸지 않는 것은
+    /// 매퍼와 같은 계약이다.
+    private static func synthesizesAnsiLetterCommand(_ action: VimAction) -> Bool {
+        switch action {
+        case .edit, .paste, .undo, .redo:
             return true
         default:
             return false
