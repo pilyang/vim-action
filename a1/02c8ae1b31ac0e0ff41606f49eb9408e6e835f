@@ -1,0 +1,130 @@
+.claude/skills/decisions/references/20260712_yaml-three-layer-config.md
+  s_cce7e6349262fa::t_6140f7bfef7787 4
+.claude/skills/decisions/references/20260802_bundled-default-profiles-slack-notion.md
+  s_a17b2168f24c72::t_ad3d70406781c8 1-2,5-26
+  s_cce7e6349262fa::t_72be3d0bbc50cb 3-4
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_cce7e6349262fa::t_d3734ca7fe2050 6
+  s_cce7e6349262fa::t_ab60ad856e7c06 26
+  s_a17b2168f24c72::t_2314a614fa1377 25
+  s_cce7e6349262fa::t_2234db1f515e52 35-36
+  s_cce7e6349262fa::t_f0d468efff9713 27
+Packages/VimActionCore/Sources/VimActionConfig/ConfigKeyStroke.swift
+  s_cce7e6349262fa::t_f89ba8868f03fb 1-53
+Packages/VimActionCore/Tests/VimActionConfigTests/ConfigLoaderTests.swift
+  s_cce7e6349262fa::t_a2b9d17ccca504 1-127
+Packages/VimActionCore/Tests/VimActionConfigTests/FixtureSupport.swift
+  s_cce7e6349262fa::t_d9a7e3eaa197cf 1-10
+  s_cce7e6349262fa::t_f69d0921817a46 11-40,55
+  s_cce7e6349262fa::t_50260f1c0ef866 41-54
+Packages/VimActionCore/Sources/VimActionConfig/ConfigLoader.swift
+  s_cce7e6349262fa::t_f59566d193c58a 1-92
+.claude/skills/decisions/references/20260802_scroll-override-bounds.md
+  s_a17b2168f24c72::t_c2bad4f6757812 1-23
+.claude/skills/decisions/references/20260802_append-motions-follow-base-override.md
+  s_a17b2168f24c72::t_1f51d90cad8a48 1-24
+.claude/skills/decisions/references/20260802_bundled-defaults-seeded-not-merged.md
+  s_cce7e6349262fa::t_3472d15a6d0180 42
+  s_cce7e6349262fa::t_3872fcf78283bc 1-41,43-45
+Packages/VimActionCore/Sources/VimActionConfig/NodeInspection.swift
+  s_cce7e6349262fa::t_ef319b2a8f0094 1-44,46-49,51-151
+  s_cce7e6349262fa::t_938a7016588600 45
+  s_cce7e6349262fa::t_705e780cc8475a 50
+.claude/skills/decisions/references/20260802_config-layer-vimactionconfig-target.md
+  s_a17b2168f24c72::t_79ca84777e56a6 1-24
+VimAction.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+  s_cce7e6349262fa::t_6280413c3902ed 1-15
+Packages/VimActionCore/Tests/VimActionConfigTests/ConfigKeyStrokeTests.swift
+  s_cce7e6349262fa::t_6cf1e97e673f81 1-96
+Packages/VimActionCore/Sources/VimActionConfig/MotionVocabulary.swift
+  s_cce7e6349262fa::t_ff7d02c6189583 1-43
+Packages/VimActionCore/Tests/VimActionConfigTests/MotionVocabularyTests.swift
+  s_cce7e6349262fa::t_3a14d2097eee20 1-74
+Packages/VimActionCore/Sources/VimActionConfig/AppProfile.swift
+  s_cce7e6349262fa::t_6a10a4f9c266d9 1-58
+Packages/VimActionCore/Sources/VimActionConfig/AppProfileParser.swift
+  s_cce7e6349262fa::t_b817c5eda4bff6 1
+  s_cce7e6349262fa::t_0dfebd5ec16c45 2-100
+Packages/VimActionCore/Tests/VimActionConfigTests/ConfigInvariantTests.swift
+  s_cce7e6349262fa::t_1334b7e711824f 1-116
+.claude/skills/decisions/references/20260801_profile-schema-v1-fields.md
+  s_a17b2168f24c72::t_1b9c31b7498394 3-4
+.claude/skills/decisions/references/20260801_config-yaml-schema-v1.md
+  s_cce7e6349262fa::t_ce9bcf824b9ba3 3-4
+Packages/VimActionCore/Package.swift
+  s_cce7e6349262fa::t_96b8b167a23e89 8-12,17-21
+Packages/VimActionCore/Tests/VimActionConfigTests/ScaffoldingTests.swift
+  s_cce7e6349262fa::t_0ee19f02faa352 1-12
+Packages/VimActionCore/Tests/VimActionConfigTests/GlobalConfigParserTests.swift
+  s_cce7e6349262fa::t_b1b601ebdf05b2 1-100
+.claude/skills/architecture/references/profiles-and-config.md
+  s_cce7e6349262fa::t_e9c826871c0b85 78-80
+  s_cce7e6349262fa::t_435e3c03916e13 86
+  s_cce7e6349262fa::t_53d5b60fbb5288 3,7,9,11,13-19
+  s_a17b2168f24c72::t_84778ecf3b8900 12,36,41-47,50,54,65,77,82
+  s_cce7e6349262fa::t_66b29c88069743 66
+  s_cce7e6349262fa::t_1506fd09edce43 31-33
+  s_cce7e6349262fa::t_56c26c0dcc4bc9 88
+  s_a17b2168f24c72::t_a0a2ee3d6bb0c5 52
+  s_cce7e6349262fa::t_c6b8f9295c0056 56,58
+  s_cce7e6349262fa::t_bd1902f5bc5fbd 93
+  s_a17b2168f24c72::t_fdfcec2fab051c 51
+  s_a17b2168f24c72::t_8a3f7328b7dea1 53
+.claude/skills/decisions/references/20260801_settings-ui-read-only-yaml.md
+  s_cce7e6349262fa::t_6167d8ce24dff2 3-4
+Packages/VimActionCore/Tests/VimActionConfigTests/ConfigSeederTests.swift
+  s_cce7e6349262fa::t_2d442e3955e85e 1-88
+.claude/skills/decisions/references/20260802_package-resolved-committed.md
+  s_cce7e6349262fa::t_f3f73dacd4ec78 23
+  s_cce7e6349262fa::t_13f8f7c9292f78 1-22
+Packages/VimActionCore/Sources/VimActionConfig/GlobalConfig.swift
+  s_cce7e6349262fa::t_abe374a6669a33 1-9
+.claude/skills/decisions/references/20260802_profile-disable-via-mapping-keyword.md
+  s_a17b2168f24c72::t_a00914dc9d0d31 1-45
+Packages/VimActionCore/Sources/VimActionConfig/GlobalConfigParser.swift
+  s_cce7e6349262fa::t_5caa0289623e63 1-2
+  s_cce7e6349262fa::t_9bb28292a61c7c 3-32
+Packages/VimActionCore/Sources/VimActionConfig/ConfigSeeder.swift
+  s_cce7e6349262fa::t_a1de098bce6944 1-78
+Packages/VimActionCore/Sources/VimActionConfig/ConfigDiagnostics.swift
+  s_cce7e6349262fa::t_767c81a531082a 1-31,33-41
+  s_cce7e6349262fa::t_225b313831eaab 32
+Packages/VimActionCore/Tests/VimActionConfigTests/AppProfileParserTests.swift
+  s_cce7e6349262fa::t_c9eff07c5d455e 1-213
+.claude/skills/decisions/references/20260802_config-keyword-notation-lowercase.md
+  s_a17b2168f24c72::t_35399ee70ee088 1-33
+.claude/skills/decisions/SKILL.md
+  s_a17b2168f24c72::t_80adfbb0f13215 51,54-56,58
+  s_cce7e6349262fa::t_d53f14d9e22554 52
+  s_a17b2168f24c72::t_7a847bdd532adf 59
+  s_cce7e6349262fa::t_c1bee1df76ecc3 40
+  s_cce7e6349262fa::t_5b753805ba7916 57
+  s_cce7e6349262fa::t_d125f01bfc0415 60-61
+  s_cce7e6349262fa::t_508859a05673dc 49
+Packages/VimActionCore/Package.resolved
+  s_cce7e6349262fa::t_adeab541eaacc4 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "a102c8ae1b31ac0e0ff41606f49eb9408e6e835f",
+  "prompts": {},
+  "sessions": {
+    "s_a17b2168f24c72": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7b288ad6-1937-4794-9d1d-1a4757e1f068",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_cce7e6349262fa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6d543128-4c1e-4a0e-a3d1-a50de606c053",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
