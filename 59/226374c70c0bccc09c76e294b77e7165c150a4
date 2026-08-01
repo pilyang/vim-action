@@ -1,0 +1,19 @@
+.claude/skills/plans/references/20260801_esc-passthrough-and-dc-keys.md
+  s_442eb731f31941::t_532a7eecfd7a21 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "59226374c70c0bccc09c76e294b77e7165c150a4",
+  "prompts": {},
+  "sessions": {
+    "s_442eb731f31941": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "54cab68a-c3c8-441e-a43c-a3b4afebe182",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
