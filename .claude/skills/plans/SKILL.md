@@ -49,5 +49,5 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-07-25 | 2026-07-28 | MVP 1단계 마일스톤 | 실행 계층 구축 순서 M1~M5 (Keyboard 베이스 → AX 확장) — M1 출력 인프라·안전망 → M2 Keyboard 모션 → M3 편집·Visual·요소 리졸버 → M4 프로파일(=MVP 완료선) → M5 AX. **M1·M2 완전 종료, M3 진행 중**(단계 0·1·2 종료 = PR #24·#25 병합, 편집·Visual 실행됨. 릴리스 금지 게이트 해제는 M3 단계 4) | [20260725_mvp-milestones.md](references/20260725_mvp-milestones.md) |
-| 2026-07-26 | 2026-08-01 | M3 Keyboard 편집·Visual·리졸버 | MVP M3 — 편집 실행(본체)·Visual·o/p/u·스크롤 + focusedRole 리졸버, 끝나면 릴리스 금지 게이트 해제. **단계 0~3 + 선행(Esc passthrough·D/C, PR #29) 종료**, 결정 26건. **남은 것은 단계 4(안전망 회귀 + 게이트 해제) 하나 — 즉시 착수 가능** | [20260726_m3-keyboard-edit-visual-resolver.md](references/20260726_m3-keyboard-edit-visual-resolver.md) |
+| 2026-07-25 | 2026-08-01 | MVP 1단계 마일스톤 | 실행 계층 구축 순서 M1~M5 (Keyboard 베이스 → AX 확장) — M1 출력 인프라·안전망 → M2 Keyboard 모션 → M3 편집·Visual·요소 리졸버 → M4 프로파일(=MVP 완료선) → M5 AX. **M1~M3 완전 종료, 릴리스 금지 게이트 해제됨** — 다음은 M4 프로파일 | [20260725_mvp-milestones.md](references/20260725_mvp-milestones.md) |
+| 2026-07-26 | 2026-08-01 | M3 Keyboard 편집·Visual·리졸버 | MVP M3 — **단계 4까지 전부 완료, 게이트 해제, M3 닫힘.** 남은 것: 신규 코드 2건(레이아웃 가드·스크롤 클램프) 실기기 스팟 체크 + PR + **완료 확인 후 이 플랜 삭제** | [20260726_m3-keyboard-edit-visual-resolver.md](references/20260726_m3-keyboard-edit-visual-resolver.md) |

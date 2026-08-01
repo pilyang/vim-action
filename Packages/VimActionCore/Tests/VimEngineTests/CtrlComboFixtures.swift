@@ -90,6 +90,30 @@ let ctrlComboFixtures: [KeySequenceFixture] = [
         ],
         finalMode: .normal
     ),
+    // 스크롤 전용 상한 33 — 액션 1개가 수십 키스트로크로 증폭되는 유일한 반복 출력이라
+    // maxCount(1,000)만으로는 최악 폭주 총량 상한이 사실상 우회된다 (999 Ctrl-f ≈ 3만 타).
+    KeySequenceFixture(
+        "999 Ctrl+f → 스크롤 반복은 33으로 클램프",
+        startMode: .normal,
+        steps: [
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(ctrlF, .replace(Array(repeating: fullDown, count: 33))),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "999 Ctrl+r → redo는 스크롤 상한 비대상 (maxCount만 적용)",
+        startMode: .normal,
+        steps: [
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(.char("9"), .swallow),
+            step(ctrlR, .replace(Array(repeating: VimAction.redo, count: 999))),
+        ],
+        finalMode: .normal
+    ),
     KeySequenceFixture(
         "카운트 누적 중 Esc 후 Ctrl+d → 카운트 폐기, 단일 출력",
         startMode: .normal,

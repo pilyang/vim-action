@@ -115,7 +115,38 @@ enum KeyTranslator {
         }
         let data = Unmanaged<CFData>.fromOpaque(layoutDataRef).takeUnretainedValue() as Data
         cachedLayoutData = data
+        refreshQwertyCommandKeys()
         return data
+    }
+
+    /// 합성 명령 키(`Cmd-Z/X/C/V`)의 물리 위치가 QWERTY와 일치하는가 — **출력 쪽** 안전판의
+    /// 판별값이다. 입력 번역의 ASCII-capable 방어는 출력을 덮지 못한다: 매퍼는 ANSI 키코드를
+    /// 고정 게시하고 대상 앱이 활성 레이아웃으로 재해석하므로, AZERTY에서는 `u`의 `Cmd-Z`가
+    /// `Cmd-W`(창 닫기)가 된다 (`20260730_cmd-z-ansi-layout-escalation.md`).
+    ///
+    /// 게시 큐의 어댑터가 읽으므로 잠금 상자다. 초기값 true인 이유: 값은 translate 경로(메인)가
+    /// 레이아웃 캐시를 채울 때마다 갱신되고, 액션은 항상 translate를 거친 키에서만 나오므로
+    /// 어댑터가 읽는 시점에는 그 키 기준 최신이다.
+    private nonisolated static let qwertyCommandKeysBox = OSAllocatedUnfairLock(initialState: true)
+    nonisolated static var hasQwertyCommandKeys: Bool { qwertyCommandKeysBox.withLock { $0 } }
+
+    /// 판별은 레이아웃 ID 화이트리스트가 아니라 **행동 검사**다 — 우리가 합성하는 키코드가
+    /// 현재 레이아웃에서 기대 문자를 내는지 직접 번역해 본다. QWERTY 변형(ABC·British·
+    /// Canadian 등)을 목록으로 다 세는 것은 불가능하고, 위험의 실체가 "그 위치에 다른
+    /// 문자가 있다"이므로 검사도 그것이어야 한다.
+    private static var isRefreshingQwertyCommandKeys = false
+    private static func refreshQwertyCommandKeys() {
+        // 재진입 가드 — 검사 중 UCKeyTranslate 실패가 캐시를 비우면 다음 pair의
+        // `character`가 `currentLayoutData` 재조회를 타고 이 함수로 되돌아온다.
+        guard !isRefreshingQwertyCommandKeys else { return }
+        isRefreshingQwertyCommandKeys = true
+        defer { isRefreshingQwertyCommandKeys = false }
+        let expected: [(UInt16, Character)] = [
+            (UInt16(kVK_ANSI_Z), "z"), (UInt16(kVK_ANSI_X), "x"),
+            (UInt16(kVK_ANSI_C), "c"), (UInt16(kVK_ANSI_V), "v"),
+        ]
+        let matches = expected.allSatisfy { character(for: $0.0, shifted: false) == $0.1 }
+        qwertyCommandKeysBox.withLock { $0 = matches }
     }
 
     /// 현재 ASCII-capable 레이아웃으로 keycode → 문자 번역.
