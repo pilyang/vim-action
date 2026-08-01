@@ -1,5 +1,7 @@
 # config.yaml 스키마 v1 — apps 맵과 병합·강건성 규칙
 
+> Superseded (부분) by [20260802_bundled-defaults-seeded-not-merged.md](20260802_bundled-defaults-seeded-not-merged.md) — 공통 규칙 1(3계층 키 단위 병합)이 뒤집힘, `apps` 맵의 근거도 "하위 계층 되켜기"가 아니라 "사용자가 자기 파일에서 앱별 값 지정" / `apps` bool 맵 형태와 규칙 2·3은 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-01
