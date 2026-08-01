@@ -1,0 +1,34 @@
+.claude/skills/decisions/SKILL.md
+  s_442eb731f31941::t_289178a10a5da6 131-132
+  s_442eb731f31941::t_021d7ce7bd4b3b 57
+.claude/skills/architecture/references/mode-engine.md
+  s_442eb731f31941::t_fab789f20559f8 26
+  s_442eb731f31941::t_21efb61a22ae0e 3
+  s_442eb731f31941::t_44a8a346f434eb 27
+.claude/skills/plans/references/20260801_esc-passthrough-and-dc-keys.md
+  s_442eb731f31941::t_87bc866d98f6aa 6,15-18,22,26-27
+.claude/skills/plans/SKILL.md
+  s_442eb731f31941::t_01cd3ed3478971 54
+.claude/skills/decisions/references/20260801_normal-esc-passthrough-when-empty.md
+  s_442eb731f31941::t_c432cdfb310748 1-28
+.claude/skills/decisions/references/20260801_line-end-shorthand-d-c.md
+  s_442eb731f31941::t_a1bcb5c06822c2 1-22
+.claude/skills/decisions/references/20260717_cancellation-first-ordering-premise.md
+  s_442eb731f31941::t_4fb645c4d104d8 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "728aeb34a547c5e240f8723a67de0bd938014010",
+  "prompts": {},
+  "sessions": {
+    "s_442eb731f31941": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "54cab68a-c3c8-441e-a43c-a3b4afebe182",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
