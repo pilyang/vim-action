@@ -37,7 +37,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 
 | Date | Title | 요약 | Reference |
 |---|---|---|---|
-| 07-12 | YAML 3계층 설정 | Yams YAML, 번들→사용자→앱별 3계층 + 파일 감시 리로드 (디스크 루트는 20260801 부분 supersede) | [20260712_yaml-three-layer-config.md](references/20260712_yaml-three-layer-config.md) |
+| 07-12 | YAML 설정 + 파일 감시 리로드 | Yams YAML, 파일 변경 시 자동 리로드 (디스크 루트는 20260801, 3계층 병합은 20260802 부분 supersede) | [20260712_yaml-three-layer-config.md](references/20260712_yaml-three-layer-config.md) |
 | 07-12 | 엔진 테스트는 Swift Testing | 픽스처 파라미터라이즈드에 적합, UI 테스트는 XCTest 유지 | [20260712_swift-testing-for-engine-tests.md](references/20260712_swift-testing-for-engine-tests.md) |
 | 07-12 | 단일 코어 SPM 패키지 | 순수 Swift 모듈은 VimActionCore 단일 패키지의 다중 타깃으로 | [20260712_single-core-spm-package.md](references/20260712_single-core-spm-package.md) |
 | 07-12 | GitHub Actions CI | macos-26 병렬 2잡(엔진 테스트+앱 빌드), Xcode 고정, 사이닝 off | [20260712_github-actions-ci.md](references/20260712_github-actions-ci.md) |
@@ -46,11 +46,19 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-01 | 릴리스 배포 금지 게이트 해제 | M3 완료 — 무로그 삼킴 0건+위험 심사 4건 종결, 로그·switch 계약 승계 | [20260801_release-block-gate-lifted.md](references/20260801_release-block-gate-lifted.md) |
 | 08-01 | 설정 루트 `~/.config/vim-action/` | 개발자 친화(dotfiles) — Application Support 부분 supersede | [20260801_config-root-dot-config.md](references/20260801_config-root-dot-config.md) |
 | 08-01 | 앱별 on/off는 config.yaml 단일 소유 | 프로파일 스키마에서 enabled 제거, profiles/는 특수 동작 전용 | [20260801_app-enable-config-yaml-only.md](references/20260801_app-enable-config-yaml-only.md) |
-| 08-01 | config.yaml 스키마 v1 | apps는 bool 맵(되켜기 표현) + 키 단위 병합, 미지 키 warn+무시, 리로드 실패 시 직전 유지 | [20260801_config-yaml-schema-v1.md](references/20260801_config-yaml-schema-v1.md) |
+| 08-01 | config.yaml 스키마 v1 | apps는 bundle-id→bool 맵, 미지 키 warn+무시, 리로드 실패 시 직전 유지 (병합 규칙은 20260802 부분 supersede) | [20260801_config-yaml-schema-v1.md](references/20260801_config-yaml-schema-v1.md) |
 | 08-01 | 프로파일 재정의는 모션 단위 | motions가 매핑 테이블 원소 교체 — 편집·Visual 자동 전파, 액션 단위 기각 | [20260801_profile-motion-override-unit.md](references/20260801_profile-motion-override-unit.md) |
-| 08-01 | 프로파일 스키마 v1 필드 | name·scroll·disabled_actions·motions, 이름 있는 키만(문자 키 v1 제외), chunk 비노출, M4 전부 구현 | [20260801_profile-schema-v1-fields.md](references/20260801_profile-schema-v1-fields.md) |
-| 08-01 | 설정 UI는 YAML 읽기 전용 | Yams 주석 미보존 — UI는 병합 결과 표시+파일 열기만, 쓰기는 사용자 몫 | [20260801_settings-ui-read-only-yaml.md](references/20260801_settings-ui-read-only-yaml.md) |
+| 08-01 | 프로파일 스키마 v1 필드 | name·scroll·motions 구성, 문자 키 v1 제외, M4 전부 구현 (disabled_actions·표기는 08-02 부분 supersede) | [20260801_profile-schema-v1-fields.md](references/20260801_profile-schema-v1-fields.md) |
+| 08-01 | 설정 UI는 YAML 읽기 전용 | Yams 주석 미보존 — UI는 표시+파일 열기만, 쓰기는 사용자 몫 (표시 대상은 20260802 부분 supersede) | [20260801_settings-ui-read-only-yaml.md](references/20260801_settings-ui-read-only-yaml.md) |
 | 08-01 | UserDefaults↔YAML 소유권 경계 | defaults=런타임·안전 상태(마스터 토글·탈출 옵션), YAML=사용자 편집 설정 | [20260801_userdefaults-yaml-ownership.md](references/20260801_userdefaults-yaml-ownership.md) |
+| 08-02 | 설정 계층은 VimActionConfig 타깃 | VimActionCore 새 타깃(VimEngine+Yams, Yams는 그 타깃에만) — headless 테스트·의존 격리 | [20260802_config-layer-vimactionconfig-target.md](references/20260802_config-layer-vimactionconfig-target.md) |
+| 08-02 | disable은 매핑 값 `disabled` | disabled_actions 폐기 — motions/actions 매핑 값으로 통일, 빈 배열은 warn+무시 | [20260802_profile-disable-via-mapping-keyword.md](references/20260802_profile-disable-via-mapping-keyword.md) |
+| 08-02 | 설정 키워드 소문자 통일 | modifier·키 이름 전부 소문자 snake_case, v1 키 11종, 대소문자 관용 없음 | [20260802_config-keyword-notation-lowercase.md](references/20260802_config-keyword-notation-lowercase.md) |
+| 08-02 | 번들 기본 프로파일 동봉 | Slack·Notion 기본 프로파일 포함 — 설치 즉시 위험 해소 + 실물 예시(전달 방식은 20260802 시딩으로 부분 supersede) | [20260802_bundled-default-profiles-slack-notion.md](references/20260802_bundled-default-profiles-slack-notion.md) |
+| 08-02 | scroll 재정의 값 1...200 | 스크롤은 카운트 33과 곱해지는 증폭 축 — 범위 밖은 warn+무시 | [20260802_scroll-override-bounds.md](references/20260802_scroll-override-bounds.md) |
+| 08-02 | append 모션은 base를 따라감 | charRightForAppend/lineEndForAppend는 어휘 비노출 — char_right/line_end 재정의 자동 상속 | [20260802_append-motions-follow-base-override.md](references/20260802_append-motions-follow-base-override.md) |
+| 08-02 | 번들 기본값은 시딩 | 병합 계층 폐기 — 없는 파일만 복사, 읽기는 사용자 파일 1계층(계층 출처 소멸), 기존 파일 미갱신 수용 | [20260802_bundled-defaults-seeded-not-merged.md](references/20260802_bundled-defaults-seeded-not-merged.md) |
+| 08-02 | Package.resolved 커밋 | Yams가 첫 외부 의존 — CI·로컬 버전 고정(파싱 테스트가 Yams 해석에 의존) | [20260802_package-resolved-committed.md](references/20260802_package-resolved-committed.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 

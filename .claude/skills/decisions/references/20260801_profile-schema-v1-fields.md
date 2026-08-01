@@ -1,5 +1,7 @@
 # 프로파일 스키마 v1 필드 구성과 키 표기법
 
+> Superseded (부분) by [20260802_profile-disable-via-mapping-keyword.md](20260802_profile-disable-via-mapping-keyword.md) · [20260802_config-keyword-notation-lowercase.md](20260802_config-keyword-notation-lowercase.md) — `disabled_actions` 필드 폐기(→ 매핑 값 `disabled` + `actions` 섹션), 키 표기 대문자→소문자·v1 키 목록 확정 / name·scroll·motions 구성, 문자 키 v1 제외, chunk 비노출, M4 전부 구현은 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-01

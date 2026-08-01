@@ -1,5 +1,7 @@
 # 설정 UI는 YAML 읽기 전용
 
+> Superseded (부분) by [20260802_bundled-defaults-seeded-not-merged.md](20260802_bundled-defaults-seeded-not-merged.md) — 표시 대상이 "3계층 병합 결과 + 그 값을 정한 계층"에서 파싱 결과 자체로 바뀜(계층 개념 소멸) / 읽기 전용·"설정 파일 열기" 버튼·쓰기 금지 근거는 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-01
