@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-08-01
-- **갱신일**: 2026-08-01 (플랜 생성 — 착수 전)
+- **갱신일**: 2026-08-01 (구현·문서·검증 완료 — PR 병합 대기)
 
 ## 목표
 
@@ -12,21 +12,19 @@ M3 단계 4(게이트 심사) **전에** 어휘·동작 변경 2건을 끝낸다
 ## 완료된 것
 
 - [x] 가능성 체크 완료 (2026-08-01): 둘 다 엔진 중심 변경으로 어댑터·게시 인프라 무변경, 단계 3 도그푸딩 결과(리졸버·계열 분류)와 상호작용 없음 확인.
+- [x] **① Normal Esc passthrough** (2026-08-01): pending 없을 때만 `.passthrough`, pending 있으면 현행(폐기+swallow — 사용자 확인 완료된 결정). 기존 픽스처는 `CtrlComboFixtures`의 정규화 선행 핀 1건만 갱신(판별 신호를 finalMode로 교체 — CancellationFixtures의 Esc는 전부 pending 취소 케이스라 무변경), 신규 핀 3건(빈 상태 Esc/연속 Esc/빈 상태 Ctrl-[).
+- [x] **② D/C 추가** (2026-08-01): 최상위에서 `d$`/`c$` 동일 출력으로 완결, 카운트는 invalid. 픽스처 5건(D/C 완결·전이, 3D/3C invalid, dD 회귀 핀).
+- [x] **결정 문서 2건 + architecture 갱신** (2026-08-01): [20260801_normal-esc-passthrough-when-empty.md](../../decisions/references/20260801_normal-esc-passthrough-when-empty.md)(20260717 부분 supersede 표기 포함), [20260801_line-end-shorthand-d-c.md](../../decisions/references/20260801_line-end-shorthand-d-c.md). `mode-engine.md` 처리 규칙 ①·키셋 갱신, decisions 인덱스 반영.
+- [x] **검증 3종 그린** (2026-08-01): 엔진 42 테스트 / 앱 VimActionTests TEST SUCCEEDED / CODE_SIGNING_ALLOWED=NO BUILD SUCCEEDED.
 
 ## 남은 것
 
-- [ ] **① Normal Esc passthrough**: `VimEngine.swift:73-76`의 Esc 정확 매치 분기 변경 — **pending 없을 때만 `.passthrough`**(pending 있으면 현행대로 폐기+swallow, 취소로 소비). Insert의 Esc(→Normal, swallow)와 Visual의 Esc(clearSelection+Normal)는 현행 유지. 기존 픽스처 갱신(`CancellationFixtures` 등 Esc swallow 기대분) + 신규 픽스처(pending 유/무 갈림).
-- [ ] **② D/C 추가**: 엔진 최상위(Normal)에서 `D`/`C` → `d$`/`c$`와 동일 출력(`.edit(.delete/.change, .motion(.lineEnd, count: 1))`)으로 완결. `C`의 Insert 전이는 기존 `complete` 헬퍼. 카운트(`3D`)는 Vim 의미(줄 끝+아래 N-1줄) 표현 불가 → 파괴적 편집 원칙대로 invalid. 픽스처 추가.
-- [ ] **결정 문서 2건** (decisions 스킬 경유): Esc passthrough는 취소 최우선 결정([20260717_cancellation-first-ordering-premise.md](../../decisions/references/20260717_cancellation-first-ordering-premise.md))의 Esc swallow 의미론 부분 supersede, D/C는 어휘 추가 결정. architecture `mode-engine.md`의 처리 규칙·키셋 서술 갱신까지.
-- [ ] **검증 + PR**: 엔진 테스트 그린(앱 테스트·빌드 포함 3종) → 소규모 PR 1개 → 병합 후 이 플랜 완료 처리, M3 플랜의 단계 4 착수.
+- [ ] **PR 병합** → 병합 후 이 플랜 완료 처리(삭제), M3 플랜의 단계 4 착수.
 
 ## 진행 중 컨텍스트
 
-- 착수 전. 코드 변경 없음.
-- **pending 중 Esc = swallow 유지**는 권고안으로 플랜에 반영된 상태 — 착수 시 사용자 확인 1회 권장 (`d` 입력 후 Esc 취소가 앱 모달을 닫는 부작용을 막는 것이 근거, Esc 연타 시나리오는 두 번째 Esc부터 pending이 없어 영향 없음).
-- 어댑터 무변경 근거: `$`가 opMotions charwise 화이트리스트에 이미 있어(`VimEngine.swift:465`) `d$`/`c$`가 현재도 완전 실행됨 — `D`/`C`는 동일 출력이라 `EditKeyMapper`·골든 무변경, 비텍스트 걸러내기 게이트 자동 적용.
-- Esc passthrough는 마커·게시 인프라를 타지 않고, 래치 무효화는 passthrough 포함이라 버스트 중단도 현행 유지 — 안전장치 회귀 없음.
-- 단계 4와의 순서: 이 작업이 죽은 키(`D`/`C` 미매핑 swallow)를 줄이고 무로그 삼킴을 만들지 않으므로 게이트 취지와 일치. **이 플랜이 닫히기 전에 단계 4를 시작하지 말 것.**
+- 브랜치 `esc-passthrough-and-dc-keys`에서 커밋 3개(엔진 Esc / 엔진 D·C / 문서)로 구현 완료, PR 생성됨 — 병합만 남음.
+- 단계 4와의 순서: **이 플랜이 닫히기 전에 단계 4를 시작하지 말 것.**
 
 ## 관련 링크
 
