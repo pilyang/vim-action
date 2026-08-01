@@ -1,0 +1,20 @@
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_8e149595a3f56b::t_887f5c49a96b17 32
+  s_8e149595a3f56b::t_41b1873542612f 27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "4b4938ad4e11896630971601c77cd1cb7d392e7c",
+  "prompts": {},
+  "sessions": {
+    "s_8e149595a3f56b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90f982e7-e287-4187-90fb-bb37227a9eca",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
