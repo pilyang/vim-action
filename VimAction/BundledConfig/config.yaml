@@ -1,0 +1,14 @@
+# VimAction — 앱별 on/off (bundle id → bool 맵).
+# 여기 없는 앱은 기본 on이다. 앱의 bundle id는 메뉴바의 현재 앱 표시로 확인할 수 있다.
+#
+# 이 파일은 첫 실행 시 번들 기본값에서 시딩된 뒤 온전히 사용자 소유다 —
+# 앱은 이 파일을 절대 덮어쓰지 않는다. 반영은 메뉴바 'Reload Config'.
+apps:
+  # 자체 Vim 키바인딩을 갖는 터미널 — 이중 해석이 되면 양쪽 다 깨진다.
+  com.mitchellh.ghostty: false
+  com.apple.Terminal: false
+  com.googlecode.iterm2: false
+  # Vim 확장이 흔한 에디터군 — 필요하면 true로 바꾸거나 줄을 지운다.
+  com.microsoft.VSCode: false
+  com.todesktop.230313mzl4w4u92: false # Cursor
+  com.exafunction.windsurf: false

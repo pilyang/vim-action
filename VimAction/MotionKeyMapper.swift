@@ -5,6 +5,7 @@
 
 import Carbon.HIToolbox
 import CoreGraphics
+import VimActionConfig
 import VimEngine
 
 /// 합성할 키 한 타 — `(keyCode, flags)`만 담는 값 타입.
@@ -34,7 +35,29 @@ nonisolated struct KeyStroke: Equatable, Sendable {
 /// (`20260726_motion-keystroke-mapping-contract.md`,
 /// `20260726_word-forward-first-nonblank-multi-stroke.md`).
 nonisolated enum MotionKeyMapper {
-    static func keyStrokes(for motion: Motion) -> [KeyStroke] {
+    /// 프로파일 재정의·disable의 **단일 조회 지점** — 모든 소비자(편집의 선택, Visual의
+    /// 확장, 명령 계열의 위치 접두)가 이 함수를 거치므로, 재정의는 `G`를 고치면 `dG`·`vG`가
+    /// 함께 따라오고 disable은 그 모션을 쓰는 어휘 전부를 정직한 스킵으로 만든다.
+    /// 재정의가 명령 접두(paste 위치 잡기, o/O)까지 전파되는 것이 의도다 — 재정의는
+    /// "이 앱에서 이 모션을 달성하는 방법"이라 복합 시퀀스도 그것을 써야 동작한다.
+    ///
+    /// 반환 `nil`은 **프로파일 disable**이다 — 매퍼 공통의 미지원 `nil`과 실행 의미가 같고
+    /// (스킵+로그), 소비자는 `guard let`으로 nil을 위로 전파해 부분 시퀀스를 만들지 않는다.
+    static func keyStrokes(
+        for motion: Motion, profile: ResolvedProfile = .empty
+    ) -> [KeyStroke]? {
+        switch profile.motionOverrides[motion] {
+        case .strokes(let strokes):
+            return strokes
+        case .disabled:
+            return nil
+        case nil:
+            return builtIn(motion)
+        }
+    }
+
+    /// 내장 매핑 테이블 — 프로파일에 값이 없을 때의 기본이다. 총함수인 것은 그대로다.
+    private static func builtIn(_ motion: Motion) -> [KeyStroke] {
         switch motion {
         case .charLeft:
             return [KeyStroke(kVK_LeftArrow)]
@@ -82,9 +105,12 @@ nonisolated enum MotionKeyMapper {
     ///
     /// 앵커는 고정된 채 엔드포인트만 캐럿처럼 움직이므로 `w`·`^`의 3타 조합도 특례 없이
     /// 그대로 성립한다(중간 위치는 관측되지 않는다). 편집의 범위 선택과 Visual의 선택 확장이
-    /// 둘 다 이 함수를 쓰는 것이 레이어링의 핵심이다 — **모션 매핑이 개선되면 양쪽이 자동으로
-    /// 따라온다**.
-    static func selectionStrokes(for motion: Motion) -> [KeyStroke] {
-        keyStrokes(for: motion).map { KeyStroke(Int($0.keyCode), $0.flags.union(.maskShift)) }
+    /// 둘 다 이 함수를 쓰는 것이 레이어링의 핵심이다 — **모션 매핑이 개선되거나 프로파일이
+    /// 재정의·disable하면 양쪽이 자동으로 따라온다**.
+    static func selectionStrokes(
+        for motion: Motion, profile: ResolvedProfile = .empty
+    ) -> [KeyStroke]? {
+        keyStrokes(for: motion, profile: profile)?
+            .map { KeyStroke(Int($0.keyCode), $0.flags.union(.maskShift)) }
     }
 }

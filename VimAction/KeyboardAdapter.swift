@@ -6,6 +6,7 @@
 import CoreGraphics
 import Foundation
 import os
+import VimActionConfig
 import VimEngine
 
 /// Keyboard 전략의 실행 어댑터 — 엔진이 낸 `VimAction`을 합성 `CGEvent`로 바꿔
@@ -59,8 +60,12 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 게시 큐 위에서 뒤늦게 읽으면 그 사이 포커스가 옮겨간 뒤일 수 있고, 그러면 이미 결정된
     /// 시퀀스가 다른 요소를 기준으로 걸러지거나 통과한다. 기본값 `.textArea`는 계열이 관심사가
     /// 아닌 호출자(대부분의 테스트)를 위한 것이며 폴백 기본값과 같은 값이다.
+    ///
+    /// `profile`도 같은 이유의 스냅샷이다 — 최전면 앱의 프로파일을 컨트롤러가 콜백에서
+    /// 캐시로 읽어 넘긴다. 기본값 `.empty`는 프로파일이 관심사가 아닌 호출자를 위한 것이다.
     func execute(
-        _ actions: [VimAction], family: ElementFamily = .textArea, isCurrent: () -> Bool = { true }
+        _ actions: [VimAction], family: ElementFamily = .textArea,
+        profile: ResolvedProfile = .empty, isCurrent: () -> Bool = { true }
     ) {
         // dispatch 직후 곧바로 다음 키에 밀려난 경우 — 한 이벤트도 내보내지 않는다.
         guard isCurrent() else { return }
@@ -70,6 +75,8 @@ nonisolated struct KeyboardAdapter: Sendable {
         var firstSkipped: VimAction?
         var layoutBlockedCount = 0
         var firstLayoutBlocked: VimAction?
+        var disabledCount = 0
+        var firstDisabled: VimAction?
         #endif
         /// 아직 청크 크기에 못 미쳐 게시를 미뤄 둔 이벤트.
         var pending: [CGEvent] = []
@@ -102,7 +109,7 @@ nonisolated struct KeyboardAdapter: Sendable {
 
         for action in actions {
             let groups: [[KeyStroke]]
-            switch mapping(for: action, family: family) {
+            switch mapping(for: action, family: family, profile: profile) {
             case .groups(let mapped):
                 groups = mapped
             case .unsupported:
@@ -117,6 +124,12 @@ nonisolated struct KeyboardAdapter: Sendable {
                 #if DEBUG
                 layoutBlockedCount += 1
                 if firstLayoutBlocked == nil { firstLayoutBlocked = action }
+                #endif
+                continue
+            case .disabledByProfile:
+                #if DEBUG
+                disabledCount += 1
+                if firstDisabled == nil { firstDisabled = action }
                 #endif
                 continue
             }
@@ -162,6 +175,13 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 미지원과 별도 요약인 이유는 Mapping.layoutBlocked 주석 참고.
             Logger.eventTap.debug(
                 "비-QWERTY 레이아웃 스킵 ×\(layoutBlockedCount, privacy: .public): \(String(describing: first), privacy: .public)"
+            )
+        }
+        if let first = firstDisabled {
+            // 미지원·레이아웃과 별도 집계인 이유는 Mapping.disabledByProfile 주석 참고 —
+            // 사용자 설정이 만든 스킵이 미구현으로 읽히면 안 된다.
+            Logger.eventTap.debug(
+                "프로파일 disable 스킵 ×\(disabledCount, privacy: .public) [\(profile.name ?? "프로파일", privacy: .public)]: \(String(describing: first), privacy: .public)"
             )
         }
         #endif
@@ -228,6 +248,10 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// 지원하지만 현재 레이아웃이 비-QWERTY라 보류했다. 미지원과 별도로 집계된다 —
         /// 섞이면 게이트 심사자가 구현된 어휘를 미구현으로 읽는다 (스킵 2종 분리와 같은 규칙).
         case layoutBlocked
+        /// 지원하지만 이 앱의 프로파일이 껐다 (모션 disable 또는 `actions:` disable).
+        /// 미지원과 별도로 집계된다 — 사용자 설정이 만든 "동작 없음"이 미구현으로 읽히면
+        /// 설정 오타 진단도, 게이트 심사도 함께 틀린다.
+        case disabledByProfile
     }
 
     /// 액션 → 합성할 키스트로크.
@@ -236,7 +260,17 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// `default:`가 흡수해 어댑터가 컴파일 에러로 무너지지 않는다.
     ///
     /// `static`이 아닌 이유는 `.paste`가 주입된 클립보드 읽기를 쓰기 때문이다.
-    private func mapping(for action: VimAction, family: ElementFamily) -> Mapping {
+    private func mapping(
+        for action: VimAction, family: ElementFamily, profile: ResolvedProfile
+    ) -> Mapping {
+        // `actions:` disable 판정은 **모든 게이트·부수효과보다 앞**이다 — 사용자가 끈
+        // 액션은 `recordLinewiseEdit`·클립보드 읽기 같은 부수효과도 남기면 안 되고
+        // (걸러내기 게이트가 부수효과보다 앞인 것과 같은 규칙), 분류도 미지원이 아니라
+        // `.disabledByProfile`이어야 한다.
+        if let configAction = Self.configAction(for: action),
+            profile.disabledActions.contains(configAction) {
+            return .disabledByProfile
+        }
         // 비텍스트 걸러내기는 **여기 한 곳**이다 — 매퍼가 아니라 어댑터인 이유가 셋 있고,
         // 셋 다 "게이트가 부수효과보다 앞이어야 한다"로 모인다
         // (`20260801_non-text-filter-keeps-motion-and-scroll.md`):
@@ -257,19 +291,33 @@ nonisolated struct KeyboardAdapter: Sendable {
 
         switch action {
         case .move(let motion):
-            return Self.mapping(MotionKeyMapper.keyStrokes(for: motion))
+            return Self.classify(MotionKeyMapper.keyStrokes(for: motion, profile: profile)) {
+                MotionKeyMapper.keyStrokes(for: motion, profile: .empty)
+            }
 
         case .edit(let op, let range):
             // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
             // 휴리스틱(앱마다 틀린다)에 기대지 않게 그 사실을 기억해 둔다.
             if Self.isLinewise(op, range) { pasteWise.recordLinewiseEdit() }
-            return Self.mapping(EditKeyMapper.keyStrokes(for: op, range: range, family: family))
+            return Self.classify(
+                EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: profile)
+            ) {
+                EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: .empty)
+            }
 
         case .beginSelection, .extendSelection, .switchSelectionWise, .clearSelection:
-            return Self.mapping(VisualKeyMapper.keyStrokes(for: action, family: family))
+            return Self.classify(
+                VisualKeyMapper.keyStrokes(for: action, family: family, profile: profile)
+            ) {
+                VisualKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+            }
 
         case .openLine, .undo, .redo, .scroll:
-            return Self.mapping(CommandKeyMapper.keyStrokes(for: action, family: family))
+            return Self.classify(
+                CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
+            ) {
+                CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+            }
 
         case .paste(let before, let count):
             // 텍스트가 없는 클립보드(이미지만 있는 등)는 미지원이 아니라 "붙여넣을 것이 없음"이다.
@@ -279,14 +327,28 @@ nonisolated struct KeyboardAdapter: Sendable {
                 return .skipped
             }
             // 유일하게 그룹이 여럿인 액션 — 액션 1개 안에서 카운트가 곱해지므로 래치가
-            // 파고들 틈을 매퍼가 직접 낸다.
+            // 파고들 틈을 매퍼가 직접 낸다. 분류 규칙은 `classify`와 같고 그룹 모양만 다르다.
+            if let groups = CommandKeyMapper.pasteStrokeGroups(
+                before: before, count: count, wise: wise, family: family, profile: profile) {
+                return .groups(groups)
+            }
             return CommandKeyMapper.pasteStrokeGroups(
-                before: before, count: count, wise: wise, family: family)
-                .map(Mapping.groups) ?? .unsupported
+                before: before, count: count, wise: wise, family: family, profile: .empty) != nil
+                ? .disabledByProfile : .unsupported
 
         default:
             return .unsupported
         }
+    }
+
+    /// 매퍼의 `nil`을 두 스킵으로 가른다 — 프로파일 없이 다시 물어 값이 나오면 프로파일이
+    /// 만든 disable이고, 그래도 `nil`이면 진짜 미지원이다. 재조회는 `nil` 경로(드묾)에서만
+    /// 일어나고, 분류 규칙이 이 한 곳에 있어 집계가 어긋날 자리가 없다.
+    private static func classify(
+        _ strokes: [KeyStroke]?, builtIn: () -> [KeyStroke]?
+    ) -> Mapping {
+        if let strokes { return .groups([strokes]) }
+        return builtIn() != nil ? .disabledByProfile : .unsupported
     }
 
     /// 이 계열에서 이 액션을 게시하는가 — 걸러내기 게이트 본체다.
@@ -357,10 +419,17 @@ nonisolated struct KeyboardAdapter: Sendable {
         }
     }
 
-    /// 매퍼의 `[KeyStroke]?` 계약을 `Mapping`으로 옮긴다 — `nil`은 미지원이고, 평평한
-    /// 시퀀스는 **가를 수 없는 그룹 하나**다 (액션 중간에서 끊으면 "선택은 어긋난 채
-    /// `Cmd-X`만 나가는" 파괴적 실행이 된다).
-    private static func mapping(_ strokes: [KeyStroke]?) -> Mapping {
-        strokes.map { Mapping.groups([$0]) } ?? .unsupported
+    /// `actions:` 어휘 대응 — `VimAction` → `ConfigAction`. 대응이 없는 액션(모션·편집·
+    /// Visual 세션)은 `actions:`의 대상이 아니다 (모션 단위 disable이 따로 있다).
+    /// `VimAction`에 exhaustive switch를 걸지 않는 것은 매퍼와 같은 계약이다.
+    private static func configAction(for action: VimAction) -> ConfigAction? {
+        switch action {
+        case .openLine: return .openLine
+        case .paste: return .paste
+        case .undo: return .undo
+        case .redo: return .redo
+        case .scroll: return .scroll
+        default: return nil
+        }
     }
 }

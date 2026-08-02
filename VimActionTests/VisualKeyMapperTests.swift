@@ -125,9 +125,9 @@ struct VisualKeyMapperTests {
         let motionStrokes = MotionKeyMapper.keyStrokes(for: motion)
         let extended = VisualKeyMapper.keyStrokes(for: .extendSelection(motion), family: .textArea)
 
-        #expect(extended?.map(\.keyCode) == motionStrokes.map(\.keyCode), "\(motion)")
+        #expect(extended?.map(\.keyCode) == motionStrokes?.map(\.keyCode), "\(motion)")
         #expect(
-            extended?.map { $0.flags.subtracting(.maskShift) } == motionStrokes.map(\.flags),
+            extended?.map { $0.flags.subtracting(.maskShift) } == motionStrokes?.map(\.flags),
             "\(motion)")
     }
 

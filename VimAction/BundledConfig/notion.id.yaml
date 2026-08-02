@@ -1,0 +1,15 @@
+# Notion — 프로파일 작성 실물 예시를 겸한다. 필드는 넷 전부 선택이다:
+#   name    표시용 이름
+#   scroll  half_page_lines / full_page_lines (유효 1...200, 없으면 기본 15/30)
+#   motions 모션별 키 시퀀스 재정의 또는 disabled
+#   actions open_line / paste / undo / redo / scroll → disabled
+#
+# 키 토큰 표기: [modifier-]key — modifier는 cmd/opt/ctrl/shift(순서 무관),
+# 키는 left/right/up/down/return/escape/tab/home/end/page_up/page_down. 전부 소문자.
+name: Notion
+scroll:
+  half_page_lines: 12
+  full_page_lines: 24
+# motions:
+#   document_start: [cmd-up]     # 시퀀스 재정의 예시
+#   line_first_non_blank: disabled  # 이 모션을 쓰는 어휘 전부(^·d^)가 스킵된다

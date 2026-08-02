@@ -5,6 +5,7 @@
 
 import Carbon.HIToolbox
 import CoreGraphics
+import VimActionConfig
 import VimEngine
 
 /// Visual 선택 **세션**(진입·확장·wise 전환·이탈) → 합성 키스트로크 시퀀스.
@@ -29,13 +30,20 @@ nonisolated enum VisualKeyMapper {
     /// (`20260801_textfield-edit-sequences-scrapped.md`,
     /// `20260801_non-text-filter-keeps-motion-and-scroll.md`). 시그니처에 남겨 두는 것은
     /// M5 AX에서 계열이 실제로 갈릴 여지를 열어 두기 위해서다.
-    static func keyStrokes(for action: VimAction, family: ElementFamily) -> [KeyStroke]? {
+    /// 프로파일은 `extendSelection`(모션 어휘)에만 미친다 — 진입·wise 전환·collapse는
+    /// 모션이 아니라 **세션 메커니즘**이라 리터럴 시퀀스를 유지한다. 이 경계가 실사용에서
+    /// 어긋나면(예: 재정의 앱에서 진입 시퀀스도 깨짐) 도그푸딩에서 재검토한다.
+    static func keyStrokes(
+        for action: VimAction, family: ElementFamily, profile: ResolvedProfile = .empty
+    ) -> [KeyStroke]? {
         switch action {
         case .beginSelection(let linewise):
             return linewise ? enterLinewise : enterCharwise
 
         case .extendSelection(let motion):
-            return MotionKeyMapper.selectionStrokes(for: motion)
+            // 재정의는 자동 전파, disable은 `nil`(정직한 스킵) — `MotionKeyMapper` 조회
+            // 단일 지점의 결과를 그대로 넘긴다.
+            return MotionKeyMapper.selectionStrokes(for: motion, profile: profile)
 
         case .switchSelectionWise(let linewise):
             // `V`→`v`는 미지원이다 — 줄 반올림은 원래 엔드포인트를 파괴하므로 되돌릴 역연산이

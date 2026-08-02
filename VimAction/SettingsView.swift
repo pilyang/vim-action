@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import VimActionConfig
 
 /// 설정 창. 권한 온보딩 섹션 + 앱 정보. 키맵 설정은 다음 마일스톤에서 채운다.
 struct SettingsView: View {
@@ -24,6 +25,41 @@ struct SettingsView: View {
                 // 값·엔진 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 가로채기 토글과 동일 모델.
                 Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
                 Text("After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            // 읽기 전용이 계약이다 — UI는 YAML을 쓰지 않는다 (Yams가 주석을 보존하지 못해
+            // UI 쓰기는 사용자의 주석·서식을 파괴한다, 20260801_settings-ui-read-only-yaml).
+            Section("Configuration") {
+                LabeledContent(
+                    "Status",
+                    value: configStatusText(
+                        profileCount: appState.configStore.resolvedProfiles.count,
+                        errors: appState.configStore.errors))
+                ForEach(appState.configStore.errors, id: \.self) { error in
+                    Text("\((error.file as NSString).lastPathComponent) — \(error.message)")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+                if !appState.configStore.warnings.isEmpty {
+                    Text(
+                        "\(appState.configStore.warnings.count) invalid entries ignored — details in log (category \"config\")."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+                LabeledContent(
+                    "Disabled Apps", value: disabledAppsText(appState.configStore.disabledBundleIDs))
+                LabeledContent(
+                    "Profiles", value: profilesText(appState.configStore.appliedSnapshot.profiles))
+                Button("Open config.yaml") {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: ConfigPaths.configPath))
+                }
+                Button("Open Config Folder") {
+                    NSWorkspace.shared.selectFile(
+                        nil, inFileViewerRootedAtPath: ConfigPaths.directory)
+                }
+                Text("Edit the files directly, then use \"Reload Config\" in the menu bar to apply.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -65,7 +101,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 400)
+        .frame(width: 420, height: 560)
     }
 }
 
@@ -81,6 +117,20 @@ func eventTapStatusText(status: EventTapController.Status, interceptionEnabled: 
         interceptionEnabled ? status.displayName : "Disabled"
     default: status.displayName
     }
+}
+
+/// "Disabled Apps" 행 문구 — 순수 함수라 단위 테스트가 전 분기를 커버한다
+/// (`eventTapStatusText`와 같은 패턴).
+func disabledAppsText(_ bundleIDs: Set<String>) -> String {
+    bundleIDs.isEmpty ? "None" : bundleIDs.sorted().joined(separator: "\n")
+}
+
+/// "Profiles" 행 문구 — bundle id에 프로파일 표시 이름을 병기한다.
+func profilesText(_ profiles: [String: AppProfile]) -> String {
+    guard !profiles.isEmpty else { return "None" }
+    return profiles.sorted { $0.key < $1.key }
+        .map { id, profile in profile.name.map { "\(id) (\($0))" } ?? id }
+        .joined(separator: "\n")
 }
 
 /// "Kill Switch" 행 문구 — 안전장치 탭이 어느 지점에 설치됐는지 보여준다. 안전장치가

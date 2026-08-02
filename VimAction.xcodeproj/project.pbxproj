@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		FE33333333333333333333E3 /* VimEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FE22222222222222222222E2 /* VimEngine */; };
 		FE55555555555555555555E5 /* VimEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FE44444444444444444444E4 /* VimEngine */; };
+		FE77777777777777777777E7 /* VimActionConfig in Frameworks */ = {isa = PBXBuildFile; productRef = FE66666666666666666666E6 /* VimActionConfig */; };
+		FE99999999999999999999E9 /* VimActionConfig in Frameworks */ = {isa = PBXBuildFile; productRef = FE88888888888888888888E8 /* VimActionConfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +60,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FE33333333333333333333E3 /* VimEngine in Frameworks */,
+				FE77777777777777777777E7 /* VimActionConfig in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,6 +69,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FE55555555555555555555E5 /* VimEngine in Frameworks */,
+				FE99999999999999999999E9 /* VimActionConfig in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -120,6 +124,7 @@
 			name = VimAction;
 			packageProductDependencies = (
 				FE22222222222222222222E2 /* VimEngine */,
+				FE66666666666666666666E6 /* VimActionConfig */,
 			);
 			productName = VimAction;
 			productReference = B52D10A03002939E008FEE9F /* VimAction.app */;
@@ -144,6 +149,7 @@
 			name = VimActionTests;
 			packageProductDependencies = (
 				FE44444444444444444444E4 /* VimEngine */,
+				FE88888888888888888888E8 /* VimActionConfig */,
 			);
 			productName = VimActionTests;
 			productReference = B52D10AD3002939F008FEE9F /* VimActionTests.xctest */;
@@ -593,6 +599,14 @@
 		FE44444444444444444444E4 /* VimEngine */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = VimEngine;
+		};
+		FE66666666666666666666E6 /* VimActionConfig */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VimActionConfig;
+		};
+		FE88888888888888888888E8 /* VimActionConfig */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VimActionConfig;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
