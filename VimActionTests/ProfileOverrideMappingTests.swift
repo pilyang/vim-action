@@ -170,11 +170,12 @@ struct ProfileOverrideMappingTests {
 /// 어댑터 레벨 — disable이 게시 0건의 **정직한 스킵**으로 끝나는가 (부분 게시 금지 계약).
 struct ProfileDisableAdapterTests {
     private func makeAdapter(
+        changeCount: @escaping @Sendable () -> Int = { 0 },
         collecting posted: @escaping @Sendable (CGEvent) -> Void
     ) -> KeyboardAdapter {
         KeyboardAdapter(
             executor: ActionExecutor(postEvent: posted),
-            pasteWise: PasteWiseResolver(readClipboard: { .charwise }, readChangeCount: { 0 }),
+            pasteWise: PasteWiseResolver(readClipboard: { .charwise }, readChangeCount: changeCount),
             hasQwertyCommandKeys: { true })
     }
 
@@ -202,5 +203,29 @@ struct ProfileDisableAdapterTests {
             profile: makeProfile(motions: [.documentEnd: .disabled]))
 
         #expect(posted.isEmpty)
+    }
+
+    /// 게이트 2종(`nonTextEditDoesNotRecordPasteWise`·비-QWERTY)과 같은 계약을 프로파일
+    /// 축에서 고정한다 — 스킵된 편집이 기억을 남기면 다음 외부 복사 한 번 뒤의 `p`가
+    /// linewise로 오판돼 다음 줄 시작에 붙는다.
+    @Test("프로파일 disable로 스킵된 줄 단위 편집은 붙여넣기 단위 기억을 남기지 않는다")
+    func disabledEditDoesNotRecordPasteWise() {
+        nonisolated(unsafe) var changeCountReads = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            changeCount: {
+                changeCountReads += 1
+                return 0
+            }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.edit(.delete, .line(count: 1))],
+            profile: makeProfile(motions: [.lineStart: .disabled]))
+        #expect(posted.isEmpty)
+        #expect(changeCountReads == 0, "스킵이 확정된 편집은 기억을 남기지 않는다")
+
+        // 대조군: 같은 액션이 프로파일 없이는 실제로 기억을 남긴다 (관측 수단이 유효하다는 확인).
+        adapter.execute([.edit(.delete, .line(count: 1))])
+        #expect(changeCountReads == 1)
     }
 }

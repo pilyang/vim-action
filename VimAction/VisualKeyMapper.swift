@@ -5,7 +5,6 @@
 
 import Carbon.HIToolbox
 import CoreGraphics
-import VimActionConfig
 import VimEngine
 
 /// Visual 선택 **세션**(진입·확장·wise 전환·이탈) → 합성 키스트로크 시퀀스.

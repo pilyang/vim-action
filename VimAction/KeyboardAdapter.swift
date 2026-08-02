@@ -296,14 +296,20 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
 
         case .edit(let op, let range):
-            // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
-            // 휴리스틱(앱마다 틀린다)에 기대지 않게 그 사실을 기억해 둔다.
-            if Self.isLinewise(op, range) { pasteWise.recordLinewiseEdit() }
-            return Self.classify(
+            let result = Self.classify(
                 EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: profile)
             ) {
                 EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: .empty)
             }
+            // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
+            // 휴리스틱(앱마다 틀린다)에 기대지 않게 그 사실을 기억해 둔다. **게시가 확정된
+            // 뒤에만** 기억한다 — 프로파일 disable로 스킵된 편집이 기억을 남기면, 다음
+            // 외부 복사 한 번 뒤의 `p`가 linewise로 오판된다 (게이트 2종과 같은 규칙이되,
+            // 모션 disable은 매퍼 안에서야 드러나므로 판정이 앞설 수 없어 기억을 뒤로 미룬다).
+            if case .groups = result, Self.isLinewise(op, range) {
+                pasteWise.recordLinewiseEdit()
+            }
+            return result
 
         case .beginSelection, .extendSelection, .switchSelectionWise, .clearSelection:
             return Self.classify(

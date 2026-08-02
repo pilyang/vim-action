@@ -5,7 +5,6 @@
 
 import Carbon.HIToolbox
 import CoreGraphics
-import VimActionConfig
 import VimEngine
 
 /// 붙여넣기 단위 — Vim 레지스터의 charwise/linewise에 해당한다.

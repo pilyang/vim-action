@@ -5,7 +5,6 @@
 
 import Carbon.HIToolbox
 import CoreGraphics
-import VimActionConfig
 import VimEngine
 
 /// `.edit(Operator, TextRange)` → 합성 키스트로크 시퀀스. `MotionKeyMapper`와 같은 순수 함수이며,

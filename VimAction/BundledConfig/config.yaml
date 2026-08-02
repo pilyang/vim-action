@@ -1,5 +1,6 @@
 # VimAction — 앱별 on/off (bundle id → bool 맵).
-# 여기 없는 앱은 기본 on이다. 앱의 bundle id는 메뉴바의 현재 앱 표시로 확인할 수 있다.
+# 여기 없는 앱은 기본 on이다. 앱의 bundle id 확인:
+#   osascript -e 'id of app "Slack"'
 #
 # 이 파일은 첫 실행 시 번들 기본값에서 시딩된 뒤 온전히 사용자 소유다 —
 # 앱은 이 파일을 절대 덮어쓰지 않는다. 반영은 메뉴바 'Reload Config'.

@@ -5,7 +5,6 @@
 
 import Carbon.HIToolbox
 import CoreGraphics
-import VimActionConfig
 import VimEngine
 
 /// 합성할 키 한 타 — `(keyCode, flags)`만 담는 값 타입.

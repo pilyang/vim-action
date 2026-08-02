@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-25
-- **갱신일**: 2026-08-02 (세션 B 착수 전 범위 조정 — **핫 리로드가 파일 감시에서 메뉴바 수동 트리거로** 바뀌고, **메뉴바 최전면 앱 편의 기능 2종**(bundle id 복사·프로파일 scaffold)이 추가됐다. 결정 2건: [리로드 수동 트리거](../../decisions/references/20260802_config-reload-manual-menubar-trigger.md), [편의 기능 2종](../../decisions/references/20260802_menubar-frontmost-app-conveniences.md). 코드 착수 전 — architecture `profiles-and-config.md`가 스키마 v1 SSOT)
+- **갱신일**: 2026-08-02 (세션 B **PR 2개 분할** 확정(사용자) — PR-B1: 배선 1~7 + 도그푸딩 / PR-B2: 메뉴바 편의 기능 2종 + 최종 도그푸딩. **PR-B1 구현 완료·PR 생성** — 남은 것은 B1 실기기 도그푸딩·병합 후 PR-B2. 세션 중 결정 2건 추가: [재정의 전파 조회 전면](../../decisions/references/20260802_profile-override-propagation-full-lookup.md), [에러 가시화·적용 의미론](../../decisions/references/20260802_config-error-visibility-and-apply-semantics.md))
 
 ## 목표
 
