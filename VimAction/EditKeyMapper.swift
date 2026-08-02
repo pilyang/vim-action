@@ -5,6 +5,7 @@
 
 import Carbon.HIToolbox
 import CoreGraphics
+import Foundation
 import VimEngine
 
 /// `.edit(Operator, TextRange)` → 합성 키스트로크 시퀀스. `MotionKeyMapper`와 같은 순수 함수이며,
@@ -60,16 +61,64 @@ nonisolated enum EditKeyMapper {
         return selection + operatorStrokes
     }
 
+    /// 이 범위가 캐럿 주변 읽기를 묻는가 — **묻지 않으면 AX 왕복도 없다**(읽기는 lazy다).
+    ///
+    /// 어댑터가 이 값을 보고 읽을지 정하므로, 범위 표가 어댑터로 복사되지 않는다 —
+    /// 아래 `collapsesToNothing`과 한 쌍이고, 둘이 갈라지지 않음을 테스트가 고정한다.
+    static func consultsFocusedText(_ range: VimAction.TextRange) -> Bool {
+        guard case .motion = range else { return false }
+        return true
+    }
+
+    /// 읽기가 **증명한** 0폭 포화인가 — 참이면 선택이 접혀 오퍼레이터만 나가므로 게시하지
+    /// 않는다("선택 없는 `Cmd-X` = 줄 통째 잘라내기" 확장 앱에서 줄 하나가 사라진다).
+    /// 수용 엣지 5의 정확화다 (`20260728_edit-boundary-saturation-accepted-edges.md`).
+    ///
+    /// **증명하지 못하면 `false`** 이고 폴백은 현행 무상태 시퀀스다 — 읽기는 정확화의 입력이지
+    /// 실행이 아니다. 살아 있는 선택(`length > 0`)이 있으면 우리가 만들 선택이 어디서 출발할지
+    /// 알 수 없으므로 증명 불가다.
+    ///
+    /// 여기 없는 것들이 각각 다른 이유로 빠져 있다:
+    /// - `wordForward`(`w`)는 문서 끝에서 0폭이 아니라 3타의 마지막 후퇴가 앵커를 지나쳐
+    ///   **선택이 반전**된다 — 억제가 아니라 시퀀스 재조립이 답이라 별건(엣지 3)이다.
+    /// - `lineFirstNonBlank`(`^`)는 전부 공백인 줄에서 `^`가 no-op이 아니라 공백 끝으로
+    ///   가므로, 캐럿이 첫 비공백임을 증명하는 가드 없이는 진짜 편집을 삼킨다.
+    /// - `charRight`/`charLeft`가 **줄** 경계에서 개행을 집는 것(엣지 1)은 0폭이 아니라
+    ///   "잘못된 것을 집는" 문제라 규칙이 다르다.
+    static func collapsesToNothing(
+        op: VimAction.Operator, range: VimAction.TextRange, text: FocusedText
+    ) -> Bool {
+        guard case .motion(let motion, _) = range, text.selection.length == 0 else { return false }
+        // 카운트는 곱해도 결과가 같다 — 위 여섯은 전부 포화가 멱등이라 `3x`도 문서 끝이면 0폭이다.
+        switch retargeted(motion, for: op) {
+        case .charRight, .wordEndForward:
+            return text.isAtDocumentEnd
+        case .charLeft, .wordBackward:
+            return text.isAtDocumentStart
+        case .lineEnd:
+            return text.isAtLineEnd
+        case .lineStart:
+            return text.isAtLineStart
+        default:
+            // 모션이 늘면 기본값은 "증명 못 함" = 현행 동작이다 — 조용한 억제가 되지 않는다.
+            return false
+        }
+    }
+
+    /// `cw` 특례 — Vim의 cw는 ce처럼 단어 **끝**까지만 바꾼다 (엔진이 이연한 어댑터 몫).
+    /// 선택 시퀀스와 포화 판정이 **같은 함수를 거치는 것이 요점**이다: 한쪽만 리타깃하면
+    /// `cw`의 판정이 실제로 나갈 시퀀스와 다른 모션을 보게 된다.
+    private static func retargeted(_ motion: Motion, for op: VimAction.Operator) -> Motion {
+        (op == .change && motion == .wordForward) ? .wordEndForward : motion
+    }
+
     /// 범위 → 선택 스트로크 (TextArea 계열).
     private static func textAreaSelection(
         _ op: VimAction.Operator, _ range: VimAction.TextRange, _ profile: ResolvedProfile
     ) -> [KeyStroke]? {
         switch range {
         case .motion(let motion, let count):
-            // `cw` 특례 — Vim의 cw는 ce처럼 단어 **끝**까지만 바꾼다 (엔진이 이연한 어댑터 몫).
-            let target =
-                (op == .change && motion == .wordForward) ? Motion.wordEndForward : motion
-            guard let selection = select(target, profile) else { return nil }
+            guard let selection = select(retargeted(motion, for: op), profile) else { return nil }
             return repeated(selection, count)
 
         case .line(let count):

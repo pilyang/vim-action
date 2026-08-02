@@ -38,9 +38,9 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// `pasteWise`와 같다: 실제 AX를 읽으면 골든 테스트가 실기기 권한과 개발자 머신의
     /// 포커스 상태에 따라 갈린다.
     ///
-    /// **아직 소비자가 없다** — 매퍼가 읽기 결과를 쓰는 것은 PR-B이고, 지금은 액션마다
-    /// `FocusedTextSnapshot`을 만들어 `mapping`까지 넘기는 배선만 서 있다. 아무도 묻지
-    /// 않으므로 AX 호출은 런타임에 0건이며, 그것이 이 PR의 동작 diff가 0인 이유다.
+    /// 소비자는 `mapping`의 `.edit` 분기 **한 곳**이며, 그것도 범위가 캐럿 주변을 묻는
+    /// 경우(`EditKeyMapper.consultsFocusedText`)에만 읽는다 — 모션·Visual·paste·undo는
+    /// 묻지 않으므로 AX 왕복이 0건이다. 읽기가 실패하면 정확화만 포기하고 실행은 한다.
     private let reader: FocusedTextReader
 
     init(
@@ -288,8 +288,7 @@ nonisolated struct KeyboardAdapter: Sendable {
     ///
     /// `static`이 아닌 이유는 `.paste`가 주입된 클립보드 읽기를 쓰기 때문이다.
     ///
-    /// `text`는 **아직 아무도 읽지 않는다** — 무상태 시퀀스를 정확화하는 것은 PR-B의 몫이고,
-    /// 여기서는 소비 지점이 어디인지만 고정한다. 묻지 않으면 AX 왕복도 없다(lazy).
+    /// `text`를 읽는 것은 아래 `.edit` 분기 **한 곳**뿐이다 — 묻지 않으면 AX 왕복도 없다(lazy).
     private func mapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
         text: FocusedTextSnapshot
@@ -327,6 +326,23 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
 
         case .edit(let op, let range):
+            // **읽기의 유일한 소비 지점**이다 (M5 PR-B). 게이트 뒤·부수효과 앞이라
+            // `recordLinewiseEdit`·클립보드 오염 없이 빠져나가고, 범위가 묻지 않으면
+            // AX 왕복도 없다(읽기는 lazy이므로 `value()`를 부르지 않으면 호출 0건이다).
+            //
+            // 읽기 실패·타임아웃·pid 없음은 전부 `nil`이라 이 분기를 그냥 지나간다 —
+            // 정확화만 포기하고 실행은 한다. 스킵도, 실행 실패 보고도 아니다.
+            if EditKeyMapper.consultsFocusedText(range), let focused = text.value(),
+                EditKeyMapper.collapsesToNothing(op: op, range: range, text: focused) {
+                // 미지원이 아니라 "지원하지만 이번 입력에는 게시할 것이 없다"이므로 `.skipped`다
+                // (`p`의 빈 클립보드와 같은 편) — 사유를 아는 이 자리에서 자체 로그를 남긴다.
+                #if DEBUG
+                Logger.eventTap.debug(
+                    "편집 스킵 — 읽기가 0폭 포화를 증명했다: \(String(describing: action), privacy: .public)"
+                )
+                #endif
+                return .skipped
+            }
             let result = Self.classify(
                 EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: profile)
             ) {

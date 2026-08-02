@@ -191,6 +191,87 @@ let editMappingFixtures: [EditMappingFixture] =
     charwiseEditFixtures + linewiseEditFixtures + wordObjectEditFixtures + countEditFixtures
     + unsupportedEditFixtures + selectionEditFixtures
 
+// MARK: - 0폭 포화 픽스처 (수용 엣지 5의 정확화)
+
+/// 포화 판정표 한 행. `collapses == true`면 어댑터가 게시하지 않는다 —
+/// 선택이 0폭이라 오퍼레이터만 나가고, "선택 없는 `Cmd-X` = 줄 통째 잘라내기" 확장을 가진
+/// 앱에서 줄 하나가 사라지기 때문이다.
+struct EditCollapseFixture: Sendable, CustomTestStringConvertible {
+    var vim: String
+    var op: VimAction.Operator
+    var range: VimAction.TextRange
+    var caret: Int
+    var selectionLength: Int
+    var collapses: Bool
+
+    init(
+        _ vim: String, _ op: VimAction.Operator, _ range: VimAction.TextRange, caret: Int,
+        selectionLength: Int = 0, collapses: Bool
+    ) {
+        self.vim = vim
+        self.op = op
+        self.range = range
+        self.caret = caret
+        self.selectionLength = selectionLength
+        self.collapses = collapses
+    }
+
+    var testDescription: String { "\(vim) @\(caret)" }
+}
+
+/// 판정이 딛는 문서 — `"ab\ncd"`. 오프셋: a0 b1 `\n`2 c3 d4, 문서 끝은 5.
+/// 줄 경계(2·3)와 문서 경계(0·5)가 서로 다른 자리라 둘을 혼동한 구현이 걸린다.
+private let collapseDocument = "ab\ncd"
+
+let editCollapseFixtures: [EditCollapseFixture] = [
+    // 전진 charwise — 문서 끝에서만 0폭이다. 줄 끝(2)은 개행을 집는 별건(엣지 1)이라 여기 아니다.
+    .init("x", .delete, .motion(.charRight, count: 1), caret: 5, collapses: true),
+    .init("x", .delete, .motion(.charRight, count: 1), caret: 2, collapses: false),
+    .init("x", .delete, .motion(.charRight, count: 1), caret: 0, collapses: false),
+    // 카운트는 곱해도 결과가 같다 — 포화가 멱등이다.
+    .init("3x", .delete, .motion(.charRight, count: 3), caret: 5, collapses: true),
+    .init("de", .delete, .motion(.wordEndForward, count: 1), caret: 5, collapses: true),
+    .init("de", .delete, .motion(.wordEndForward, count: 1), caret: 0, collapses: false),
+
+    // 후진 charwise — 문서 시작에서만. 줄 시작(3)은 앞 줄 개행을 집는 별건이다.
+    .init("dh", .delete, .motion(.charLeft, count: 1), caret: 0, collapses: true),
+    .init("dh", .delete, .motion(.charLeft, count: 1), caret: 3, collapses: false),
+    .init("db", .delete, .motion(.wordBackward, count: 1), caret: 0, collapses: true),
+    .init("db", .delete, .motion(.wordBackward, count: 1), caret: 5, collapses: false),
+
+    // 줄 끝/시작 — `Cmd-→`/`Cmd-←`가 움직이지 않는 자리. 문서 끝·시작을 포함한다.
+    .init("d$", .delete, .motion(.lineEnd, count: 1), caret: 2, collapses: true),
+    .init("d$", .delete, .motion(.lineEnd, count: 1), caret: 5, collapses: true),
+    .init("d$", .delete, .motion(.lineEnd, count: 1), caret: 1, collapses: false),
+    .init("d0", .delete, .motion(.lineStart, count: 1), caret: 3, collapses: true),
+    .init("d0", .delete, .motion(.lineStart, count: 1), caret: 0, collapses: true),
+    .init("d0", .delete, .motion(.lineStart, count: 1), caret: 1, collapses: false),
+
+    // 오퍼레이터는 판정을 가르지 않는다 — 0폭이면 `Cmd-X`든 `Cmd-C`든 낼 것이 없다.
+    .init("y$", .yank, .motion(.lineEnd, count: 1), caret: 2, collapses: true),
+    .init("c$", .change, .motion(.lineEnd, count: 1), caret: 2, collapses: true),
+
+    // `cw` 리타깃 — c만 `ce`로 바뀌므로 문서 끝에서 c는 0폭이고 d·y는 아니다.
+    // (d·y의 `w`는 3타의 마지막 후퇴가 선택을 반전시키는 엣지 3 — 억제가 아니라 재조립이 답이다.)
+    .init("cw", .change, .motion(.wordForward, count: 1), caret: 5, collapses: true),
+    .init("dw", .delete, .motion(.wordForward, count: 1), caret: 5, collapses: false),
+    .init("yw", .yank, .motion(.wordForward, count: 1), caret: 5, collapses: false),
+
+    // `^`는 전부 공백인 줄에서 no-op이 아니라 공백 끝으로 가므로 가드 없이는 진짜 편집을 삼킨다.
+    .init("d^", .delete, .motion(.lineFirstNonBlank, count: 1), caret: 0, collapses: false),
+    .init("d^", .delete, .motion(.lineFirstNonBlank, count: 1), caret: 3, collapses: false),
+
+    // `.motion` 밖의 범위는 이번 세션 대상이 아니다 — 전부 현행 시퀀스로 간다.
+    .init("dd", .delete, .line(count: 1), caret: 5, collapses: false),
+    .init("dj", .delete, .linewiseMotion(.lineDown, count: 1), caret: 5, collapses: false),
+    .init("dgg", .delete, .linewiseMotion(.documentStart, count: 1), caret: 0, collapses: false),
+    .init("diw", .delete, .textObject(.word(.inner)), caret: 5, collapses: false),
+    .init("v_d", .delete, .selection, caret: 5, collapses: false),
+
+    // 살아 있는 선택이 있으면 우리가 만들 선택이 어디서 출발할지 알 수 없다 — 증명 불가.
+    .init("x", .delete, .motion(.charRight, count: 1), caret: 4, selectionLength: 1, collapses: false),
+]
+
 // MARK: - 테스트
 
 struct EditKeyMapperTests {
@@ -255,5 +336,42 @@ struct EditKeyMapperTests {
         guard let expected = fixture.expected else { return }
         let selection = fixture.op == .yank ? expected.dropLast(2) : expected.dropLast()
         #expect(selection.allSatisfy { $0.flags.contains(.maskShift) }, "\(fixture.vim)")
+    }
+}
+
+/// 캐럿 주변 읽기를 **소비하는** 쪽의 계약 — 시퀀스는 그대로 두고 "게시할지"만 가른다.
+struct EditCollapseTests {
+    @Test("0폭 포화 골든 — 읽기가 증명한 자리에서만 참이다", arguments: editCollapseFixtures)
+    func detectsCollapseAsContracted(_ fixture: EditCollapseFixture) {
+        let text = focusedText(
+            collapseDocument, caret: fixture.caret, length: fixture.selectionLength)
+        let actual = EditKeyMapper.collapsesToNothing(
+            op: fixture.op, range: fixture.range, text: text)
+
+        #expect(actual == fixture.collapses, "\(fixture.testDescription)")
+    }
+
+    /// **범위 표가 두 곳으로 갈라지는 것을 막는다.** 어댑터는 `consultsFocusedText`만 보고
+    /// 읽을지 정하므로, 묻지 않는 범위에서 판정이 참이 되면 그 억제는 영원히 발동하지 않는다 —
+    /// 코드에는 있는데 죽어 있는 상태라 테스트 없이는 드러나지 않는다.
+    @Test("묻지 않는 범위는 어느 캐럿에서도 포화하지 않는다", arguments: editMappingFixtures)
+    func collapseOnlyHappensWhereTheReadIsConsulted(_ fixture: EditMappingFixture) {
+        guard !EditKeyMapper.consultsFocusedText(fixture.range) else { return }
+
+        for caret in 0...collapseDocument.utf16.count {
+            let text = focusedText(collapseDocument, caret: caret)
+            #expect(
+                EditKeyMapper.collapsesToNothing(op: fixture.op, range: fixture.range, text: text)
+                    == false, "\(fixture.vim) @\(caret)")
+        }
+    }
+
+    /// 묻는 범위는 `.motion` 하나뿐이다 — 세션 2·3이 늘리면 여기가 먼저 바뀐다.
+    @Test("읽기를 묻는 범위는 .motion뿐이다", arguments: editMappingFixtures)
+    func onlyMotionRangesConsultTheRead(_ fixture: EditMappingFixture) {
+        let isMotion: Bool
+        if case .motion = fixture.range { isMotion = true } else { isMotion = false }
+
+        #expect(EditKeyMapper.consultsFocusedText(fixture.range) == isMotion, "\(fixture.vim)")
     }
 }
