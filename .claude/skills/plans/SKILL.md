@@ -49,4 +49,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-07-25 | 2026-08-02 | MVP 1단계 마일스톤 | 실행 계층 구축 순서 M1~M5 (Keyboard 베이스 → AX 확장) — M1 출력 인프라·안전망 → M2 Keyboard 모션 → M3 편집·Visual·요소 리졸버 → M4 프로파일(=MVP 완료선) → M5 AX. **M1~M3 종료 + M4 세션 A 종료** — 다음은 M4 세션 B(배선·실행: 수동 리로드·시딩·게이트 교체·메뉴바 편의 기능) | [20260725_mvp-milestones.md](references/20260725_mvp-milestones.md) |
+| 2026-07-25 | 2026-08-02 | MVP 1단계 마일스톤 | 실행 계층 구축 순서 M1~M5 (Keyboard 베이스 → AX 확장) — M1 출력 인프라·안전망 → M2 Keyboard 모션 → M3 편집·Visual·요소 리졸버 → M4 프로파일(=MVP 완료선) → M5 AX. **M1~M4 종료 = MVP 1단계 완료** — 남은 것은 M5(AX 어댑터·auto 전략)와 M6(서명·공증 배포) | [20260725_mvp-milestones.md](references/20260725_mvp-milestones.md) |

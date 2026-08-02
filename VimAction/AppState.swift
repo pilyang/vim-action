@@ -86,6 +86,34 @@ final class AppState {
         return succeeded
     }
 
+    /// 메뉴 편의 기능이 겨누는 앱 — 최전면 캐시가 아니라 **비자신 캐시**다. 메뉴를 여는
+    /// 행위 자체가 VimAction을 최전면으로 만들 수 있어 `frontmostBundleID`는 쓸 수 없다.
+    var frontmostTargetBundleID: String? { frontmostAppGate.lastNonSelfBundleID }
+
+    /// 메뉴 항목 제목이 'Open Profile'인지 'Create Profile'인지.
+    func hasProfile(for bundleID: String) -> Bool { configStore.hasProfile(for: bundleID) }
+
+    /// 메뉴 '프로파일 열기' — 없으면 주석뿐인 scaffold를 만든 뒤 연다.
+    /// 두 실패 모두 폴백이 있다: 클릭이 조용한 무동작이 되면 안 된다.
+    func openProfile(for bundleID: String) {
+        guard let path = configStore.prepareProfileFile(for: bundleID) else {
+            // 생성 실패는 사용자가 알아야 한다 — 'Reload Config' 실패와 같은 형태로 알린다
+            // (LSUIElement라 activate 없이는 알림이 다른 창 뒤로 깔린다).
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Couldn't create the profile file"
+            alert.informativeText =
+                "VimAction could not write \(configStore.profilePath(for: bundleID)).\n\nCheck the folder's permissions — details are in the log (category \"config\")."
+            alert.runModal()
+            return
+        }
+        // .yaml에 기본 앱이 없으면 open이 조용히 실패한다 — 그때는 Finder로 짚어 준다.
+        if !NSWorkspace.shared.open(URL(fileURLWithPath: path)) {
+            NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: ConfigPaths.directory)
+        }
+    }
+
     /// 메뉴바 글리프 — 탭이 안 돌면 비활성(square.dashed), 토글 off면 square.slash,
     /// Secure Input 억제 중이면 lock.square, 그 외 모드 글리프 (PRD §7.7 최소 구현).
     /// 우선순위: 탭 고장 > 토글 off > Secure Input — 고장이면 토글과 무관하게 가로채기
