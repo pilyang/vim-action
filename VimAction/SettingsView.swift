@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import VimActionConfig
 
 /// 설정 창. 권한 온보딩 섹션 + 앱 정보. 키맵 설정은 다음 마일스톤에서 채운다.
 struct SettingsView: View {
@@ -24,6 +25,45 @@ struct SettingsView: View {
                 // 값·엔진 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 가로채기 토글과 동일 모델.
                 Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
                 Text("After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            // 읽기 전용이 계약이다 — UI는 YAML을 쓰지 않는다 (Yams가 주석을 보존하지 못해
+            // UI 쓰기는 사용자의 주석·서식을 파괴한다, 20260801_settings-ui-read-only-yaml).
+            Section("Configuration") {
+                LabeledContent(
+                    "Status",
+                    value: configStatusText(
+                        profileCount: appState.configStore.resolvedProfiles.count,
+                        errors: appState.configStore.errors))
+                ForEach(appState.configStore.errors, id: \.self) { error in
+                    Text("\((error.file as NSString).lastPathComponent) — \(error.message)")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+                if !appState.configStore.warnings.isEmpty {
+                    Text(
+                        "\(appState.configStore.warnings.count) invalid entries ignored — details in log (category \"config\")."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+                LabeledContent("Disabled Apps") {
+                    ScrollingValueList(
+                        text: disabledAppsText(appState.configStore.disabledBundleIDs))
+                }
+                LabeledContent("Profiles") {
+                    ScrollingValueList(
+                        text: profilesText(appState.configStore.appliedSnapshot.profiles))
+                }
+                Button("Open config.yaml") {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: ConfigPaths.configPath))
+                }
+                Button("Open Config Folder") {
+                    NSWorkspace.shared.selectFile(
+                        nil, inFileViewerRootedAtPath: ConfigPaths.directory)
+                }
+                Text("Edit the files directly, then use \"Reload Config\" in the menu bar to apply.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -65,7 +105,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 400)
+        .frame(width: 420, height: 560)
     }
 }
 
@@ -81,6 +121,52 @@ func eventTapStatusText(status: EventTapController.Status, interceptionEnabled: 
         interceptionEnabled ? status.displayName : "Disabled"
     default: status.displayName
     }
+}
+
+/// 항목 수만큼 세로로 자라는 값 행(disable 앱 목록·프로파일 목록)을 앞 몇 줄 높이로
+/// 묶고 나머지는 스크롤시킨다. 묶지 않으면 행 하나가 섹션 전체를 밀어낸다.
+///
+/// 높이를 **숨긴 앞줄 템플릿으로** 잡는 이유는 둘 다 실측 결과다: 그룹 Form 행 안에서
+/// `ScrollView`에 건 `.frame(maxHeight:)`는 클램프되지 않아 목록이 그대로 다 나오고,
+/// pt 상수로 박자니 SwiftUI `Text`의 줄 높이(16pt)가 같은 폰트의 NSFont 메트릭(19pt)과
+/// 달라 줄 수가 어긋난다. 같은 폰트로 렌더한 앞 N줄이 SwiftUI 기준의 정확한 자다.
+private struct ScrollingValueList: View {
+    let text: String
+
+    private static let maxVisibleRows = 5
+
+    var body: some View {
+        Text(template)
+            .hidden()
+            .overlay {
+                ScrollView {
+                    Text(text).frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+            }
+            .foregroundStyle(.secondary)
+    }
+
+    /// 실제 앞 N줄 — 줄 수가 그보다 적으면 그만큼만 차지한다(빈 자리를 남기지 않는다).
+    private var template: String {
+        text.split(separator: "\n", omittingEmptySubsequences: false)
+            .prefix(Self.maxVisibleRows)
+            .joined(separator: "\n")
+    }
+}
+
+/// "Disabled Apps" 행 문구 — 순수 함수라 단위 테스트가 전 분기를 커버한다
+/// (`eventTapStatusText`와 같은 패턴).
+func disabledAppsText(_ bundleIDs: Set<String>) -> String {
+    bundleIDs.isEmpty ? "None" : bundleIDs.sorted().joined(separator: "\n")
+}
+
+/// "Profiles" 행 문구 — bundle id에 프로파일 표시 이름을 병기한다.
+func profilesText(_ profiles: [String: AppProfile]) -> String {
+    guard !profiles.isEmpty else { return "None" }
+    return profiles.sorted { $0.key < $1.key }
+        .map { id, profile in profile.name.map { "\(id) (\($0))" } ?? id }
+        .joined(separator: "\n")
 }
 
 /// "Kill Switch" 행 문구 — 안전장치 탭이 어느 지점에 설치됐는지 보여준다. 안전장치가

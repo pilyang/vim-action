@@ -19,4 +19,8 @@ nonisolated extension Logger {
 
     /// TCC 권한 상태 전이.
     static let permission = Logger(subsystem: subsystem, category: "permission")
+
+    /// 설정 시딩·로드·리로드와 경고/에러. `VimActionConfig`는 경고·에러를 값으로만
+    /// 반환하므로, 로그로 흘리는 책임은 전부 앱(`ConfigStore`)에 있다.
+    static let config = Logger(subsystem: subsystem, category: "config")
 }

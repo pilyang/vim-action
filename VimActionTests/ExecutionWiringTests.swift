@@ -6,6 +6,7 @@
 import Carbon.HIToolbox
 import Foundation
 import Testing
+import VimActionConfig
 import VimEngine
 @testable import VimAction
 
@@ -17,8 +18,14 @@ import VimEngine
 /// 판정에 새어 들지 않게 한다.
 @MainActor
 struct ExecutionWiringTests {
-    private static func gate(frontmost: String?) -> FrontmostAppGate {
-        FrontmostAppGate(notificationCenter: NotificationCenter(), frontmostBundleID: frontmost)
+    /// disable 집합 소스가 config로 바뀌어 테스트가 명시 주입한다 — 기본값(빈 집합)으로
+    /// 두면 게이트 테스트가 아무것도 걸리지 않는 채로 "통과"해 검증이 사라진다.
+    private static func gate(
+        frontmost: String?, disabled: Set<String> = []
+    ) -> FrontmostAppGate {
+        FrontmostAppGate(
+            notificationCenter: NotificationCenter(), frontmostBundleID: frontmost,
+            disabledBundleIDs: disabled)
     }
 
     /// 게이트가 걸린 앱에서는 VimAction이 존재하지 않는 것처럼 동작한다 — Esc조차 통과하고
@@ -28,7 +35,8 @@ struct ExecutionWiringTests {
     func gatedInputPassesThroughAndFreezesMode() throws {
         try withTemporaryDefaults { defaults in
             nonisolated(unsafe) var dispatched: [[VimAction]] = []
-            let gate = Self.gate(frontmost: "com.mitchellh.ghostty")
+            let gate = Self.gate(
+                frontmost: "com.mitchellh.ghostty", disabled: ["com.mitchellh.ghostty"])
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: gate,
                 dispatchActions: { actions, _ in dispatched.append(actions) })
@@ -89,7 +97,7 @@ struct ExecutionWiringTests {
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: Self.gate(frontmost: "com.apple.TextEdit"),
                 focusedElement: resolver,
-                dispatchActions: { _, family in families.append(family) })
+                dispatchActions: { _, context in families.append(context.family) })
             _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
 
             _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
@@ -98,6 +106,37 @@ struct ExecutionWiringTests {
             resolver.update(family: .nonText)
             _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
             #expect(families == [.textArea, .nonText])
+        }
+    }
+
+    /// 프로파일도 계열처럼 **콜백에서 읽어 페이로드로 실린다** — 최전면 앱 bundle id로
+    /// provider를 조회한 스냅샷이다. 배선이 끊기면 모든 앱이 `.empty`로 실행돼 재정의·disable이
+    /// 통째로 죽는 조용한 고장이 된다.
+    @Test(
+        "디스패치 페이로드에 키 입력 시점의 최전면 앱 프로파일이 실린다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func replaceCarriesFrontmostAppProfile() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var profiles: [ResolvedProfile] = []
+            let slack = ResolvedProfile(AppProfile(name: "Slack", actions: [.openLine: .disabled]))
+            let gate = Self.gate(frontmost: "com.apple.TextEdit")
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: gate,
+                dispatchActions: { _, context in profiles.append(context.profile) },
+                profileProvider: { bundleID in
+                    bundleID == "com.tinyspeck.slackmacgap" ? slack : .empty
+                })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(profiles == [.empty], "프로파일 없는 앱은 .empty로 실행된다")
+
+            gate.update(bundleID: "com.tinyspeck.slackmacgap")
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(profiles == [.empty, slack], "앱 전환 후에는 그 앱의 프로파일이 실린다")
         }
     }
 
@@ -112,7 +151,8 @@ struct ExecutionWiringTests {
     func gatedMotionKeyIsNotDispatched() throws {
         try withTemporaryDefaults { defaults in
             nonisolated(unsafe) var dispatched: [[VimAction]] = []
-            let gate = Self.gate(frontmost: "com.apple.TextEdit")
+            let gate = Self.gate(
+                frontmost: "com.apple.TextEdit", disabled: ["com.mitchellh.ghostty"])
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: gate,
                 dispatchActions: { actions, _ in dispatched.append(actions) })

@@ -79,6 +79,6 @@ struct MotionKeyMapperTests {
     /// 미지원 스킵과 구분되지 않는다.
     @Test("어떤 모션도 빈 시퀀스로 매핑되지 않는다", arguments: motionMappingFixtures)
     func neverMapsToEmptySequence(_ fixture: MotionMappingFixture) {
-        #expect(!MotionKeyMapper.keyStrokes(for: fixture.motion).isEmpty)
+        #expect(MotionKeyMapper.keyStrokes(for: fixture.motion)?.isEmpty == false)
     }
 }

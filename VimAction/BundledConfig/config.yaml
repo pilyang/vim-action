@@ -1,0 +1,15 @@
+# VimAction — per-app on/off (bundle id -> bool map).
+# Apps not listed here are on by default. To find an app's bundle id:
+#   osascript -e 'id of app "Slack"'
+#
+# Seeded from the bundled defaults on first launch, this file is yours after
+# that — VimAction never overwrites it. Apply edits with 'Reload Config'.
+apps:
+  # Terminals with their own Vim keybindings — double interpretation breaks both.
+  com.mitchellh.ghostty: false
+  com.apple.Terminal: false
+  com.googlecode.iterm2: false
+  # Editors that usually have a Vim extension — set to true or delete the line to use VimAction here.
+  com.microsoft.VSCode: false
+  com.todesktop.230313mzl4w4u92: false # Cursor
+  com.exafunction.windsurf: false

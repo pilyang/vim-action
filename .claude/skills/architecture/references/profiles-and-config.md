@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-02 (리로드가 파일 감시 자동에서 **메뉴바 수동 트리거**로 + 메뉴바 최전면 앱 편의 기능 2종 추가. 같은 날 앞서: 번들 기본값이 병합 계층에서 파일 단위 시딩으로)
+- **Last updated**: 2026-08-02 (M4 세션 B — 앱 배선 구현: `ConfigStore`·`ResolvedProfile`·`DispatchContext` 신설, 게이트 disable 집합이 config 기반 인스턴스 상태로, 재정의 전파가 명령 접두까지 확정. 도그푸딩 후속으로 **`actions:`가 자기 키 시퀀스 재정의를 받는다**(스키마 v1.1))
 
 ## 현재 구조
 
@@ -43,17 +43,19 @@ scroll:
 motions:                          # 모션 단위: 시퀀스 재정의 또는 disabled
   document_end: [cmd-down]
   document_start: disabled        # 이 모션을 쓰는 어휘 전부(gg·dgg·vgg)가 정직한 스킵
-actions:                          # 명령 계열 disable — v1 값은 disabled만 (시퀀스 재정의 없음)
-  open_line: disabled             #   o/O 억제 — Return=전송 앱 (Slack류)
+actions:                          # 명령 계열: 그 액션 자신의 키 교체 또는 disabled
+  open_line: [shift-return]       #   o/O의 줄바꿈 키만 교체 — Return=전송 앱 (Slack류)
 ```
 
 **disable은 별도 목록이 아니라 매핑 값 `disabled`다**: "그 앱에서 이 항목은 아무 동작도 하지 않는다"를 재정의와 같은 자리·같은 강건성 규칙으로 표현한다. 실행 의미는 매퍼 `nil`(미지원 스킵)과 동일 — 무로그 삼킴은 생기지 않는다. **빈 배열 `[]`은 disable이 아니라 warn+무시**(오타 가드, "지원 ⟹ 빈 시퀀스 아님" 매퍼 불변식 보호). `actions` v1 어휘는 `VimAction` 케이스 파생 5종 — `open_line`·`paste`·`undo`·`redo`·`scroll`.
 
-**모션 재정의·disable은 모션 단위이며 자동 전파된다**: 편집(Shift+모션 선택)·Visual(`selectionStrokes`)이 모션 매핑을 재사용하는 구조라, 재정의 조회를 `MotionKeyMapper` 조회의 단일 지점에 얹으면 `G`를 고칠 때(또는 끌 때) `dG`·`vG`가 함께 따라온다. 액션 단위 시퀀스 재정의는 없다. **append 전용 모션(`charRightForAppend`/`lineEndForAppend` — a/A)은 어휘에 노출하지 않는다** — `char_right`/`line_end` 재정의·disable을 자동으로 상속한다(사용자 관점에서 `$`와 `A`의 줄 끝은 같은 개념).
+**액션 시퀀스는 그 액션 자신의 키만 교체한다** — 위치를 잡는 모션 접두는 계속 `motions`가 소유한다. `open_line: [shift-return]`이면 `o = 줄 끝 + Shift-Return`, `O = 줄 시작 + Shift-Return + 위`가 되어 둘의 구성이 보존된다(전체 시퀀스 교체였다면 `open_line` 하나가 o·O를 함께 덮으므로 `O`가 `o`로 붕괴한다). 대상은 자기 키를 가진 넷(`open_line`=Return, `paste`=Cmd-V, `undo`=Cmd-Z, `redo`=Shift-Cmd-Z)이고, **`scroll`은 `disabled`만 받는다** — 게시 스트로크가 곧 `line_down`/`line_up` 모션이라 재정의는 모션 쪽 몫이며 시퀀스 값은 warn+무시다. 재정의된 `undo`·`redo`·`paste`도 비-QWERTY에서는 여전히 보류된다(레이아웃 가드가 프로파일을 보지 않는 과보수 — 수용).
+
+**모션 재정의·disable은 모션 단위이며 자동 전파된다**: 편집(Shift+모션 선택)·Visual(`selectionStrokes`)이 모션 매핑을 재사용하는 구조라, 재정의 조회를 `MotionKeyMapper` 조회의 단일 지점에 얹으면 `G`를 고칠 때(또는 끌 때) `dG`·`vG`가 함께 따라온다. 같은 모션을 이동·편집·Visual에서 **따로** 재정의하는 축은 없다(액션이 재정의하는 것은 위 문단의 자기 키뿐이고, 위치 접두는 항상 이 단일 지점을 탄다). **append 전용 모션(`charRightForAppend`/`lineEndForAppend` — a/A)은 어휘에 노출하지 않는다** — `char_right`/`line_end` 재정의·disable을 자동으로 상속한다(사용자 관점에서 `$`와 `A`의 줄 끝은 같은 개념).
 
 **키워드 표기**: 전부 소문자 snake_case. 키 스트로크 토큰은 `[modifier-]key` — modifier는 `cmd`/`opt`/`ctrl`/`shift`(순서 무관), 키 이름 v1 11종: `left` `right` `up` `down` `return` `escape` `tab` `home` `end` `page_up` `page_down`. 문자 키(`cmd-z` 류)는 레이아웃 의존이라 v1 제외. 비소문자 토큰(`Cmd-Down`)은 미지 키워드와 같은 warn+무시(대소문자 관용 없음).
 
-**로더 강건성 규칙**: 미지 키·미지 모션명·미지 액션명·미지 키 토큰은 해당 항목만 warn+무시(전방 호환 — `strategy`·`per_element` 등 M5 필드는 M4에서 미지 키), scroll 값은 1...200 정수만 유효(벗어나면 항목 warn+무시), 파일 통째 파싱 실패는 그 파일만 부재 취급 + error 반환(리로드에선 직전 유효 설정 유지 + 사용자 가시 에러). 시퀀스 안의 토큰 하나가 깨지면 그 모션 항목 전체를 버린다 — 반쯤 맞는 시퀀스를 만들지 않는다.
+**로더 강건성 규칙**: 미지 키·미지 모션명·미지 액션명·미지 키 토큰은 해당 항목만 warn+무시(전방 호환 — `strategy`·`per_element` 등 M5 필드는 M4에서 미지 키), scroll 값은 1...200 정수만 유효(벗어나면 항목 warn+무시), 파일 통째 파싱 실패는 그 파일만 부재 취급 + error 반환(리로드에선 직전 유효 설정 유지 + 사용자 가시 에러). 시퀀스 안의 토큰 하나가 깨지면 그 항목(모션이든 액션이든) 전체를 버린다 — 반쯤 맞는 시퀀스를 만들지 않는다.
 
 **한 매핑 안의 키 중복은 항목 단위로 접히지 않고 파일 통째 실패다** — Yams `compose`가 관용 옵션 없이 던지기 때문이고, 우회하려면 이벤트 단위 파싱을 직접 짜야 해서 v1에서는 수용한다. 손편집에서 흔한 실수인데 그 파일이 통째로 없는 것이 되므로(예: `config.yaml`이 날아가면 off로 지정한 앱들이 전부 켜진 상태가 된다), **앱은 이 error를 로그에만 남기지 말고 사용자에게 보이게 해야 한다**.
 
@@ -61,12 +63,17 @@ actions:                          # 명령 계열 disable — v1 값은 disabled
 
 **YAML 비노출**: `chunkStrokes`/`chunkInterval`(실행 중단 래치의 안전장치 파라미터 — 튜닝은 코드 상수로), 마스터 토글·Normal 탈출 옵션(아래 경계).
 
-## 소비 지점
+## 앱측 소비 구조 (M4 세션 B 배선)
 
-- 앱별 on/off → `FrontmostAppGate`의 하드코딩 목록을 교체 (M4).
-- `scroll` 재정의·`motions`/`actions`의 재정의·disable → Keyboard 어댑터·매퍼 경로 (M4 배선, disable은 기존 스킵 경로 재사용).
-- 설정 UI는 **읽기 전용**: 파싱 결과를 표시하고 "설정 파일 열기" 버튼만 — UI는 YAML을 쓰지 않는다 (Yams가 주석을 보존하지 못해, UI 쓰기는 사용자의 주석·서식을 파괴한다).
-- 메뉴바 메뉴 (M4): **'Reload Config'**(수동 리로드 트리거) + **최전면 앱 편의 기능 2종** — bundle id 표시·클립보드 복사, 프로파일 열기(없으면 scaffold 생성 후 열기 — 없는 파일 생성만, 기존 파일 절대 무수정이라 UI 읽기 전용 결정과 충돌 없음). 메뉴 클릭이 자기 자신을 활성화해 최전면 캐시를 오염시킬 수 있어 **비자신(non-self) 앱 캐시**가 전제다 (실기기 확인 항목).
+- **`ConfigStore`**(`@MainActor @Observable`, 앱 타깃)가 설정의 앱측 소유자다: seam 실구현(`ConfigLoader.FileSystem.live`/`ConfigSeeder.FileSystem.live` — `ConfigFileSystem.swift`), 번들 리소스 읽기(`BundledConfig` — `VimAction/BundledConfig/`의 yaml 3개), **경고·에러 os.log의 단일 지점**(`Logger` 카테고리 `config`). init은 IO를 하지 않는다(XCTest·프리뷰에서 AppState가 생성됨) — IO는 `seedAndLoad()`(bootstrap, XCTest 가드 뒤)와 `reload()`(메뉴)뿐.
+- **적용 의미론**: 경고·에러는 로드마다 항상 최신 노출, 스냅샷 적용은 에러 없음 또는 **최초 로드**일 때(최초는 부분 스냅샷도 적용 — 직전 유효가 없다). 리로드 실패는 직전 유효 유지. ([결정](../../decisions/references/20260802_config-error-visibility-and-apply-semantics.md))
+- **`ResolvedProfile`**: `AppProfile`을 **로드 시 1회** 실행용으로 변환한 Sendable 값 — `ConfigKeyStroke`→`KeyStroke`(exhaustive 변환), append 상속은 `motionOverride(for:)` 경유로 베이킹. 매퍼는 설정 어휘(`VimActionConfig`)를 모른다.
+- **디스패치 경로**: `handleKeyDown`이 키 입력 시점에 `profileProvider(frontmostBundleID)`(딕셔너리 읽기 — 콜백 경량)로 스냅샷을 떠 **`DispatchContext`**(family+profile)로 sink에 싣는다. 어댑터 `execute(_:family:profile:isCurrent:)`가 소비.
+- **재정의·disable 전파**: 단일 조회 지점은 `MotionKeyMapper.keyStrokes(for:profile:)`(옵셔널 반환) — 편집·Visual은 물론 **명령 접두(paste 위치·o/O·scroll 반복)와 yank collapse까지** 전파되고, disabled는 nil 상향 전파로 복합 액션 통째 스킵. 어댑터 `Mapping.disabledByProfile`이 미지원과 별도 집계(분류는 `.empty` 재조회). `.edit`의 paste-wise 기억은 **게시 확정 뒤에만** 남는다. Visual 세션 메커니즘(진입·wise 전환·collapse)은 리터럴 유지. ([결정](../../decisions/references/20260802_profile-override-propagation-full-lookup.md))
+- **앱별 on/off** → `FrontmostAppGate`의 인스턴스 `disabledBundleIDs`(config `apps` 맵의 false 항목, `AppState`가 로드·리로드 때 푸시). 순수 판정은 `isDisabled(_:disabledBundleIDs:)`. **bootstrap에서 설정 로드가 탭 설치보다 먼저다** — 빈 게이트로 탭이 서는 창을 닫는다.
+- `scroll` 재정의 → `CommandKeyMapper.lineCount(for:profile:)` — 기본 15/30은 코드 상수 유지.
+- 설정 UI는 **읽기 전용**: Settings `Configuration` 섹션(상태·에러 목록·경고 수·off 앱·프로파일 목록 + config.yaml/폴더 열기 버튼) — UI는 YAML을 쓰지 않는다 (Yams가 주석을 보존하지 못해, UI 쓰기는 사용자의 주석·서식을 파괴한다).
+- 메뉴바 메뉴: **설정 상태 라인 상시**(`configStatusText`) + **'Reload Config'**(실패 시에만 NSAlert — `NSApp.activate` 선행, 시작 시 에러는 팝업 없음) + (세션 B 후반) **최전면 앱 편의 기능 2종** — bundle id 표시·클립보드 복사, 프로파일 열기(없으면 scaffold 생성 후 열기 — 없는 파일 생성만, 기존 파일 절대 무수정이라 UI 읽기 전용 결정과 충돌 없음). 메뉴 클릭이 자기 자신을 활성화해 최전면 캐시를 오염시킬 수 있어 **비자신(non-self) 앱 캐시**가 전제다 (실기기 확인 항목).
 
 ## UserDefaults↔YAML 경계
 
@@ -88,7 +95,7 @@ actions:                          # 명령 계열 disable — v1 값은 disabled
 
 번들 기본값으로 바로 동작하되 사용자가 그것을 온전히 소유해야 하고(지우는 것까지), 파일을 직접 편집하는 사용자가 재시작 없이 반영을 봐야 한다. 루트가 `~/.config`인 것도, UI가 읽기 전용인 것도, 번들 기본값이 병합이 아니라 시딩인 것도 같은 전제(파일이 SSOT, 사용자가 편집자)에서 나온다 — 사용자가 여는 파일에 실제로 적용 중인 값이 전부 적혀 있다.
 
-- 관련 결정: [번들 기본값 시딩](../../decisions/references/20260802_bundled-defaults-seeded-not-merged.md), [Yams·핫 리로드](../../decisions/references/20260712_yaml-three-layer-config.md), [설정 루트](../../decisions/references/20260801_config-root-dot-config.md), [on/off 단일 소유](../../decisions/references/20260801_app-enable-config-yaml-only.md), [config.yaml 스키마 v1](../../decisions/references/20260801_config-yaml-schema-v1.md), [모션 단위 재정의](../../decisions/references/20260801_profile-motion-override-unit.md), [프로파일 v1 필드](../../decisions/references/20260801_profile-schema-v1-fields.md), [UI 읽기 전용](../../decisions/references/20260801_settings-ui-read-only-yaml.md), [UserDefaults 경계](../../decisions/references/20260801_userdefaults-yaml-ownership.md), [코드 위치 VimActionConfig](../../decisions/references/20260802_config-layer-vimactionconfig-target.md), [disable은 매핑 값](../../decisions/references/20260802_profile-disable-via-mapping-keyword.md), [키워드 소문자](../../decisions/references/20260802_config-keyword-notation-lowercase.md), [번들 프로파일 동봉](../../decisions/references/20260802_bundled-default-profiles-slack-notion.md), [scroll 상한](../../decisions/references/20260802_scroll-override-bounds.md), [append 모션 base 상속](../../decisions/references/20260802_append-motions-follow-base-override.md), [Package.resolved 커밋](../../decisions/references/20260802_package-resolved-committed.md), [리로드 수동 트리거](../../decisions/references/20260802_config-reload-manual-menubar-trigger.md), [메뉴바 편의 기능 2종](../../decisions/references/20260802_menubar-frontmost-app-conveniences.md)
+- 관련 결정: [번들 기본값 시딩](../../decisions/references/20260802_bundled-defaults-seeded-not-merged.md), [Yams·핫 리로드](../../decisions/references/20260712_yaml-three-layer-config.md), [설정 루트](../../decisions/references/20260801_config-root-dot-config.md), [on/off 단일 소유](../../decisions/references/20260801_app-enable-config-yaml-only.md), [config.yaml 스키마 v1](../../decisions/references/20260801_config-yaml-schema-v1.md), [모션 단위 재정의](../../decisions/references/20260801_profile-motion-override-unit.md), [프로파일 v1 필드](../../decisions/references/20260801_profile-schema-v1-fields.md), [UI 읽기 전용](../../decisions/references/20260801_settings-ui-read-only-yaml.md), [UserDefaults 경계](../../decisions/references/20260801_userdefaults-yaml-ownership.md), [코드 위치 VimActionConfig](../../decisions/references/20260802_config-layer-vimactionconfig-target.md), [disable은 매핑 값](../../decisions/references/20260802_profile-disable-via-mapping-keyword.md), [키워드 소문자](../../decisions/references/20260802_config-keyword-notation-lowercase.md), [번들 프로파일 동봉](../../decisions/references/20260802_bundled-default-profiles-slack-notion.md), [scroll 상한](../../decisions/references/20260802_scroll-override-bounds.md), [append 모션 base 상속](../../decisions/references/20260802_append-motions-follow-base-override.md), [Package.resolved 커밋](../../decisions/references/20260802_package-resolved-committed.md), [리로드 수동 트리거](../../decisions/references/20260802_config-reload-manual-menubar-trigger.md), [메뉴바 편의 기능 2종](../../decisions/references/20260802_menubar-frontmost-app-conveniences.md), [재정의 전파 조회 전면](../../decisions/references/20260802_profile-override-propagation-full-lookup.md), [에러 가시화·적용 의미론](../../decisions/references/20260802_config-error-visibility-and-apply-semantics.md), [액션 자신의 키 재정의](../../decisions/references/20260802_action-own-key-override.md)
 
 ## 미결 질문 (결정 시 decisions에 기록 후 이 파일 갱신)
 

@@ -9,7 +9,7 @@ import Observation
 import os
 import VimEngine
 
-/// 앱 셸이 관찰하는 UI 상태와 전역 컴포넌트(권한 모니터, 이벤트 탭)의 소유자.
+/// 앱 셸이 관찰하는 UI 상태와 전역 컴포넌트(권한 모니터, 이벤트 탭, 설정 스토어)의 소유자.
 @Observable
 final class AppState {
     let permissionMonitor = AccessibilityPermissionMonitor()
@@ -17,22 +17,41 @@ final class AppState {
     /// 안전장치 킬스위치 탭 — 메인 탭과 생명주기를 공유하지 않는다. 발동 효과는 여기서
     /// 주입한다: 킬 탭은 무엇이 꺼지는지 모르고, off 의미론은 전부 컨트롤러가 소유한다.
     let killSwitch: KillSwitchTap
+    /// `~/.config/vim-action` 설정의 소유자. init은 IO를 하지 않는다 — 실제 시딩·로드는
+    /// bootstrap(XCTest 가드 뒤)에서만.
+    let configStore: ConfigStore
+    /// 게이트를 AppState가 직접 만들어 컨트롤러에 주입한다 — 설정 로드·리로드 때
+    /// disable 집합을 푸시할 핸들이 필요해서다 (컨트롤러는 설정 계층을 모른다).
+    private let frontmostAppGate: FrontmostAppGate
 
     init() {
-        let eventTap = EventTapController()
+        let gate = FrontmostAppGate.forCurrentEnvironment()
+        let store = ConfigStore()
+        frontmostAppGate = gate
+        configStore = store
+        let eventTap = EventTapController(
+            frontmostAppGate: gate,
+            profileProvider: { [weak store] bundleID in
+                store?.resolvedProfile(for: bundleID) ?? .empty
+            })
         self.eventTap = eventTap
         killSwitch = KillSwitchTap { eventTap.triggerKillSwitch() }
     }
 
-    /// 앱 시작 시 1회: 권한 확인 → 탭 설치 시도, 미허용이면 부여 감지 폴링 시작.
+    /// 앱 시작 시 1회: 설정 시딩·로드 → 권한 확인 → 탭 설치 시도, 미허용이면 부여 감지 폴링 시작.
     func bootstrap() {
         // TEST_HOST로 launch된 단위 테스트 실행 중에는 시동하지 않는다 —
-        // 테스트가 라이브 이벤트 탭을 설치하거나 권한 폴링을 돌리면 안 된다.
+        // 테스트가 라이브 이벤트 탭을 설치하거나 권한 폴링을 돌리면 안 되고,
+        // 설정 시딩이 실제 `~/.config`를 만지면 안 된다.
         if isRunningUnderXCTest() {
             // 이 변수가 일반 launch에 새어 들어오면 앱이 통째로 비활성이 되므로 흔적을 남긴다.
             Logger.eventTap.notice("XCTest 환경변수 감지 — bootstrap 생략 (탭 설치·권한 폴링 비활성)")
             return
         }
+        // 설정이 탭 설치보다 **먼저다** — 게이트의 disable 집합이 빈 채로 탭이 서면
+        // TCC가 이미 부여된 재실행에서 disable 앱이 잠깐 게이트 없이 노출된다.
+        configStore.seedAndLoad()
+        frontmostAppGate.update(disabledBundleIDs: configStore.disabledBundleIDs)
         // 메인 탭 설치 성공마다 킬 탭 설치를 잇는다 — 순서 계약(킬 탭이 나중에
         // head-insert)이 호출 순서가 아니라 구조로 지켜지고, bootstrap 시점에 킬 탭
         // 생성이 실패했던 경우의 유일한 재시도 경로가 된다. 킬 탭 설치는 멱등이다.
@@ -55,6 +74,16 @@ final class AppState {
         if !permissionMonitor.isTrusted {
             permissionMonitor.startPollingUntilGranted()
         }
+    }
+
+    /// 메뉴 'Reload Config' 진입점 — 로드 결과를 게이트에 반영까지 해야 한 번의 리로드다.
+    /// 반환 false = 파일 통째 에러 존재(직전 유효 설정 유지됨) — 호출자(메뉴)가 사용자에게
+    /// 보인다. 프로파일 쪽은 푸시가 필요 없다 — 디스패치가 `configStore`를 매 키마다
+    /// 조회한다 (`profileProvider`).
+    func reloadConfig() -> Bool {
+        let succeeded = configStore.reload()
+        frontmostAppGate.update(disabledBundleIDs: configStore.disabledBundleIDs)
+        return succeeded
     }
 
     /// 메뉴바 글리프 — 탭이 안 돌면 비활성(square.dashed), 토글 off면 square.slash,

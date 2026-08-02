@@ -18,13 +18,10 @@ import os
 /// 캐시는 앱 활성화 알림이 갱신한다.
 @MainActor
 final class FrontmostAppGate {
-    /// disable 앱 목록 — M2에서는 하드코딩이고, M4 프로파일의 `enabled:` 필드가 교체한다.
-    /// Ghostty는 자체 Vim 키바인딩을 갖는 터미널이라 이중 해석이 되면 양쪽 다 깨진다.
-    static let disabledBundleIDs: Set<String> = ["com.mitchellh.ghostty"]
-
     /// 순수 판정 — 캐시와 무관하게 테스트한다. bundleID 없음(= 최전면 앱 미확인)은
-    /// 통과다: 게이트는 "확실히 disable 앱일 때만" 개입한다.
-    static func isDisabled(_ bundleID: String?) -> Bool {
+    /// 통과다: 게이트는 "확실히 disable 앱일 때만" 개입한다. 목록에 없는 앱도 통과다 —
+    /// `config.yaml` `apps` 맵에 없는 앱은 기본 on이라는 스키마 규칙이 여기서 실현된다.
+    static func isDisabled(_ bundleID: String?, disabledBundleIDs: Set<String>) -> Bool {
         guard let bundleID else { return false }
         return disabledBundleIDs.contains(bundleID)
     }
@@ -42,7 +39,15 @@ final class FrontmostAppGate {
     /// 최전면 앱 bundleID 캐시. 읽기는 테스트 검증용으로 연다.
     private(set) var frontmostBundleID: String?
 
-    var isFrontmostAppDisabled: Bool { Self.isDisabled(frontmostBundleID) }
+    /// disable 앱 집합 — 소스는 `config.yaml`의 `apps` 맵(`false`인 항목)이고,
+    /// `AppState`가 설정 로드·리로드 때 `update(disabledBundleIDs:)`로 푸시한다.
+    /// 설정이 로드되기 전에는 비어 있다 — bootstrap이 설정 로드를 탭 설치보다 먼저
+    /// 수행하는 것이 그 창을 닫는 계약이다.
+    private(set) var disabledBundleIDs: Set<String>
+
+    var isFrontmostAppDisabled: Bool {
+        Self.isDisabled(frontmostBundleID, disabledBundleIDs: disabledBundleIDs)
+    }
 
     /// 옵저버 해제를 `deinit`(nonisolated)에서 하므로 두 저장 프로퍼티 모두 격리 밖에서
     /// 읽혀야 한다. `NotificationCenter`는 `Sendable`이라 `let`만으로 되고, 토큰은
@@ -56,9 +61,11 @@ final class FrontmostAppGate {
     init(
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         frontmostBundleID: @autoclosure () -> String? = NSWorkspace.shared.frontmostApplication?
-            .bundleIdentifier
+            .bundleIdentifier,
+        disabledBundleIDs: Set<String> = []
     ) {
         self.notificationCenter = notificationCenter
+        self.disabledBundleIDs = disabledBundleIDs
         // 등록이 시드보다 **먼저인 것이 계약이다**: 순서가 뒤집히면 그 사이에 일어난 앱
         // 전환의 알림이 유실돼 캐시가 낡은 값으로 굳는다 (게이트가 조용히 어긋난다).
         observerToken = notificationCenter.addObserver(
@@ -94,6 +101,22 @@ final class FrontmostAppGate {
         Logger.eventTap.debug(
             "최전면 앱 → \(bundleID ?? "(없음)", privacy: .public) (게이트 \(self.isFrontmostAppDisabled ? "on" : "off", privacy: .public))"
         )
+        #endif
+    }
+
+    /// disable 집합 갱신 지점 — 설정 로드·리로드가 부른다. 최전면 앱이 그대로인 채
+    /// 게이트만 뒤집히는 전이라 `update(bundleID:)`와 같은 이유로 로그를 남긴다
+    /// ("Reload가 안 먹었다"와 "게이트가 안 먹는다"를 가른다).
+    func update(disabledBundleIDs: Set<String>) {
+        guard disabledBundleIDs != self.disabledBundleIDs else { return }
+        let wasDisabled = isFrontmostAppDisabled
+        self.disabledBundleIDs = disabledBundleIDs
+        #if DEBUG
+        if wasDisabled != isFrontmostAppDisabled {
+            Logger.eventTap.debug(
+                "disable 목록 갱신 — 현재 앱 게이트 \(self.isFrontmostAppDisabled ? "on" : "off", privacy: .public)"
+            )
+        }
         #endif
     }
 }

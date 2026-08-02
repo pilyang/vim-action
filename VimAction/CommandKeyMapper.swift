@@ -43,8 +43,13 @@ nonisolated enum PasteWise: Equatable, Sendable {
 /// 불변식이라, 게시할 것이 없는 경우는 `nil`로만 표현한다.
 nonisolated enum CommandKeyMapper {
     /// `.openLine` / `.undo` / `.redo` / `.scroll`. 붙여넣기는 클립보드 판정이 필요해
-    /// `pasteStrokeGroups(before:count:wise:family:)`로 갈라져 있다.
-    static func keyStrokes(for action: VimAction, family: ElementFamily) -> [KeyStroke]? {
+    /// `pasteStrokeGroups(before:count:wise:family:profile:)`로 갈라져 있다.
+    ///
+    /// 프로파일의 모션 재정의·disable은 위치 접두(`move`)를 통해 여기에도 전파된다 —
+    /// disable된 모션을 접두로 쓰는 액션은 통째로 `nil`(정직한 스킵)이 된다.
+    static func keyStrokes(
+        for action: VimAction, family: ElementFamily, profile: ResolvedProfile = .empty
+    ) -> [KeyStroke]? {
         switch action {
         case .openLine(let above):
             // **여기가 계열이 실제로 시퀀스를 가르는 유일한 자리다.** 단일행 필드에서 `Return`은
@@ -52,20 +57,21 @@ nonisolated enum CommandKeyMapper {
             // 엔진은 이미 Insert로 전이한 뒤라 "줄 없이 Insert"라는 불일치가 남지만, 그 실패
             // 모드는 Esc 한 번으로 끝나 무해하다 (`20260801_textfield-edit-sequences-scrapped.md`).
             guard family != .textField else { return nil }
-            return above ? openAbove : openBelow
+            return above ? openAbove(profile) : openBelow(profile)
 
         case .undo:
-            return [undoKey]
+            return profile.undoStrokes ?? [undoKey]
 
         case .redo:
-            return [redoKey]
+            return profile.redoStrokes ?? [redoKey]
 
         case .scroll(let extent, let forward):
             // macOS에는 **캐럿을 한 뷰포트만큼 옮기는 키 프리미티브가 없다**. PageUp/PageDown은
             // 뷰만 옮기고 캐럿을 두고 가며, Vim 레이어는 모든 키가 모션이라 다음 키 한 번에
             // 스크롤이 통째로 되돌아온다(실측). Vim의 `Ctrl-d`/`Ctrl-f`는 본래 **커서 이동**이므로
             // 화살표 반복으로 근사한다 (`20260730_scroll-arrow-repetition.md`).
-            return repeated(move(forward ? .lineDown : .lineUp), lineCount(for: extent))
+            guard let line = move(forward ? .lineDown : .lineUp, profile) else { return nil }
+            return repeated(line, lineCount(for: extent, profile))
 
         default:
             // `VimAction`에 exhaustive switch를 걸지 않는 것이 계약이다.
@@ -84,47 +90,70 @@ nonisolated enum CommandKeyMapper {
     ///
     /// 매핑 자체는 그대로다 — 평탄화하면 이전과 같은 시퀀스다.
     static func pasteStrokeGroups(
-        before: Bool, count: Int, wise: PasteWise, family: ElementFamily
+        before: Bool, count: Int, wise: PasteWise, family: ElementFamily,
+        profile: ResolvedProfile = .empty
     ) -> [[KeyStroke]]? {
         // 엔진은 count 1 이상만 낸다(0은 `0` 모션 규칙이 선점한다). 그래도 가드가 있는 이유는
         // 접두만 남은 시퀀스가 "붙여넣기 없이 캐럿만 움직인다"는 조용한 오동작이기 때문이다.
-        guard count >= 1 else { return nil }
-        return [prefix(before: before, wise: wise) + [pasteKey]]
-            + Array(repeating: [pasteKey], count: count - 1)
+        guard count >= 1, let prefix = prefix(before: before, wise: wise, profile: profile)
+        else { return nil }
+        let paste = profile.pasteStrokes ?? [pasteKey]
+        return [prefix + paste]
+            + Array(repeating: paste, count: count - 1)
     }
 
     /// 붙여넣기 지점으로 캐럿을 옮기는 접두. `P`(before)는 Vim에서 캐럿 위치가 곧 삽입점이라
-    /// charwise에서 접두가 없다.
-    private static func prefix(before: Bool, wise: PasteWise) -> [KeyStroke] {
+    /// charwise에서 접두가 없다. `nil`은 접두 모션이 프로파일에서 disable된 경우다 —
+    /// 접두 없이 `Cmd-V`만 내면 위치가 틀린 채 붙으므로 붙여넣기 전체를 접는다.
+    private static func prefix(
+        before: Bool, wise: PasteWise, profile: ResolvedProfile
+    ) -> [KeyStroke]? {
         switch (wise, before) {
         case (.charwise, true):
             return []
 
         case (.charwise, false):
             // 캐럿은 문자 **사이**이고 Vim의 커서는 문자 **위**라, "커서 문자 뒤"는 한 칸 오른쪽이다.
-            return move(.charRight)
+            return move(.charRight, profile)
 
         case (.linewise, true):
-            return move(.lineStart)
+            return move(.lineStart, profile)
 
         case (.linewise, false):
             // 다음 줄 시작으로. 꼬리 `Cmd-←`는 멱등 보정자다 — 내부 줄에서는 이미 줄 시작이라
             // no-op이고, **마지막 줄에서는 `→`가 포화**하므로 그것이 없으면 `Cmd-V`가 마지막
             // 줄에 내용을 이어붙이고 개행을 남긴다(기존 텍스트 훼손). 보정자가 있으면 최악이
             // "`p`가 `P`로 퇴행"(한 줄 위, 구조는 온전)이다.
-            return move(.lineEnd) + move(.charRight) + move(.lineStart)
+            guard let lineEnd = move(.lineEnd, profile),
+                let charRight = move(.charRight, profile),
+                let lineStart = move(.lineStart, profile)
+            else { return nil }
+            return lineEnd + charRight + lineStart
         }
     }
 
     /// `o` — 줄 끝으로 간 뒤 개행. 엔진이 이미 Insert로 전이했으므로 뒤에 붙일 키가 없다.
-    private static let openBelow = move(.lineEnd) + [returnKey]
+    private static func openBelow(_ profile: ResolvedProfile) -> [KeyStroke]? {
+        guard let lineEnd = move(.lineEnd, profile) else { return nil }
+        return lineEnd + newLine(profile)
+    }
 
     /// `O` — 줄 시작에서 개행해 현재 줄을 아래로 밀고, 새로 생긴 빈 줄로 올라간다.
     ///
     /// `↑, Cmd-→, Return`이 아닌 이유는 **첫 줄**이다 — 거기서는 `↑`가 no-op이라 조용히
     /// `o`로 퇴행한다(`O`를 가장 많이 쓰는 자리에서 틀린다). 이 순서는 첫 줄에서도 맞는다
     /// (`20260730_openline-return-sequence.md`).
-    private static let openAbove = move(.lineStart) + [returnKey] + move(.lineUp)
+    private static func openAbove(_ profile: ResolvedProfile) -> [KeyStroke]? {
+        guard let lineStart = move(.lineStart, profile), let lineUp = move(.lineUp, profile)
+        else { return nil }
+        return lineStart + newLine(profile) + lineUp
+    }
+
+    /// 줄을 만드는 키 — 앱마다 다르다. Slack처럼 `Return`이 전송인 앱은 `Shift-Return`이
+    /// 줄바꿈이므로 프로파일이 이 키만 갈아끼운다(위치 접두는 그대로 모션을 탄다).
+    private static func newLine(_ profile: ResolvedProfile) -> [KeyStroke] {
+        profile.newLineStrokes ?? [returnKey]
+    }
 
     /// 스크롤 1회가 옮길 줄 수. 뷰포트 높이를 모르는 상태의 **근사값**이다 — 실제 높이는
     /// 요소 리졸버가 AX(`AXVisibleCharacterRange`)로 읽을 수 있게 되는 M5에서 정확해지고,
@@ -132,14 +161,20 @@ nonisolated enum CommandKeyMapper {
     private static let halfPageLines = 15
     private static let fullPageLines = 30
 
-    private static func lineCount(for extent: VimAction.ScrollExtent) -> Int {
-        extent == .halfPage ? halfPageLines : fullPageLines
+    /// 프로파일 재정의가 있으면 그것, 없으면 코드 상수 — 프로파일은 "값 없음"만 표현하고
+    /// 기본값 15/30은 여기 남는다.
+    private static func lineCount(
+        for extent: VimAction.ScrollExtent, _ profile: ResolvedProfile
+    ) -> Int {
+        extent == .halfPage
+            ? profile.halfPageLines ?? halfPageLines
+            : profile.fullPageLines ?? fullPageLines
     }
 
     /// 모션 스트로크 그대로 — 위치를 잡는 접두에 쓴다. `EditKeyMapper`와 같은 재사용이라
-    /// 모션 매핑이 개선되면 이 시퀀스들이 함께 따라온다.
-    private static func move(_ motion: Motion) -> [KeyStroke] {
-        MotionKeyMapper.keyStrokes(for: motion)
+    /// 모션 매핑이 개선되거나 프로파일이 재정의하면 이 시퀀스들이 함께 따라온다.
+    private static func move(_ motion: Motion, _ profile: ResolvedProfile) -> [KeyStroke]? {
+        MotionKeyMapper.keyStrokes(for: motion, profile: profile)
     }
 
     private static func repeated(_ strokes: [KeyStroke], _ count: Int) -> [KeyStroke] {

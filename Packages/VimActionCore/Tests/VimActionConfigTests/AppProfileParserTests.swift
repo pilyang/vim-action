@@ -50,7 +50,7 @@ let appProfileFixtures: [AppProfileFixture] = [
                 .documentEnd: .strokes([ConfigKeyStroke(.down, [.cmd])]),
                 .documentStart: .disabled,
             ],
-            disabledActions: [.openLine]
+            actions: [.openLine: .disabled]
         )
     ),
     fixture("빈 파일", ""),
@@ -165,17 +165,36 @@ let appProfileFixtures: [AppProfileFixture] = [
           redo: disabled
           scroll: disabled
         """,
-        AppProfile(disabledActions: [.openLine, .paste, .undo, .redo, .scroll])
+        AppProfile(
+            actions: [
+                .openLine: .disabled, .paste: .disabled, .undo: .disabled, .redo: .disabled,
+                .scroll: .disabled,
+            ])
     ),
     fixture(
-        "액션에 시퀀스 재정의는 없다",
-        "actions: { open_line: [cmd-x] }",
-        warnings: [w("actions.open_line", .invalidValue("sequence"))]
+        "액션 시퀀스 재정의 — 자기 키 교체",
+        "actions: { open_line: [shift-return] }",
+        AppProfile(actions: [.openLine: .strokes([ConfigKeyStroke(.return, [.shift])])])
     ),
     fixture(
-        "액션 값은 disabled뿐",
+        "자기 키가 없는 scroll은 시퀀스를 받지 않는다 — 재정의는 line_down/line_up 모션 몫",
+        "actions: { scroll: [page_down] }",
+        warnings: [w("actions.scroll", .invalidValue("sequence"))]
+    ),
+    fixture(
+        "scroll도 disable은 유효하다",
+        "actions: { scroll: disabled }",
+        AppProfile(actions: [.scroll: .disabled])
+    ),
+    fixture(
+        "액션 값은 시퀀스이거나 disabled다",
         "actions: { open_line: enabled }",
         warnings: [w("actions.open_line", .invalidValue("enabled"))]
+    ),
+    fixture(
+        "액션 시퀀스의 토큰 하나가 깨지면 항목 전체 폐기 — 반쯤 맞는 시퀀스 금지",
+        "actions: { open_line: [shift-return, nope] }",
+        warnings: [w("actions.open_line[1]", .invalidKeyStroke("nope"))]
     ),
     fixture(
         "미지 액션명",
@@ -204,7 +223,7 @@ func appProfileWholeFileFailure() {
 
 @Test("append 전용 모션은 base 모션의 재정의를 상속한다")
 func appendMotionInheritsBaseOverride() {
-    let strokes = MotionOverride.strokes([ConfigKeyStroke(.end)])
+    let strokes = ConfigOverride.strokes([ConfigKeyStroke(.end)])
     let profile = AppProfile(motions: [.lineEnd: strokes, .charRight: .disabled])
 
     #expect(profile.motionOverride(for: .lineEndForAppend) == strokes)
