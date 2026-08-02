@@ -1,0 +1,35 @@
+VimAction/KeyboardAdapter.swift
+  s_33454c80df0a73::t_b3835f3b75914e 41-43
+  s_33454c80df0a73::t_17543f0eb7d08c 329-345
+  s_33454c80df0a73::t_8997c80e98b46f 291
+VimAction/EditKeyMapper.swift
+  s_33454c80df0a73::t_2091676e68c6cd 64-114
+  s_33454c80df0a73::t_b3fe433abb91aa 121
+  s_33454c80df0a73::t_bfa8c1bb1d49ff 8
+VimActionTests/EditKeyMapperTests.swift
+  s_33454c80df0a73::t_9e2522891d9f19 341-376
+  s_33454c80df0a73::t_e91c7984faaeda 194-274,377
+VimActionTests/KeyboardAdapterTests.swift
+  s_33454c80df0a73::t_690e58534746dc 801-803,805-806,810-812,815,827-831,837-838,840-843,845,847,855-902,904-917,919,921-927
+  s_33454c80df0a73::t_baa1b774f8c46e 903
+  s_33454c80df0a73::t_f0bca7147ffd9d 832-836
+  s_33454c80df0a73::t_3ba62f0aa26d9d 918
+  s_33454c80df0a73::t_c682c95ef08684 850-854
+  s_33454c80df0a73::t_1d4d8ff2bb2f7e 920
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "ac710f3ee2aba9ffb8a0f1056dc9b0a11be63333",
+  "prompts": {},
+  "sessions": {
+    "s_33454c80df0a73": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23677620-0268-4e57-9312-977c56567457",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
