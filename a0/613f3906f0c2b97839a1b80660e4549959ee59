@@ -1,0 +1,72 @@
+VimAction/KeyboardAdapter.swift
+  s_ad66f6b764812e::t_7bd9563742235c 271
+Packages/VimActionCore/Sources/VimActionConfig/AppProfileParser.swift
+  s_ad66f6b764812e::t_bd9f2669dc93c1 25-26
+  s_ad66f6b764812e::t_bf7d5272a4c7ce 50,58-59,61-67
+  s_ad66f6b764812e::t_0dd9af69ab4b0d 81,86,88,90,94
+.claude/skills/decisions/SKILL.md
+  s_ad66f6b764812e::t_5a1d8efe41b472 55-56
+VimActionTests/ProfileOverrideMappingTests.swift
+  s_ad66f6b764812e::t_cb86799b58e665 38-40
+  s_ad66f6b764812e::t_dbec4981bd0f2f 159-210
+  s_ad66f6b764812e::t_062a18cc0c212d 24,30,244
+  s_ad66f6b764812e::t_eb1992ec4f9e04 23,34
+VimActionTests/ExecutionWiringTests.swift
+  s_ad66f6b764812e::t_eb1992ec4f9e04 124
+VimAction/BundledConfig/com.tinyspeck.slackmacgap.yaml
+  s_ad66f6b764812e::t_a1bd23c2ea808a 1-5,8
+Packages/VimActionCore/Sources/VimActionConfig/AppProfile.swift
+  s_ad66f6b764812e::t_617e622cdae3ec 38,43-46,50-51
+  s_ad66f6b764812e::t_b4aaaae7683434 62-66
+  s_ad66f6b764812e::t_8065e2a2d6c513 15-18,24-25,31
+VimAction/ResolvedProfile.swift
+  s_ad66f6b764812e::t_e08edd9c724eac 17,21,23-29
+  s_ad66f6b764812e::t_ec5e8f984ea5b1 37,47,58-59,63-78
+.claude/skills/decisions/references/20260802_action-own-key-override.md
+  s_ad66f6b764812e::t_d77b30c8ab58b5 1-44
+Packages/VimActionCore/Tests/VimActionConfigTests/AppProfileParserTests.swift
+  s_ad66f6b764812e::t_062a18cc0c212d 168-172
+  s_ad66f6b764812e::t_bda53b61331542 173-177,180-182,185-190,194-198
+  s_ad66f6b764812e::t_eb1992ec4f9e04 53,226
+Packages/VimActionCore/Tests/VimActionConfigTests/ConfigLoaderTests.swift
+  s_ad66f6b764812e::t_eb1992ec4f9e04 32
+.claude/skills/architecture/references/profiles-and-config.md
+  s_ad66f6b764812e::t_4d7de0f26d61b8 46-47,52
+  s_ad66f6b764812e::t_1a8f45c6c57e0a 53
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_ad66f6b764812e::t_e21f65f343b03b 6
+VimAction/BundledConfig/notion.id.yaml
+  s_ad66f6b764812e::t_6ca0321e66bf30 6-7
+.claude/skills/decisions/references/20260802_profile-disable-via-mapping-keyword.md
+  s_ad66f6b764812e::t_bf316338c7f26d 3-4
+VimAction/CommandKeyMapper.swift
+  s_ad66f6b764812e::t_2327b2735bd9c8 63,66
+  s_ad66f6b764812e::t_18c064f26bccfe 100-102
+  s_ad66f6b764812e::t_378d50f4ceee2b 138
+  s_ad66f6b764812e::t_5362cd4812468d 149-155
+VimActionTests/ConfigStoreTests.swift
+  s_ad66f6b764812e::t_062a18cc0c212d 113
+VimActionTests/ResolvedProfileTests.swift
+  s_ad66f6b764812e::t_1c10dbdafbce4e 95-108,115
+  s_ad66f6b764812e::t_eb1992ec4f9e04 88
+  s_ad66f6b764812e::t_062a18cc0c212d 92,114
+  s_ad66f6b764812e::t_386d402c13755f 93-94
+Packages/VimActionCore/Tests/VimActionConfigTests/ConfigInvariantTests.swift
+  s_ad66f6b764812e::t_eb1992ec4f9e04 115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "a0613f3906f0c2b97839a1b80660e4549959ee59",
+  "prompts": {},
+  "sessions": {
+    "s_ad66f6b764812e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4f8ee5fd-c877-43b1-a86b-63cb8f22d439",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
