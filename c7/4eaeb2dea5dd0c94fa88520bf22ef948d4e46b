@@ -1,0 +1,26 @@
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_ad66f6b764812e::t_a5349c9de08c43 27-28
+  s_ad66f6b764812e::t_3edf8f27e78084 6
+  s_ad66f6b764812e::t_ad4bdf023bf5bd 36
+.claude/skills/architecture/references/profiles-and-config.md
+  s_ad66f6b764812e::t_1050915949ecdc 54
+  s_ad66f6b764812e::t_111eb78a7bdb65 98
+  s_ad66f6b764812e::t_9ff5828cb5e02c 3
+  s_ad66f6b764812e::t_148c0d0844a564 58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "c74eaeb2dea5dd0c94fa88520bf22ef948d4e46b",
+  "prompts": {},
+  "sessions": {
+    "s_ad66f6b764812e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4f8ee5fd-c877-43b1-a86b-63cb8f22d439",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
