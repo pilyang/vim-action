@@ -1,0 +1,61 @@
+VimActionTests/ConfigStoreTests.swift
+  s_e95ecc585d8337::t_30ad5e7fc3e90f 190-290
+  s_e95ecc585d8337::t_33001a08b24802 19-20
+  s_e95ecc585d8337::t_51ecc8afafa325 46
+.claude/skills/architecture/references/profiles-and-config.md
+  s_e95ecc585d8337::t_ba47ff61ae1e85 76-79
+  s_e95ecc585d8337::t_05f2159797fa1c 3
+.claude/skills/decisions/SKILL.md
+  s_e95ecc585d8337::t_7fb1def8bf6d3d 65
+VimActionTests/FrontmostAppGateTests.swift
+  s_e95ecc585d8337::t_93c1b53bc0e3b1 13-15,22
+  s_e95ecc585d8337::t_a2133f682acddd 85-156
+VimAction/ProfileScaffold.swift
+  s_e95ecc585d8337::t_5edf1299d5fbf0 1-42
+VimAction/ConfigStore.swift
+  s_e95ecc585d8337::t_ada89f7d968817 105-107
+  s_e95ecc585d8337::t_feac4444095180 26-30
+  s_e95ecc585d8337::t_817531cbd6d5d3 60-61
+  s_e95ecc585d8337::t_d9051edd91c4c3 78-104,108-118
+.claude/skills/plans/SKILL.md
+  s_e95ecc585d8337::t_1cefc25c8a7281 52
+VimAction/AppState.swift
+  s_e95ecc585d8337::t_ea1416b64fe0c4 89-116
+.claude/skills/decisions/references/20260802_frontmost-gate-non-self-cache-observable.md
+  s_e95ecc585d8337::t_ed9f14a259859f 1-62
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_e95ecc585d8337::t_b858c6aae9ddf5 6
+  s_e95ecc585d8337::t_532c40660dbec9 25
+  s_e95ecc585d8337::t_e49d46b93931d2 28
+  s_e95ecc585d8337::t_23e7477328e4f7 36-38
+VimAction/FrontmostAppGate.swift
+  s_e95ecc585d8337::t_b8268c5fc61915 61-68
+  s_e95ecc585d8337::t_0a3f0044a711f8 135-136,139-140
+  s_e95ecc585d8337::t_819636d1b78083 20-24,26
+  s_e95ecc585d8337::t_bdbf48d5d1e181 84-91,99-100,104
+  s_e95ecc585d8337::t_6c1ee219395345 121-124
+  s_e95ecc585d8337::t_962af515405fe0 36-47
+  s_e95ecc585d8337::t_57b44d603780fc 8
+VimAction/VimActionApp.swift
+  s_e95ecc585d8337::t_81a8e9f10ddcc3 53-67
+  s_e95ecc585d8337::t_0f6f59c28d0347 40-41
+VimAction/Clipboard.swift
+  s_e95ecc585d8337::t_8894a50e185f72 8-9
+  s_e95ecc585d8337::t_23e7e2d7a482c8 34-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "0b5805d7627096681331dc82a764af71f193c093",
+  "prompts": {},
+  "sessions": {
+    "s_e95ecc585d8337": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "40ec1331-f7cb-4241-9233-e8b4ef4d3c13",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
