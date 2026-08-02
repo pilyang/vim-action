@@ -23,6 +23,11 @@ import VimActionConfig
 final class ConfigStore {
     private let seeder: ConfigSeeder
     private let loader: ConfigLoader
+    /// 프로파일 경로 조합의 앱측 출처. **주입된 값이어야 한다** — `ConfigPaths`를 직접
+    /// 참조하면 유닛 테스트가 실제 `~/.config/vim-action/profiles`에 파일을 만든다.
+    private let profilesDirectory: String
+    /// scaffold 생성 전 존재 확인용 — 쓰기와 같은 seam을 쓴다(판정과 쓰기가 어긋나지 않는다).
+    private let seederFileSystem: ConfigSeeder.FileSystem
     private let bundledConfig: () -> String?
     private let bundledProfiles: () -> [String: String]
 
@@ -52,6 +57,8 @@ final class ConfigStore {
             configPath: configPath, profilesDirectory: profilesDirectory,
             fileSystem: loaderFileSystem
         )
+        self.profilesDirectory = profilesDirectory
+        self.seederFileSystem = seederFileSystem
         self.bundledConfig = bundledConfig
         self.bundledProfiles = bundledProfiles
     }
@@ -66,6 +73,47 @@ final class ConfigStore {
     func resolvedProfile(for bundleID: String?) -> ResolvedProfile {
         guard let bundleID else { return .empty }
         return resolvedProfiles[bundleID] ?? .empty
+    }
+
+    /// 그 앱의 프로파일 파일 경로. `ConfigSeeder`가 내부에서 만드는 경로와 같은 형식이어야
+    /// 하며, 그 합의는 `ConfigStoreTests`가 지킨다.
+    func profilePath(for bundleID: String) -> String {
+        "\(profilesDirectory)/\(bundleID).yaml"
+    }
+
+    /// 메뉴 항목 제목이 'Open'인지 'Create'인지 — 쓰기와 같은 seam으로 묻는다.
+    func hasProfile(for bundleID: String) -> Bool {
+        seederFileSystem.fileExists(profilePath(for: bundleID))
+    }
+
+    /// 메뉴 '프로파일 열기' 진입점. 파일이 있으면 그 경로를, 없으면 주석뿐인 scaffold를
+    /// 만든 뒤 경로를 준다.
+    ///
+    /// 쓰기는 시딩과 **같은 경로**(`ConfigSeeder.seed`)를 탄다 — 시더가 `fileExists`면 내용을
+    /// 보지 않고 `.skippedExisting`을 돌려주므로 "기존 파일 절대 무수정" 불변식이 여기서
+    /// 다시 구현되지 않는다. 생성 후 리로드는 하지 않는다: 전부 주석이라 적용될 것이 없고,
+    /// "편집 후 Reload Config"가 기존 계약이다.
+    ///
+    /// - Returns: 열어야 할 경로. 쓰기 실패나 파일명으로 쓸 수 없는 bundle id면 nil.
+    func prepareProfileFile(for bundleID: String) -> String? {
+        // bundle id는 다른 프로세스에서 흘러온 문자열이 파일 경로가 되는 유일한 지점이다.
+        guard !bundleID.isEmpty, !bundleID.contains("/"), !bundleID.hasPrefix(".") else {
+            Logger.config.error("프로파일 파일명으로 쓸 수 없는 bundle id — \(bundleID, privacy: .public)")
+            return nil
+        }
+        let path = profilePath(for: bundleID)
+        let outcomes = seeder.seed(
+            config: nil, profiles: [bundleID: profileScaffoldYAML(bundleID: bundleID)])
+        switch outcomes[path] {
+        case .written:
+            Logger.config.notice("프로파일 scaffold 생성 — \(path, privacy: .public)")
+        case .failed, nil:
+            Logger.config.error("프로파일 scaffold 생성 실패 — \(path, privacy: .public)")
+            return nil
+        case .skippedExisting:
+            break  // 정상 — 이미 있는 파일을 그대로 연다
+        }
+        return path
     }
 
     /// bootstrap 1회: 번들 기본 파일 시딩(없는 파일만 — 기존 파일은 내용을 보지 않고

@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-02 (M4 세션 B — 앱 배선 구현: `ConfigStore`·`ResolvedProfile`·`DispatchContext` 신설, 게이트 disable 집합이 config 기반 인스턴스 상태로, 재정의 전파가 명령 접두까지 확정. 도그푸딩 후속으로 **`actions:`가 자기 키 시퀀스 재정의를 받는다**(스키마 v1.1))
+- **Last updated**: 2026-08-02 (M4 세션 B / PR-B2 — 메뉴바 최전면 앱 편의 기능 2종: `FrontmostAppGate`의 비자신 캐시 + `@Observable`, `ConfigStore.prepareProfileFile`, 주석뿐인 `profileScaffoldYAML`)
 
 ## 현재 구조
 
@@ -73,7 +73,10 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 - **앱별 on/off** → `FrontmostAppGate`의 인스턴스 `disabledBundleIDs`(config `apps` 맵의 false 항목, `AppState`가 로드·리로드 때 푸시). 순수 판정은 `isDisabled(_:disabledBundleIDs:)`. **bootstrap에서 설정 로드가 탭 설치보다 먼저다** — 빈 게이트로 탭이 서는 창을 닫는다.
 - `scroll` 재정의 → `CommandKeyMapper.lineCount(for:profile:)` — 기본 15/30은 코드 상수 유지.
 - 설정 UI는 **읽기 전용**: Settings `Configuration` 섹션(상태·에러 목록·경고 수·off 앱·프로파일 목록 + config.yaml/폴더 열기 버튼) — UI는 YAML을 쓰지 않는다 (Yams가 주석을 보존하지 못해, UI 쓰기는 사용자의 주석·서식을 파괴한다).
-- 메뉴바 메뉴: **설정 상태 라인 상시**(`configStatusText`) + **'Reload Config'**(실패 시에만 NSAlert — `NSApp.activate` 선행, 시작 시 에러는 팝업 없음) + (세션 B 후반) **최전면 앱 편의 기능 2종** — bundle id 표시·클립보드 복사, 프로파일 열기(없으면 scaffold 생성 후 열기 — 없는 파일 생성만, 기존 파일 절대 무수정이라 UI 읽기 전용 결정과 충돌 없음). 메뉴 클릭이 자기 자신을 활성화해 최전면 캐시를 오염시킬 수 있어 **비자신(non-self) 앱 캐시**가 전제다 (실기기 확인 항목).
+- 메뉴바 메뉴: **설정 상태 라인 상시**(`configStatusText`) + **'Reload Config'**(실패 시에만 NSAlert — `NSApp.activate` 선행, 시작 시 에러는 팝업 없음) + **최전면 앱 편의 기능 2종** — `Frontmost: <bundle-id>` 표시 줄 + 'Copy Bundle ID'(`Clipboard.write`) + 'Open/Create Profile'(파일 유무에 따라 제목이 바뀐다).
+  - **대상은 `FrontmostAppGate.lastNonSelfBundleID`(비자신 캐시)다** — 메뉴 조작·`NSApp.activate`·Preferences 창이 VimAction 자신을 최전면으로 만들어도 대상 앱이 유지된다. 순수 파생은 `nonSelfBundleID(_:selfBundleID:previous:)`이고 nil·자기 자신은 직전 값을 유지한다("대상 없음"이 아니라 "지금은 알 수 없다"). **게이트 판정은 이 캐시를 보지 않는다** — 판정은 계속 `frontmostBundleID`다.
+  - 메뉴가 캐시 변화를 그리려면 관찰이 필요해 **`FrontmostAppGate`가 `@Observable`이다**. 핫 패스가 무거워지지는 않는다(읽기는 추적 스코프 없을 때 즉시 반환하는 `access`뿐, 발화는 두 `update`의 동등성 가드로 실제 전이에만). `deinit`이 만지는 `observerToken`에는 `@ObservationIgnored`가 필수다.
+  - scaffold 쓰기는 `ConfigStore.prepareProfileFile(for:)` 하나이고 **시딩과 같은 `ConfigSeeder.seed` 경로를 탄다** — 기존 파일은 시더가 `.skippedExisting`으로 지키므로 "절대 무수정"이 재구현되지 않는다. 템플릿(`profileScaffoldYAML`)은 **전부 주석이라 생성만으로는 동작이 바뀌지 않고**, 생성 후 자동 리로드도 하지 않는다. bundle id가 파일 경로가 되는 유일한 지점이라 `/`·선행 `.`·빈 문자열은 거부한다.
 
 ## UserDefaults↔YAML 경계
 

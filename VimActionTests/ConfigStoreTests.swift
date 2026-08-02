@@ -16,6 +16,8 @@ private final class InMemoryFileSystem: @unchecked Sendable {
     var files: [String: String]
     var directories: Set<String> = []
     var unwritablePaths: Set<String> = []
+    /// 쓰기 seam이 **호출됐는지** — 내용 비교만으로는 "같은 바이트로 덮어쓰기"를 못 잡는다.
+    var writtenPaths: [String] = []
 
     init(files: [String: String] = [:]) {
         self.files = files
@@ -41,6 +43,7 @@ private final class InMemoryFileSystem: @unchecked Sendable {
                 return true
             },
             writeFile: { [self] path, contents in
+                writtenPaths.append(path)
                 guard !unwritablePaths.contains(path) else { return false }
                 files[path] = contents
                 return true
@@ -181,6 +184,107 @@ struct ConfigStoreTests {
 
         #expect(!store.warnings.isEmpty)
         #expect(store.errors.isEmpty, "항목 경고는 파일 통째 에러가 아니다")
+    }
+}
+
+/// 메뉴 'Create/Open Profile'의 scaffold 경로. 이 기능은 UI 읽기 전용 결정의 유일한
+/// 예외(없는 파일 신규 생성)라, "기존 파일을 건드리지 않는다"가 계약의 전부다.
+@MainActor
+struct ProfileScaffoldStoreTests {
+    private let slack = "com.tinyspeck.slackmacgap"
+
+    @Test("프로파일이 없으면 scaffold를 만들고 그 경로를 준다")
+    func createsScaffoldWhenMissing() {
+        let fileSystem = InMemoryFileSystem()
+        let store = makeStore(fileSystem)
+
+        let path = store.prepareProfileFile(for: slack)
+
+        // 시더가 내부에서 만드는 경로와 스토어의 경로 조합이 어긋나면 안 된다.
+        #expect(path == store.profilePath(for: slack))
+        #expect(path == "\(profilesDirectory)/\(slack).yaml")
+        #expect(fileSystem.files[path ?? ""]?.hasPrefix("#") == true)
+    }
+
+    /// scaffold가 사용자 프로파일을 날리면 "UI는 YAML을 쓰지 않는다" 결정 자체가 무너진다.
+    @Test("기존 프로파일이 있으면 writeFile이 아예 호출되지 않는다")
+    func neverWritesOverExistingProfile() {
+        let path = "\(profilesDirectory)/\(slack).yaml"
+        let fileSystem = InMemoryFileSystem(files: [path: "name: My Slack\n"])
+        let store = makeStore(fileSystem)
+
+        #expect(store.prepareProfileFile(for: slack) == path)
+
+        #expect(fileSystem.writtenPaths.isEmpty, "쓰기 seam을 타지 않는 것이 계약이다")
+        #expect(fileSystem.files[path] == "name: My Slack\n")
+    }
+
+    @Test("쓰기 실패는 nil — 없는 파일을 열려 하지 않는다")
+    func failedWriteReturnsNil() {
+        let fileSystem = InMemoryFileSystem()
+        fileSystem.unwritablePaths = ["\(profilesDirectory)/\(slack).yaml"]
+        let store = makeStore(fileSystem)
+
+        #expect(store.prepareProfileFile(for: slack) == nil)
+    }
+
+    /// bundle id는 다른 프로세스에서 흘러온 문자열이 파일 경로가 되는 유일한 지점이다.
+    @Test("파일명으로 쓸 수 없는 bundle id는 쓰지 않고 nil")
+    func rejectsUnusableBundleIDs() {
+        let fileSystem = InMemoryFileSystem()
+        let store = makeStore(fileSystem)
+
+        #expect(store.prepareProfileFile(for: "../../etc/passwd") == nil)
+        #expect(store.prepareProfileFile(for: ".hidden") == nil)
+        #expect(store.prepareProfileFile(for: "") == nil)
+        #expect(fileSystem.writtenPaths.isEmpty)
+    }
+
+    /// 템플릿이 실제 파서를 통과하는지 — 로더를 거치므로 파싱 경로가 프로덕션과 같다.
+    @Test("생성한 scaffold는 리로드에서 에러 없이 빈 프로파일로 읽힌다")
+    func scaffoldReloadsCleanly() {
+        let fileSystem = InMemoryFileSystem()
+        let store = makeStore(fileSystem)
+        store.seedAndLoad()
+
+        _ = store.prepareProfileFile(for: slack)
+        #expect(store.resolvedProfile(for: slack) == .empty, "생성만으로는 적용되지 않는다")
+
+        #expect(store.reload())
+        #expect(store.errors.isEmpty)
+        #expect(store.warnings.isEmpty, "전부 주석이라 무시할 항목도 없다")
+        #expect(store.appliedSnapshot.profiles[slack] != nil)
+        #expect(store.resolvedProfile(for: slack) == .empty, "빈 프로파일이라 동작은 그대로다")
+    }
+
+    @Test("hasProfile은 파일 유무를 그대로 돌려준다 — 메뉴 제목의 근거")
+    func hasProfileReflectsDisk() {
+        let fileSystem = InMemoryFileSystem()
+        let store = makeStore(fileSystem)
+        #expect(!store.hasProfile(for: slack))
+
+        _ = store.prepareProfileFile(for: slack)
+
+        #expect(store.hasProfile(for: slack))
+    }
+}
+
+/// scaffold 템플릿 자체의 계약.
+struct ProfileScaffoldTemplateTests {
+    /// 활성 키가 하나라도 들어가면 "프로파일 열기" 클릭만으로 그 앱 동작이 바뀐다.
+    @Test("비어 있지 않은 모든 줄이 주석이다 — 만들어도 동작이 바뀌지 않는다")
+    func everyLineIsCommented() {
+        let lines = profileScaffoldYAML(bundleID: "com.apple.TextEdit")
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+
+        #expect(!lines.isEmpty)
+        #expect(lines.allSatisfy { $0.hasPrefix("#") })
+    }
+
+    @Test("어느 앱의 파일인지 본문에 적힌다")
+    func namesTheTargetApp() {
+        #expect(profileScaffoldYAML(bundleID: "com.apple.TextEdit").contains("com.apple.TextEdit"))
     }
 }
 

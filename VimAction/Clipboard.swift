@@ -5,7 +5,8 @@
 
 import AppKit
 
-/// 시스템 클립보드 읽기 — v1은 레지스터가 없고 이것이 무명 레지스터다.
+/// 시스템 클립보드 접근 — v1은 레지스터가 없고 이것이 무명 레지스터다.
+/// 읽기는 붙여넣기 경로가, 쓰기는 메뉴의 'Copy Bundle ID' 하나가 쓴다.
 ///
 /// `nonisolated`인 이유는 호출 위치다: `KeyboardAdapter`의 기본 인수로 들어가고 게시 직렬 큐
 /// 위에서 실행된다. 프로젝트 기본 격리가 `MainActor`라 그냥 두면 기본 인수 식(nonisolated
@@ -29,6 +30,16 @@ nonisolated enum Clipboard {
     /// 알려주므로 "그 사이에 우리 편집 말고 다른 쓰기가 있었나"를 판정하는 데 쓴다.
     static func changeCount() -> Int {
         NSPasteboard.general.changeCount
+    }
+
+    /// 클립보드 쓰기 — 메뉴의 'Copy Bundle ID'가 유일한 호출자다(메인 스레드).
+    ///
+    /// `changeCount`가 오르므로 그 순간 `PasteWiseResolver`의 줄 단위 기억은 델타-1 규칙을
+    /// 벗어나 버려지고 실제 클립보드 내용을 따른다 — 클립보드가 더는 우리 편집 결과가
+    /// 아니니 옳은 동작이고, 그 규칙 자체는 `KeyboardAdapterTests`가 이미 고정하고 있다.
+    static func write(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 }
 

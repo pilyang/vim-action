@@ -37,9 +37,8 @@ struct VimActionApp: App {
                 // 실패만 알림으로 — 클릭 직후 메뉴가 닫히므로 "클릭한 자리에서 가시화"는
                 // 알림이 맡는다 (20260802_config-reload-manual-menubar-trigger).
                 // LSUIElement라 activate 없이는 알림이 다른 창 뒤로 깔린다. activate가
-                // 최전면 캐시를 자기 자신으로 잠시 오염시키지만 다음 앱 전환에 자가 치유되고
-                // 게이트에는 무해하다(자기 bundle id는 disable 대상이 아님) — non-self 캐시는
-                // PR-B2의 실기기 확인 항목.
+                // 최전면 캐시를 자기 자신으로 덮지만, 아래 편의 기능이 겨누는 것은
+                // `FrontmostAppGate`의 비자신 캐시라 대상 앱은 그대로 유지된다.
                 NSApp.activate(ignoringOtherApps: true)
                 let alert = NSAlert()
                 alert.alertStyle = .warning
@@ -49,6 +48,21 @@ struct VimActionApp: App {
                     .joined(separator: "\n\n")
                     + "\n\nThe previous valid configuration is still in effect."
                 alert.runModal()
+            }
+            Divider()
+            // 최전면 앱 편의 기능 — 설정의 모든 진입점이 bundle id인데 그것을 조회하기가
+            // 어렵다는 마찰을 없앤다 (20260802_menubar-frontmost-app-conveniences).
+            // 대상은 비자신 캐시라 메뉴를 여는 행위가 자기 자신을 최전면으로 만들어도 유지된다.
+            if let bundleID = appState.frontmostTargetBundleID {
+                Text("Frontmost: \(bundleID)")
+                Button("Copy Bundle ID") { Clipboard.write(bundleID) }
+                // 제목이 사실과 일치하도록 파일 존재를 매번 묻는다 — 메뉴 본문 평가마다
+                // fileExists 1회이고, 그 평가는 앱 전환 등 관찰 무효화 때만 돈다.
+                Button(appState.hasProfile(for: bundleID) ? "Open Profile" : "Create Profile") {
+                    appState.openProfile(for: bundleID)
+                }
+            } else {
+                Text("Frontmost: unknown")
             }
             Divider()
             SettingsLink {

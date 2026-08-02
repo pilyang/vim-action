@@ -62,6 +62,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-02 | Package.resolved 커밋 | Yams가 첫 외부 의존 — CI·로컬 버전 고정(파싱 테스트가 Yams 해석에 의존) | [20260802_package-resolved-committed.md](references/20260802_package-resolved-committed.md) |
 | 08-02 | 설정 리로드는 메뉴바 수동 트리거 | 파일 감시 폐기 — 'Reload Config' 클릭, 실패는 클릭 자리에서 가시화, 자동 감시는 재개 조건부 | [20260802_config-reload-manual-menubar-trigger.md](references/20260802_config-reload-manual-menubar-trigger.md) |
 | 08-02 | 메뉴바 최전면 앱 편의 기능 2종 | bundle id 복사 + 프로파일 scaffold 생성·열기 — non-self 앱 캐시 전제, 기존 파일 무수정 | [20260802_menubar-frontmost-app-conveniences.md](references/20260802_menubar-frontmost-app-conveniences.md) |
+| 08-02 | 비자신 캐시는 게이트 소유 + `@Observable` | 캐시·순수 파생을 `FrontmostAppGate`에, 판정은 계속 최전면 — 자기 활성화는 Preferences 경로에서 실측 | [20260802_frontmost-gate-non-self-cache-observable.md](references/20260802_frontmost-gate-non-self-cache-observable.md) |
 | 08-02 | ConfigError 가시화·적용 의미론 | 메뉴 상태 라인 상시 + 리로드 실패만 NSAlert, 최초 로드는 부분 적용·이후 실패는 직전 유지 | [20260802_config-error-visibility-and-apply-semantics.md](references/20260802_config-error-visibility-and-apply-semantics.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
