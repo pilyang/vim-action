@@ -1,0 +1,44 @@
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_33454c80df0a73::t_9d0ea306bc181c 6
+  s_33454c80df0a73::t_71107ffd5c85c4 21
+  s_d0d67460c7e4da::t_4d8ca10a9b56df 27
+  s_33454c80df0a73::t_e3d48aa64c2649 40-46
+  s_33454c80df0a73::t_4327e819b499b0 28-31
+.claude/skills/decisions/SKILL.md
+  s_33454c80df0a73::t_2c30569d31120c 203-204
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_33454c80df0a73::t_68382919076e1e 90-93
+  s_33454c80df0a73::t_0f02e20d87b0d1 3
+  s_33454c80df0a73::t_4f07115af44630 59
+  s_33454c80df0a73::t_7f60cecab44b17 61-63
+.claude/skills/plans/SKILL.md
+  s_33454c80df0a73::t_3045bc6cc421b2 52
+.claude/skills/decisions/references/20260802_empty-selection-edit-suppression.md
+  s_33454c80df0a73::t_115081335be722 1-76
+.claude/skills/decisions/references/20260802_read-consumption-via-mapper-predicates.md
+  s_33454c80df0a73::t_e1eae63608582a 1-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "e2208f8044e4b07b4ffb3e94f641d5d9d616a384",
+  "prompts": {},
+  "sessions": {
+    "s_33454c80df0a73": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23677620-0268-4e57-9312-977c56567457",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_d0d67460c7e4da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4e06757c-051e-47e4-a0cf-a7c199fe10b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
