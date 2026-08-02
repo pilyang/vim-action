@@ -48,19 +48,14 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 }
-                // 목록은 사용자가 늘리는 만큼 길어진다 — 높이를 묶어 두지 않으면 이 행 하나가
-                // 섹션 전체를 밀어낸다. 기본 6앱은 그대로 다 보이고, 그 이상부터 스크롤된다.
                 LabeledContent("Disabled Apps") {
-                    ScrollView {
-                        Text(disabledAppsText(appState.configStore.disabledBundleIDs))
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                    .frame(maxHeight: 120)
-                    .scrollBounceBehavior(.basedOnSize)
-                    .foregroundStyle(.secondary)
+                    ScrollingValueList(
+                        text: disabledAppsText(appState.configStore.disabledBundleIDs))
                 }
-                LabeledContent(
-                    "Profiles", value: profilesText(appState.configStore.appliedSnapshot.profiles))
+                LabeledContent("Profiles") {
+                    ScrollingValueList(
+                        text: profilesText(appState.configStore.appliedSnapshot.profiles))
+                }
                 Button("Open config.yaml") {
                     NSWorkspace.shared.open(URL(fileURLWithPath: ConfigPaths.configPath))
                 }
@@ -125,6 +120,38 @@ func eventTapStatusText(status: EventTapController.Status, interceptionEnabled: 
     case .running, .secureInput:
         interceptionEnabled ? status.displayName : "Disabled"
     default: status.displayName
+    }
+}
+
+/// 항목 수만큼 세로로 자라는 값 행(disable 앱 목록·프로파일 목록)을 앞 몇 줄 높이로
+/// 묶고 나머지는 스크롤시킨다. 묶지 않으면 행 하나가 섹션 전체를 밀어낸다.
+///
+/// 높이를 **숨긴 앞줄 템플릿으로** 잡는 이유는 둘 다 실측 결과다: 그룹 Form 행 안에서
+/// `ScrollView`에 건 `.frame(maxHeight:)`는 클램프되지 않아 목록이 그대로 다 나오고,
+/// pt 상수로 박자니 SwiftUI `Text`의 줄 높이(16pt)가 같은 폰트의 NSFont 메트릭(19pt)과
+/// 달라 줄 수가 어긋난다. 같은 폰트로 렌더한 앞 N줄이 SwiftUI 기준의 정확한 자다.
+private struct ScrollingValueList: View {
+    let text: String
+
+    private static let maxVisibleRows = 5
+
+    var body: some View {
+        Text(template)
+            .hidden()
+            .overlay {
+                ScrollView {
+                    Text(text).frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+            }
+            .foregroundStyle(.secondary)
+    }
+
+    /// 실제 앞 N줄 — 줄 수가 그보다 적으면 그만큼만 차지한다(빈 자리를 남기지 않는다).
+    private var template: String {
+        text.split(separator: "\n", omittingEmptySubsequences: false)
+            .prefix(Self.maxVisibleRows)
+            .joined(separator: "\n")
     }
 }
 
