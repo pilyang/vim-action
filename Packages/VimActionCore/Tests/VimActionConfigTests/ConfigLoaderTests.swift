@@ -29,7 +29,7 @@ func loadsConfigAndProfiles() {
 
     #expect(result.snapshot.global.apps == ["com.a": false])
     #expect(result.snapshot.profiles.keys.sorted() == ["com.tinyspeck.slackmacgap", "notion.id"])
-    #expect(result.snapshot.profiles["com.tinyspeck.slackmacgap"]?.disabledActions == [.openLine])
+    #expect(result.snapshot.profiles["com.tinyspeck.slackmacgap"]?.actions == [.openLine: .disabled])
     #expect(result.snapshot.profiles["notion.id"]?.motionOverride(for: .documentStart) == .disabled)
     #expect(result.warnings.isEmpty)
     #expect(result.errors.isEmpty)

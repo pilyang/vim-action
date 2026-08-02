@@ -43,11 +43,13 @@ scroll:
 motions:                          # 모션 단위: 시퀀스 재정의 또는 disabled
   document_end: [cmd-down]
   document_start: disabled        # 이 모션을 쓰는 어휘 전부(gg·dgg·vgg)가 정직한 스킵
-actions:                          # 명령 계열 disable — v1 값은 disabled만 (시퀀스 재정의 없음)
-  open_line: disabled             #   o/O 억제 — Return=전송 앱 (Slack류)
+actions:                          # 명령 계열: 그 액션 자신의 키 교체 또는 disabled
+  open_line: [shift-return]       #   o/O의 줄바꿈 키만 교체 — Return=전송 앱 (Slack류)
 ```
 
 **disable은 별도 목록이 아니라 매핑 값 `disabled`다**: "그 앱에서 이 항목은 아무 동작도 하지 않는다"를 재정의와 같은 자리·같은 강건성 규칙으로 표현한다. 실행 의미는 매퍼 `nil`(미지원 스킵)과 동일 — 무로그 삼킴은 생기지 않는다. **빈 배열 `[]`은 disable이 아니라 warn+무시**(오타 가드, "지원 ⟹ 빈 시퀀스 아님" 매퍼 불변식 보호). `actions` v1 어휘는 `VimAction` 케이스 파생 5종 — `open_line`·`paste`·`undo`·`redo`·`scroll`.
+
+**액션 시퀀스는 그 액션 자신의 키만 교체한다** — 위치를 잡는 모션 접두는 계속 `motions`가 소유한다. `open_line: [shift-return]`이면 `o = 줄 끝 + Shift-Return`, `O = 줄 시작 + Shift-Return + 위`가 되어 둘의 구성이 보존된다(전체 시퀀스 교체였다면 `open_line` 하나가 o·O를 함께 덮으므로 `O`가 `o`로 붕괴한다). 대상은 자기 키를 가진 넷(`open_line`=Return, `paste`=Cmd-V, `undo`=Cmd-Z, `redo`=Shift-Cmd-Z)이고, **`scroll`은 `disabled`만 받는다** — 게시 스트로크가 곧 `line_down`/`line_up` 모션이라 재정의는 모션 쪽 몫이며 시퀀스 값은 warn+무시다. 재정의된 `undo`·`redo`·`paste`도 비-QWERTY에서는 여전히 보류된다(레이아웃 가드가 프로파일을 보지 않는 과보수 — 수용).
 
 **모션 재정의·disable은 모션 단위이며 자동 전파된다**: 편집(Shift+모션 선택)·Visual(`selectionStrokes`)이 모션 매핑을 재사용하는 구조라, 재정의 조회를 `MotionKeyMapper` 조회의 단일 지점에 얹으면 `G`를 고칠 때(또는 끌 때) `dG`·`vG`가 함께 따라온다. 액션 단위 시퀀스 재정의는 없다. **append 전용 모션(`charRightForAppend`/`lineEndForAppend` — a/A)은 어휘에 노출하지 않는다** — `char_right`/`line_end` 재정의·disable을 자동으로 상속한다(사용자 관점에서 `$`와 `A`의 줄 끝은 같은 개념).
 

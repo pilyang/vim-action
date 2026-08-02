@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-07-25
-- **갱신일**: 2026-08-02 (세션 B **PR 2개 분할** 확정(사용자) — PR-B1: 배선 1~7 + 도그푸딩 / PR-B2: 메뉴바 편의 기능 2종 + 최종 도그푸딩. **PR-B1 구현 완료·PR 생성** — 남은 것은 B1 실기기 도그푸딩·병합 후 PR-B2. 세션 중 결정 2건 추가: [재정의 전파 조회 전면](../../decisions/references/20260802_profile-override-propagation-full-lookup.md), [에러 가시화·적용 의미론](../../decisions/references/20260802_config-error-visibility-and-apply-semantics.md))
+- **갱신일**: 2026-08-02 (세션 B **PR 2개 분할** 확정(사용자) — PR-B1: 배선 1~7 + 도그푸딩 / PR-B2: 메뉴바 편의 기능 2종 + 최종 도그푸딩. **PR-B1 구현 + 실기기 도그푸딩 완료** — 게이트·수동 리로드(성공/실패 경로)·프로파일 실동작(scroll·motions 재정의와 전파)·킬스위치 전 항목 통과. 도그푸딩 후속 3건도 같은 PR에 반영: Settings 목록 행 높이 제한, 번들 설정 파일 영어화, **actions 자기 키 재정의**(스키마 v1.1 — Slack `open_line`이 disable에서 `[shift-return]`으로). 남은 것은 PR #32 병합 후 PR-B2. 세션 중 결정 3건 추가: [재정의 전파 조회 전면](../../decisions/references/20260802_profile-override-propagation-full-lookup.md), [에러 가시화·적용 의미론](../../decisions/references/20260802_config-error-visibility-and-apply-semantics.md), [액션 자신의 키 재정의](../../decisions/references/20260802_action-own-key-override.md))
 
 ## 목표
 

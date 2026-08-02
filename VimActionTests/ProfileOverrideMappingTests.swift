@@ -20,21 +20,24 @@ import VimEngine
 /// `ResolvedProfile`은 `AppProfile` 변환으로만 만들어진다 — 테스트도 같은 경로를 써서
 /// 변환까지 함께 지난다.
 private func makeProfile(
-    motions: [Motion: MotionOverride] = [:],
-    disabledActions: Set<ConfigAction> = [],
+    motions: [Motion: ConfigOverride] = [:],
+    actions: [ConfigAction: ConfigOverride] = [:],
     half: Int? = nil, full: Int? = nil
 ) -> ResolvedProfile {
     ResolvedProfile(
         AppProfile(
             halfPageLines: half, fullPageLines: full, motions: motions,
-            disabledActions: disabledActions))
+            actions: actions))
 }
 
 /// 내장 매핑(Cmd-↓)과 확실히 구분되는 재정의 — End 단일 키.
-private let endOverride: [Motion: MotionOverride] = [
+private let endOverride: [Motion: ConfigOverride] = [
     .documentEnd: .strokes([ConfigKeyStroke(.end)])
 ]
 private let endKey = KeyStroke(kVK_End)
+/// Slack의 줄바꿈 키 — 내장 `Return`과 확실히 구분되는 액션 키 재정의.
+private let shiftReturnConfig = ConfigKeyStroke(.return, [.shift])
+private let shiftReturn = KeyStroke(kVK_Return, [.maskShift])
 private let cut = KeyStroke(kVK_ANSI_X, [.maskCommand])
 
 struct ProfileOverrideMappingTests {
@@ -153,6 +156,58 @@ struct ProfileOverrideMappingTests {
                 profile: makeProfile(motions: [.lineEnd: .disabled])) == nil)
     }
 
+    // MARK: 액션 자신의 키 재정의 — 모션 접두는 그대로
+
+    @Test("openLine의 줄바꿈 키만 갈아끼운다 — o/O의 접두는 모션이 그대로 소유")
+    func openLineNewLineKeyOverride() {
+        let profile = makeProfile(actions: [.openLine: .strokes([shiftReturnConfig])])
+
+        #expect(
+            CommandKeyMapper.keyStrokes(
+                for: .openLine(above: false), family: .textArea, profile: profile)
+                == [KeyStroke(kVK_RightArrow, [.maskCommand]), shiftReturn])
+        // `O`가 `o`로 붕괴하지 않는 것이 자기 키만 교체하는 이유다.
+        #expect(
+            CommandKeyMapper.keyStrokes(
+                for: .openLine(above: true), family: .textArea, profile: profile)
+                == [
+                    KeyStroke(kVK_LeftArrow, [.maskCommand]), shiftReturn,
+                    KeyStroke(kVK_UpArrow),
+                ])
+    }
+
+    @Test("액션 키 재정의는 모션 재정의와 함께 걸린다")
+    func actionKeyAndMotionOverrideCompose() {
+        let profile = makeProfile(
+            motions: [.lineEnd: .strokes([ConfigKeyStroke(.end)])],
+            actions: [.openLine: .strokes([shiftReturnConfig])])
+
+        #expect(
+            CommandKeyMapper.keyStrokes(
+                for: .openLine(above: false), family: .textArea, profile: profile)
+                == [endKey, shiftReturn])
+    }
+
+    @Test("undo·redo·paste도 자기 키를 재정의한다")
+    func commandKeyOverrides() {
+        let undo = makeProfile(actions: [.undo: .strokes([ConfigKeyStroke(.home)])])
+        #expect(
+            CommandKeyMapper.keyStrokes(for: .undo, family: .textArea, profile: undo)
+                == [KeyStroke(kVK_Home)])
+
+        let redo = makeProfile(actions: [.redo: .strokes([ConfigKeyStroke(.end)])])
+        #expect(
+            CommandKeyMapper.keyStrokes(for: .redo, family: .textArea, profile: redo)
+                == [endKey])
+
+        // 붙여넣기는 카운트만큼 반복되는 그룹이라 재정의도 그룹마다 실린다.
+        let paste = makeProfile(actions: [.paste: .strokes([shiftReturnConfig])])
+        #expect(
+            CommandKeyMapper.pasteStrokeGroups(
+                before: true, count: 2, wise: .charwise, family: .textArea, profile: paste)
+                == [[shiftReturn], [shiftReturn]])
+    }
+
     @Test("paste 접두 모션이 disable되면 붙여넣기 전체가 접힌다")
     func pastePrefixDisableFoldsPaste() {
         let profile = makeProfile(motions: [.charRight: .disabled])
@@ -186,7 +241,7 @@ struct ProfileDisableAdapterTests {
 
         adapter.execute(
             [.scroll(.halfPage, forward: true)],
-            profile: makeProfile(disabledActions: [.scroll]))
+            profile: makeProfile(actions: [.scroll: .disabled]))
         #expect(posted.isEmpty)
 
         adapter.execute([.scroll(.halfPage, forward: true)])

@@ -12,39 +12,43 @@ public struct AppProfile: Hashable, Sendable {
     public let halfPageLines: Int?
     public let fullPageLines: Int?
     /// 모션 단위 재정의·disable. 조회는 `motionOverride(for:)`로 한다.
-    public let motions: [Motion: MotionOverride]
-    /// 명령 계열 disable. v1 값이 `disabled`뿐이라 집합으로 충분하다.
-    public let disabledActions: Set<ConfigAction>
+    public let motions: [Motion: ConfigOverride]
+    /// 명령 계열 재정의·disable. 시퀀스는 **그 액션 자신의 키**(o/O의 Return, p의 Cmd-V 등)를
+    /// 교체하며, 위치를 잡는 모션 접두는 `motions`가 계속 소유한다.
+    public let actions: [ConfigAction: ConfigOverride]
 
     public init(
         name: String? = nil,
         halfPageLines: Int? = nil,
         fullPageLines: Int? = nil,
-        motions: [Motion: MotionOverride] = [:],
-        disabledActions: Set<ConfigAction> = []
+        motions: [Motion: ConfigOverride] = [:],
+        actions: [ConfigAction: ConfigOverride] = [:]
     ) {
         self.name = name
         self.halfPageLines = halfPageLines
         self.fullPageLines = fullPageLines
         self.motions = motions
-        self.disabledActions = disabledActions
+        self.actions = actions
     }
 
     /// 모션 재정의 조회의 **단일 지점**.
     ///
     /// append 전용 모션(a/A)은 어휘에 없고 base 모션(`char_right`/`line_end`)의 재정의·disable을
     /// 여기서 상속한다 — 사용자 관점에서 `$`와 `A`의 줄 끝은 같은 개념이다.
-    public func motionOverride(for motion: Motion) -> MotionOverride? {
+    public func motionOverride(for motion: Motion) -> ConfigOverride? {
         motions[MotionVocabulary.overrideKey(for: motion)]
     }
 }
 
-/// `motions:` 값 — 시퀀스 재정의 또는 disable.
-public enum MotionOverride: Hashable, Sendable {
+/// `motions:`·`actions:` 값 — 시퀀스 재정의 또는 disable. 두 섹션이 값 문법과 강건성
+/// 규칙을 공유하므로 타입도 하나다. 교체 대상만 다르다: 모션은 그 모션의 시퀀스,
+/// 액션은 그 액션 **자신의 키**다.
+public enum ConfigOverride: Hashable, Sendable {
     /// 키 시퀀스 통째 교체. **항상 1개 이상**이다 — 빈 배열은 파서가 걸러낸다
     /// ("지원 ⟹ 빈 시퀀스 아님" 매퍼 불변식 보호).
     case strokes([ConfigKeyStroke])
-    /// 이 모션을 쓰는 어휘 전부(`G`·`dG`·`vG`)가 정직한 스킵이 된다 — 매퍼 `nil` 경로와 같다.
+    /// 이 항목을 쓰는 어휘 전부(모션이면 `G`·`dG`·`vG`)가 정직한 스킵이 된다 —
+    /// 매퍼 `nil` 경로와 같다.
     case disabled
 }
 
@@ -55,4 +59,9 @@ public enum ConfigAction: String, Hashable, Sendable, CaseIterable {
     case undo
     case redo
     case scroll
+
+    /// 시퀀스 재정의가 의미를 갖는가 — 그 액션이 자기 키를 갖는가와 같다.
+    /// `scroll`만 아니다: 게시하는 스트로크가 곧 `line_down`/`line_up` 모션이라 재정의는
+    /// `motions` 몫이고, "줄 수만큼 반복"이라는 카운트 단위와도 충돌한다.
+    var hasOwnKey: Bool { self != .scroll }
 }

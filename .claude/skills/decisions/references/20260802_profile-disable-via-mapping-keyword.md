@@ -1,5 +1,7 @@
 # 프로파일 disable은 매핑 값 `disabled`로 통일 — disabled_actions 폐기
 
+> Superseded (부분) by [20260802_action-own-key-override.md](20260802_action-own-key-override.md) — `actions:` v1 값이 `disabled`뿐이라는 부분이 뒤집힘(자기 키 시퀀스 재정의 허용, `scroll`만 disabled 전용) / disable을 매핑 값으로 통일한 것·`disabled_actions` 폐기·빈 배열 warn+무시는 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-02

@@ -1,6 +1,8 @@
-# Slack — Return **sends the message** instead of inserting a line break.
-# If o/O synthesized Return, a half-written message would be sent, so open_line is off.
-# (Pressing o still enters Insert mode but no line is added — press Esc to go back.)
+# Slack — Return **sends the message** instead of inserting a line break, but
+# Shift-Return does insert one. So o/O keep working here; they just use a
+# different newline key. Without this override they would send a half-written
+# message. (Only the newline key is replaced — the caret still moves with the
+# usual motions, so o still means "end of line, then new line".)
 name: Slack
 actions:
-  open_line: disabled
+  open_line: [shift-return]

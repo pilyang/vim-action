@@ -14,12 +14,19 @@ import VimEngine
 /// `Sendable` 값인 것이 계약이다: 키 입력 시점에 메인에서 스냅샷으로 읽혀
 /// 게시 직렬 큐를 건넌다 (`DispatchContext`).
 nonisolated struct ResolvedProfile: Equatable, Sendable {
-    /// `MotionOverride`의 앱측 대응 — 시퀀스는 이미 `KeyStroke`다.
+    /// `ConfigOverride`의 앱측 대응 — 시퀀스는 이미 `KeyStroke`다.
     enum Override: Equatable, Sendable {
         /// 키 시퀀스 통째 교체 — 파서 불변식("지원 ⟹ 빈 시퀀스 아님")으로 항상 1개 이상.
         case strokes([KeyStroke])
-        /// 이 모션을 쓰는 어휘 전부가 정직한 스킵.
+        /// 이 항목을 쓰는 어휘 전부가 정직한 스킵.
         case disabled
+
+        init(_ override: ConfigOverride) {
+            switch override {
+            case .strokes(let strokes): self = .strokes(strokes.map(KeyStroke.init))
+            case .disabled: self = .disabled
+            }
+        }
     }
 
     let name: String?
@@ -27,7 +34,7 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
     let halfPageLines: Int?
     let fullPageLines: Int?
     let motionOverrides: [Motion: Override]
-    let disabledActions: Set<ConfigAction>
+    let actionOverrides: [ConfigAction: Override]
 
     /// 프로파일 없음 — 모든 매퍼가 내장 테이블 그대로 동작한다.
     static let empty = ResolvedProfile()
@@ -37,7 +44,7 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
         halfPageLines = nil
         fullPageLines = nil
         motionOverrides = [:]
-        disabledActions = []
+        actionOverrides = [:]
     }
 
     init(_ profile: AppProfile) {
@@ -48,17 +55,27 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
         // 내부 어휘 테이블에 접근할 수 없으므로 전 케이스를 이 공개 API로 베이킹한다.
         var overrides: [Motion: Override] = [:]
         for motion in Motion.allCases {
-            switch profile.motionOverride(for: motion) {
-            case .strokes(let strokes):
-                overrides[motion] = .strokes(strokes.map(KeyStroke.init))
-            case .disabled:
-                overrides[motion] = .disabled
-            case nil:
-                break
+            if let override = profile.motionOverride(for: motion) {
+                overrides[motion] = Override(override)
             }
         }
         motionOverrides = overrides
-        disabledActions = profile.disabledActions
+        actionOverrides = profile.actions.mapValues(Override.init)
+    }
+
+    /// 액션 **자신의 키** 재정의 — `nil`이면 매퍼가 내장 상수를 쓴다. `.disabled`도 여기서는
+    /// `nil`로 접힌다: 어댑터가 매핑 조회보다 앞에서 걸러내므로 매퍼까지 오지 않는다.
+    ///
+    /// 이름 붙인 프로퍼티인 것이 계약이다 — 매퍼는 설정 어휘(`ConfigAction`)를 모르고,
+    /// `ResolvedProfile`이 설정↔실행의 유일한 번역 지점으로 남는다.
+    var newLineStrokes: [KeyStroke]? { strokes(for: .openLine) }
+    var pasteStrokes: [KeyStroke]? { strokes(for: .paste) }
+    var undoStrokes: [KeyStroke]? { strokes(for: .undo) }
+    var redoStrokes: [KeyStroke]? { strokes(for: .redo) }
+
+    private func strokes(for action: ConfigAction) -> [KeyStroke]? {
+        guard case .strokes(let strokes) = actionOverrides[action] else { return nil }
+        return strokes
     }
 }
 

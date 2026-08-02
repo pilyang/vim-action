@@ -110,7 +110,7 @@ struct ConfigStoreTests {
 
         let slack = store.resolvedProfile(for: "com.tinyspeck.slackmacgap")
         #expect(slack.name == "Slack")
-        #expect(slack.disabledActions == [.openLine])
+        #expect(slack.actionOverrides == [.openLine: .disabled])
         #expect(store.resolvedProfile(for: "com.apple.TextEdit") == .empty)
         #expect(store.resolvedProfile(for: nil) == .empty)
     }

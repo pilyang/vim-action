@@ -268,7 +268,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         // (걸러내기 게이트가 부수효과보다 앞인 것과 같은 규칙), 분류도 미지원이 아니라
         // `.disabledByProfile`이어야 한다.
         if let configAction = Self.configAction(for: action),
-            profile.disabledActions.contains(configAction) {
+            profile.actionOverrides[configAction] == .disabled {
             return .disabledByProfile
         }
         // 비텍스트 걸러내기는 **여기 한 곳**이다 — 매퍼가 아니라 어댑터인 이유가 셋 있고,

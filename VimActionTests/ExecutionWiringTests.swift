@@ -121,7 +121,7 @@ struct ExecutionWiringTests {
     func replaceCarriesFrontmostAppProfile() throws {
         try withTemporaryDefaults { defaults in
             nonisolated(unsafe) var profiles: [ResolvedProfile] = []
-            let slack = ResolvedProfile(AppProfile(name: "Slack", disabledActions: [.openLine]))
+            let slack = ResolvedProfile(AppProfile(name: "Slack", actions: [.openLine: .disabled]))
             let gate = Self.gate(frontmost: "com.apple.TextEdit")
             let controller = EventTapController(
                 defaults: defaults, frontmostAppGate: gate,

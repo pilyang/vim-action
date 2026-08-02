@@ -22,8 +22,8 @@ enum AppProfileParser {
         var name: String?
         var halfPageLines: Int?
         var fullPageLines: Int?
-        var motions: [Motion: MotionOverride] = [:]
-        var disabledActions: Set<ConfigAction> = []
+        var motions: [Motion: ConfigOverride] = [:]
+        var actions: [ConfigAction: ConfigOverride] = [:]
 
         forEachEntry(of: root, at: "", collector) { key, value, path in
             switch key {
@@ -47,7 +47,7 @@ enum AppProfileParser {
                 forEachEntry(of: value, at: path, collector) { name, value, path in
                     // append 전용 이름은 여기 없다 — base 모션 재정의를 상속하므로 미지 이름이다.
                     guard let motion = MotionVocabulary.byName[name] else { return false }
-                    if let override = motionOverride(of: value, at: path, collector) {
+                    if let override = override(of: value, at: path, collector) {
                         motions[motion] = override
                     }
                     return true
@@ -55,9 +55,16 @@ enum AppProfileParser {
             case "actions":
                 forEachEntry(of: value, at: path, collector) { name, value, path in
                     guard let action = ConfigAction(rawValue: name) else { return false }
-                    if isDisabled(value, at: path, collector) {
-                        disabledActions.insert(action)
+                    guard let override = override(of: value, at: path, collector) else {
+                        return true
                     }
+                    // 자기 키가 없는 액션(`scroll`)의 시퀀스는 교체할 대상이 없다 — 미지
+                    // 값과 같은 warn+무시로 접는다. disable은 모든 액션에서 유효하다.
+                    if case .strokes = override, !action.hasOwnKey {
+                        collector.warn(path, .invalidValue(describe(value)))
+                        return true
+                    }
+                    actions[action] = override
                     return true
                 }
             default:
@@ -71,20 +78,20 @@ enum AppProfileParser {
             halfPageLines: halfPageLines,
             fullPageLines: fullPageLines,
             motions: motions,
-            disabledActions: disabledActions
+            actions: actions
         )
         return .parsed(profile, collector.warnings)
     }
 
-    /// `motions:` 값 — 시퀀스이거나 `disabled`다. 스칼라를 먼저 갈라야 하는 이유:
+    /// `motions:`·`actions:` 값 — 시퀀스이거나 `disabled`다. 스칼라를 먼저 갈라야 하는 이유:
     /// Yams의 `Node.string`은 어떤 스칼라에도 non-nil이라 "문자열인가"로는 구분되지 않는다.
-    private static func motionOverride(
+    private static func override(
         of node: Node, at path: String, _ collector: WarningCollector
-    ) -> MotionOverride? {
+    ) -> ConfigOverride? {
         if case .scalar = node {
             return isDisabled(node, at: path, collector) ? .disabled : nil
         }
-        return keyStrokes(of: node, at: path, collector).map(MotionOverride.strokes)
+        return keyStrokes(of: node, at: path, collector).map(ConfigOverride.strokes)
     }
 
     /// 값이 `disabled` 키워드인가. 아니면 경고 후 false.

@@ -52,7 +52,8 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-01 | 설정 UI는 YAML 읽기 전용 | Yams 주석 미보존 — UI는 표시+파일 열기만, 쓰기는 사용자 몫 (표시 대상은 20260802 부분 supersede) | [20260801_settings-ui-read-only-yaml.md](references/20260801_settings-ui-read-only-yaml.md) |
 | 08-01 | UserDefaults↔YAML 소유권 경계 | defaults=런타임·안전 상태(마스터 토글·탈출 옵션), YAML=사용자 편집 설정 | [20260801_userdefaults-yaml-ownership.md](references/20260801_userdefaults-yaml-ownership.md) |
 | 08-02 | 설정 계층은 VimActionConfig 타깃 | VimActionCore 새 타깃(VimEngine+Yams, Yams는 그 타깃에만) — headless 테스트·의존 격리 | [20260802_config-layer-vimactionconfig-target.md](references/20260802_config-layer-vimactionconfig-target.md) |
-| 08-02 | disable은 매핑 값 `disabled` | disabled_actions 폐기 — motions/actions 매핑 값으로 통일, 빈 배열은 warn+무시 | [20260802_profile-disable-via-mapping-keyword.md](references/20260802_profile-disable-via-mapping-keyword.md) |
+| 08-02 | disable은 매핑 값 `disabled` | disabled_actions 폐기 — motions/actions 매핑 값으로 통일, 빈 배열은 warn+무시 (actions 값 어휘는 20260802 자기 키 재정의로 부분 supersede) | [20260802_profile-disable-via-mapping-keyword.md](references/20260802_profile-disable-via-mapping-keyword.md) |
+| 08-02 | 액션 자신의 키 재정의 | `actions:` 값에 시퀀스 허용 — 자기 키만 교체(모션 접두는 motions 유지), scroll은 disabled 전용 | [20260802_action-own-key-override.md](references/20260802_action-own-key-override.md) |
 | 08-02 | 설정 키워드 소문자 통일 | modifier·키 이름 전부 소문자 snake_case, v1 키 11종, 대소문자 관용 없음 | [20260802_config-keyword-notation-lowercase.md](references/20260802_config-keyword-notation-lowercase.md) |
 | 08-02 | 번들 기본 프로파일 동봉 | Slack·Notion 기본 프로파일 포함 — 설치 즉시 위험 해소 + 실물 예시(전달 방식은 20260802 시딩으로 부분 supersede) | [20260802_bundled-default-profiles-slack-notion.md](references/20260802_bundled-default-profiles-slack-notion.md) |
 | 08-02 | scroll 재정의 값 1...200 | 스크롤은 카운트 33과 곱해지는 증폭 축 — 범위 밖은 warn+무시 | [20260802_scroll-override-bounds.md](references/20260802_scroll-override-bounds.md) |

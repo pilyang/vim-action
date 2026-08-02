@@ -85,17 +85,34 @@ struct ResolvedProfileTests {
         let profile = ResolvedProfile(
             AppProfile(
                 name: "Slack", halfPageLines: 12, fullPageLines: 24,
-                disabledActions: [.openLine]))
+                actions: [.openLine: .disabled]))
         #expect(profile.name == "Slack")
         #expect(profile.halfPageLines == 12)
         #expect(profile.fullPageLines == 24)
-        #expect(profile.disabledActions == [.openLine])
+        #expect(profile.actionOverrides == [.openLine: .disabled])
+    }
+
+    /// 매퍼가 보는 창구는 이름 붙인 프로퍼티다 — 여기서 `ConfigAction`이 실행 계층으로
+    /// 새지 않는다. disable이 `nil`로 접히는 것도 계약이다(어댑터가 앞에서 걸러낸다).
+    @Test("액션 자신의 키 재정의는 이름 붙인 프로퍼티로 노출된다")
+    func exposesActionKeyOverrides() {
+        let profile = ResolvedProfile(
+            AppProfile(actions: [
+                .openLine: .strokes([ConfigKeyStroke(.return, [.shift])]),
+                .undo: .disabled,
+            ]))
+
+        #expect(profile.newLineStrokes == [KeyStroke(kVK_Return, [.maskShift])])
+        #expect(profile.undoStrokes == nil, "disable은 매퍼까지 오지 않는다")
+        #expect(profile.pasteStrokes == nil)
+        #expect(profile.redoStrokes == nil)
     }
 
     @Test(".empty는 아무 재정의도 없다 — 모든 매퍼가 내장 테이블 그대로다")
     func emptyHasNoOverrides() {
         #expect(ResolvedProfile.empty.motionOverrides.isEmpty)
-        #expect(ResolvedProfile.empty.disabledActions.isEmpty)
+        #expect(ResolvedProfile.empty.actionOverrides.isEmpty)
+        #expect(ResolvedProfile.empty.newLineStrokes == nil)
         #expect(ResolvedProfile.empty.halfPageLines == nil)
         #expect(ResolvedProfile.empty.fullPageLines == nil)
     }

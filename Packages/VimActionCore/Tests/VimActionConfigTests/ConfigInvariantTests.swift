@@ -112,5 +112,5 @@ func goldenFixtureLoadsCleanly() {
     let notion = result.snapshot.profiles["notion.id"]
     #expect(notion?.halfPageLines == 20)
     #expect(notion?.motionOverride(for: .documentEnd) == .strokes([ConfigKeyStroke(.down, [.cmd])]))
-    #expect(result.snapshot.profiles["com.tinyspeck.slackmacgap"]?.disabledActions == [.openLine])
+    #expect(result.snapshot.profiles["com.tinyspeck.slackmacgap"]?.actions == [.openLine: .disabled])
 }

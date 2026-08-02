@@ -60,10 +60,10 @@ nonisolated enum CommandKeyMapper {
             return above ? openAbove(profile) : openBelow(profile)
 
         case .undo:
-            return [undoKey]
+            return profile.undoStrokes ?? [undoKey]
 
         case .redo:
-            return [redoKey]
+            return profile.redoStrokes ?? [redoKey]
 
         case .scroll(let extent, let forward):
             // macOS에는 **캐럿을 한 뷰포트만큼 옮기는 키 프리미티브가 없다**. PageUp/PageDown은
@@ -97,8 +97,9 @@ nonisolated enum CommandKeyMapper {
         // 접두만 남은 시퀀스가 "붙여넣기 없이 캐럿만 움직인다"는 조용한 오동작이기 때문이다.
         guard count >= 1, let prefix = prefix(before: before, wise: wise, profile: profile)
         else { return nil }
-        return [prefix + [pasteKey]]
-            + Array(repeating: [pasteKey], count: count - 1)
+        let paste = profile.pasteStrokes ?? [pasteKey]
+        return [prefix + paste]
+            + Array(repeating: paste, count: count - 1)
     }
 
     /// 붙여넣기 지점으로 캐럿을 옮기는 접두. `P`(before)는 Vim에서 캐럿 위치가 곧 삽입점이라
@@ -134,7 +135,7 @@ nonisolated enum CommandKeyMapper {
     /// `o` — 줄 끝으로 간 뒤 개행. 엔진이 이미 Insert로 전이했으므로 뒤에 붙일 키가 없다.
     private static func openBelow(_ profile: ResolvedProfile) -> [KeyStroke]? {
         guard let lineEnd = move(.lineEnd, profile) else { return nil }
-        return lineEnd + [returnKey]
+        return lineEnd + newLine(profile)
     }
 
     /// `O` — 줄 시작에서 개행해 현재 줄을 아래로 밀고, 새로 생긴 빈 줄로 올라간다.
@@ -145,7 +146,13 @@ nonisolated enum CommandKeyMapper {
     private static func openAbove(_ profile: ResolvedProfile) -> [KeyStroke]? {
         guard let lineStart = move(.lineStart, profile), let lineUp = move(.lineUp, profile)
         else { return nil }
-        return lineStart + [returnKey] + lineUp
+        return lineStart + newLine(profile) + lineUp
+    }
+
+    /// 줄을 만드는 키 — 앱마다 다르다. Slack처럼 `Return`이 전송인 앱은 `Shift-Return`이
+    /// 줄바꿈이므로 프로파일이 이 키만 갈아끼운다(위치 접두는 그대로 모션을 탄다).
+    private static func newLine(_ profile: ResolvedProfile) -> [KeyStroke] {
+        profile.newLineStrokes ?? [returnKey]
     }
 
     /// 스크롤 1회가 옮길 줄 수. 뷰포트 높이를 모르는 상태의 **근사값**이다 — 실제 높이는
