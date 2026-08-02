@@ -1,0 +1,25 @@
+VimAction/SettingsView.swift
+  s_ad66f6b764812e::t_ffffa574d323cf 51-61
+VimAction/BundledConfig/config.yaml
+  s_ad66f6b764812e::t_6d11de92430c63 1-2,5-6,8,12
+VimAction/BundledConfig/com.tinyspeck.slackmacgap.yaml
+  s_ad66f6b764812e::t_3f1fa679a4f354 1-3
+VimAction/BundledConfig/notion.id.yaml
+  s_ad66f6b764812e::t_338addebc48964 1-6,8-9,15-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "82b6eb1f54322068c5cc0f42ad86d35817107336",
+  "prompts": {},
+  "sessions": {
+    "s_ad66f6b764812e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4f8ee5fd-c877-43b1-a86b-63cb8f22d439",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
