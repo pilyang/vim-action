@@ -49,4 +49,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-07-25 | 2026-08-02 | MVP 1단계 마일스톤 | 실행 계층 구축 순서 M1~M5 (Keyboard 베이스 → AX 확장) — M1 출력 인프라·안전망 → M2 Keyboard 모션 → M3 편집·Visual·요소 리졸버 → M4 프로파일(=MVP 완료선) → M5 AX. **M1~M4 종료 = MVP 1단계 완료** — 남은 것은 M5(AX 어댑터·auto 전략)와 M6(서명·공증 배포) | [20260725_mvp-milestones.md](references/20260725_mvp-milestones.md) |
+| 2026-08-02 | 2026-08-02 | M5 — AX 어댑터 + auto 전략 | MVP 1단계(M1~M4) 완료 후의 1차 확장. AX 읽기(`AXValue`+`AXSelectedTextRange`)로 정확 오프셋을 계산하고 실행은 키보드로 하는 혼용이 축 — M3가 수용한 엣지 대부분이 여기서 해소된다. auto 프로브·force-text·per_element도 여기. **아직 착수 전** | [20260802_m5-ax-adapter.md](references/20260802_m5-ax-adapter.md) |
