@@ -1,0 +1,49 @@
+.claude/skills/decisions/references/20260803_refinement-branches-not-stroke-counts.md
+  s_9b91f72ab3a2d7::t_4e48549f38537b 1-74
+.claude/skills/decisions/references/20260803_edit-keystrokes-takes-focused-text.md
+  s_9b91f72ab3a2d7::t_5860c74f210a67 1-93
+.claude/skills/decisions/SKILL.md
+  s_9b91f72ab3a2d7::t_f8e056bfb2d434 183
+  s_9b91f72ab3a2d7::t_24a2d933c8a99c 203-208
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_9b91f72ab3a2d7::t_0f483f9d4b4127 21-22
+  s_9b91f72ab3a2d7::t_62194521a1b1c9 31-32
+  s_9b91f72ab3a2d7::t_95992139a62ea0 6
+  s_9b91f72ab3a2d7::t_69c26e231e3a05 41-47,49-50
+.claude/skills/decisions/references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md
+  s_9b91f72ab3a2d7::t_df0558a57a0768 1-61
+.claude/skills/decisions/references/20260803_line-end-charwise-vim-cursor-model.md
+  s_9b91f72ab3a2d7::t_3c492fe26356b2 1-95
+.claude/skills/decisions/references/20260728_edit-boundary-saturation-accepted-edges.md
+  s_9b91f72ab3a2d7::t_b95028be9bb8f3 1-2
+.claude/skills/decisions/references/20260802_empty-selection-edit-suppression.md
+  s_9b91f72ab3a2d7::t_c4a6edbd0cb5c9 1-2
+.claude/skills/decisions/references/20260803_boundary-saturation-refinement-table.md
+  s_9b91f72ab3a2d7::t_5febeda3d73aaf 1-107
+.claude/skills/decisions/references/20260802_read-consumption-via-mapper-predicates.md
+  s_9b91f72ab3a2d7::t_78c8fadba4520b 1-2
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_9b91f72ab3a2d7::t_6ac5261148ce32 125
+  s_9b91f72ab3a2d7::t_23ccd72646eace 3
+  s_9b91f72ab3a2d7::t_28dafaed773557 59,61
+  s_9b91f72ab3a2d7::t_cf30520c889177 63-88
+  s_9b91f72ab3a2d7::t_daf8baf45ffc29 115-117,119
+.claude/skills/plans/SKILL.md
+  s_9b91f72ab3a2d7::t_8c2d209c9d1e6c 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "e9014640549f1a1002be5968f2fd0e07f4332542",
+  "prompts": {},
+  "sessions": {
+    "s_9b91f72ab3a2d7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6b6aaad4-36ac-4748-ba5c-c12d0a2b2f4f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
