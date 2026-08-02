@@ -1,0 +1,39 @@
+.claude/skills/architecture/references/profiles-and-config.md
+  s_8bf2b9654e26f9::t_86f85075d4a0ef 56
+  s_8bf2b9654e26f9::t_2ff014b37b267d 69
+  s_8bf2b9654e26f9::t_d6cf590013397d 7
+  s_8bf2b9654e26f9::t_34944eecc82e53 3
+  s_8bf2b9654e26f9::t_c11eef242ca275 91
+  s_8bf2b9654e26f9::t_683853fc2eb00f 98
+  s_8bf2b9654e26f9::t_b5bd54adcbe33f 9
+.claude/skills/decisions/references/20260802_menubar-frontmost-app-conveniences.md
+  s_8bf2b9654e26f9::t_fb157605f42696 1-33
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_8bf2b9654e26f9::t_a6d28abdbb9966 27
+  s_8bf2b9654e26f9::t_def3ef214bfeb9 6
+.claude/skills/decisions/references/20260712_yaml-three-layer-config.md
+  s_8bf2b9654e26f9::t_d7d63d430f2805 5
+.claude/skills/decisions/SKILL.md
+  s_8bf2b9654e26f9::t_eac53ab89d10b9 40
+  s_8bf2b9654e26f9::t_87ac0d28a59790 62-63
+.claude/skills/plans/SKILL.md
+  s_8bf2b9654e26f9::t_f1ab7706c0210c 52
+.claude/skills/decisions/references/20260802_config-reload-manual-menubar-trigger.md
+  s_8bf2b9654e26f9::t_81c697a2f119b8 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "2d45094692601087dc1e75f0245591c916fd0763",
+  "prompts": {},
+  "sessions": {
+    "s_8bf2b9654e26f9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "537f8e68-a074-449a-8bf6-e1867a19bb1d",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
