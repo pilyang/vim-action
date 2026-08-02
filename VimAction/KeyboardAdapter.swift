@@ -330,23 +330,20 @@ nonisolated struct KeyboardAdapter: Sendable {
             // `recordLinewiseEdit`·클립보드 오염 없이 빠져나가고, 범위가 묻지 않으면
             // AX 왕복도 없다(읽기는 lazy이므로 `value()`를 부르지 않으면 호출 0건이다).
             //
-            // 읽기 실패·타임아웃·pid 없음은 전부 `nil`이라 이 분기를 그냥 지나간다 —
+            // 읽기 실패·타임아웃·pid 없음은 전부 `nil`이라 매퍼가 무상태 시퀀스를 낸다 —
             // 정확화만 포기하고 실행은 한다. 스킵도, 실행 실패 보고도 아니다.
-            if EditKeyMapper.consultsFocusedText(range), let focused = text.value(),
-                EditKeyMapper.collapsesToNothing(op: op, range: range, text: focused) {
+            let focused = EditKeyMapper.consultsFocusedText(range) ? text.value() : nil
+            let result = Self.classifyEdit(
+                op: op, range: range, family: family, profile: profile, text: focused)
+            if case .skipped = result {
                 // 미지원이 아니라 "지원하지만 이번 입력에는 게시할 것이 없다"이므로 `.skipped`다
-                // (`p`의 빈 클립보드와 같은 편) — 사유를 아는 이 자리에서 자체 로그를 남긴다.
+                // (`p`의 빈 클립보드와 같은 편) — `op`·`range`·액션을 다 아는 이 자리에서
+                // 자체 로그를 남긴다. `classifyEdit`은 사유를 알지만 액션을 모른다.
                 #if DEBUG
                 Logger.eventTap.debug(
-                    "편집 스킵 — 읽기가 0폭 포화를 증명했다: \(String(describing: action), privacy: .public)"
+                    "편집 스킵 — 읽기가 Vim 무효를 증명했다: \(String(describing: action), privacy: .public)"
                 )
                 #endif
-                return .skipped
-            }
-            let result = Self.classify(
-                EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: profile)
-            ) {
-                EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: .empty)
             }
             // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
             // 휴리스틱(앱마다 틀린다)에 기대지 않게 그 사실을 기억해 둔다. **게시가 확정된
@@ -402,6 +399,35 @@ nonisolated struct KeyboardAdapter: Sendable {
     ) -> Mapping {
         if let strokes { return .groups([strokes]) }
         return builtIn() != nil ? .disabledByProfile : .unsupported
+    }
+
+    /// 편집 전용 분류 — 매퍼의 `nil`을 **세 스킵**으로 가른다. 읽기가 정확화의 입력이 되면서
+    /// `nil`이 "미지원"과 "읽기가 증명한 무효" 두 뜻을 갖게 됐고, 그래서 프로브가 하나 늘었다.
+    ///
+    /// **프로브 순서가 계약이고, 그 계약을 이 함수의 존재가 강제한다.** 위 `classify`처럼
+    /// 클로저로 열어 두면 호출부가 `text`를 어느 프로브에 넘기든 컴파일이 통과하는데,
+    /// 순서가 하나만 어긋나도 정확화 결과가 `.unsupported`로 집계돼 릴리스 게이트 심사자가
+    /// **구현된 어휘를 미구현으로 읽는다**. 인접한 두 줄에 같은 인자를 넘기지 않는 것에
+    /// 의존하는 계약은 감사할 수 없으므로, `text`를 받는 자리를 여기 한 곳으로 닫는다.
+    private static func classifyEdit(
+        op: VimAction.Operator, range: VimAction.TextRange, family: ElementFamily,
+        profile: ResolvedProfile, text: FocusedText?
+    ) -> Mapping {
+        if let strokes = EditKeyMapper.keyStrokes(
+            for: op, range: range, family: family, profile: profile, text: text) {
+            return .groups([strokes])
+        }
+        // ① 텍스트 프로브 — **`builtIn`보다 앞**이다. 읽기 없이 답이 있었다면 `nil`을 만든 것은
+        //    미지원도 프로파일도 아니라 정확화다.
+        if text != nil,
+            EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: profile)
+                != nil {
+            return .skipped
+        }
+        // ② builtIn 프로브 — **`text`를 받지 않는다.** 여기에 `text`가 새면 정확화 결과가
+        //    프로파일 disable로 둔갑한다.
+        return EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: .empty)
+            != nil ? .disabledByProfile : .unsupported
     }
 
     /// 이 계열에서 이 액션을 게시하는가 — 걸러내기 게이트 본체다.

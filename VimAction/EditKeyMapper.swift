@@ -19,8 +19,13 @@ import VimEngine
 /// yank의 collapse도 엔진이 뒤이어 내는 `clearSelection`이 전담한다
 /// (`20260728_visual-clear-selection-collapse-left.md`).
 ///
-/// 반환 `nil`은 **이 계열에서 미지원**이라는 뜻이다 — 실패가 아니라 어댑터의 스킵+로그 대상이며,
-/// "빈 배열"과 구분되어야 무로그 삼킴이 생기지 않는다.
+/// 반환 `nil`은 두 뜻이다: **이 계열에서 미지원**, 또는 **읽기가 증명한 무효**(Vim에서
+/// no-op인 조합). 어댑터가 `text: nil`로 되물어 둘을 가르고(`classifyEdit`), 어느 쪽이든
+/// 실패가 아니라 스킵+로그다. "빈 배열"과 구분되어야 무로그 삼킴이 생기지 않는다.
+///
+/// `text`(캐럿 주변 읽기)는 **정확화의 입력일 뿐 실행 조건이 아니다** — `nil`이거나 창이
+/// 근거를 못 대면 아래의 무상태 시퀀스가 그대로 나간다. 정확화가 갈리는 것은 읽기 **성공**
+/// 경로뿐이고, 그 갈림은 전부 `Refinement`를 거친다.
 ///
 /// 프로파일의 모션 재정의·disable은 `MotionKeyMapper` 조회(`move`/`select`)를 통해 그대로
 /// 전파된다 — disable된 모션이 시퀀스의 어느 조각에든 나타나면 `guard let`이 nil을 위로
@@ -30,7 +35,8 @@ nonisolated enum EditKeyMapper {
         for op: VimAction.Operator,
         range: VimAction.TextRange,
         family: ElementFamily,
-        profile: ResolvedProfile = .empty
+        profile: ResolvedProfile = .empty,
+        text: FocusedText? = nil
     ) -> [KeyStroke]? {
         // 계열 판정이 **가장 먼저**다 — `.selection` 조기 반환보다 앞이어야 한다. 뒤에 두면
         // 비텍스트에서도 살아 있는 선택에 `Cmd-X`가 나가는데, Finder에서 그것은 파일 이동이다.
@@ -55,7 +61,7 @@ nonisolated enum EditKeyMapper {
         if case .selection = range {
             return op == .yank ? [copy] : [cut]
         }
-        guard let selection = textAreaSelection(op, range, profile),
+        guard let selection = textAreaSelection(op, range, profile, text),
             let operatorStrokes = apply(op, profile)
         else { return nil }
         return selection + operatorStrokes
@@ -63,45 +69,150 @@ nonisolated enum EditKeyMapper {
 
     /// 이 범위가 캐럿 주변 읽기를 묻는가 — **묻지 않으면 AX 왕복도 없다**(읽기는 lazy다).
     ///
-    /// 어댑터가 이 값을 보고 읽을지 정하므로, 범위 표가 어댑터로 복사되지 않는다 —
-    /// 아래 `collapsesToNothing`과 한 쌍이고, 둘이 갈라지지 않음을 테스트가 고정한다.
+    /// 어댑터가 이 값을 보고 읽을지 정하므로, 범위 표가 어댑터로 복사되지 않는다. 아래
+    /// 정확화와 한 쌍이며, 둘이 갈라지지 않음(= 묻지 않는 범위에서는 `text`가 시퀀스를 바꾸지
+    /// 못함)을 테스트가 고정한다 — 갈라지면 정확화가 코드에 있는 채로 영원히 죽는다.
+    ///
+    /// **넓히는 것은 공짜가 아니다**: 여기 들어오는 범위는 액션마다 AX 왕복 1회를 문다
+    /// (Notion 실측 ~7ms). 그래서 `.line`(`dd`)과 `.linewiseMotion(.lineDown)`(`dj`)은 빠져
+    /// 있다 — 소프트 랩 논리 줄은 이 읽기로 해소되지 않아 물을 이유가 없다.
     static func consultsFocusedText(_ range: VimAction.TextRange) -> Bool {
-        guard case .motion = range else { return false }
-        return true
+        switch range {
+        case .motion:
+            return true
+        case .linewiseMotion(.lineUp, _):  // 엣지 2 — 첫 줄 `dk`
+            return true
+        case .linewiseMotion(.documentStart, _):  // 엣지 4 — 마지막 줄 `dgg`
+            return true
+        default:
+            return false
+        }
     }
 
-    /// 읽기가 **증명한** 0폭 포화인가 — 참이면 선택이 접혀 오퍼레이터만 나가므로 게시하지
-    /// 않는다("선택 없는 `Cmd-X` = 줄 통째 잘라내기" 확장 앱에서 줄 하나가 사라진다).
-    /// 수용 엣지 5의 정확화다 (`20260728_edit-boundary-saturation-accepted-edges.md`).
+    /// 읽기가 무상태 시퀀스에 대해 증명한 것.
     ///
-    /// **증명하지 못하면 `false`** 이고 폴백은 현행 무상태 시퀀스다 — 읽기는 정확화의 입력이지
-    /// 실행이 아니다. 살아 있는 선택(`length > 0`)이 있으면 우리가 만들 선택이 어디서 출발할지
-    /// 알 수 없으므로 증명 불가다.
+    /// **`unproven`이 기본값이라는 것이 계약이다** — 모션이나 케이스가 늘어도 증명을 명시적으로
+    /// 세우기 전까지는 현행 동작이고, 조용한 억제나 조용한 재조립이 생기지 않는다.
+    private enum Refinement {
+        /// Vim에서 무효인 조합 — 편집 전체가 정직한 스킵이 된다(선택 스트로크도 나가지 않는다).
+        case invalid
+        /// 더 정확한 선택 시퀀스. 오퍼레이터 접미는 호출자가 그대로 붙인다.
+        case selection([KeyStroke])
+        /// 증명하지 못했다 — 현행 무상태 시퀀스로 간다.
+        case unproven
+    }
+
+    /// `.motion` 범위의 정확화 — 수용 엣지 1·3·5와 `^`가 여기서 갈린다.
     ///
-    /// 여기 없는 것들이 각각 다른 이유로 빠져 있다:
-    /// - `wordForward`(`w`)는 문서 끝에서 0폭이 아니라 3타의 마지막 후퇴가 앵커를 지나쳐
-    ///   **선택이 반전**된다 — 억제가 아니라 시퀀스 재조립이 답이라 별건(엣지 3)이다.
-    /// - `lineFirstNonBlank`(`^`)는 전부 공백인 줄에서 `^`가 no-op이 아니라 공백 끝으로
-    ///   가므로, 캐럿이 첫 비공백임을 증명하는 가드 없이는 진짜 편집을 삼킨다.
-    /// - `charRight`/`charLeft`가 **줄** 경계에서 개행을 집는 것(엣지 1)은 0폭이 아니라
-    ///   "잘못된 것을 집는" 문제라 규칙이 다르다.
-    static func collapsesToNothing(
-        op: VimAction.Operator, range: VimAction.TextRange, text: FocusedText
-    ) -> Bool {
-        guard case .motion(let motion, _) = range, text.selection.length == 0 else { return false }
-        // 카운트는 곱해도 결과가 같다 — 위 여섯은 전부 포화가 멱등이라 `3x`도 문서 끝이면 0폭이다.
-        switch retargeted(motion, for: op) {
-        case .charRight, .wordEndForward:
-            return text.isAtDocumentEnd
-        case .charLeft, .wordBackward:
-            return text.isAtDocumentStart
+    /// 살아 있는 선택(`length > 0`)이 있으면 전부 `unproven`이다: 우리가 만들 선택이 어디서
+    /// 출발할지 증명할 수 없고, 그 선택 자체가 우리가 비동기로 배달한 합성 이벤트의 결과라
+    /// 읽기가 낡았을 가능성이 가장 높은 자리다.
+    private static func motionRefinement(
+        _ motion: Motion, _ count: Int, _ profile: ResolvedProfile, _ text: FocusedText
+    ) -> Refinement {
+        guard text.selection.length == 0 else { return .unproven }
+        switch motion {
+        case .charRight:
+            return charRightRefinement(count, profile, text)
+
+        case .charLeft:
+            return charLeftRefinement(count, profile, text)
+
+        case .wordForward:
+            // 엣지 3 — 다음 단어 시작이 없으면 3타(`Opt-→ ×2, Opt-←`)의 마지막 후퇴가 앵커를
+            // 지나쳐 **캐럿 왼쪽**을 잡는다. 남은 것이 현재 단어뿐이니 Vim의 `w`도 그 단어
+            // 끝에서 멈추고, 그것이 곧 `e`의 1타다 — 카운트와 무관하다(남은 단어가 없으므로).
+            //
+            // 오프셋만큼 `Shift-→`를 내는 대안을 쓰지 않은 것은 의도다: **읽기는 분기의 근거이지
+            // 스트로크 수의 근거가 아니다.** 위치 상대적인 1타는 읽기가 낡아도 반전되지 않는다.
+            guard text.provesNoWordStartAhead, let strokes = select(.wordEndForward, profile) else {
+                return .unproven
+            }
+            return .selection(strokes)
+
+        case .wordEndForward:
+            // 문서 끝에서 `Opt-→`는 움직이지 않는다 — 0폭이라 오퍼레이터만 나간다.
+            return text.isAtDocumentEnd ? .invalid : .unproven
+
+        case .wordBackward:
+            return text.isAtDocumentStart ? .invalid : .unproven
+
         case .lineEnd:
-            return text.isAtLineEnd
+            return text.isAtLineEnd ? .invalid : .unproven
+
         case .lineStart:
-            return text.isAtLineStart
+            return text.isAtLineStart ? .invalid : .unproven
+
+        case .lineFirstNonBlank:
+            // 전부 공백인 줄에서는 `false`다 — 그 줄의 `^`는 no-op이 아니라 다음 줄까지
+            // 넘어가는 별건의 오동작이라, 여기서 억제하면 진짜 편집을 삼킨다.
+            return text.isAtLineFirstNonBlank ? .invalid : .unproven
+
         default:
-            // 모션이 늘면 기본값은 "증명 못 함" = 현행 동작이다 — 조용한 억제가 되지 않는다.
-            return false
+            return .unproven
+        }
+    }
+
+    /// 전진 charwise(`x`·`dl`)의 줄 경계 — 수용 엣지 1.
+    ///
+    /// 줄 끝에서 `Shift-→`는 0폭이 아니라 **개행을 집어** 줄을 병합한다. Vim의 커서는 문자
+    /// 위에 있어 그 자리가 곧 "마지막 글자 위"이므로, `x`는 그 글자를 지운다 — 그래서 여기
+    /// 한 자리에서만 선택 방향을 뒤집는다. **이 모델 채택을 다른 모션으로 넓히지 않는다**
+    /// (`dh`는 아래에서 계속 캐럿 모델이다). 줄이 비어 있으면 지울 글자가 없어 무효다.
+    ///
+    /// 줄 끝이 아니면 남은 글자 수로 clamp만 한다 — `min`이 카운트로 막혀 있어, 읽기가
+    /// 낡았을 때의 최악이 현행 동작(개행까지 집기)을 넘지 않는다.
+    private static func charRightRefinement(
+        _ count: Int, _ profile: ResolvedProfile, _ text: FocusedText
+    ) -> Refinement {
+        guard let remaining = text.charactersToLineEnd else { return .unproven }
+        guard remaining == 0 else {
+            guard remaining < count, let stroke = select(.charRight, profile) else {
+                return .unproven
+            }
+            return .selection(repeated(stroke, remaining))
+        }
+        guard let before = text.charactersToLineStart else { return .unproven }
+        guard before > 0 else { return .invalid }
+        guard let stroke = select(.charLeft, profile) else { return .unproven }
+        return .selection(stroke)
+    }
+
+    /// 후진 charwise(`dh`·`X`)의 줄 경계 — 엣지 1의 대칭이되 **방향은 뒤집지 않는다**.
+    /// Vim의 `h`는 앞 줄로 넘어가지 않으므로 줄 시작에서는 그냥 무효다(문서 시작도 그 특수 경우).
+    private static func charLeftRefinement(
+        _ count: Int, _ profile: ResolvedProfile, _ text: FocusedText
+    ) -> Refinement {
+        guard let remaining = text.charactersToLineStart else { return .unproven }
+        guard remaining > 0 else { return .invalid }
+        guard remaining < count, let stroke = select(.charLeft, profile) else { return .unproven }
+        return .selection(repeated(stroke, remaining))
+    }
+
+    /// `.linewiseMotion` 범위의 정확화 — 수용 엣지 2·4.
+    private static func linewiseRefinement(
+        _ motion: Motion, _ count: Int, _ op: VimAction.Operator, _ profile: ResolvedProfile,
+        _ text: FocusedText
+    ) -> Refinement {
+        guard text.selection.length == 0 else { return .unproven }
+        switch motion {
+        case .lineUp:
+            // 엣지 2 — 위로 갈 줄이 카운트보다 적으면 Vim은 명령 전체를 무효로 친다. 현행
+            // 시퀀스는 `↑`가 문서 시작에서 포화한 채 아래로 확장해 **아래 줄을 지운다**.
+            guard let above = text.linesAboveCaret else { return .unproven }
+            return above < count ? .invalid : .unproven
+
+        case .documentStart where op != .change:
+            // 엣지 4 — 마지막 줄에서는 선행 `↓`가 줄 끝으로 포화해 `Cmd-←`가 같은 줄로 되돌아오고,
+            // 그래서 마지막 줄이 범위에서 빠진다. `cgg`가 이미 쓰는 "줄 끝에서 위로"가 그 자리의
+            // 정답이다 — 새 스트로크 조합이 아니라 기존 조합의 재사용이다.
+            guard text.isOnLastLine, let lineEnd = move(.lineEnd, profile),
+                let selection = select(.documentStart, profile)
+            else { return .unproven }
+            return .selection(lineEnd + selection)
+
+        default:
+            return .unproven
         }
     }
 
@@ -113,12 +224,25 @@ nonisolated enum EditKeyMapper {
     }
 
     /// 범위 → 선택 스트로크 (TextArea 계열).
+    ///
+    /// 정확화는 **범위별로 한 갈래씩**만 얹힌다: 읽기가 증명하면 그 시퀀스를, 아니면 아래의
+    /// 무상태 시퀀스를 그대로 쓴다. `consultsFocusedText`가 거짓인 범위에는 `text`를 보는
+    /// 자리 자체가 없어야 한다 — 어댑터가 그런 범위에서는 읽지도 않기 때문이다.
     private static func textAreaSelection(
-        _ op: VimAction.Operator, _ range: VimAction.TextRange, _ profile: ResolvedProfile
+        _ op: VimAction.Operator, _ range: VimAction.TextRange, _ profile: ResolvedProfile,
+        _ text: FocusedText?
     ) -> [KeyStroke]? {
         switch range {
         case .motion(let motion, let count):
-            guard let selection = select(retargeted(motion, for: op), profile) else { return nil }
+            let target = retargeted(motion, for: op)
+            if let text {
+                switch motionRefinement(target, count, profile, text) {
+                case .invalid: return nil
+                case .selection(let strokes): return strokes
+                case .unproven: break
+                }
+            }
+            guard let selection = select(target, profile) else { return nil }
             return repeated(selection, count)
 
         case .line(let count):
@@ -128,6 +252,13 @@ nonisolated enum EditKeyMapper {
             return lineStart + lines
 
         case .linewiseMotion(let motion, let count):
+            if let text {
+                switch linewiseRefinement(motion, count, op, profile, text) {
+                case .invalid: return nil
+                case .selection(let strokes): return strokes
+                case .unproven: break
+                }
+            }
             return linewiseMotionSelection(motion, count, op, profile)
 
         case .textObject(.word(.inner)):
