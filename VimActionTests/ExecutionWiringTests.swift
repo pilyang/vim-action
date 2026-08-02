@@ -109,6 +109,59 @@ struct ExecutionWiringTests {
         }
     }
 
+    /// pid도 계열과 **같은 자리·같은 시점**에 실린다 — 디스패치 경로 리더가 게시 큐 위에서
+    /// 이 pid로 포커스 요소를 잡는다. 출처가 리졸버인 것이 계약이다: `family`와 짝이라
+    /// 둘이 서로 다른 앱을 가리킬 수 없다. 배선이 끊기면 pid가 늘 `nil`이라 정확화가
+    /// 통째로 죽는데, 폴백이 정상 동작이라 **조용한 고장**이 된다.
+    ///
+    /// pid를 실존하지 않는 값으로 두는 것이 요점이다 — `AXUIElementCreateApplication`은 순수
+    /// 로컬 생성이고 뒤따르는 메시징은 닿을 프로세스가 없어 즉시 실패하므로, 테스트가 실제
+    /// 앱의 AX 트리를 건드리지 않는다 (다른 테스트의 `nil` pid 관례의 연장).
+    @Test(
+        "디스패치 페이로드에 키 입력 시점의 대상 앱 pid가 실린다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func replaceCarriesTargetProcessID() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var processIDs: [pid_t?] = []
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: Self.gate(frontmost: "com.apple.TextEdit"),
+                focusedElement: FocusedElementResolver(
+                    notificationCenter: NotificationCenter(), frontmostProcessID: 99_999),
+                dispatchActions: { _, context in processIDs.append(context.processID) })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+
+            #expect(processIDs == [99_999], "리졸버가 관측 중인 앱이 곧 읽기 대상이다")
+        }
+    }
+
+    /// 읽을 앱이 없으면 pid도 없다 — 리더는 아예 불리지 않고 무상태 시퀀스가 그대로 나간다.
+    @Test(
+        "관측 중인 앱이 없으면 pid는 nil로 실린다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func replaceCarriesNilProcessIDWithoutObservedApp() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var processIDs: [pid_t?] = []
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: Self.gate(frontmost: "com.apple.TextEdit"),
+                focusedElement: FocusedElementResolver(
+                    notificationCenter: NotificationCenter(), frontmostProcessID: nil),
+                dispatchActions: { _, context in processIDs.append(context.processID) })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+
+            #expect(processIDs == [nil])
+        }
+    }
+
     /// 프로파일도 계열처럼 **콜백에서 읽어 페이로드로 실린다** — 최전면 앱 bundle id로
     /// provider를 조회한 스냅샷이다. 배선이 끊기면 모든 앱이 `.empty`로 실행돼 재정의·disable이
     /// 통째로 죽는 조용한 고장이 된다.

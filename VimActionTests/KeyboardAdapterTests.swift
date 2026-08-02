@@ -16,16 +16,18 @@ import VimEngine
 /// 실제 클립보드를 읽어 비결정적이 된다(`defaults` 주입과 같은 이유).
 /// `changeCount`도 주입한다 — 기본값은 **변하지 않는** 카운터라 "우리 편집 기억"이 발동하지
 /// 않고 클립보드 휴리스틱만 쓰인다. 기억 경로는 그것을 검증하는 테스트가 직접 올린다.
+/// 캐럿 주변 리더도 같은 이유로 항상 주입한다 — 프로덕션 기본값은 실제 AX를 읽는다.
 private func makeAdapter(
     clipboard wise: PasteWise? = .charwise,
     changeCount: @escaping @Sendable () -> Int = { 0 },
     qwertyCommandKeys: @escaping @Sendable () -> Bool = { true },
+    reader: FocusedTextReader = FocusedTextReader { _ in nil },
     collecting posted: @escaping @Sendable (CGEvent) -> Void
 ) -> KeyboardAdapter {
     KeyboardAdapter(
         executor: ActionExecutor(postEvent: posted),
         pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount),
-        hasQwertyCommandKeys: qwertyCommandKeys)
+        hasQwertyCommandKeys: qwertyCommandKeys, reader: reader)
 }
 
 private func keyCodes(of events: [CGEvent]) -> [Int64] {
@@ -793,5 +795,71 @@ struct KeyboardAdapterLayoutGateTests {
         qwerty = true
         adapter.execute([.undo])
         #expect(keyCodes(of: posted) == [Int64(kVK_ANSI_Z), Int64(kVK_ANSI_Z)])
+    }
+}
+
+/// 캐럿 주변 리더 seam — **이번 PR의 계약은 "배선은 섰지만 아무도 쓰지 않는다"** 이고,
+/// 그 두 절반을 각각 고정한다.
+///
+/// 매퍼가 읽기를 소비하는 것은 PR-B다. 그때 아래 "부르지 않는다"가 뒤집히는 것이 정상이며,
+/// 그 순간 이 테스트가 **소비가 붙었다는 신호**로 짚어 준다 — 지금 조용히 AX를 부르기
+/// 시작하면 정확화 이득 없이 Notion에서 액션당 7ms를 태우는 회귀가 된다.
+struct KeyboardAdapterFocusedTextTests {
+    /// 대표 어휘를 훑는다 — 걸러내기·레이아웃 게이트·부수효과 경로가 서로 다른 액션들이라
+    /// 어느 하나에 소비가 붙어도 걸린다.
+    private static let vocabulary: [VimAction] = [
+        .move(.wordForward),
+        .edit(.delete, .line(count: 1)),
+        .edit(.delete, .textObject(.word(.inner))),
+        .beginSelection(linewise: false),
+        .edit(.yank, .selection),
+        .clearSelection,
+        .openLine(above: false),
+        .paste(before: false, count: 1),
+        .undo,
+        .scroll(.halfPage, forward: true),
+    ]
+
+    @Test("아직 아무도 읽지 않는다 — 리더 호출 0건 (동작 diff 0의 증거)")
+    func readerIsNotConsultedYet() {
+        nonisolated(unsafe) var reads = 0
+        let adapter = makeAdapter(
+            reader: FocusedTextReader { _ in
+                reads += 1
+                return nil
+            }, collecting: { _ in })
+
+        adapter.execute(Self.vocabulary, processID: 42)
+
+        #expect(reads == 0, "PR-B가 소비를 붙이면 여기가 뒤집힌다 — 그때 골든도 함께 갱신된다")
+    }
+
+    /// **폴백 계약**: 읽기가 실패하든 성공하든 정확화만 갈릴 뿐 실행은 한다. 지금은 소비자가
+    /// 없어 두 경우가 자명하게 같지만, 그 자명함이 PR-B에서 깨지는 것이 정확히 이 계약의
+    /// 감시 대상이다 — 실패 경로에서 시퀀스가 달라지면 "읽기 실패 = 무동작"이라는 최악의
+    /// 회귀가 된다 (Slack·VS Code는 포커스 요소를 노출하지 않아 그 경로가 상시다).
+    @Test("읽기가 실패해도 성공해도 같은 무상태 시퀀스가 나간다")
+    func sequencesAreIdenticalRegardlessOfReadOutcome() {
+        let sample = FocusedText(
+            selection: NSRange(location: 4, length: 0), characterCount: 40,
+            window: "the quick brown fox", windowRange: NSRange(location: 0, length: 19))
+
+        nonisolated(unsafe) var succeeded: [CGEvent] = []
+        makeAdapter(reader: FocusedTextReader { _ in sample }, collecting: { succeeded.append($0) })
+            .execute(Self.vocabulary, processID: 42)
+
+        nonisolated(unsafe) var failed: [CGEvent] = []
+        makeAdapter(reader: FocusedTextReader { _ in nil }, collecting: { failed.append($0) })
+            .execute(Self.vocabulary, processID: 42)
+
+        // 읽을 앱 자체가 없는 경우(pid nil)도 같은 편이다 — 실패와 구분되지 않는다.
+        nonisolated(unsafe) var noProcess: [CGEvent] = []
+        makeAdapter(reader: FocusedTextReader { _ in sample }, collecting: { noProcess.append($0) })
+            .execute(Self.vocabulary)
+
+        #expect(!succeeded.isEmpty)
+        #expect(keyCodes(of: succeeded) == keyCodes(of: failed))
+        #expect(keyCodes(of: succeeded) == keyCodes(of: noProcess))
+        #expect(succeeded.map(\.flags) == failed.map(\.flags))
     }
 }

@@ -44,10 +44,6 @@ nonisolated enum ElementFamily: Sendable, CaseIterable {
 /// 리졸버가 겨냥한 Finder 위험이 그대로 남는다 (`20260801_focused-role-cache-shape.md`).
 @MainActor
 final class FocusedElementResolver {
-    /// AX 메시징 타임아웃. 콜드 ~20ms 실측 위의 여유값이며, 메인을 막지 않으므로 탭 안정성과
-    /// 무관하다 (막는 것은 이 전용 큐뿐이다).
-    private nonisolated static let messagingTimeout: Float = 0.05
-
     /// AX 읽기 전용 직렬 큐. 직렬인 이유는 순서가 아니라 **동시 AX 호출을 만들지 않기**
     /// 위해서다 — 앱 전환이 연타되면 읽기가 겹친다.
     private nonisolated static let readQueue = DispatchQueue(
@@ -79,7 +75,11 @@ final class FocusedElementResolver {
     private nonisolated(unsafe) var observerToken: NSObjectProtocol?
     private nonisolated(unsafe) var axObserver: AXObserver?
     /// 관측 중인 앱. 읽기 요청이 이 pid로만 나가므로 전환 시 함께 갈아탄다.
-    private var observedProcessID: pid_t?
+    ///
+    /// 읽기를 여는 것은 **디스패치 경로 리더의 대상**이기 때문이다: 콜백이 이 값을
+    /// `DispatchContext`에 실어 보내고 게시 큐가 그 pid로 포커스 요소를 잡는다. 같은 곳에서
+    /// 나온 `family`와 짝이라 둘이 서로 다른 앱을 가리킬 수 없다.
+    private(set) var observedProcessID: pid_t?
 
     /// `frontmostProcessID`가 `@autoclosure`인 것은 `FrontmostAppGate`와 같다 — 테스트가
     /// `NSWorkspace` 조회 없이 값을 넣는다. 격리된 `NotificationCenter`를 함께 주입하면
@@ -204,13 +204,11 @@ final class FocusedElementResolver {
     ///
     /// pid만 받는 것이 요점이다: `AXUIElement`를 큐 경계로 넘기지 않으므로 비-`Sendable`
     /// 값이 격리를 건너는 일이 애초에 없다 (`ActionExecutor`의 CGEvent 계약과 같은 규칙).
+    /// 요소 조회와 타임아웃은 디스패치 경로 리더와 같은 상수를 쓰도록 `AXRead`가 맡는다.
     private nonisolated static func readFamily(processID: pid_t) -> ElementFamily {
-        let application = AXUIElementCreateApplication(processID)
-        AXUIElementSetMessagingTimeout(application, messagingTimeout)
-        guard let element = copyElement(application, kAXFocusedUIElementAttribute) else {
+        guard let element = AXRead.focusedElement(ofProcess: processID) else {
             return .textArea
         }
-        AXUIElementSetMessagingTimeout(element, messagingTimeout)
 
         var names: CFArray?
         guard AXUIElementCopyAttributeNames(element, &names) == .success,
@@ -224,27 +222,10 @@ final class FocusedElementResolver {
             exposesSelectedTextRange: attributes.contains(kAXSelectedTextRangeAttribute as String))
     }
 
-    private nonisolated static func copyElement(
-        _ element: AXUIElement, _ attribute: String
-    ) -> AXUIElement? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
-            let value, CFGetTypeID(value) == AXUIElementGetTypeID()
-        else {
-            return nil
-        }
-        return (value as! AXUIElement)
-    }
-
     private nonisolated static func copyString(
         _ element: AXUIElement, _ attribute: String
     ) -> String? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success
-        else {
-            return nil
-        }
-        return value as? String
+        AXRead.copyValue(element, attribute) as? String
     }
 
     /// 앱에 `kAXFocusedUIElementChanged` 옵저버를 걸고 메인 런루프에 붙인다.

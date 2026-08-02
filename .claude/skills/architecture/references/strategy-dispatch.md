@@ -1,6 +1,6 @@
 # 전략 디스패치
 
-- **Last updated**: 2026-08-01 (단계 4 반영 — 비-QWERTY 레이아웃 가드, 스킵 3종 / 앱별 on/off는 config.yaml 소유로 정정)
+- **Last updated**: 2026-08-02 (M5 PR-A 구현 반영 — 디스패치 경로 AX 읽기 기반 구축, 소비자는 PR-B부터)
 
 ## 현재 구조
 
@@ -18,7 +18,7 @@ flowchart TD
     P -->|"앱 off"| Pass[통과 후 중단]
     P -->|"strategy: accessibility"| AX[Accessibility 어댑터]
     P -->|"strategy: keyboard"| KB[Keyboard 어댑터]
-    P -->|"strategy: auto"| Probe{"AX 탐지<br/>(AXRole, AXSelectedTextRange, AXValue)<br/>하드 타임아웃 3ms"}
+    P -->|"strategy: auto"| Probe{"AX 탐지<br/>(형태는 D2에서 결정 —<br/>동기+소캡은 실측 기각)"}
     Probe -->|정상 값| AX
     Probe -->|실패/타임아웃| KM["Keyboard 어댑터<br/>family = key-mapping"]
     AX --> Override{요소별 재정의?}
@@ -72,11 +72,25 @@ flowchart TD
 
 갱신 트리거는 둘이며 **둘 다 실기기에서 살아 있음이 확인됐다**: `NSWorkspace` 앱 활성화 알림(옵저버를 새 앱으로 갈아탄다)과 `AXObserver`의 `kAXFocusedUIElementChangedNotification`(런루프 소스는 메인). 후자는 앱을 바꾸지 않는 **앱 내부** 포커스 이동도 잡는다 — Chrome 옴니박스→페이지 본문 클릭, Finder 리스트→`Cmd-F` 검색창이 각각 전이로 관측됐다. 그래서 콜백은 캐시만 읽어도 충분하며, 라이브 AX 읽기가 필요한 케이스는 도그푸딩 8항목 어디에서도 나오지 않았다 ([20260801_cache-only-callback-confirmed-sufficient.md](../../decisions/references/20260801_cache-only-callback-confirmed-sufficient.md)). **AX 호출은 전용 직렬 큐 위에서만** 하고 메인 스레드는 AX를 아예 호출하지 않는다 — 콜백 경량 불변식보다 강한 보장이며, 그래서 타임아웃 값이 탭 안정성과 무관하다. 타임아웃은 **50ms**다: 실측상 앱 최초 접촉의 focusedRole 읽기는 ~20ms가 걸리고 **3ms 캡에서는 앱 6종 전부 실패**해, 3ms를 지키면 앱 전환 직후 첫 판정이 반드시 폴백이 된다(리졸버가 겨냥한 순간이 정확히 거기다). 큐로 넘기는 값은 `pid_t` 하나뿐이라 비-`Sendable` `AXUIElement`가 격리를 건너지 않는다. 앱 전환 순간 캐시는 **즉시 리셋**되고(이전 앱 계열을 들고 있으면 편집기 진입 직후 편집이 통째로 죽는다) 늦게 착지한 읽기는 토큰 비교로 폐기된다 ([20260801_focused-role-cache-shape.md](../../decisions/references/20260801_focused-role-cache-shape.md)). 리셋이 채우는 값은 폴백이 아니라 `.unresolved`이며, 읽을 앱이 없을 때(pid `nil`)만 폴백이 곧 최종 판정이다 — 착지할 읽기가 애초에 없기 때문이다.
 
-**계열 판정은 role이 아니라 `AXSelectedTextRange` 노출 여부**다 — `AXUIElementCopyAttributeNames` 목록에 있는가로 보며, 값 조회는 판별자가 되지 못한다(Finder도 `.success`를 돌려준다). role은 텍스트로 판정된 뒤 TextArea/TextField를 가르는 데만 쓴다. role 화이트리스트가 기각된 이유는 실측이다: **Finder는 리스트에 포커스가 있어도 `AXGroup`을 보고**하는데 그 role은 Chromium·Electron이 편집 가능한 영역에도 붙여, 텍스트로 두면 Finder를 못 막고 비텍스트로 두면 웹 앱이 죽는다. 어느 단계에서 실패하든(포커스 요소 없음·속성 조회 실패·미지 role) **폴백은 `.textArea`** 이며, 걸러내기는 확실한 보고에만 발동한다 — AX가 트리를 열지 않는 VS Code가 그 경로의 실증이다 ([20260801_element-family-classification-table.md](../../decisions/references/20260801_element-family-classification-table.md), [20260801_resolver-fallback-defaults-to-text-area.md](../../decisions/references/20260801_resolver-fallback-defaults-to-text-area.md)). `selectedRange`까지 캐싱하는 것은 M5 AX 읽기 혼용의 몫으로 남아 있다.
+**계열 판정은 role이 아니라 `AXSelectedTextRange` 노출 여부**다 — `AXUIElementCopyAttributeNames` 목록에 있는가로 보며, 값 조회는 판별자가 되지 못한다(Finder도 `.success`를 돌려준다). role은 텍스트로 판정된 뒤 TextArea/TextField를 가르는 데만 쓴다. role 화이트리스트가 기각된 이유는 실측이다: **Finder는 리스트에 포커스가 있어도 `AXGroup`을 보고**하는데 그 role은 Chromium·Electron이 편집 가능한 영역에도 붙여, 텍스트로 두면 Finder를 못 막고 비텍스트로 두면 웹 앱이 죽는다. 어느 단계에서 실패하든(포커스 요소 없음·속성 조회 실패·미지 role) **폴백은 `.textArea`** 이며, 걸러내기는 확실한 보고에만 발동한다 — AX가 트리를 열지 않는 VS Code가 그 경로의 실증이다 ([20260801_element-family-classification-table.md](../../decisions/references/20260801_element-family-classification-table.md), [20260801_resolver-fallback-defaults-to-text-area.md](../../decisions/references/20260801_resolver-fallback-defaults-to-text-area.md)). `selectedRange`는 캐싱하지 않는다 — 키마다 변해 캐시가 원리적으로 불가하며, 아래 디스패치 경로 읽기가 담당한다.
+
+### 디스패치 경로 AX 읽기 (M5 혼용의 읽기 기반)
+
+**과도기 상태 (소비자 미배선)**: 읽기 기반은 구축됐고 **아직 아무 매퍼도 결과를 읽지 않는다** — 소비는 PR-B·C가 붙인다. 그래서 AX 호출은 현재 런타임에 0건이고, 그 사실을 어댑터 테스트가 계약으로 고정한다(소비가 붙으면 그 테스트가 뒤집혀 짚어 준다).
+
+정확 오프셋이 필요한 시퀀스(단어 경계, 경계 포화, Visual 앵커 등)를 위해 **게시 직렬 큐 위에서** 동기 AX 읽기를 한다. 콜백·메인 스레드는 계속 AX 무접촉이다 ([20260802_dispatch-read-on-posting-queue.md](../../decisions/references/20260802_dispatch-read-on-posting-queue.md), [20260802_focused-text-read-api-shape.md](../../decisions/references/20260802_focused-text-read-api-shape.md)).
+
+- **lazy 읽기**: `KeyboardAdapter.execute`가 **액션마다** `FocusedTextSnapshot`을 새로 만들고, 처음 물을 때 읽어 그 액션 동안 기억한다 — 같은 버스트의 앞 액션이 캐럿을 옮기므로 실행 직전 값만 정확하고(계열 스냅샷과 시점 요구가 정반대), 한 액션 안의 여러 소비자가 왕복을 곱하지 않는다. **실패도 기억한다** — 그러지 않으면 타임아웃 나는 앱에서 물음 수만큼 캡(50ms)을 문다.
+- **pid는 키 입력 시점 스냅샷** — `DispatchContext.processID`에 실려 오고 출처는 `FocusedElementResolver.observedProcessID`다(게이트가 아니다 — 같은 곳에서 나온 `family`와 짝이라 둘이 다른 앱을 가리킬 수 없다). `AXUIElement`는 큐 위에서 생성한다 (격리를 건너는 비-`Sendable` 값 없음).
+- **프리미티브는 `AXSelectedTextRange` + `AXNumberOfCharacters` + `AXStringForRange`(캐럿 ±256, 문서 경계 clamp; 선택이 범위면 양 끝 바깥으로)**. `AXValue` 전체 읽기는 키당 경로 금지 — 비용이 문서 크기에 비례한다 (실측 100만자 3.5~5.3ms vs 창 읽기 크기 무관 ~0.2ms). 반환 타입 `FocusedText`는 `selection`·`characterCount`·`window`에 **`windowRange`** 를 더한 넷이다 — 마지막이 없으면 절대↔상대 오프셋 변환이 안 된다.
+- **실패·타임아웃은 현행 무상태 시퀀스로 폴백** — 정확화만 포기하고 실행은 한다. 스킵도, 실행 실패 보고도 아니다. 실패는 단계·에러코드를 가리지 않는 **단일 `nil`** 이며(pid 없음도 같다), 소비자의 폴백이 하나뿐이라 갈라 봐야 쓸 데가 없다. Slack·VS Code처럼 포커스 요소를 노출하지 않는 앱은 이 폴백이 상시 경로다.
+
+읽기 비용 실측(웜 p50): TextEdit ~0.03ms, Notion `selectedRange` **7.1ms(max 16)** — 후자가 콜백 배치를 기각시킨 수치다. 리더(`FocusedTextReader`)는 어댑터에 주입한다 (골든 테스트가 실기기 AX 없이 읽기 결과를 주입하는 seam — `ActionExecutor.postEvent`·`PasteWiseResolver`와 같은 형태). 타임아웃과 포커스 요소 조회는 **`AXRead`가 단독 소유**해 리졸버 경로와 디스패치 경로가 같은 상수를 쓰는 것이 코드로 강제된다.
 
 ## 불변식·계약
 
-- AX 자동 감지는 하드 타임아웃(3ms)을 절대 초과하지 않는다 — 응답 없는 AX 호출이 이벤트 탭 전체를 멈추게 하면 안 된다.
+- **AX 호출은 콜백·메인 스레드에 들어오지 않는다** — 리졸버는 전용 큐, 디스패치 경로 읽기는 게시 큐. 탭 생존을 지키는 것은 타임아웃 값이 아니라 이 배치다. 메시징 타임아웃은 **경로 불문 50ms 단일 상수**이며 병적 정지가 큐를 잡아두는 것을 자르는 차단기다 — 실패 반환은 캡+2ms로 바운드됨이 실측됐고, 유일한 예외는 프로세스 생애 최초 AX 호출 1회(~23ms, 리졸버가 앱 시작 직후 흡수) ([20260802_ax-read-timeout-50ms-supersedes-3ms.md](../../decisions/references/20260802_ax-read-timeout-50ms-supersedes-3ms.md)).
+- `AXValue` 전체 읽기는 키당 경로에 넣지 않는다 — 비용이 문서 크기에 비례한다.
 - `force-text`는 프로파일에서 명시적으로만 선택하며, 자동 감지가 선택하는 일은 없다.
 
 ## 근거 요약
@@ -90,7 +104,7 @@ flowchart TD
 - 일회성 Accessibility → Keyboard 다운그레이드 수정 키 (kindaVim의 `fn` 방식) — 채택 여부와 키 선택.
 - "AX 거짓말" 감지 휴리스틱 (왕복 테스트, 번들 거부 목록) — `strategy: auto` 신뢰 전 결정.
 - `key-mapping` → `force-text` 자동 폴백 휴리스틱 존재 여부.
-- **AX 읽기 + Keyboard 쓰기 혼용의 적용 범위** — 리졸버는 이미 AX로 읽고 Keyboard 시퀀스를 고르지만(`focusedRole`), `AXValue`·`AXSelectedTextRange`까지 읽어 정확 오프셋을 계산하고 실행만 합성 이벤트로 하는 형태를 어디까지 허용할지. 읽기는 실패가 즉시 드러나 폴백이 안전한 반면(쓰기와 비대칭), 오프셋만큼 스트로크를 보내면 버스트가 되어 실행 중단 래치와 묶인다. M5 착수 시 결정.
+- `strategy: auto` 프로브의 구체 형태 — 동기+소캡은 실측 기각됐고, 비동기 캐시형(리졸버 선례)이 유력. D2 착수 시 결정.
 
 ## 관련
 
