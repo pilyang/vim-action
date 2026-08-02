@@ -1,0 +1,83 @@
+VimActionTests/ExecutionWiringTests.swift
+  s_4e86d6861ca28b::t_07b775985e0d17 112-164
+.claude/skills/decisions/references/20260712_ax-probe-hard-timeout-3ms.md
+  s_67048d8920c8af::t_b46bbb0663206f 1-2
+.claude/skills/decisions/references/20260802_ax-read-timeout-50ms-supersedes-3ms.md
+  s_67048d8920c8af::t_eb5b7baa30cf90 1-39
+.claude/skills/decisions/SKILL.md
+  s_4e86d6861ca28b::t_1263f6be1bc23c 202
+  s_67048d8920c8af::t_ec8d332518b252 200-201
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_4e86d6861ca28b::t_27926f87f233e8 36-37
+  s_67048d8920c8af::t_06d54a54364539 18-19
+  s_67048d8920c8af::t_8d51e254d3bd76 10
+  s_4e86d6861ca28b::t_e0b6ef3684d571 20
+  s_4e86d6861ca28b::t_ebfc89484bb4a1 6
+  s_4e86d6861ca28b::t_2983da6e636d09 26
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_67048d8920c8af::t_4541fb3a2965b6 3
+  s_67048d8920c8af::t_6a399a74633adf 30
+VimAction/FocusedTextReader.swift
+  s_4e86d6861ca28b::t_e6da61667dd21a 35,39,43
+  s_4e86d6861ca28b::t_a6b3eb439b7d4f 1-34,36-38,40-42,44-49,52-136
+  s_4e86d6861ca28b::t_f2a1a0ac475e86 50-51
+VimAction/EventTapController.swift
+  s_4e86d6861ca28b::t_3532791103ea25 199
+  s_4e86d6861ca28b::t_8db875f29362bc 777-779
+  s_4e86d6861ca28b::t_21fb79607791d7 175-178
+.claude/skills/decisions/references/20260802_dispatch-read-on-posting-queue.md
+  s_67048d8920c8af::t_366fb6aed91ebe 1-57
+VimAction/DispatchContext.swift
+  s_4e86d6861ca28b::t_d397e7c43bcbbc 6-9,17-23
+VimAction/FocusedElementResolver.swift
+  s_4e86d6861ca28b::t_26b590db844e7b 228
+  s_4e86d6861ca28b::t_0b67d8dfcdc095 78-82
+  s_4e86d6861ca28b::t_ae2c9a2ff988ca 207,209
+VimActionTests/FocusedTextReaderTests.swift
+  s_4e86d6861ca28b::t_96444cb4fb8d08 1-191
+VimActionTests/KeyboardAdapterTests.swift
+  s_4e86d6861ca28b::t_a2bd9298d892bb 19,24,30
+  s_4e86d6861ca28b::t_efdc63a6c99450 800-865
+VimAction/KeyboardAdapter.swift
+  s_4e86d6861ca28b::t_0ca3afca6bf6cb 77-82,85-86
+  s_4e86d6861ca28b::t_0f8c659b6ae988 129-131,133
+  s_4e86d6861ca28b::t_cd73828d217d03 290-292,294-295
+  s_4e86d6861ca28b::t_2dca9777180cf4 37-45,51-52,57
+.claude/skills/decisions/references/20260802_focused-text-read-api-shape.md
+  s_4e86d6861ca28b::t_775672b0fea5a6 1-77
+VimAction/AXRead.swift
+  s_4e86d6861ca28b::t_645b1049afe9e0 1-52
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_67048d8920c8af::t_f0bd754fc814fe 92-93
+  s_4e86d6861ca28b::t_d93b2357f476a4 79,81,83-86,88
+  s_67048d8920c8af::t_91ef56a76009d0 21
+  s_4e86d6861ca28b::t_77f0a9d45001c9 3
+  s_67048d8920c8af::t_ff33139baabd08 75-78,80,82,87
+  s_67048d8920c8af::t_b6b3114ca09be2 107
+.claude/skills/plans/SKILL.md
+  s_4e86d6861ca28b::t_ebeec9c6314066 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "56687f2645486f2a0b4e0a2c7a74aff46a17acdc",
+  "prompts": {},
+  "sessions": {
+    "s_4e86d6861ca28b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c4ef93a-04bf-4c05-ad86-a9750cea33a1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_67048d8920c8af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "65697688-0e36-4b45-a779-a425549e4eb4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
