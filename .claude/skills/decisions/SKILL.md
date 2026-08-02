@@ -37,7 +37,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 
 | Date | Title | 요약 | Reference |
 |---|---|---|---|
-| 07-12 | YAML 설정 + 파일 감시 리로드 | Yams YAML, 파일 변경 시 자동 리로드 (디스크 루트는 20260801, 3계층 병합은 20260802 부분 supersede) | [20260712_yaml-three-layer-config.md](references/20260712_yaml-three-layer-config.md) |
+| 07-12 | YAML 설정 (Yams) | 설정은 전부 YAML + Yams 파싱 (루트는 20260801, 3계층 병합·자동 리로드는 20260802 부분 supersede) | [20260712_yaml-three-layer-config.md](references/20260712_yaml-three-layer-config.md) |
 | 07-12 | 엔진 테스트는 Swift Testing | 픽스처 파라미터라이즈드에 적합, UI 테스트는 XCTest 유지 | [20260712_swift-testing-for-engine-tests.md](references/20260712_swift-testing-for-engine-tests.md) |
 | 07-12 | 단일 코어 SPM 패키지 | 순수 Swift 모듈은 VimActionCore 단일 패키지의 다중 타깃으로 | [20260712_single-core-spm-package.md](references/20260712_single-core-spm-package.md) |
 | 07-12 | GitHub Actions CI | macos-26 병렬 2잡(엔진 테스트+앱 빌드), Xcode 고정, 사이닝 off | [20260712_github-actions-ci.md](references/20260712_github-actions-ci.md) |
@@ -59,6 +59,8 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-02 | append 모션은 base를 따라감 | charRightForAppend/lineEndForAppend는 어휘 비노출 — char_right/line_end 재정의 자동 상속 | [20260802_append-motions-follow-base-override.md](references/20260802_append-motions-follow-base-override.md) |
 | 08-02 | 번들 기본값은 시딩 | 병합 계층 폐기 — 없는 파일만 복사, 읽기는 사용자 파일 1계층(계층 출처 소멸), 기존 파일 미갱신 수용 | [20260802_bundled-defaults-seeded-not-merged.md](references/20260802_bundled-defaults-seeded-not-merged.md) |
 | 08-02 | Package.resolved 커밋 | Yams가 첫 외부 의존 — CI·로컬 버전 고정(파싱 테스트가 Yams 해석에 의존) | [20260802_package-resolved-committed.md](references/20260802_package-resolved-committed.md) |
+| 08-02 | 설정 리로드는 메뉴바 수동 트리거 | 파일 감시 폐기 — 'Reload Config' 클릭, 실패는 클릭 자리에서 가시화, 자동 감시는 재개 조건부 | [20260802_config-reload-manual-menubar-trigger.md](references/20260802_config-reload-manual-menubar-trigger.md) |
+| 08-02 | 메뉴바 최전면 앱 편의 기능 2종 | bundle id 복사 + 프로파일 scaffold 생성·열기 — non-self 앱 캐시 전제, 기존 파일 무수정 | [20260802_menubar-frontmost-app-conveniences.md](references/20260802_menubar-frontmost-app-conveniences.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 

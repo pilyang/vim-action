@@ -2,6 +2,7 @@
 
 > 부분 Superseded by [20260801_config-root-dot-config.md](20260801_config-root-dot-config.md) — 디스크 루트가 `~/.config/vim-action/`으로 변경. YAML·Yams·3계층·핫 리로드는 유효.
 > Superseded (부분) by [20260802_bundled-defaults-seeded-not-merged.md](20260802_bundled-defaults-seeded-not-merged.md) — 3계층 재정의 구조가 뒤집힘(번들은 시딩, 읽기는 사용자 파일 1계층) / YAML·Yams·파일 감시 자동 리로드는 유효.
+> Superseded (부분) by [20260802_config-reload-manual-menubar-trigger.md](20260802_config-reload-manual-menubar-trigger.md) — 파일 감시 자동 리로드가 메뉴바 수동 트리거로 뒤집힘 / YAML·Yams는 유효.
 
 - **결정일**: 2026-07-12
 
