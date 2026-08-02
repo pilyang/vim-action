@@ -1,3 +1,5 @@
+> Superseded by [20260803_boundary-saturation-refinement-table.md](20260803_boundary-saturation-refinement-table.md) (엣지 2·3·4), [20260803_line-end-charwise-vim-cursor-model.md](20260803_line-end-charwise-vim-cursor-model.md) (엣지 1), [20260802_empty-selection-edit-suppression.md](20260802_empty-selection-edit-suppression.md) (엣지 5) — **전 항목 해소**
+
 # 편집 경계 포화 수용 엣지 — 선택이 접히는 경계 5종 코드 무변경 수용
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

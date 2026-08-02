@@ -180,8 +180,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-26 | 탭 들여쓰기 ^·I 엣지 | Chromium 계열 퇴행 수용 — 고정 시퀀스 부재, M5 AX 해소 | [20260726_tab-indent-first-nonblank-chromium-edge.md](references/20260726_tab-indent-first-nonblank-chromium-edge.md) |
 | 07-26 | undo 단위 실측 — u=Cmd-Z 유지 | 합성 시퀀스는 1 undo 단위 실증, change만 분리 수용 | [20260726_undo-unit-cmdz-policy.md](references/20260726_undo-unit-cmdz-policy.md) |
 | 07-27 | Notion Shift-Cmd-↑/↓ 충돌 수용 | 블록 이동 충돌로 6조합 파괴적 오동작 — M4 프로파일이 해소 | [20260727_notion-cmd-shift-vertical-conflict.md](references/20260727_notion-cmd-shift-vertical-conflict.md) |
-| 07-28 | 편집 경계 포화 엣지 5종 | 무상태 전제상 감지 불가·조건부 보정 금지 — M5 AX 혼용이 정확화 | [20260728_edit-boundary-saturation-accepted-edges.md](references/20260728_edit-boundary-saturation-accepted-edges.md) |
-| 07-28 | linewise 시각 줄 엣지 | 소프트 랩에서 dd/cc가 화면 행 단위 — M5 AX가 해소 | [20260728_linewise-visual-line-wrap-accepted-edge.md](references/20260728_linewise-visual-line-wrap-accepted-edge.md) |
+| 07-28 | linewise 시각 줄 엣지 | 소프트 랩에서 dd/cc가 화면 행 단위 — 창 읽기로는 해소 불가(20260803), 단락 바인딩 실측이 재개 조건 | [20260728_linewise-visual-line-wrap-accepted-edge.md](references/20260728_linewise-visual-line-wrap-accepted-edge.md) |
 | 07-28 | charwise Visual 후진 원점 이동 | 진입 Shift-→가 원점을 P+1로 — vb·vh 빈 선택 수용, M5 AX 해소 | [20260728_visual-charwise-backward-origin-shift.md](references/20260728_visual-charwise-backward-origin-shift.md) |
 | 07-30 | 명령 어휘 비텍스트 UI 발사 | Finder p=파일 붙여넣기 등 — 도그푸딩 규율 추가, 리졸버가 구조적 해소 | [20260730_native-command-non-text-ui-hazard.md](references/20260730_native-command-non-text-ui-hazard.md) |
 
@@ -201,4 +200,9 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-02 | AX 타임아웃 50ms 단일 상수 | 3ms 캡 supersede(웜 Notion 16ms 실측) — 탭을 지키는 건 캡 값이 아니라 배치, 실패 반환 캡+2ms 바운드 확인 | [20260802_ax-read-timeout-50ms-supersedes-3ms.md](references/20260802_ax-read-timeout-50ms-supersedes-3ms.md) |
 | 08-02 | 캐럿 주변 읽기 API 모양 | `FocusedText` 4필드(`windowRange` 필수), 창 ±256 고정, pid 출처는 리졸버(게이트 아님), 실패는 액션 단위로 기억되는 단일 nil | [20260802_focused-text-read-api-shape.md](references/20260802_focused-text-read-api-shape.md) |
 | 08-02 | 읽기 소비는 매퍼 술어 2함수 | `keyStrokes`에 text를 넣지 않는다(nil 의미 중첩·classify 3프로브·사유 모르는 자리의 로그) — `consultsFocusedText`/`collapsesToNothing`이 값을 받고, cw 리타깃은 시퀀스와 같은 함수를 공유 | [20260802_read-consumption-via-mapper-predicates.md](references/20260802_read-consumption-via-mapper-predicates.md) |
-| 08-02 | 0폭 포화 편집 억제 (엣지 5 해소) | 증명된 6종만 액션 통째 스킵(`.skipped` 재사용), 카운트 규칙 없음 — w·^·줄 경계·`.selection`은 각각 다른 이유로 보류, 낡은 읽기·소프트 랩 한계 수용 | [20260802_empty-selection-edit-suppression.md](references/20260802_empty-selection-edit-suppression.md) |
+| 08-02 | 0폭 포화 편집 억제 (엣지 5 해소) | 증명된 6종만 액션 통째 스킵(`.skipped` 재사용), 카운트 규칙 없음 — w·^·줄 경계·`.selection`은 각각 다른 이유로 보류 (charRight/문서 끝 행은 20260803 부분 supersede) | [20260802_empty-selection-edit-suppression.md](references/20260802_empty-selection-edit-suppression.md) |
+| 08-03 | 재조립은 분기의 근거만 (레이스) | 읽기로 시퀀스를 고르되 스트로크 수는 정하지 않는다 — 낡은 읽기의 최악이 현행 동작을 넘지 않게, 오프셋 비례 스트로크 금지 | [20260803_refinement-branches-not-stroke-counts.md](references/20260803_refinement-branches-not-stroke-counts.md) |
+| 08-03 | `keyStrokes(text:)` + 3-프로브 | 재조립이 시그니처를 바꾼다 — `collapsesToNothing` 접힘, 편집 전용 `classifyEdit`이 프로브 순서를 구조로 강제(텍스트→builtIn, builtIn은 text 미수신) | [20260803_edit-keystrokes-takes-focused-text.md](references/20260803_edit-keystrokes-takes-focused-text.md) |
+| 08-03 | 경계 포화 정확화 표 (엣지 2·3·4·`^`) | 첫 줄 `dk`·첫 비공백 `^`는 무효 스킵, 마지막 단어 `dw`는 `e` 1타, 마지막 줄 `dgg`는 `cgg` 접두 재사용 — 읽기를 묻는 범위는 최소로만 확장 | [20260803_boundary-saturation-refinement-table.md](references/20260803_boundary-saturation-refinement-table.md) |
+| 08-03 | 줄 끝 charwise = Vim 커서 모델 (엣지 1) | 줄 끝 `x`는 `Shift-←`로 마지막 글자 삭제(그 한 자리로 범위 한정), 빈 줄은 무효, 아니면 clamp — 문서 끝 억제를 덮어씀. 유일하게 "현행 이하"가 아닌 재조립 | [20260803_line-end-charwise-vim-cursor-model.md](references/20260803_line-end-charwise-vim-cursor-model.md) |
+| 08-03 | 소프트 랩은 창 읽기로 해소 불가 | 증명 실패(랩 문단 > 창 반경)·중단 불가 원자 그룹·낡은 오프셋 셋 — 수용 엣지 유지, `dd`·`dj`는 읽기 0건. 단락 바인딩 실측이 재개 조건 | [20260803_soft-wrap-linewise-not-resolved-by-window-read.md](references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md) |

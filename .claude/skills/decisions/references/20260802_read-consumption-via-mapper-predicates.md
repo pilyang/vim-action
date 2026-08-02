@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260803_edit-keystrokes-takes-focused-text.md](20260803_edit-keystrokes-takes-focused-text.md) — 결정 1(`keyStrokes` 시그니처 무변경)과 `collapsesToNothing`의 존재가 뒤집힘 / ②·③·④(cw 리타깃 공유, `consultsFocusedText`가 매퍼 소속인 이유, 파생 질의 파일 분리)는 유효
+
 # 읽기 소비 형태 — 매퍼 술어 2함수, `keyStrokes`는 무변경
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

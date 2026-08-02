@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260803_line-end-charwise-vim-cursor-model.md](20260803_line-end-charwise-vim-cursor-model.md) — 억제 표의 `charRight`/문서 끝 행이 재조립(마지막 글자 삭제)으로 교체됨 / 나머지 5종·`.selection` 제외 근거·레이스 수용 논거는 유효
+
 # 0폭 포화 편집 억제 — 증명된 6종만, 분류는 `.skipped`
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
