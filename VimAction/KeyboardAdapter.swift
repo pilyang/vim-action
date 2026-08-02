@@ -257,7 +257,13 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 액션 → 합성할 키스트로크.
     ///
     /// `VimAction`에 exhaustive switch를 걸지 않는 것이 계약이다 — 엔진에 케이스가 늘어도
-    /// `default:`가 흡수해 어댑터가 컴파일 에러로 무너지지 않는다.
+    /// 폴백이 흡수해 어댑터가 컴파일 에러로 무너지지 않는다.
+    ///
+    /// 폴백이 맨 `default:`가 아니라 `@unknown default:`인 이유: v1 어휘 11종이 전부 채워진
+    /// 지금 맨 `default:`는 도달 불가라 컴파일러가 "실행되지 않는다"고 경고하고, 그 경고는
+    /// 계약을 몰라 지우라고 부추긴다. `@unknown default:`는 런타임 흡수를 그대로 두면서
+    /// 그 경고를 없애고, 케이스가 늘면 **에러가 아니라 경고로** 여기를 짚어 준다 —
+    /// "무너지지 않되 조용하지도 않다"는 이 계약이 원래 원하던 것이다.
     ///
     /// `static`이 아닌 이유는 `.paste`가 주입된 클립보드 읽기를 쓰기 때문이다.
     private func mapping(
@@ -342,7 +348,7 @@ nonisolated struct KeyboardAdapter: Sendable {
                 before: before, count: count, wise: wise, family: family, profile: .empty) != nil
                 ? .disabledByProfile : .unsupported
 
-        default:
+        @unknown default:
             return .unsupported
         }
     }
