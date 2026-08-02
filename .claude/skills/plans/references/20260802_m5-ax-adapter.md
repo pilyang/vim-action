@@ -23,7 +23,7 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 
 각 PR은 자기 worktree에서 작업한다. A → B → C는 선형 의존이고, D1 → D2도 선형이다. C와 D는 원칙적으로 병렬 가능하지만 어댑터 파일 충돌이 클 수 있어 순차를 기본으로 한다.
 
-- [x] **PR-A — 읽기 기반 (리졸버 확장)** — 완료. 상세는 위 "완료된 것".
+- [x] **PR-A — 읽기 기반 (리졸버 확장)** — 구현 완료, [PR #35](https://github.com/pilyang/vim-action/pull/35) **리뷰 대기(미머지)**. 상세는 위 "완료된 것". **PR-B는 이 PR이 머지된 뒤 main에서 새 worktree로 시작한다** — 머지 전에 main에서 파면 PR-A의 코드도 이 플랜 갱신도 없다.
 - [ ] **PR-B — 혼용 1: 편집·모션 정확화**: PR-A의 읽기를 소비해 무상태 매퍼를 정확화. `iw` 단어 경계, `cw`→`ce` 특례, [경계 포화 5종](../../decisions/references/20260728_edit-boundary-saturation-accepted-edges.md), [소프트 랩 시각 줄](../../decisions/references/20260728_linewise-visual-line-wrap-accepted-edge.md). 어댑터 무상태는 유지(정확화 diff). 골든 테스트 대량 갱신 예상. 오프셋만큼 스트로크를 보내면 버스트가 되므로 실행 중단 래치·청크 원자 그룹 규칙과 묶인다. 커지면 모션/편집으로 2분할 가능.
 - [ ] **PR-C1 — 혼용 2a: Visual 앵커 상태**: 어댑터가 처음으로 앵커·범위 상태를 든다(구조 변화 — PR-B와 분리하는 이유). [Visual 후진 전체](../../decisions/references/20260728_visual-charwise-backward-origin-shift.md)(`Vk`·`vb`·`vh`)가 통째로 해소되고, `V`→`v` 전환·앵커 쪽 반올림도 가능해진다. 어댑터의 `linewise: Bool` 상자 재검토가 여기 속한다.
 - [ ] **PR-C2 — 혼용 2b: paste wise·스크롤 정확화**: charwise/linewise `p` 경계와 paste wise 자체 — 레지스터·yank 경로의 wise 기억으로 해소. 스크롤 근사 줄 수 → `AXVisibleCharacterRange` 뷰포트 정확화. 비-QWERTY 정식 해소(문자→키코드 역조회 주입 — [레이아웃 가드 결정](../../decisions/references/20260801_non-qwerty-command-key-layout-guard.md)의 이연 항목)도 여기.
