@@ -1,6 +1,6 @@
-# Slack — Return이 줄 삽입이 아니라 **메시지 전송**인 앱.
-# o/O가 Return을 합성하면 쓰다 만 메시지가 전송되므로 open_line을 끈다.
-# (o를 누르면 엔진은 Insert로 들어가지만 줄은 생기지 않는다 — Esc로 복귀.)
+# Slack — Return **sends the message** instead of inserting a line break.
+# If o/O synthesized Return, a half-written message would be sent, so open_line is off.
+# (Pressing o still enters Insert mode but no line is added — press Esc to go back.)
 name: Slack
 actions:
   open_line: disabled

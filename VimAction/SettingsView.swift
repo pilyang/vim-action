@@ -48,8 +48,17 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 }
-                LabeledContent(
-                    "Disabled Apps", value: disabledAppsText(appState.configStore.disabledBundleIDs))
+                // 목록은 사용자가 늘리는 만큼 길어진다 — 높이를 묶어 두지 않으면 이 행 하나가
+                // 섹션 전체를 밀어낸다. 기본 6앱은 그대로 다 보이고, 그 이상부터 스크롤된다.
+                LabeledContent("Disabled Apps") {
+                    ScrollView {
+                        Text(disabledAppsText(appState.configStore.disabledBundleIDs))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    .frame(maxHeight: 120)
+                    .scrollBounceBehavior(.basedOnSize)
+                    .foregroundStyle(.secondary)
+                }
                 LabeledContent(
                     "Profiles", value: profilesText(appState.configStore.appliedSnapshot.profiles))
                 Button("Open config.yaml") {

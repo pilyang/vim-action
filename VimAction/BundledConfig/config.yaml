@@ -1,15 +1,15 @@
-# VimAction — 앱별 on/off (bundle id → bool 맵).
-# 여기 없는 앱은 기본 on이다. 앱의 bundle id 확인:
+# VimAction — per-app on/off (bundle id -> bool map).
+# Apps not listed here are on by default. To find an app's bundle id:
 #   osascript -e 'id of app "Slack"'
 #
-# 이 파일은 첫 실행 시 번들 기본값에서 시딩된 뒤 온전히 사용자 소유다 —
-# 앱은 이 파일을 절대 덮어쓰지 않는다. 반영은 메뉴바 'Reload Config'.
+# Seeded from the bundled defaults on first launch, this file is yours after
+# that — VimAction never overwrites it. Apply edits with 'Reload Config'.
 apps:
-  # 자체 Vim 키바인딩을 갖는 터미널 — 이중 해석이 되면 양쪽 다 깨진다.
+  # Terminals with their own Vim keybindings — double interpretation breaks both.
   com.mitchellh.ghostty: false
   com.apple.Terminal: false
   com.googlecode.iterm2: false
-  # Vim 확장이 흔한 에디터군 — 필요하면 true로 바꾸거나 줄을 지운다.
+  # Editors that usually have a Vim extension — set to true or delete the line to use VimAction here.
   com.microsoft.VSCode: false
   com.todesktop.230313mzl4w4u92: false # Cursor
   com.exafunction.windsurf: false
