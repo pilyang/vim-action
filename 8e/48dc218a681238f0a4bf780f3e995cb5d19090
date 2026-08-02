@@ -1,0 +1,117 @@
+VimActionTests/ExecutionWiringTests.swift
+  s_af3945bf14c244::t_996603bfbc9dd0 38-39
+  s_af3945bf14c244::t_c93d710785dc6d 112-142
+  s_af3945bf14c244::t_9000c40cb73258 100
+  s_af3945bf14c244::t_821e62acfca565 154-155
+  s_af3945bf14c244::t_264d92fa5b751b 9
+  s_af3945bf14c244::t_da3d59aa6c7e6f 21-28
+VimAction/ConfigStore.swift
+  s_af3945bf14c244::t_f6d063e3f3f2ce 1-99,101-145
+  s_af3945bf14c244::t_71dc10a079365e 100
+VimActionTests/ProfileOverrideMappingTests.swift
+  s_af3945bf14c244::t_6247bbe71b8ef1 1-206
+VimAction/KeyboardAdapter.swift
+  s_af3945bf14c244::t_e90f31d5c40d44 263-273
+  s_af3945bf14c244::t_3ea7bb28679982 112,129-132
+  s_af3945bf14c244::t_e9d73fc0e077c5 422-433
+  s_af3945bf14c244::t_3d3337fd7ff09c 180-186
+  s_af3945bf14c244::t_2f72435dad6ac1 9
+  s_af3945bf14c244::t_258ff556f9a0f2 251-254
+  s_af3945bf14c244::t_72e1e4fa95de80 63-65,67-68,78-79
+  s_af3945bf14c244::t_13d311edfc906f 294-296,302-306,309-313,316-320,330-334,336-337,344-351
+  s_af3945bf14c244::t_04b2f8d1198ded 133-134
+  s_af3945bf14c244::t_8b3ee35ddfc745 352-353
+VimActionTests/ConfigStoreTests.swift
+  s_af3945bf14c244::t_0394828de0e1b9 1-228
+VimActionTests/VisualKeyMapperTests.swift
+  s_af3945bf14c244::t_74edc61cd123b4 128,130
+VimActionTests/ResolvedProfileTests.swift
+  s_af3945bf14c244::t_96e67782edf61c 1-17,19-40,46-102
+  s_af3945bf14c244::t_b133523f51ae10 18,41-45
+VimActionTests/FrontmostAppGateTests.swift
+  s_af3945bf14c244::t_94084e4b801cbd 10-12,16-19,26-27,29-31,38,42-47,67-79
+  s_af3945bf14c244::t_ef837b0eb7eb98 80
+VimAction/ConfigPaths.swift
+  s_af3945bf14c244::t_7837673fd6e856 1-15
+VimAction/VisualKeyMapper.swift
+  s_af3945bf14c244::t_297800d08bb0af 8
+  s_af3945bf14c244::t_92fc8869c2688e 33-38,44-46
+VimAction/FrontmostAppGate.swift
+  s_af3945bf14c244::t_e410288d6b92ce 22-24
+  s_af3945bf14c244::t_0ed7e10a928ae4 106-121
+  s_af3945bf14c244::t_204a7b2d0f5235 64-65,68
+  s_af3945bf14c244::t_858594ca48a2d8 42-50
+VimAction/DispatchContext.swift
+  s_af3945bf14c244::t_bf6af294c70dca 1-15
+VimAction/AppState.swift
+  s_af3945bf14c244::t_75ef1f7e35d0b4 12,20-25,28-36,41,44-45,51-54
+  s_af3945bf14c244::t_4ae1b43b395530 79-88
+VimAction/SettingsView.swift
+  s_af3945bf14c244::t_c92e8bd2e771b6 31-65
+  s_af3945bf14c244::t_607382b9717c97 7
+  s_af3945bf14c244::t_18c7371bb3d0cd 104
+  s_af3945bf14c244::t_f0e3d3d3335e9a 122-135
+VimAction/BundledConfig.swift
+  s_af3945bf14c244::t_b9d2637291e032 1-45
+VimAction/BundledConfig/notion.id.yaml
+  s_af3945bf14c244::t_60c06301d470c0 1-15
+VimAction/CommandKeyMapper.swift
+  s_af3945bf14c244::t_77e12b0ba6c03f 158-165,169-171
+  s_af3945bf14c244::t_98cf1e462c7a9c 94-95,99-101,106-110,117,120,127-131,136-139,146-150
+  s_af3945bf14c244::t_4a03ce941442ed 47-53,61,74-75
+  s_af3945bf14c244::t_8b7c505da4e6e6 8
+VimAction/ResolvedProfile.swift
+  s_af3945bf14c244::t_4930d9224dd976 65-67
+  s_af3945bf14c244::t_4b532b17c60bf8 1-64,68-103
+VimAction.xcodeproj/project.pbxproj
+  s_af3945bf14c244::t_bc01b1c6e0f49a 12-13
+  s_af3945bf14c244::t_bb93966b2ed85b 72
+  s_af3945bf14c244::t_cd118e95e88d15 63
+  s_af3945bf14c244::t_e33ad74d236230 127
+  s_af3945bf14c244::t_d17e8c504830a7 603-610
+  s_af3945bf14c244::t_72c7e89c28c219 152
+VimAction/EditKeyMapper.swift
+  s_af3945bf14c244::t_87a7e234e548ce 24-27,32-33
+  s_af3945bf14c244::t_d4011998dfdb60 106,111-114,118-122,126-129,132-142,151-157
+  s_af3945bf14c244::t_37d88849644d76 8
+  s_af3945bf14c244::t_8bc02af7958635 166-168,174-177,182-183,187-188
+  s_af3945bf14c244::t_046ea840590f5b 58-61,66,73-74,77-80,83,89-93
+VimAction/EventTapController.swift
+  s_af3945bf14c244::t_c3b267d00bbbc6 183,187,193-195
+  s_af3945bf14c244::t_8e9f3ad310c32f 157-167
+  s_af3945bf14c244::t_2f1bd450d8a9f7 260-264,266-269,275-276,281
+  s_af3945bf14c244::t_63195f477533a8 767-773
+VimAction/VimActionApp.swift
+  s_af3945bf14c244::t_7f7fce5acf1561 29-53
+  s_af3945bf14c244::t_6360e642c8876e 10
+VimAction/BundledConfig/com.tinyspeck.slackmacgap.yaml
+  s_af3945bf14c244::t_268b72e3b67b59 1-6
+VimAction/Logging.swift
+  s_af3945bf14c244::t_8242b642e3f5a1 22-25
+VimAction/BundledConfig/config.yaml
+  s_af3945bf14c244::t_1edf6a9eb8b2a9 1-14
+VimAction/MotionKeyMapper.swift
+  s_af3945bf14c244::t_b956edf057ed6c 108-114
+  s_af3945bf14c244::t_e460deaf61c97f 8
+  s_af3945bf14c244::t_cf5aa8579dbe2f 38-60
+VimActionTests/MotionKeyMapperTests.swift
+  s_af3945bf14c244::t_aa26b537bfcda8 82
+VimAction/ConfigFileSystem.swift
+  s_af3945bf14c244::t_ced5c7409dcafa 1-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "8e48dc218a681238f0a4bf780f3e995cb5d19090",
+  "prompts": {},
+  "sessions": {
+    "s_af3945bf14c244": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f4213838-5b50-4282-88ca-f64f718f3c3a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
