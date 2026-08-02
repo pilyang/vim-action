@@ -106,6 +106,10 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 420, height: 560)
+        // 설정 창이 열려 있는 동안만 Dock 아이콘을 노출한다. `onAppear`가 유일하게
+        // 신뢰할 수 있는 열림 신호인 이유(창이 key가 되지 않는다)와 닫힘을 창 알림이
+        // 맡는 이유는 `DockIconController`에 있다. 닫힘 쪽 짝은 `onDisappear`가 아니다.
+        .onAppear { appState.dockIcon.settingsWindowDidAppear() }
     }
 }
 

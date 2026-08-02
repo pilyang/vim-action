@@ -23,6 +23,10 @@ final class AppState {
     /// 게이트를 AppState가 직접 만들어 컨트롤러에 주입한다 — 설정 로드·리로드 때
     /// disable 집합을 푸시할 핸들이 필요해서다 (컨트롤러는 설정 계층을 모른다).
     private let frontmostAppGate: FrontmostAppGate
+    /// 설정 창이 열린 동안만 Dock 아이콘을 노출한다. 열림은 `SettingsView.onAppear`가
+    /// 알려주고 닫힘은 컨트롤러가 창 알림으로 스스로 잡으므로, `bootstrap`이 아니라 여기
+    /// 생성 시점이 배선의 전부다.
+    let dockIcon = DockIconController.forCurrentEnvironment()
 
     init() {
         let gate = FrontmostAppGate.forCurrentEnvironment()
