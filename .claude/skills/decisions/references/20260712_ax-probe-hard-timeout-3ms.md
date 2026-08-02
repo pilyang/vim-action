@@ -1,3 +1,5 @@
+> Superseded by [20260802_ax-read-timeout-50ms-supersedes-3ms.md](20260802_ax-read-timeout-50ms-supersedes-3ms.md)
+
 # AX 감지 하드 타임아웃 3ms
 
 - **결정일**: 2026-07-12

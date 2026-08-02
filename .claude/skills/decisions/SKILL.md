@@ -190,7 +190,6 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | Date | Title | 요약 | Reference |
 |---|---|---|---|
 | 07-12 | AX/Keyboard 전략 디스패치 | 앱별 프로파일 + AX 자동 감지로 전략 선택, force-text는 명시 전용 | [20260712_ax-keyboard-strategy-dispatch.md](references/20260712_ax-keyboard-strategy-dispatch.md) |
-| 07-12 | AX 감지 하드 타임아웃 3ms | 자동 감지 AX 탐지 3ms 캡+폴백 (리졸버 캐시 경로는 20260801 전용 큐 50ms) | [20260712_ax-probe-hard-timeout-3ms.md](references/20260712_ax-probe-hard-timeout-3ms.md) |
 | 08-01 | TextField 전용 편집 시퀀스 폐기 | .textField도 TextArea 시퀀스 — 전용 분기는 role 오보고 시 개악 | [20260801_textfield-edit-sequences-scrapped.md](references/20260801_textfield-edit-sequences-scrapped.md) |
 | 08-01 | 리졸버 폴백은 .textArea | AX 실패·타임아웃·미지 role은 전부 .textArea — 걸러내기는 확실할 때만 | [20260801_resolver-fallback-defaults-to-text-area.md](references/20260801_resolver-fallback-defaults-to-text-area.md) |
 | 08-01 | 계열 판별자는 AXSelectedTextRange 노출 | role 화이트리스트 붕괴(실측) — 속성 이름 목록만 유효, role은 Area/Field 구분만 | [20260801_element-family-classification-table.md](references/20260801_element-family-classification-table.md) |
@@ -198,3 +197,6 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-01 | 앱 전환 직후는 미확정 창 | 레이스 실증 — 4번째 케이스 .unresolved, 걸러내기는 nonText와 같은 편 | [20260801_unresolved-window-after-app-switch.md](references/20260801_unresolved-window-after-app-switch.md) |
 | 08-01 | 캐시 충분성 1차 확정 | 라이브 AX 읽기 필요 케이스 없음 — 갱신 2경로 실측, M5에서 재확인 | [20260801_cache-only-callback-confirmed-sufficient.md](references/20260801_cache-only-callback-confirmed-sufficient.md) |
 | 08-01 | 비텍스트 걸러내기 범위 | .nonText 스킵은 편집·Visual·명령 위임만 — move·scroll 유지, 게이트는 어댑터 1곳 | [20260801_non-text-filter-keeps-motion-and-scroll.md](references/20260801_non-text-filter-keeps-motion-and-scroll.md) |
+| 08-02 | 디스패치 경로 AX 읽기 형태 | 게시 큐 위 lazy 읽기(콜백·메인 무접촉 유지), 창 프리미티브(AXValue 전체 금지), 실패는 무상태 폴백 | [20260802_dispatch-read-on-posting-queue.md](references/20260802_dispatch-read-on-posting-queue.md) |
+| 08-02 | AX 타임아웃 50ms 단일 상수 | 3ms 캡 supersede(웜 Notion 16ms 실측) — 탭을 지키는 건 캡 값이 아니라 배치, 실패 반환 캡+2ms 바운드 확인 | [20260802_ax-read-timeout-50ms-supersedes-3ms.md](references/20260802_ax-read-timeout-50ms-supersedes-3ms.md) |
+| 08-02 | 캐럿 주변 읽기 API 모양 | `FocusedText` 4필드(`windowRange` 필수), 창 ±256 고정, pid 출처는 리졸버(게이트 아님), 실패는 액션 단위로 기억되는 단일 nil | [20260802_focused-text-read-api-shape.md](references/20260802_focused-text-read-api-shape.md) |

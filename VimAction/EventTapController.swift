@@ -172,6 +172,10 @@ final class EventTapController {
     /// 같은 컨텍스트여야 한다 (격리를 건너는 값이 애초에 없게). 큐가 직렬인 것도 계약이다:
     /// 키 입력 여러 건의 키스트로크 순서가 뒤섞이면 캐럿이 엉뚱한 곳으로 간다.
     ///
+    /// 이 큐는 디스패치 경로 **AX 읽기**의 컨텍스트이기도 하다: 어댑터가 `context.processID`로
+    /// 액션마다 캐럿 주변을 읽으므로(lazy), 콜백·메인은 AX 무접촉을 유지한 채 Notion의
+    /// 키당 7~16ms짜리 `selectedRange`가 이 버스트 안에만 머문다.
+    ///
     /// 단위 테스트에서는 no-op이다 — TEST_HOST가 앱 프로세스라 그냥 두면 `.replace`를 만드는
     /// 테스트가 개발자 머신에 실제 화살표 키를 주입한다 (`startIfPermitted`의 XCTest 가드와
     /// 같은 규칙). 배선을 관측하는 테스트는 자체 sink를 명시 주입한다.
@@ -192,7 +196,7 @@ final class EventTapController {
             queue.async {
                 adapter.execute(
                     actions, family: context.family, profile: context.profile,
-                    isCurrent: { abort.isCurrent(run) })
+                    processID: context.processID, isCurrent: { abort.isCurrent(run) })
             }
         }
     }
@@ -770,7 +774,9 @@ final class EventTapController {
             let profile = profileProvider?(frontmostAppGate.frontmostBundleID) ?? .empty
             dispatchActions(
                 output.actions,
-                DispatchContext(family: focusedElement.family, profile: profile))
+                DispatchContext(
+                    family: focusedElement.family,
+                    processID: focusedElement.observedProcessID, profile: profile))
             return nil
         }
     }

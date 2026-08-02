@@ -34,16 +34,27 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 바뀌므로 액션마다 다시 물어야 한다.
     private let hasQwertyCommandKeys: @Sendable () -> Bool
 
+    /// 캐럿 주변 텍스트 리더 — 무상태 시퀀스를 정확화하는 입력이다. 주입하는 이유는
+    /// `pasteWise`와 같다: 실제 AX를 읽으면 골든 테스트가 실기기 권한과 개발자 머신의
+    /// 포커스 상태에 따라 갈린다.
+    ///
+    /// **아직 소비자가 없다** — 매퍼가 읽기 결과를 쓰는 것은 PR-B이고, 지금은 액션마다
+    /// `FocusedTextSnapshot`을 만들어 `mapping`까지 넘기는 배선만 서 있다. 아무도 묻지
+    /// 않으므로 AX 호출은 런타임에 0건이며, 그것이 이 PR의 동작 diff가 0인 이유다.
+    private let reader: FocusedTextReader
+
     init(
         executor: ActionExecutor = ActionExecutor(),
         pasteWise: PasteWiseResolver = PasteWiseResolver(),
         hasQwertyCommandKeys: @escaping @Sendable () -> Bool = {
             KeyTranslator.hasQwertyCommandKeys
-        }
+        },
+        reader: FocusedTextReader = FocusedTextReader()
     ) {
         self.executor = executor
         self.pasteWise = pasteWise
         self.hasQwertyCommandKeys = hasQwertyCommandKeys
+        self.reader = reader
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.
@@ -63,9 +74,16 @@ nonisolated struct KeyboardAdapter: Sendable {
     ///
     /// `profile`도 같은 이유의 스냅샷이다 — 최전면 앱의 프로파일을 컨트롤러가 콜백에서
     /// 캐시로 읽어 넘긴다. 기본값 `.empty`는 프로파일이 관심사가 아닌 호출자를 위한 것이다.
+    ///
+    /// `processID`만은 **스냅샷이되 값이 아니라 대상**이다 — 이 pid로 아래에서 액션마다
+    /// 캐럿 주변을 다시 읽는다(lazy). 계열·프로파일과 시점 요구가 정반대이기 때문이다:
+    /// 같은 버스트의 앞 액션이 캐럿을 옮기므로 선택 범위는 실행 직전 값만 정확하다.
+    /// 기본값 `nil`은 읽기가 관심사가 아닌 호출자(대부분의 테스트)를 위한 것이며,
+    /// 그때 리더는 아예 불리지 않는다.
     func execute(
         _ actions: [VimAction], family: ElementFamily = .textArea,
-        profile: ResolvedProfile = .empty, isCurrent: () -> Bool = { true }
+        profile: ResolvedProfile = .empty, processID: pid_t? = nil,
+        isCurrent: () -> Bool = { true }
     ) {
         // dispatch 직후 곧바로 다음 키에 밀려난 경우 — 한 이벤트도 내보내지 않는다.
         guard isCurrent() else { return }
@@ -108,8 +126,11 @@ nonisolated struct KeyboardAdapter: Sendable {
         }
 
         for action in actions {
+            // 액션마다 새 스냅샷 — 앞 액션이 캐럿을 옮겼으므로 이전 액션의 읽기를 물려받으면
+            // 낡은 오프셋으로 계산한다. 만드는 것만으로는 AX를 부르지 않는다 (lazy).
+            let text = FocusedTextSnapshot(processID: processID, reader: reader)
             let groups: [[KeyStroke]]
-            switch mapping(for: action, family: family, profile: profile) {
+            switch mapping(for: action, family: family, profile: profile, text: text) {
             case .groups(let mapped):
                 groups = mapped
             case .unsupported:
@@ -266,8 +287,12 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// "무너지지 않되 조용하지도 않다"는 이 계약이 원래 원하던 것이다.
     ///
     /// `static`이 아닌 이유는 `.paste`가 주입된 클립보드 읽기를 쓰기 때문이다.
+    ///
+    /// `text`는 **아직 아무도 읽지 않는다** — 무상태 시퀀스를 정확화하는 것은 PR-B의 몫이고,
+    /// 여기서는 소비 지점이 어디인지만 고정한다. 묻지 않으면 AX 왕복도 없다(lazy).
     private func mapping(
-        for action: VimAction, family: ElementFamily, profile: ResolvedProfile
+        for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
+        text: FocusedTextSnapshot
     ) -> Mapping {
         // `actions:` disable 판정은 **모든 게이트·부수효과보다 앞**이다 — 사용자가 끈
         // 액션은 `recordLinewiseEdit`·클립보드 읽기 같은 부수효과도 남기면 안 되고
