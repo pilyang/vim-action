@@ -1,6 +1,6 @@
 # 시스템 개요
 
-- **Last updated**: 2026-07-26
+- **Last updated**: 2026-08-02
 
 ## 현재 구조
 
@@ -49,7 +49,7 @@ graph LR
 ## 관련
 
 - 제품 요구사항: 워크스페이스 `docs/prd.md` (§7.3, §7.4, §9, §10)
-- 앱 셸: `LSUIElement` 메뉴바 백그라운드 앱(SwiftUI `MenuBarExtra` + `Settings` 씬). Dock 아이콘·앱 메뉴 없음.
+- 앱 셸: `LSUIElement` 메뉴바 백그라운드 앱(SwiftUI `MenuBarExtra` + `Settings` 씬). 평소에는 Dock 아이콘·앱 메뉴가 없고, **설정 창이 열려 있는 동안에만** `DockIconController`가 activation policy를 `.regular`로 올려 둘 다 노출한다(둘은 분리 불가능한 한 세트). 신호는 비대칭이다 — 열림은 `SettingsView.onAppear`(`.accessory` 앱이라 창이 key가 되지 않아 `didBecomeKey`가 오지 않는다), 닫힘은 `NSWindow.willCloseNotification` + `isVisible && titled && !NSPanel`(메뉴바 상태 항목 창과 `NSAlert` 패널 제외) — [20260802_dock-icon-while-settings-open.md](../../decisions/references/20260802_dock-icon-while-settings-open.md).
 - App Sandbox 해제(Developer ID 직접 배포). CGEventTap/AX가 샌드박스 불가하기 때문 — [20260712_disable-sandbox-developer-id.md](../../decisions/references/20260712_disable-sandbox-developer-id.md).
 - 권한은 빌드 엔타이틀먼트가 아니라 런타임 TCC. 온보딩은 **Accessibility만** 요청한다(Settings 창 권한 섹션 + 1초 폴링으로 부여 감지 후 재시작 없이 탭 설치). active tap은 AX만으로 설치되며, Input Monitoring은 필요가 입증될 때만 추가 — [20260712_active-tap-ax-only-onboarding.md](../../decisions/references/20260712_active-tap-ax-only-onboarding.md).
 - 메인 탭은 처음부터 active tap(`.defaultTap`)이며 메인 런루프에 부착돼 있다. **엔진이 배선돼 있다**(`EventTapController`): keyDown → `KeyTranslator` → `VimEngine.handle` → 결정 적용(passthrough=통과 / swallow=`nil`). `.replace`는 삼킨 뒤 actions를 실행 sink로 넘기고, 그 클로저가 게시 직렬 큐 위에서 Keyboard 어댑터를 부른다 — 배선 형태(주입된 sink 클로저)는 [20260726_m2-execution-wiring-shape.md](../../decisions/references/20260726_m2-execution-wiring-shape.md). M3 완료로 v1 어휘 전체가 실행되며 릴리스 배포 금지 게이트는 해제됐다 ([20260801_release-block-gate-lifted.md](../../decisions/references/20260801_release-block-gate-lifted.md)). 앱 수준 게이트(disable 목록)는 엔진 진입 전에 판정한다([strategy-dispatch.md](strategy-dispatch.md)). 메뉴바 마스터 토글(`isInterceptionEnabled`)이 가로채기 on/off를 지배하고([20260718_interception-toggle-semantics.md](../../decisions/references/20260718_interception-toggle-semantics.md)), 백그라운드 워치독이 조용히 죽은 탭을 폴링·복구한다([reentrancy-and-safety.md](reentrancy-and-safety.md)). 런루프 전용 스레드 전환은 재검토 결과 기각 — 메인 런루프 유지 확정, 재검토 트리거 3종은 결정 문서에 명시 ([20260725_tap-main-runloop-retention.md](../../decisions/references/20260725_tap-main-runloop-retention.md)).
