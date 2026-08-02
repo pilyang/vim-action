@@ -1,0 +1,37 @@
+.claude/skills/plans/references/20260725_mvp-milestones.md
+  s_af3945bf14c244::t_3244b1388ddc1d 6
+.claude/skills/decisions/SKILL.md
+  s_af3945bf14c244::t_0afbe9ecb49428 64
+  s_af3945bf14c244::t_ecf32b60fe0ae6 160
+.claude/skills/decisions/references/20260802_config-error-visibility-and-apply-semantics.md
+  s_af3945bf14c244::t_7fbacf9e523333 1-30
+VimActionTests/ProfileOverrideMappingTests.swift
+  s_af3945bf14c244::t_2d5c1109bc7575 173,178
+  s_af3945bf14c244::t_168c198378dace 207-230
+VimAction/BundledConfig/config.yaml
+  s_af3945bf14c244::t_36c51bf8203283 2-3
+.claude/skills/decisions/references/20260802_profile-override-propagation-full-lookup.md
+  s_af3945bf14c244::t_89b1edd90658a3 1-32
+.claude/skills/architecture/references/profiles-and-config.md
+  s_af3945bf14c244::t_fc1ab9a1a26156 3
+  s_af3945bf14c244::t_5c6229268b88e4 64,66-74
+  s_af3945bf14c244::t_f67aeb2318e66b 96
+VimAction/KeyboardAdapter.swift
+  s_af3945bf14c244::t_bfb03719d16c6c 299,304-312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "ffe7b8c8cc796ec87c2f1f8122f36847008b6b0f",
+  "prompts": {},
+  "sessions": {
+    "s_af3945bf14c244": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f4213838-5b50-4282-88ca-f64f718f3c3a",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
