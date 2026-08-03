@@ -25,6 +25,9 @@ struct FocusedTextQueryFixture: Sendable, CustomTestStringConvertible {
     var isOnLastLine: Bool
     var provesNoWordStartAhead: Bool
     var isAtLineFirstNonBlank: Bool
+    var caretRunIsSingleCharacter: Bool
+    var caretIsAtRunEnd: Bool
+    var runClassBeforeLineEnd: FocusedText.RunClass?
 
     var testDescription: String { name }
 }
@@ -47,51 +50,64 @@ let focusedTextQueryFixtures: [FocusedTextQueryFixture] = [
         caretOffsetInWindow: 1, isAtDocumentStart: false, isAtDocumentEnd: false,
         isAtLineStart: false, isAtLineEnd: false,
         charactersToLineEnd: 1, charactersToLineStart: 1, linesAboveCaret: 0,
-        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: false),
+        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: false,
+        // `b`는 `ab` 런의 마지막 글자다 — 개행이 런을 끝낸다.
+        caretRunIsSingleCharacter: false, caretIsAtRunEnd: true, runClassBeforeLineEnd: nil),
     .init(
         name: "문서 시작 (|ab)", text: focusedText(twoLines, caret: 0),
         caretOffsetInWindow: 0, isAtDocumentStart: true, isAtDocumentEnd: false,
         isAtLineStart: true, isAtLineEnd: false,
         charactersToLineEnd: 2, charactersToLineStart: 0, linesAboveCaret: 0,
-        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: true),
+        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: true,
+        caretRunIsSingleCharacter: false, caretIsAtRunEnd: false, runClassBeforeLineEnd: nil),
     .init(
         name: "첫 줄 끝 — 개행 직전 (ab|\\n)", text: focusedText(twoLines, caret: 2),
         caretOffsetInWindow: 2, isAtDocumentStart: false, isAtDocumentEnd: false,
         isAtLineStart: false, isAtLineEnd: true,
         charactersToLineEnd: 0, charactersToLineStart: 2, linesAboveCaret: 0,
-        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: false),
+        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: false,
+        // 캐럿 위는 개행이라 런이 없다. Vim 커서가 놓이는 것은 **직전** 글자다.
+        caretRunIsSingleCharacter: false, caretIsAtRunEnd: false, runClassBeforeLineEnd: .keyword),
     .init(
         name: "둘째 줄 시작 — 개행 직후 (\\n|cd)", text: focusedText(twoLines, caret: 3),
         caretOffsetInWindow: 3, isAtDocumentStart: false, isAtDocumentEnd: false,
         isAtLineStart: true, isAtLineEnd: false,
         charactersToLineEnd: 2, charactersToLineStart: 0, linesAboveCaret: 1,
-        isOnLastLine: true, provesNoWordStartAhead: true, isAtLineFirstNonBlank: true),
+        isOnLastLine: true, provesNoWordStartAhead: true, isAtLineFirstNonBlank: true,
+        caretRunIsSingleCharacter: false, caretIsAtRunEnd: false, runClassBeforeLineEnd: nil),
     .init(
         name: "문서 끝 (cd|) — 마지막 줄 끝이기도 하다", text: focusedText(twoLines, caret: 5),
         caretOffsetInWindow: 5, isAtDocumentStart: false, isAtDocumentEnd: true,
         isAtLineStart: false, isAtLineEnd: true,
         charactersToLineEnd: 0, charactersToLineStart: 2, linesAboveCaret: 1,
-        isOnLastLine: true, provesNoWordStartAhead: true, isAtLineFirstNonBlank: false),
+        isOnLastLine: true, provesNoWordStartAhead: true, isAtLineFirstNonBlank: false,
+        caretRunIsSingleCharacter: false, caretIsAtRunEnd: false, runClassBeforeLineEnd: .keyword),
     .init(
         name: "빈 문서 — 시작이자 끝", text: focusedText("", caret: 0),
         caretOffsetInWindow: 0, isAtDocumentStart: true, isAtDocumentEnd: true,
         isAtLineStart: true, isAtLineEnd: true,
         charactersToLineEnd: 0, charactersToLineStart: 0, linesAboveCaret: 0,
-        isOnLastLine: true, provesNoWordStartAhead: true, isAtLineFirstNonBlank: false),
+        isOnLastLine: true, provesNoWordStartAhead: true, isAtLineFirstNonBlank: false,
+        // 지울 글자도 바꿀 글자도 없다 — `cw`가 무효로 남는 유일한 자리다.
+        caretRunIsSingleCharacter: false, caretIsAtRunEnd: false, runClassBeforeLineEnd: nil),
     .init(
         name: "빈 줄 위 (ab\\n|\\ncd)", text: focusedText("ab\n\ncd", caret: 3),
         caretOffsetInWindow: 3, isAtDocumentStart: false, isAtDocumentEnd: false,
         isAtLineStart: true, isAtLineEnd: true,
         charactersToLineEnd: 0, charactersToLineStart: 0, linesAboveCaret: 1,
-        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: false),
+        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: false,
+        // 줄 끝이지만 직전도 개행이다 — 개행은 런 종결자라 잡을 것이 없다.
+        caretRunIsSingleCharacter: false, caretIsAtRunEnd: false, runClassBeforeLineEnd: nil),
     // 선택이 살아 있으면 줄 끝 판정은 **선택 끝** 기준이다 — 시작 기준으로 보면 Visual 확장
     // 뒤의 판정이 통째로 어긋난다. (줄 **시작** 쪽 질의만 선택 시작을 본다.)
+    // 런 질의도 같은 규칙이고, 살아 있는 선택에서 정확화를 막는 것은 매퍼의 가드다.
     .init(
         name: "선택 범위 (a[b]\\ncd) — 끝이 줄 끝", text: focusedText(twoLines, caret: 1, length: 1),
         caretOffsetInWindow: 1, isAtDocumentStart: false, isAtDocumentEnd: false,
         isAtLineStart: false, isAtLineEnd: true,
         charactersToLineEnd: 0, charactersToLineStart: 1, linesAboveCaret: 0,
-        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: false),
+        isOnLastLine: false, provesNoWordStartAhead: false, isAtLineFirstNonBlank: false,
+        caretRunIsSingleCharacter: false, caretIsAtRunEnd: true, runClassBeforeLineEnd: .keyword),
 ]
 
 // MARK: - 테스트
@@ -113,6 +129,75 @@ struct FocusedTextAnalysisTests {
             fixture.text.provesNoWordStartAhead == fixture.provesNoWordStartAhead, "\(fixture.name)")
         #expect(
             fixture.text.isAtLineFirstNonBlank == fixture.isAtLineFirstNonBlank, "\(fixture.name)")
+        #expect(
+            fixture.text.caretRunIsSingleCharacter == fixture.caretRunIsSingleCharacter,
+            "\(fixture.name)")
+        #expect(fixture.text.caretIsAtRunEnd == fixture.caretIsAtRunEnd, "\(fixture.name)")
+        #expect(
+            fixture.text.runClassBeforeLineEnd == fixture.runClassBeforeLineEnd, "\(fixture.name)")
+    }
+
+    /// 1자 런은 `iw`의 범위가 **그 1자로 확정**되는 자리다 — 런이 길어지면 스트로크가 오프셋에
+    /// 비례하게 되므로 거기서는 답하지 않는다(정확화 포기 = 현행 3타).
+    @Test("1자 런 판정은 양옆 클래스가 모두 갈릴 때만 참이다")
+    func detectsSingleCharacterRuns() {
+        let document = "foo bar.baz  qux"
+
+        #expect(focusedText(document, caret: 3).caretRunIsSingleCharacter, "단어 사이 공백 1칸")
+        #expect(focusedText(document, caret: 7).caretRunIsSingleCharacter, "1자 구두점 (.)")
+        #expect(focusedText(document, caret: 1).caretRunIsSingleCharacter == false, "단어 한가운데")
+        #expect(focusedText(document, caret: 11).caretRunIsSingleCharacter == false, "공백 2칸")
+        #expect(focusedText(document, caret: 12).caretRunIsSingleCharacter == false, "공백 2칸의 끝")
+        #expect(focusedText(document, caret: 16).caretRunIsSingleCharacter == false, "문서 끝 — 글자 없음")
+
+        // 문서 경계도 런의 경계다 — 한쪽이 창 시작/끝이면 그 방향은 증명된 것으로 본다.
+        #expect(focusedText("a b", caret: 0).caretRunIsSingleCharacter, "문서 시작의 1자 단어")
+        #expect(focusedText("a b", caret: 2).caretRunIsSingleCharacter, "문서 끝의 1자 단어")
+        // 개행은 런 종결자다 — 개행 위에서는 잡을 런이 없다(잡으면 줄이 병합된다).
+        #expect(focusedText("a\nb", caret: 1).caretRunIsSingleCharacter == false, "개행 위")
+    }
+
+    /// `cw`가 1타로 끝나는 조건. 공백 런에서도 **마지막 공백**이면 참이 옳다 — 공백 위의 `cw`는
+    /// 다음 단어 시작까지 바꾸므로 거기서는 그 한 칸이 전부다.
+    @Test("런 끝 판정은 다음 글자가 런을 끝낼 때만 참이다")
+    func detectsRunEnds() {
+        let document = "foo  bar"
+
+        #expect(focusedText(document, caret: 2).caretIsAtRunEnd, "단어의 마지막 글자 (fo|o)")
+        #expect(focusedText(document, caret: 1).caretIsAtRunEnd == false, "단어 한가운데")
+        #expect(focusedText(document, caret: 4).caretIsAtRunEnd, "공백 2칸 중 마지막")
+        #expect(focusedText(document, caret: 3).caretIsAtRunEnd == false, "공백 2칸 중 첫째")
+        #expect(focusedText(document, caret: 7).caretIsAtRunEnd, "문서 끝 글자 위")
+        #expect(focusedText(document, caret: 8).caretIsAtRunEnd == false, "문서 끝 — 글자 없음")
+    }
+
+    /// 창이 문서 경계에 닿지 않았으면 런이 창 밖으로 이어질 수 있다 — **잘린 런**은 증명이 아니다.
+    @Test("창 가장자리에 걸린 런은 증명되지 않는다")
+    func runsClippedByTheWindowProveNothing() {
+        // 창 양 끝이 전부 문서 내부다 — `x`는 창 안에서 1자로 보이지만 실제로는 알 수 없다.
+        let clipped = FocusedText(
+            selection: NSRange(location: 1_000, length: 0), characterCount: 5_000,
+            window: "x y", windowRange: NSRange(location: 1_000, length: 3))
+
+        #expect(clipped.caretRunIsSingleCharacter == false, "왼쪽 경계를 못 봤다")
+        #expect(clipped.caretIsAtRunEnd, "오른쪽은 창 안에서 증명된다")
+
+        let atWindowEnd = FocusedText(
+            selection: NSRange(location: 1_002, length: 0), characterCount: 5_000,
+            window: "x y", windowRange: NSRange(location: 1_000, length: 3))
+
+        #expect(atWindowEnd.caretIsAtRunEnd == false, "오른쪽이 창 끝이고 문서 끝은 아니다")
+        #expect(atWindowEnd.caretRunIsSingleCharacter == false)
+    }
+
+    /// **비ASCII는 포기 쪽으로 떨어진다** — 이모지는 UTF-16 2단위라 1자 런으로 세어지지 않고,
+    /// 이어진 CJK는 서로 같은 `other` 클래스라 런이 길어진다. 잘못 정확화하는 것보다 낫다.
+    @Test("비ASCII 런은 정확화를 발동시키지 않는다")
+    func nonASCIIRunsFallBack() {
+        #expect(focusedText("a 👍 b", caret: 2).caretRunIsSingleCharacter == false, "이모지 = 2단위")
+        #expect(focusedText("a 한글 b", caret: 2).caretRunIsSingleCharacter == false, "이어진 CJK")
+        #expect(focusedText("a 한 b", caret: 2).caretRunIsSingleCharacter, "홀로 선 1단위 CJK")
+        #expect(focusedText("한글\nx", caret: 2).runClassBeforeLineEnd == .other, "키워드가 아니다")
     }
 
     /// 줄 경계 질의는 `isAtLine*`와 **같은 사실을 다르게 센다** — 갈라지면 clamp가 0인데

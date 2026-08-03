@@ -22,6 +22,24 @@ import Foundation
 /// `nonisolated`가 붙어 있는 것은 소비자가 전부 게시 직렬 큐 위이기 때문이다 — 매퍼
 /// (`nonisolated enum`)에서 부르므로, 이것 없이는 파생 질의마다 격리 경고가 난다.
 nonisolated extension FocusedText {
+    /// Vim이 단어를 가르는 런 클래스. 같은 클래스가 이어지는 구간이 하나의 런이고, `iw`는 그
+    /// 런을, `cw`는 그 런의 끝까지를 대상으로 한다.
+    ///
+    /// **개행은 어느 런에도 속하지 않는다**(`runClass`가 `nil`) — 런 종결자다. 개행을 런에
+    /// 넣으면 줄 끝의 `iw`가 개행을 지워 줄을 병합한다.
+    ///
+    /// 비ASCII를 `keyword`에 넣지 않고 `other`로 따로 두는 것이 요점이다: 넣으면 CJK·이모지
+    /// 위에서 정확화가 **발동해** 틀리고, 따로 두면 이웃과 클래스가 같아 런 길이가 2 이상으로
+    /// 세어져 **포기**한다 — 이 확장의 보수 방향과 같은 편이다.
+    enum RunClass: Sendable {
+        case blank
+        case keyword
+        case punctuation
+        case other
+    }
+}
+
+nonisolated extension FocusedText {
     /// 캐럿(선택 시작)의 **창 안 상대 오프셋**. 이 변환이 `windowRange`가 반환 타입에 있는
     /// 이유 그 자체다 (`20260802_focused-text-read-api-shape.md` ①).
     var caretOffsetInWindow: Int? { offsetInWindow(selection.location) }
@@ -137,6 +155,58 @@ nonisolated extension FocusedText {
         return windowUnits[(offset - before)..<offset].allSatisfy { Self.isBlank($0) }
     }
 
+    /// 캐럿 위 문자의 런이 **정확히 1자**임을 증명했는가 — `iw`가 `Shift-→` 1타로 끝나는 조건.
+    ///
+    /// 공백 1칸, 1자 구두점(`.`·`,`·`(`), 1자 단어가 전부 여기다. 런 길이가 2 이상이면 그만큼
+    /// 스트로크를 내야 하는데 그것은 오프셋 비례라 채택하지 않는다
+    /// (`20260803_refinement-branches-not-stroke-counts.md`) — 현행 3타로 간다.
+    var caretRunIsSingleCharacter: Bool {
+        guard let offset = offsetInWindow(selection.location), let own = runClass(at: offset)
+        else { return false }
+        return runEnds(leftOf: offset, own) && runEnds(rightOf: offset, own)
+    }
+
+    /// 캐럿 위 문자가 그 런의 **마지막 글자**임을 증명했는가 — `cw`(= `ce`)가 그 한 글자로
+    /// 끝나는 조건이다. 공백 런에서도 참이 옳다: 공백 위의 `cw`는 다음 단어 시작까지 바꾸므로,
+    /// 런의 마지막 공백에서는 그것이 곧 그 한 칸이다.
+    var caretIsAtRunEnd: Bool {
+        guard let offset = offsetInWindow(selection.location), let own = runClass(at: offset)
+        else { return false }
+        return runEnds(rightOf: offset, own)
+    }
+
+    /// 캐럿이 논리 줄 끝(문서 끝 포함)일 때 **직전 문자**의 런 클래스. 줄 끝이 아니거나 직전이
+    /// 개행이거나 증명할 수 없으면 `nil`.
+    ///
+    /// 캐럿이 줄 끝이면 Vim 커서는 **마지막 글자 위**이므로 `iw`·`cw`의 대상은 그 글자의 런이다
+    /// (`20260803_line-end-charwise-vim-cursor-model.md`의 모델을 이 한 자리에서 단어 어휘까지
+    /// 넓힌다). 그러지 않으면 `$` 뒤의 `diw`가 **다음 줄의 첫 단어를 파괴한다**.
+    var runClassBeforeLineEnd: RunClass? {
+        guard isAtLineEnd, let offset = offsetInWindow(selection.upperBound), offset > 0
+        else { return nil }
+        return runClass(at: offset - 1)
+    }
+
+    /// 창 안 상대 오프셋 위치 문자의 런 클래스. 문자가 없거나 개행이면 `nil`.
+    private func runClass(at offset: Int) -> RunClass? {
+        utf16Unit(at: offset).flatMap(Self.runClass)
+    }
+
+    /// 오프셋 왼쪽에서 런 `own`이 끝남을 증명했는가. 창 끝이면 **문서 경계에 닿았을 때만**
+    /// 경계로 인정한다 — 닿지 않았으면 잘린 런의 나머지가 창 밖에 있을 수 있다.
+    private func runEnds(leftOf offset: Int, _ own: RunClass) -> Bool {
+        guard offset > 0 else { return windowRange.location == 0 }
+        return runClass(at: offset - 1) != own
+    }
+
+    /// 위의 대칭.
+    private func runEnds(rightOf offset: Int, _ own: RunClass) -> Bool {
+        guard offset + 1 < window.utf16.count else {
+            return windowRange.upperBound == characterCount
+        }
+        return runClass(at: offset + 1) != own
+    }
+
     /// 절대 오프셋 → 창 안 상대 오프셋. 창 텍스트의 길이가 `windowRange`와 어긋나면 그 창을
     /// 근거로 쓸 수 없으므로 `nil`이다 — 어긋난 채로 인덱싱하면 개행 위치가 통째로 밀린다.
     private func offsetInWindow(_ location: Int) -> Int? {
@@ -164,7 +234,25 @@ nonisolated extension FocusedText {
     /// 단어 경계로 보는 공백류 — `w`는 줄을 넘어가므로 개행도 포함한다.
     private static func isWhitespace(_ unit: UInt16) -> Bool { isBlank(unit) || unit == newline }
 
+    /// UTF-16 단위 → 런 클래스. 개행은 런 종결자라 `nil`이다.
+    private static func runClass(_ unit: UInt16) -> RunClass? {
+        if unit == newline { return nil }
+        if isBlank(unit) { return .blank }
+        guard unit < 0x80 else { return .other }
+        return isKeyword(unit) ? .keyword : .punctuation
+    }
+
+    /// Vim의 기본 `iskeyword`에 맞춘 ASCII 영숫자와 `_`. 비ASCII는 여기 오지 않는다 — 서로게이트
+    /// 쌍을 단위 하나로 판정할 수 없어 `other`로 빠지고, 그쪽이 포기(= 현행 시퀀스)다.
+    private static func isKeyword(_ unit: UInt16) -> Bool {
+        switch unit {
+        case 0x30...0x39, 0x41...0x5A, 0x61...0x7A: return true
+        default: return unit == underscore
+        }
+    }
+
     private static let newline = UInt16(UnicodeScalar("\n").value)
     private static let space = UInt16(UnicodeScalar(" ").value)
     private static let tab = UInt16(UnicodeScalar("\t").value)
+    private static let underscore = UInt16(UnicodeScalar("_").value)
 }
