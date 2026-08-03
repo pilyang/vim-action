@@ -280,8 +280,39 @@ let editRefinementFixtures: [EditRefinementFixture] = [
     .init(
         "dw", .delete, .motion(.wordForward, count: 1), document: "foo bar", caret: 1, .unchanged),
     .init("dw", .delete, .motion(.wordForward, count: 1), caret: 0, .unchanged),
-    // `cw`는 리타깃을 거쳐 `ce` 행으로 간다 — 문서 끝에서 0폭이라 무효다(재조립이 아니다).
-    .init("cw", .change, .motion(.wordForward, count: 1), caret: 5, .invalid),
+    // MARK: `cw` 특례 — Vim의 cw는 커서가 놓인 런의 끝까지만 바꾼다
+    // `Shift-Opt-→` 1타는 커서가 런 **중간**일 때만 맞는다. 런의 마지막 글자 위면 macOS는
+    // 다음 단어 끝까지 건너뛰는데 Vim이 바꾸는 것은 그 한 글자뿐이다.
+    .init(
+        "cw", .change, .motion(.wordForward, count: 1), document: "foo bar", caret: 2,
+        .selection([selRight])),
+    .init(
+        "cw", .change, .motion(.wordForward, count: 1), document: "foo bar", caret: 1, .unchanged),
+    // 공백 위의 `cw`는 다음 단어 시작까지 바꾼다 — 런의 마지막 공백에서는 그 한 칸이 전부다.
+    .init(
+        "cw", .change, .motion(.wordForward, count: 1), document: "foo bar", caret: 3,
+        .selection([selRight])),
+    .init(
+        "cw", .change, .motion(.wordForward, count: 1), document: "foo  bar", caret: 3, .unchanged),
+    // 캐럿이 줄 끝이면 Vim 커서는 마지막 글자 위다 — 방향이 뒤집힌다. 문서 끝도 그 특수 경우라
+    // 세션 1의 0폭 억제를 덮어쓴다(엣지 1에서 문서 끝 `x`가 그랬던 것과 같은 논리).
+    .init(
+        "cw", .change, .motion(.wordForward, count: 1), document: "foo\nbar", caret: 3,
+        .selection([selLeft])),
+    .init("cw", .change, .motion(.wordForward, count: 1), caret: 5, .selection([selLeft])),
+    // 남는 무효는 **빈 문서**뿐이다 — 바꿀 글자가 없다.
+    .init("cw", .change, .motion(.wordForward, count: 1), document: "", caret: 0, .invalid),
+    // 카운트가 붙으면 한 런을 넘어가므로 1타로 줄일 수 없다.
+    .init(
+        "c3w", .change, .motion(.wordForward, count: 3), document: "foo bar", caret: 2, .unchanged),
+    // **진짜 `ce`·`de`는 같은 자리에서 갈린다** — Vim의 `e`는 단어 끝에서 다음 단어 끝으로
+    // 뛰므로 현행 `Shift-Opt-→`가 그쪽에서는 옳다. 리타깃 여부가 판정에 실리는 이유다.
+    .init(
+        "ce", .change, .motion(.wordEndForward, count: 1), document: "foo bar", caret: 2,
+        .unchanged),
+    .init(
+        "de", .delete, .motion(.wordEndForward, count: 1), document: "foo bar", caret: 2,
+        .unchanged),
 
     // MARK: 세션 1이 세운 0폭 억제 — 그대로 유효하다
     .init("de", .delete, .motion(.wordEndForward, count: 1), caret: 5, .invalid),
@@ -335,11 +366,35 @@ let editRefinementFixtures: [EditRefinementFixture] = [
     // `cgg`는 이미 그 시퀀스라 정확화가 필요 없다 — 재조립이 중복으로 얹히면 안 된다.
     .init("cgg", .change, .linewiseMotion(.documentStart, count: 1), caret: 3, .unchanged),
 
+    // MARK: `iw` — 캐럿이 놓인 런
+    // 런이 1자면 그 1자가 곧 범위다. 현행 3타는 캐럿이 공백 위일 때 **다음 단어를 잡는다**.
+    .init(
+        "diw", .delete, .textObject(.word(.inner)), document: "foo bar", caret: 3,
+        .selection([selRight])),
+    .init(
+        "yiw", .yank, .textObject(.word(.inner)), document: "foo bar", caret: 3,
+        .selection([selRight])),
+    .init(
+        "diw", .delete, .textObject(.word(.inner)), document: "foo.bar", caret: 3,
+        .selection([selRight])),
+    // 런이 2자 이상이면 스트로크가 오프셋에 비례하게 된다 — 거기서는 포기한다.
+    .init("diw", .delete, .textObject(.word(.inner)), document: "foo  bar", caret: 3, .unchanged),
+    .init("diw", .delete, .textObject(.word(.inner)), document: "foo bar", caret: 1, .unchanged),
+    // 줄 끝이면 Vim 커서는 마지막 글자 위다 — 현행 3타는 **다음 줄의 첫 단어를 파괴한다**.
+    .init(
+        "diw", .delete, .textObject(.word(.inner)), document: "foo\nbar", caret: 3,
+        .selection([selOptLeft])),
+    .init("diw", .delete, .textObject(.word(.inner)), caret: 5, .selection([selOptLeft])),
+    // 직전이 구두점이면 `Shift-Opt-←`가 앞 단어까지 넘어가 증명이 서지 않는다.
+    .init("diw", .delete, .textObject(.word(.inner)), document: "foo.\nbar", caret: 4, .unchanged),
+    .init(
+        "diw", .delete, .textObject(.word(.inner)), document: "foo bar", caret: 3,
+        selectionLength: 1, .unchanged),
+
     // MARK: 묻지 않는 범위 — 읽기가 있어도 시퀀스가 갈리지 않는다
     .init("dd", .delete, .line(count: 1), caret: 5, .unchanged),
     .init("dj", .delete, .linewiseMotion(.lineDown, count: 1), caret: 5, .unchanged),
     .init("dG", .delete, .linewiseMotion(.documentEnd, count: 1), caret: 5, .unchanged),
-    .init("diw", .delete, .textObject(.word(.inner)), caret: 5, .unchanged),
     .init("v_d", .delete, .selection, caret: 5, .unchanged),
 
     // 살아 있는 선택이 있으면 우리가 만들 선택이 어디서 출발할지 알 수 없다 — 증명 불가.
@@ -472,13 +527,15 @@ struct EditRefinementTests {
         }
     }
 
-    /// 묻는 범위는 `.motion` 전체 + `dk`·`dgg` 둘뿐이다. **넓히면 그만큼 AX 왕복이 늘어난다**
-    /// (Notion 실측 ~7ms/회) — 세션 3이 `.textObject`를 더하면 여기가 먼저 바뀐다.
+    /// 묻는 범위는 `.motion` 전체 + `dk`·`dgg`·`iw`뿐이다. **넓히면 그만큼 AX 왕복이 늘어난다**
+    /// (Notion 실측 ~7ms/회) — `.line`(`dd`)과 `dj`가 빠져 있는 것은 소프트 랩 논리 줄이 이
+    /// 읽기로 해소되지 않아 물을 이유가 없기 때문이다.
     @Test("읽기를 묻는 범위는 표에 적힌 것뿐이다", arguments: editMappingFixtures)
     func onlyTabulatedRangesConsultTheRead(_ fixture: EditMappingFixture) {
         let expected: Bool
         switch fixture.range {
-        case .motion, .linewiseMotion(.lineUp, _), .linewiseMotion(.documentStart, _):
+        case .motion, .linewiseMotion(.lineUp, _), .linewiseMotion(.documentStart, _),
+            .textObject(.word(.inner)):
             expected = true
         default:
             expected = false

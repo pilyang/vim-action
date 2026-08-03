@@ -84,6 +84,8 @@ nonisolated enum EditKeyMapper {
             return true
         case .linewiseMotion(.documentStart, _):  // 엣지 4 — 마지막 줄 `dgg`
             return true
+        case .textObject(.word(.inner)):  // 캐럿이 놓인 단어 런
+            return true
         default:
             return false
         }
@@ -108,7 +110,8 @@ nonisolated enum EditKeyMapper {
     /// 출발할지 증명할 수 없고, 그 선택 자체가 우리가 비동기로 배달한 합성 이벤트의 결과라
     /// 읽기가 낡았을 가능성이 가장 높은 자리다.
     private static func motionRefinement(
-        _ motion: Motion, _ count: Int, _ profile: ResolvedProfile, _ text: FocusedText
+        _ motion: Motion, _ isChangeWord: Bool, _ count: Int, _ profile: ResolvedProfile,
+        _ text: FocusedText
     ) -> Refinement {
         guard text.selection.length == 0 else { return .unproven }
         switch motion {
@@ -131,6 +134,9 @@ nonisolated enum EditKeyMapper {
             return .selection(strokes)
 
         case .wordEndForward:
+            if isChangeWord, count == 1 {
+                return changeWordRefinement(profile, text)
+            }
             // 문서 끝에서 `Opt-→`는 움직이지 않는다 — 0폭이라 오퍼레이터만 나간다.
             return text.isAtDocumentEnd ? .invalid : .unproven
 
@@ -189,6 +195,49 @@ nonisolated enum EditKeyMapper {
         return .selection(repeated(stroke, remaining))
     }
 
+    /// `cw` 특례의 정확화 — Vim의 `cw`는 **커서가 놓인 런의 끝까지만** 바꾼다.
+    ///
+    /// `Shift-Opt-→` 1타는 커서가 런 중간일 때만 그 자리에 맞는다. 커서가 런의 **마지막 글자**
+    /// 위면 macOS는 다음 단어 끝까지 건너뛰는데 Vim이 바꾸는 것은 그 한 글자뿐이고, 공백 위면
+    /// Vim은 다음 단어 시작까지(= 남은 공백만) 바꾼다 — 두 경우 모두 런의 마지막 글자에서
+    /// `Shift-→` 1타로 정확해진다.
+    ///
+    /// 캐럿이 줄 끝이면 Vim 커서는 그 줄 마지막 글자 위이므로 방향이 뒤집혀 `Shift-←`다.
+    /// 이 자리가 문서 끝이면 세션 1의 0폭 억제를 덮어쓴다 — 엣지 1에서 문서 끝 `x`가 억제에서
+    /// 재조립으로 바뀐 것과 같은 논리이고, 남는 무효는 **빈 문서**뿐이다.
+    ///
+    /// **진짜 `ce`·`de`는 여기 들어오지 않는다**: Vim의 `e`는 단어 끝에서 다음 단어 끝으로
+    /// 뛰므로 현행 `Shift-Opt-→`가 그쪽에서는 옳다. 그래서 리타깃 여부가 판정에 실린다.
+    private static func changeWordRefinement(
+        _ profile: ResolvedProfile, _ text: FocusedText
+    ) -> Refinement {
+        if text.caretIsAtRunEnd, let stroke = select(.charRight, profile) {
+            return .selection(stroke)
+        }
+        if text.runClassBeforeLineEnd != nil, let stroke = select(.charLeft, profile) {
+            return .selection(stroke)
+        }
+        return text.isAtDocumentEnd ? .invalid : .unproven
+    }
+
+    /// `iw`의 정확화 — **무효는 내지 않는다**(Vim에서 `iw`가 무효인 자리가 없다).
+    ///
+    /// 런이 1자면 그 1자가 곧 범위다(공백 1칸·1자 구두점·1자 단어). 캐럿이 줄 끝이면 Vim
+    /// 커서는 마지막 글자 위이고, 그 글자가 키워드일 때만 `Shift-Opt-←`가 그 단어 시작으로
+    /// 정확히 되돌아간다 — 구두점 런에서는 macOS가 앞 단어까지 넘어가 증명이 서지 않는다.
+    private static func innerWordRefinement(
+        _ profile: ResolvedProfile, _ text: FocusedText
+    ) -> Refinement {
+        guard text.selection.length == 0 else { return .unproven }
+        if text.caretRunIsSingleCharacter, let stroke = select(.charRight, profile) {
+            return .selection(stroke)
+        }
+        if text.runClassBeforeLineEnd == .keyword, let stroke = select(.wordBackward, profile) {
+            return .selection(stroke)
+        }
+        return .unproven
+    }
+
     /// `.linewiseMotion` 범위의 정확화 — 수용 엣지 2·4.
     private static func linewiseRefinement(
         _ motion: Motion, _ count: Int, _ op: VimAction.Operator, _ profile: ResolvedProfile,
@@ -219,8 +268,15 @@ nonisolated enum EditKeyMapper {
     /// `cw` 특례 — Vim의 cw는 ce처럼 단어 **끝**까지만 바꾼다 (엔진이 이연한 어댑터 몫).
     /// 선택 시퀀스와 포화 판정이 **같은 함수를 거치는 것이 요점**이다: 한쪽만 리타깃하면
     /// `cw`의 판정이 실제로 나갈 시퀀스와 다른 모션을 보게 된다.
-    private static func retargeted(_ motion: Motion, for op: VimAction.Operator) -> Motion {
-        (op == .change && motion == .wordForward) ? .wordEndForward : motion
+    ///
+    /// 리타깃 여부를 함께 돌려주는 것은 `cw`와 진짜 `ce`가 **런 끝에서 갈리기** 때문이다 —
+    /// 같은 `wordEndForward`를 받고도 정확화가 달라야 하므로, 그 사실을 여기 말고 다른 데서
+    /// 다시 계산하면 두 곳이 갈라진다.
+    private static func retargeted(
+        _ motion: Motion, for op: VimAction.Operator
+    ) -> (motion: Motion, isChangeWord: Bool) {
+        guard op == .change, motion == .wordForward else { return (motion, false) }
+        return (.wordEndForward, true)
     }
 
     /// 범위 → 선택 스트로크 (TextArea 계열).
@@ -236,13 +292,15 @@ nonisolated enum EditKeyMapper {
         case .motion(let motion, let count):
             let target = retargeted(motion, for: op)
             if let text {
-                switch motionRefinement(target, count, profile, text) {
+                switch motionRefinement(
+                    target.motion, target.isChangeWord, count, profile, text)
+                {
                 case .invalid: return nil
                 case .selection(let strokes): return strokes
                 case .unproven: break
                 }
             }
-            guard let selection = select(target, profile) else { return nil }
+            guard let selection = select(target.motion, profile) else { return nil }
             return repeated(selection, count)
 
         case .line(let count):
@@ -262,9 +320,17 @@ nonisolated enum EditKeyMapper {
             return linewiseMotionSelection(motion, count, op, profile)
 
         case .textObject(.word(.inner)):
+            if let text {
+                switch innerWordRefinement(profile, text) {
+                case .invalid: return nil
+                case .selection(let strokes): return strokes
+                case .unproven: break
+                }
+            }
             // 근사 — 단어 끝을 지나친 뒤 시작으로 복귀해 앵커를 잡고 끝까지 선택한다
             // (`^`와 같은 패턴). 물러나기만 하면 캐럿이 단어 시작일 때 앞 단어를 잡는다.
-            // 수용 엣지: 캐럿이 단어 뒤 공백 위면 다음 단어를 잡는다 (Vim은 공백 런).
+            // 남는 수용 엣지: 캐럿이 **2자 이상의** 공백·구두점 런 위면 다음 단어를 잡는다
+            // (Vim은 그 런). 1자 런과 줄 끝은 위 정확화가 해소한다.
             guard let overshoot = move(.wordEndForward, profile),
                 let back = move(.wordBackward, profile),
                 let selection = select(.wordEndForward, profile)

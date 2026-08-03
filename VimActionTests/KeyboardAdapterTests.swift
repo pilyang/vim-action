@@ -851,7 +851,7 @@ struct KeyboardAdapterFocusedTextTests {
 
         makeAdapter(reader: reader, collecting: { _ in }).execute(Self.vocabulary, processID: 42)
 
-        #expect(reads == 3, "어휘 중 묻는 것은 `x`·`dk`·`dgg` 셋이다 — `dd`·`dj`·`diw`는 묻지 않는다")
+        #expect(reads == 4, "어휘 중 묻는 것은 `x`·`dk`·`dgg`·`diw` 넷이다 — `dd`·`dj`는 묻지 않는다")
     }
 
     /// 스냅샷은 **액션마다 새로** 만든다 — 같은 버스트의 앞 액션이 캐럿을 옮기므로 앞 액션의
