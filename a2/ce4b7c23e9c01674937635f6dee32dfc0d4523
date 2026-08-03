@@ -1,0 +1,26 @@
+VimActionTests/FocusedTextAnalysisTests.swift
+  s_3fdd99b46df630::t_4e0e870785d4cf 28-30
+  s_3fdd99b46df630::t_38f2652c0c1d58 132-200
+  s_3fdd99b46df630::t_e51416e16dff72 53-55,61-62,68-70,76-77,83-84,90-92,98-100,103,109-110
+VimAction/FocusedTextAnalysis.swift
+  s_3fdd99b46df630::t_57199d72b79f54 237-253,257
+  s_3fdd99b46df630::t_cadb4e7dc895b5 24
+  s_3fdd99b46df630::t_69a735a4d65d20 158-209
+  s_3fdd99b46df630::t_e58b1ed45751a3 25-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "a2ce4b7c23e9c01674937635f6dee32dfc0d4523",
+  "prompts": {},
+  "sessions": {
+    "s_3fdd99b46df630": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f99bbfb-90d9-4574-beed-9dd362d7cc64",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
