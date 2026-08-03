@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-08-02
-- **갱신일**: 2026-08-03 (**PR-B 세션 2/3 완료** — 경계 포화 수용 엣지 5종이 전부 해소됐다. 다음은 세션 3)
+- **갱신일**: 2026-08-03 (**PR-B 구현 완료 — PR 생성 대기**. 세션 3/3까지 끝났고 다음 단계는 push + PR 생성이다)
 
 ## 목표
 
@@ -20,16 +20,17 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 - **PR-A 구현 완료** (브랜치 `feat/m5-pr-a-ax-read-foundation`): `AXRead`(타임아웃·포커스 요소 조회 단독 소유), `FocusedText`·`FocusedTextReader`·`FocusedTextSnapshot`(액션별 lazy·1회 memo·실패도 memo), `DispatchContext.processID`(출처 = 리졸버 `observedProcessID`), `KeyboardAdapter(reader:)`·`execute(processID:)`, sink 배선. API 모양은 [결정 문서](../../decisions/references/20260802_focused-text-read-api-shape.md)로 확정. **동작 diff 0** — 앱 785 + 엔진 81 테스트 통과, 빌드 경고 0.
 - **PR-B 세션 1/3 완료** (worktree `feat/m5-pr-b-hybrid-motion-edit`, 커밋 2개 + 문서): 읽기의 **첫 소비자**가 붙었고 수용 엣지 5(빈 선택+오퍼레이터)가 해소됐다. 결정 2건 기록: [소비 형태](../../decisions/references/20260802_read-consumption-via-mapper-predicates.md), [0폭 포화 억제](../../decisions/references/20260802_empty-selection-edit-suppression.md).
 - **PR-B 세션 2/3 완료** (커밋 2개 + 문서): **경계 포화 수용 엣지 5종 전부 해소** — 억제에서 시퀀스 재조립으로 넘어갔다. `EditKeyMapper.keyStrokes`가 `text:`를 받고 어댑터의 편집 분류가 3-프로브가 됐다. 결정 5건 기록: [재조립 원칙(레이스)](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md), [시그니처·3-프로브](../../decisions/references/20260803_edit-keystrokes-takes-focused-text.md), [정확화 표(엣지 2·3·4·`^`)](../../decisions/references/20260803_boundary-saturation-refinement-table.md), [줄 끝 Vim 커서 모델(엣지 1)](../../decisions/references/20260803_line-end-charwise-vim-cursor-model.md), [소프트 랩 미해소 사유](../../decisions/references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md). architecture `strategy-dispatch.md` 갱신 완료. 앱 테스트 1,043건 + 엔진 81건 통과, **빌드 경고 0**(세션 1이 남긴 격리 경고 4건도 함께 해소).
+- **PR-B 세션 3/3 완료** (커밋 2개 + 문서): **`iw`·`cw`→`ce` 정확화** — 단어 런 질의 3종(`caretRunIsSingleCharacter`·`caretIsAtRunEnd`·`runClassBeforeLineEnd`)을 세우고 1자 런·런 끝·줄 끝을 상수 1타로 재조립했다. 결정 3건 기록: [단어 질의는 로컬 술어(오프셋 없음)](../../decisions/references/20260803_word-run-local-predicates-no-offsets.md), [상수 1타 재조립 — 원칙 예외 없이 유지](../../decisions/references/20260803_constant-stroke-word-refinement.md), [줄 끝 커서 모델을 단어 어휘로 완화](../../decisions/references/20260803_line-end-cursor-model-for-word-objects.md). architecture 갱신 완료. 앱 테스트 **1,081건** + 엔진 81건 통과, 빌드 경고 0.
 
 ## 남은 것 (PR 단위 — 순서 = 의존 순서)
 
 각 PR은 자기 worktree에서 작업한다. A → B → C는 선형 의존이고, D1 → D2도 선형이다. C와 D는 원칙적으로 병렬 가능하지만 어댑터 파일 충돌이 클 수 있어 순차를 기본으로 한다.
 
 - [x] **PR-A — 읽기 기반 (리졸버 확장)** — [PR #35](https://github.com/pilyang/vim-action/pull/35) **머지 완료** (main `b206a87`). 상세는 위 "완료된 것".
-- [ ] **PR-B — 혼용 1: 편집·모션 정확화** *(worktree `feat/m5-pr-b-hybrid-motion-edit`, base `b206a87`)*: PR-A의 읽기를 소비해 무상태 매퍼를 정확화. 어댑터 무상태는 유지(정확화 diff). **3세션 분할이며 PR 생성은 세션 3 이후다** — 세션마다 커밋만 하고 push·PR은 하지 않는다.
+- [ ] **PR-B — 혼용 1: 편집·모션 정확화** *(worktree `feat/m5-pr-b-hybrid-motion-edit`, base `b206a87`)*: **구현 완료 — PR 생성 대기.** 3세션 전부 끝났고 남은 것은 push + PR 생성뿐이다(아래 "진행 중 컨텍스트"의 PR 준비 메모).
   - [x] **세션 1** — 소비 배선 + 공통 파생 질의 유틸 + 엣지 5(빈 선택+오퍼레이터). 상세는 위 "완료된 것".
   - [x] **세션 2** — 경계 포화 나머지 4종 + `^`. [소프트 랩 시각 줄](../../decisions/references/20260728_linewise-visual-line-wrap-accepted-edge.md)은 **해소하지 않고 사유를 결정으로 남겼다**(창 읽기로 불가 — 단락 바인딩 실측이 재개 조건). 상세는 위 "완료된 것".
-  - [ ] **세션 3** — `iw` 단어 경계, `cw`→`ce` 특례 정확화. 착수 지점은 아래 "진행 중 컨텍스트".
+  - [x] **세션 3** — `iw` 단어 경계, `cw`→`ce` 특례 정확화. 상세는 위 "완료된 것".
 - [ ] **PR-C1 — 혼용 2a: Visual 앵커 상태**: 어댑터가 처음으로 앵커·범위 상태를 든다(구조 변화 — PR-B와 분리하는 이유). [Visual 후진 전체](../../decisions/references/20260728_visual-charwise-backward-origin-shift.md)(`Vk`·`vb`·`vh`)가 통째로 해소되고, `V`→`v` 전환·앵커 쪽 반올림도 가능해진다. 어댑터의 `linewise: Bool` 상자 재검토가 여기 속한다.
 - [ ] **PR-C2 — 혼용 2b: paste wise·스크롤 정확화**: charwise/linewise `p` 경계와 paste wise 자체 — 레지스터·yank 경로의 wise 기억으로 해소. 스크롤 근사 줄 수 → `AXVisibleCharacterRange` 뷰포트 정확화. 비-QWERTY 정식 해소(문자→키코드 역조회 주입 — [레이아웃 가드 결정](../../decisions/references/20260801_non-qwerty-command-key-layout-guard.md)의 이연 항목)도 여기.
 - [ ] **PR-D1 — 순수 AX 쓰기 어댑터**: `AXSelectedTextRange` 직접 조작으로 `VimAction` 실행. `AXError` 반환이 **실패 폭주 자동 비활성화(`reportExecutionFailure`)의 첫 실호출자**가 된다 — 실패 보고 배선 포함.
@@ -38,16 +39,21 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 
 ## 진행 중 컨텍스트
 
-- **PR-B 세션 3 착수 지점 (세션 2 인계)** — 코드 재탐색 없이 이어받을 수 있게:
-  - **매퍼 시그니처 (최종형)**: `EditKeyMapper.keyStrokes(for:range:family:profile:text:)`이며 `text: FocusedText? = nil`이 마지막 인자다. `collapsesToNothing`은 **사라졌고** 정확화가 전부 `keyStrokes` 안으로 접혔다 — 반환 `nil`이 "미지원"과 "읽기가 증명한 무효" 둘을 뜻한다. 내부 구조: `textAreaSelection`의 `.motion`/`.linewiseMotion` 분기가 각각 `motionRefinement`/`linewiseRefinement`를 먼저 물어 `Refinement`(`.invalid` / `.selection([KeyStroke])` / `.unproven`)를 받고, `.unproven`이면 기존 무상태 경로로 떨어진다. **`.unproven`이 기본값인 것이 계약**이다(조용한 억제·조용한 재조립 방지). `retargeted(_:for:)`는 그대로 남아 `cw`가 시퀀스와 판정에서 같은 함수를 공유한다.
-  - **어댑터 분류**: `KeyboardAdapter.classifyEdit(op:range:family:profile:text:)`이 편집 전용 3-프로브다(① text 포함 호출 → ② 텍스트 프로브 = text 없이 재조회 → `.skipped` → ③ builtIn 프로브 = `profile: .empty`, **text 미수신**). 범용 `classify(_:builtIn:)`는 나머지 세 매퍼용으로 그대로 있다. `.skipped`의 자체 로그는 `mapping`의 `.edit` 분기에서 `if case .skipped = result`로 남는다. 세션 3이 프로브를 늘리거나 순서를 건드리면 **정확화 결과가 `.unsupported`로 집계돼 게이트 심사가 무너진다** — 근거는 [결정 문서](../../decisions/references/20260803_edit-keystrokes-takes-focused-text.md).
-  - **읽기를 묻는 범위**: `consultsFocusedText`는 지금 `.motion` 전체 + `.linewiseMotion(.lineUp, _)` + `.linewiseMotion(.documentStart, _)` 셋을 답한다. **세션 3은 여기에 `.textObject(.word(.inner))`를 더하게 된다** — 넓힐 때마다 액션당 AX 왕복 1회(Notion ~7ms)가 붙으므로 필요 최소로. `.line`·`.linewiseMotion(.lineDown)`은 소프트 랩을 해소하지 않기로 해서 일부러 빠져 있다.
-  - **단어 경계 질의의 현재 상태 — 세션 3이 그대로 쓸 수 없다**: `FocusedTextAnalysis.swift`에 있는 것은 `provesNoWordStartAhead: Bool` 하나뿐이고, 그마저 "**공백류(space·tab·개행) 다음의 비공백이 캐럿 뒤에 하나도 없는가**"라는 **존재 여부**만 답한다. 단어 시작/끝의 **오프셋**은 없고, 정의도 macOS `Opt-→`(구두점을 경계로 봄)보다 좁다. `iw`·`cw`→`ce`는 "이 단어가 어디서 시작해 어디서 끝나는가"가 필요하므로 **새 질의를 세워야 하며, 그때 구두점 처리를 `Opt-→`와 맞출지 먼저 정해야 한다**(우리 정의가 좁은 것은 "정확화를 포기하는 쪽으로 틀린다"는 안전 방향 때문이었는데, 오프셋을 쓰는 순간 그 안전 논리가 성립하지 않는다).
-  - **세션 3의 첫 판단거리 — 버스트·래치·청크와 얽히는 지점**: 세션 2는 [읽기는 분기의 근거이지 스트로크 수의 근거가 아니다](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md)를 원칙으로 세웠다. 그래서 재조립이 전부 위치 상대적이거나 현행의 부분집합이고, 원자 그룹·청크 규칙에 새로 걸린 것이 없다. `iw`에서 "단어 길이만큼 `Shift-→`" 형태가 같은 유혹으로 오는데, 그것은 ① 낡은 읽기에서 엉뚱한 범위를 정확하게 자르고 ② 선택+오퍼레이터를 가르지 않는 규칙 때문에 중단 불가 그룹이 된다. **원칙을 유지할지, `iw`에 한해 예외를 둘지가 세션 3의 첫 결정이다** (예외를 둔다면 엣지 1의 방향 반전처럼 규모·가시성 근거를 명시해야 한다).
-  - **공통 유틸**: `VimAction/FocusedTextAnalysis.swift` = `nonisolated extension FocusedText`, 질의 11개. 설계 의도 셋은 그대로다 — ① **증명 못 하면 `false`/`nil`**(그래서 이름이 `provesNoWordStartAhead`다), ② 오프셋은 **UTF-16**, ③ 문서 끝 판정은 `==` + 창이 닿았다는 방증. 줄 거리·줄 수 질의도 같은 규칙(창이 문서 경계에 닿은 방향으로만 답한다). 테스트는 `VimActionTests/FocusedTextAnalysisTests.swift`이고 헬퍼 `focusedText(_:caret:length:)`가 거기 있다(다른 테스트 파일에서 쓰라고 internal). 편집 쪽 골든은 `EditKeyMapperTests`의 `editRefinementFixtures`이며 `.unchanged` 행이 무상태 호출과 **직접 비교**되므로 두 표가 갈라지지 않는다.
+- **PR-B PR 생성 준비 메모 (세션 3 인계)** — 다음 단계는 push + PR 생성이다. 코드 작업은 없다.
+  - **브랜치 커밋 구성** (base `b206a87`, 8커밋 — 세션마다 FEAT 2 + docs 1):
+    - 세션 1: `38190f1` 파생 질의 유틸 / `ac710f3` AX 읽기 첫 소비(엣지 5) / `e2208f8` docs
+    - 세션 2: `1876811` 줄·단어 경계 질의 6종 / `3983333` 경계 포화 엣지 전 항목 해소 / `e901464` docs
+    - 세션 3: `a2ce4b7` 단어 런 질의 3종 / `afc462b` `iw`·`cw` 정확화 / (docs 커밋)
+  - **PR 본문 핵심 요약**: PR-A의 읽기에 **첫 소비자**가 붙어, 어댑터 무상태를 유지한 채(앵커·범위 상태는 PR-C1) 무상태 시퀀스를 정확화한다. 해소된 수용 엣지 — 경계 포화 5종(줄 끝 `x`, 첫 줄 `dk`, 마지막 단어 `dw`, 마지막 줄 `dgg`, 빈 선택+오퍼레이터), `^`의 0폭, `iw`의 공백 1칸·1자 구두점·줄 끝, `cw`의 런 끝·줄 끝. **남긴 것** — 소프트 랩 시각 줄 linewise(창 읽기로 원리적 불가, [사유 문서](../../decisions/references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md), 단락 바인딩 실측이 재개 조건), 2자 이상의 공백·구두점 런(오프셋 비례 스트로크가 되어 기각), Notion `Shift-Cmd-↑/↓` 충돌(M4 프로파일 몫).
+  - **리뷰어가 볼 결정 문서** (설계 축 순): [재조립 원칙 — 읽기는 분기의 근거](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md) → [`keyStrokes(text:)`·3-프로브](../../decisions/references/20260803_edit-keystrokes-takes-focused-text.md) → [경계 포화 정확화 표](../../decisions/references/20260803_boundary-saturation-refinement-table.md) → [줄 끝 Vim 커서 모델](../../decisions/references/20260803_line-end-charwise-vim-cursor-model.md) + [단어 어휘로의 완화](../../decisions/references/20260803_line-end-cursor-model-for-word-objects.md) → [단어 런 로컬 술어](../../decisions/references/20260803_word-run-local-predicates-no-offsets.md) → [상수 1타 재조립](../../decisions/references/20260803_constant-stroke-word-refinement.md). 세션 1의 [소비 형태](../../decisions/references/20260802_read-consumption-via-mapper-predicates.md)·[0폭 억제](../../decisions/references/20260802_empty-selection-edit-suppression.md)는 부분 supersede된 상태로 읽어야 한다.
+  - **리뷰에서 깨지기 쉬운 계약 3가지**: ① `classifyEdit`의 프로브 **순서**(text 포함 → 텍스트 프로브 → builtIn, builtIn은 text 미수신) — 하나만 어긋나면 정확화가 `.unsupported`로 집계돼 게이트 심사가 무너진다. ② `Refinement`의 **`.unproven`이 기본값**이라는 것 — 조용한 억제·조용한 재조립 방지. ③ `retargeted(_:for:)`가 시퀀스와 판정에 **같은 답**을 주고 리타깃 여부까지 함께 돌려준다는 것 — `cw`와 진짜 `ce`·`de`가 줄 끝에서 갈린다.
+  - **검증 상태**: 앱 1,081건 + 엔진 81건 통과, 앱 빌드 경고 0. 테스트는 실기기 AX·`~/.config`·개발자 클립보드 비의존(읽기는 `focusedText(_:caret:length:)` 헬퍼 주입).
 - **실측 메모 (계속 유효)**: 정확화가 Notion에서는 키당 ~7ms를 산다(selectedRange 비용) — 액션별 스냅샷이 액션당 1회로 접어 주지만 **액션 수만큼은 곱해진다**. Slack·VS Code는 포커스 요소 미노출이라 혼용 정확화가 원리적으로 도달 불가(무상태 폴백 상시) — 도그푸딩 때 텍스트 포커스 상태로 재확인 필요(이번 실측은 자동 순회 한계로 두 앱의 텍스트 영역을 못 봤다).
-- **읽기의 구조적 한계 (세션 3도 상속)**: `CGEvent.post`는 배달만 걸어 두고 돌아오므로 **`execute` 사이**에는 낡은 값을 읽을 수 있다(`p` 직후 빠른 `x`). 한 `execute` **안**에는 레이스가 없다 — 엔진이 한 `.replace`에서 모션→편집을 섞어 내지 않음을 확인했다. 세션 2가 이 한계에 대한 재조립 쪽 답을 세웠다(위 "첫 판단거리"의 원칙 + 엣지 1의 명시 예외).
-- **도그푸딩 시 바뀐 동작 2건** (버그로 오인 금지): 문서 끝 `x`가 이제 **마지막 글자를 지운다**(세션 1의 "안 먹는 것이 의도" 메모는 무효), 첫 줄 `dk`와 첫 비공백 위 `d^`는 **아무 일도 하지 않는다**(Vim과 같다).
+- **읽기의 구조적 한계 (PR-C 이후도 상속)**: `CGEvent.post`는 배달만 걸어 두고 돌아오므로 **`execute` 사이**에는 낡은 값을 읽을 수 있다(`p` 직후 빠른 `x`). 한 `execute` **안**에는 레이스가 없다 — 엔진이 한 `.replace`에서 모션→편집을 섞어 내지 않음을 확인했다. 세션 2가 이 한계에 대한 재조립 쪽 답(원칙 + 엣지 1의 명시 예외)을 세웠고, 세션 3의 상수 1타는 그 원칙 안에서 오히려 최악을 **줄인다**(현행 3타는 이웃 단어 통째, 재조립은 1자).
+- **도그푸딩 시 바뀐 동작** (버그로 오인 금지):
+  - 세션 1·2: 문서 끝 `x`가 이제 **마지막 글자를 지운다**(세션 1의 "안 먹는 것이 의도" 메모는 무효), 첫 줄 `dk`와 첫 비공백 위 `d^`는 **아무 일도 하지 않는다**(Vim과 같다).
+  - 세션 3: 공백 1칸 위의 `diw`가 **그 공백만** 지운다(다음 단어가 아니다), 1자 구두점(`.`·`,`) 위의 `diw`가 **그 구두점만** 지운다, 줄 끝·문서 끝의 `diw`가 **직전 단어**를 지운다(다음 줄의 첫 단어가 아니다), 단어의 마지막 글자 위·줄 끝의 `cw`가 **그 한 글자만** 바꾼다(문서 끝 `cw`도 이제 무동작이 아니다 — 남는 무효는 빈 문서뿐).
+  - 다만 위 전부 **읽기 성공 경로 한정**이다. Slack·VS Code는 포커스 요소 미노출이라 현행 3타 그대로여야 한다 — 그것이 폴백 계약의 실사용 확인이다.
 
 - **M3가 남긴 인계 메모 (핵심 판단)**: M3에서 수용한 엣지 **대부분이 쓰기가 아니라 읽기 문제다** — 정확 오프셋을 AX로 읽고 실행은 키보드로 하면 해소된다. 해소 대상은 위 PR-B·C1·C2에 배분돼 있다. 탭 들여쓰기 `^`·Notion 계열 충돌은 M4 프로파일이 우선 수단이다(M5 해소 대상 아님).
 

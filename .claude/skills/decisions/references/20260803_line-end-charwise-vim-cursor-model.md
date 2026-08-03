@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260803_line-end-cursor-model-for-word-objects.md](20260803_line-end-cursor-model-for-word-objects.md) — "다른 모션으로 넓히지 않는다"는 한정이 `iw`·`cw`의 줄 끝에 한해 완화됨 / `charRight`·`charLeft` 표와 방향 반전 수용 근거는 유효
+
 # 줄 끝 charwise — 그 한 자리에서만 Vim의 블록 커서 모델을 따른다 (엣지 1)
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
