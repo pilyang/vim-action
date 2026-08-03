@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-08-02
-- **갱신일**: 2026-08-03 (**PR-B [PR #36](https://github.com/pilyang/vim-action/pull/36) 생성 — 리뷰·머지 대기**. 3세션 + 도그푸딩까지 끝났다)
+- **갱신일**: 2026-08-03 (**PR-B 머지 완료** — main `69a81a6`. 다음은 PR-C1, 새 worktree에서 시작한다)
 
 ## 목표
 
@@ -27,10 +27,7 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 각 PR은 자기 worktree에서 작업한다. A → B → C는 선형 의존이고, D1 → D2도 선형이다. C와 D는 원칙적으로 병렬 가능하지만 어댑터 파일 충돌이 클 수 있어 순차를 기본으로 한다.
 
 - [x] **PR-A — 읽기 기반 (리졸버 확장)** — [PR #35](https://github.com/pilyang/vim-action/pull/35) **머지 완료** (main `b206a87`). 상세는 위 "완료된 것".
-- [ ] **PR-B — 혼용 1: 편집·모션 정확화** *(worktree `feat/m5-pr-b-hybrid-motion-edit`, base `b206a87`)*: **[PR #36](https://github.com/pilyang/vim-action/pull/36) 생성됨 — 리뷰·머지 대기.** 3세션 전부 끝났고 도그푸딩(TextEdit·Notion·Slack)까지 마쳤다.
-  - [x] **세션 1** — 소비 배선 + 공통 파생 질의 유틸 + 엣지 5(빈 선택+오퍼레이터). 상세는 위 "완료된 것".
-  - [x] **세션 2** — 경계 포화 나머지 4종 + `^`. [소프트 랩 시각 줄](../../decisions/references/20260728_linewise-visual-line-wrap-accepted-edge.md)은 **해소하지 않고 사유를 결정으로 남겼다**(창 읽기로 불가 — 단락 바인딩 실측이 재개 조건). 상세는 위 "완료된 것".
-  - [x] **세션 3** — `iw` 단어 경계, `cw`→`ce` 특례 정확화. 상세는 위 "완료된 것".
+- [x] **PR-B — 혼용 1: 편집·모션 정확화** — [PR #36](https://github.com/pilyang/vim-action/pull/36) **머지 완료** (main `69a81a6`, 3세션 + 도그푸딩). 상세는 위 "완료된 것".
 - [ ] **PR-C1 — 혼용 2a: Visual 앵커 상태**: 어댑터가 처음으로 앵커·범위 상태를 든다(구조 변화 — PR-B와 분리하는 이유). [Visual 후진 전체](../../decisions/references/20260728_visual-charwise-backward-origin-shift.md)(`Vk`·`vb`·`vh`)가 통째로 해소되고, `V`→`v` 전환·앵커 쪽 반올림도 가능해진다. 어댑터의 `linewise: Bool` 상자 재검토가 여기 속한다.
 - [ ] **PR-C2 — 혼용 2b: paste wise·스크롤 정확화**: charwise/linewise `p` 경계와 paste wise 자체 — 레지스터·yank 경로의 wise 기억으로 해소. 스크롤 근사 줄 수 → `AXVisibleCharacterRange` 뷰포트 정확화. 비-QWERTY 정식 해소(문자→키코드 역조회 주입 — [레이아웃 가드 결정](../../decisions/references/20260801_non-qwerty-command-key-layout-guard.md)의 이연 항목)도 여기.
 - [ ] **PR-D1 — 순수 AX 쓰기 어댑터**: `AXSelectedTextRange` 직접 조작으로 `VimAction` 실행. `AXError` 반환이 **실패 폭주 자동 비활성화(`reportExecutionFailure`)의 첫 실호출자**가 된다 — 실패 보고 배선 포함.
@@ -39,15 +36,14 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 
 ## 진행 중 컨텍스트
 
-- **PR-B 리뷰 대기 메모** — [PR #36](https://github.com/pilyang/vim-action/pull/36). 코드 작업은 끝났고 남은 것은 리뷰 대응·머지다. 머지되면 이 항목을 "완료된 것"으로 옮기고 PR-C1을 새 worktree에서 시작한다(base는 머지 후의 main).
-  - **브랜치 커밋 구성** (base `b206a87`, 8커밋 — 세션마다 FEAT 2 + docs 1):
-    - 세션 1: `38190f1` 파생 질의 유틸 / `ac710f3` AX 읽기 첫 소비(엣지 5) / `e2208f8` docs
-    - 세션 2: `1876811` 줄·단어 경계 질의 6종 / `3983333` 경계 포화 엣지 전 항목 해소 / `e901464` docs
-    - 세션 3: `a2ce4b7` 단어 런 질의 3종 / `afc462b` `iw`·`cw` 정확화 / (docs 커밋)
-  - **PR 본문 핵심 요약**: PR-A의 읽기에 **첫 소비자**가 붙어, 어댑터 무상태를 유지한 채(앵커·범위 상태는 PR-C1) 무상태 시퀀스를 정확화한다. 해소된 수용 엣지 — 경계 포화 5종(줄 끝 `x`, 첫 줄 `dk`, 마지막 단어 `dw`, 마지막 줄 `dgg`, 빈 선택+오퍼레이터), `^`의 0폭, `iw`의 공백 1칸·1자 구두점·줄 끝, `cw`의 런 끝·줄 끝. **남긴 것** — 소프트 랩 시각 줄 linewise(창 읽기로 원리적 불가, [사유 문서](../../decisions/references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md), 단락 바인딩 실측이 재개 조건), 2자 이상의 공백·구두점 런(오프셋 비례 스트로크가 되어 기각), Notion `Shift-Cmd-↑/↓` 충돌(M4 프로파일 몫).
-  - **리뷰어가 볼 결정 문서** (설계 축 순): [재조립 원칙 — 읽기는 분기의 근거](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md) → [`keyStrokes(text:)`·3-프로브](../../decisions/references/20260803_edit-keystrokes-takes-focused-text.md) → [경계 포화 정확화 표](../../decisions/references/20260803_boundary-saturation-refinement-table.md) → [줄 끝 Vim 커서 모델](../../decisions/references/20260803_line-end-charwise-vim-cursor-model.md) + [단어 어휘로의 완화](../../decisions/references/20260803_line-end-cursor-model-for-word-objects.md) → [단어 런 로컬 술어](../../decisions/references/20260803_word-run-local-predicates-no-offsets.md) → [상수 1타 재조립](../../decisions/references/20260803_constant-stroke-word-refinement.md). 세션 1의 [소비 형태](../../decisions/references/20260802_read-consumption-via-mapper-predicates.md)·[0폭 억제](../../decisions/references/20260802_empty-selection-edit-suppression.md)는 부분 supersede된 상태로 읽어야 한다.
-  - **리뷰에서 깨지기 쉬운 계약 3가지**: ① `classifyEdit`의 프로브 **순서**(text 포함 → 텍스트 프로브 → builtIn, builtIn은 text 미수신) — 하나만 어긋나면 정확화가 `.unsupported`로 집계돼 게이트 심사가 무너진다. ② `Refinement`의 **`.unproven`이 기본값**이라는 것 — 조용한 억제·조용한 재조립 방지. ③ `retargeted(_:for:)`가 시퀀스와 판정에 **같은 답**을 주고 리타깃 여부까지 함께 돌려준다는 것 — `cw`와 진짜 `ce`·`de`가 줄 끝에서 갈린다.
-  - **검증 상태**: 앱 1,081건 + 엔진 81건 통과, 앱 빌드 경고 0. 테스트는 실기기 AX·`~/.config`·개발자 클립보드 비의존(읽기는 `focusedText(_:caret:length:)` 헬퍼 주입).
+- **PR-C1 착수 지점 (PR-B 인계)** — main `69a81a6`에서 **새 worktree**를 판다. PR-B 브랜치·worktree는 정리됐다.
+  - **무엇이 달라지는가**: 어댑터가 **처음으로 상태를 든다**(앵커·범위). PR-B까지의 정확화는 전부 무상태 매퍼의 시퀀스 재조립이었고, 그래서 PR-B와 분리한 것이다 — 구조 변화의 축이 다르다.
+  - **해소 대상**: [Visual charwise 후진 원점 이동](../../decisions/references/20260728_visual-charwise-backward-origin-shift.md)(`Vk`·`vb`·`vh`가 빈 선택이 되는 것) 전체, `V`→`v` 전환([현재 `nil` 스킵](../../decisions/references/20260728_visual-switch-wise-focus-end-rounding.md)), 앵커 쪽 linewise 반올림([현재 포커스 끝만](../../decisions/references/20260728_visual-extend-stateless-no-linewise-rounding.md)). 어댑터의 `linewise: Bool` 상자 재검토가 여기 속한다.
+  - **상태를 어디에 둘 것인가가 첫 설계 결정**: 선례는 `PasteWiseResolver`다 — 어댑터가 주입받는 유일한 상태 보유 협력자이고 **게시 직렬 큐가 단독 소유**한다. Visual 앵커도 같은 형태로 갈지, 아니면 어댑터 자신이 들지가 갈림길이며, 어느 쪽이든 큐 밖에서 읽히면 안 된다.
+  - **읽기 소비를 Visual로 넓힐 때의 게이트**: 지금 `consultsFocusedText`는 `EditKeyMapper` 소속이고 읽는 어휘는 편집뿐이다(모션·Visual·paste·undo는 AX 왕복 0건). Visual이 읽기를 쓰려면 같은 형태의 게이트가 `VisualKeyMapper`에도 필요하며, 넓힌 만큼 액션당 왕복 1회(Notion ~7ms)를 문다.
+  - **상속되는 계약**: `.unproven`이 기본값 / "지원 ⟹ 빈 시퀀스 아님"(무효는 `nil` → 정직한 스킵) / 읽기는 액션당 1회 lazy·실패도 memo / 읽기 실패 = 현행 무상태 시퀀스 폴백(Slack·VS Code 상시) / 재조립은 위치 상대적이거나 현행의 부분집합이거나 상수 1타.
+  - **앵커 상태의 새 함정**: 상태는 읽기와 달리 **`execute` 사이에 낡는 것으로 끝나지 않는다** — 사용자가 마우스로 선택을 바꾸거나 다른 앱을 다녀오면 우리가 든 앵커가 화면과 어긋난다. 무효화 조건(포커스 변경·앱 전환·마커 없는 입력)을 설계 초입에 정해야 한다.
+
 - **실측 메모 (계속 유효)**: 정확화가 Notion에서는 키당 ~7ms를 산다(selectedRange 비용) — 액션별 스냅샷이 액션당 1회로 접어 주지만 **액션 수만큼은 곱해진다**. Slack·VS Code는 포커스 요소 미노출이라 혼용 정확화가 원리적으로 도달 불가(무상태 폴백 상시) — **세션 3 도그푸딩에서 Slack 컴포저로 확인 완료**(줄 끝 `x`가 여전히 줄을 병합 = 정확화 미적용). M5 안에서는 안 풀리며 PR-D2의 `auto` 프로브도 같은 이유로 Keyboard로 라우팅한다. Slack 쪽 개선 수단은 M4 프로파일뿐이다.
 - **읽기의 구조적 한계 (PR-C 이후도 상속)**: `CGEvent.post`는 배달만 걸어 두고 돌아오므로 **`execute` 사이**에는 낡은 값을 읽을 수 있다(`p` 직후 빠른 `x`). 한 `execute` **안**에는 레이스가 없다 — 엔진이 한 `.replace`에서 모션→편집을 섞어 내지 않음을 확인했다. 세션 2가 이 한계에 대한 재조립 쪽 답(원칙 + 엣지 1의 명시 예외)을 세웠고, 세션 3의 상수 1타는 그 원칙 안에서 오히려 최악을 **줄인다**(현행 3타는 이웃 단어 통째, 재조립은 1자).
 - **도그푸딩 시 바뀐 동작** (버그로 오인 금지):
