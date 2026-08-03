@@ -798,18 +798,24 @@ struct KeyboardAdapterLayoutGateTests {
     }
 }
 
-/// 캐럿 주변 리더 seam — **이번 PR의 계약은 "배선은 섰지만 아무도 쓰지 않는다"** 이고,
-/// 그 두 절반을 각각 고정한다.
+/// 캐럿 주변 리더 seam — 소비자는 `mapping`의 `.edit` 분기 **한 곳**이고, 그것도 `.motion`
+/// 범위만 묻는다. 여기서 고정하는 것은 세 가지다: 누가 읽는가(그리고 몇 번), 읽기가 실패해도
+/// 실행은 하는가(폴백 계약), 그리고 읽기가 0폭 포화를 증명하면 게시를 멈추는가.
 ///
-/// 매퍼가 읽기를 소비하는 것은 PR-B다. 그때 아래 "부르지 않는다"가 뒤집히는 것이 정상이며,
-/// 그 순간 이 테스트가 **소비가 붙었다는 신호**로 짚어 준다 — 지금 조용히 AX를 부르기
-/// 시작하면 정확화 이득 없이 Notion에서 액션당 7ms를 태우는 회귀가 된다.
+/// 읽기 횟수를 고정하는 이유는 비용이다 — Notion에서 읽기 1회가 7ms이고 액션 수만큼 곱해진다.
+/// 정확화 이득 없는 자리에서 조용히 AX를 부르기 시작하면 그만큼이 그대로 지연이 된다.
 struct KeyboardAdapterFocusedTextTests {
     /// 대표 어휘를 훑는다 — 걸러내기·레이아웃 게이트·부수효과 경로가 서로 다른 액션들이라
     /// 어느 하나에 소비가 붙어도 걸린다.
+    ///
+    /// **`.motion` 범위 편집이 반드시 있어야 한다** — 그것 없이는 아래 폴백 계약 테스트가
+    /// 새 소비 경로를 하나도 지나지 않아 공허하게 통과한다.
     private static let vocabulary: [VimAction] = [
         .move(.wordForward),
+        .edit(.delete, .motion(.charRight, count: 1)),
         .edit(.delete, .line(count: 1)),
+        .edit(.delete, .linewiseMotion(.lineUp, count: 1)),
+        .edit(.delete, .linewiseMotion(.documentStart, count: 1)),
         .edit(.delete, .textObject(.word(.inner))),
         .beginSelection(linewise: false),
         .edit(.yank, .selection),
@@ -820,29 +826,177 @@ struct KeyboardAdapterFocusedTextTests {
         .scroll(.halfPage, forward: true),
     ]
 
-    @Test("아직 아무도 읽지 않는다 — 리더 호출 0건 (동작 diff 0의 증거)")
-    func readerIsNotConsultedYet() {
+    /// 문서 `"ab\ncd"`의 끝(오프셋 5)에 캐럿이 있는 읽기 — 줄 끝이므로 `x`가 개행을 집는 자리다.
+    private static let atDocumentEnd = FocusedText(
+        selection: NSRange(location: 5, length: 0), characterCount: 5,
+        window: "ab\ncd", windowRange: NSRange(location: 0, length: 5))
+
+    /// 같은 문서의 첫 줄(오프셋 1) — `dk`가 위로 갈 줄이 없는 자리다.
+    private static let onFirstLine = FocusedText(
+        selection: NSRange(location: 1, length: 0), characterCount: 5,
+        window: "ab\ncd", windowRange: NSRange(location: 0, length: 5))
+
+    /// 정확화 없는 `x`의 무상태 시퀀스 — `Shift-→` 뒤 `Cmd-X` (스트로크당 keyDown+keyUp 2건).
+    private static let charDeleteKeyCodes = [
+        Int64(kVK_RightArrow), Int64(kVK_RightArrow), Int64(kVK_ANSI_X), Int64(kVK_ANSI_X),
+    ]
+
+    @Test("표에 적힌 범위만 읽는다 — 나머지 어휘는 왕복 0건")
+    func onlyTabulatedRangeEditsConsultTheReader() {
         nonisolated(unsafe) var reads = 0
-        let adapter = makeAdapter(
-            reader: FocusedTextReader { _ in
-                reads += 1
-                return nil
-            }, collecting: { _ in })
+        let reader = FocusedTextReader { _ in
+            reads += 1
+            return nil
+        }
 
-        adapter.execute(Self.vocabulary, processID: 42)
+        makeAdapter(reader: reader, collecting: { _ in }).execute(Self.vocabulary, processID: 42)
 
-        #expect(reads == 0, "PR-B가 소비를 붙이면 여기가 뒤집힌다 — 그때 골든도 함께 갱신된다")
+        #expect(reads == 4, "어휘 중 묻는 것은 `x`·`dk`·`dgg`·`diw` 넷이다 — `dd`·`dj`는 묻지 않는다")
     }
 
-    /// **폴백 계약**: 읽기가 실패하든 성공하든 정확화만 갈릴 뿐 실행은 한다. 지금은 소비자가
-    /// 없어 두 경우가 자명하게 같지만, 그 자명함이 PR-B에서 깨지는 것이 정확히 이 계약의
-    /// 감시 대상이다 — 실패 경로에서 시퀀스가 달라지면 "읽기 실패 = 무동작"이라는 최악의
-    /// 회귀가 된다 (Slack·VS Code는 포커스 요소를 노출하지 않아 그 경로가 상시다).
+    /// 스냅샷은 **액션마다 새로** 만든다 — 같은 버스트의 앞 액션이 캐럿을 옮기므로 앞 액션의
+    /// 읽기를 물려받으면 낡은 오프셋으로 판정한다. (한 액션 **안**의 memo는
+    /// `FocusedTextSnapshotTests`가 고정한다.)
+    @Test("읽기는 액션마다 새로 한다 — 앞 액션의 값을 물려받지 않는다")
+    func theSnapshotIsRebuiltPerAction() {
+        nonisolated(unsafe) var reads = 0
+        let reader = FocusedTextReader { _ in
+            reads += 1
+            return nil
+        }
+
+        makeAdapter(reader: reader, collecting: { _ in })
+            .execute(
+                [
+                    .edit(.delete, .motion(.charRight, count: 1)),
+                    .edit(.delete, .motion(.charRight, count: 1)),
+                ], processID: 42)
+
+        #expect(reads == 2)
+    }
+
+    /// 읽을 앱이 없으면(pid `nil`) 리더는 아예 불리지 않는다 — 실패와 같은 폴백으로 간다.
+    @Test("pid가 없으면 리더를 부르지 않는다")
+    func missingProcessIDSkipsTheRead() {
+        nonisolated(unsafe) var reads = 0
+        let reader = FocusedTextReader { _ in
+            reads += 1
+            return nil
+        }
+
+        makeAdapter(reader: reader, collecting: { _ in }).execute(Self.vocabulary)
+
+        #expect(reads == 0)
+    }
+
+    /// **무효 정확화의 본체** — Vim에서 no-op인 조합을 읽기가 증명하면 액션 통째로 스킵한다.
+    /// 첫 줄 `dk`가 그 자리다: 현행 시퀀스는 `↑`가 문서 시작에서 포화한 채 아래로 확장해
+    /// **아래 줄을 지운다**(수용 엣지 2 — 가장 버그처럼 보이던 것).
+    @Test("첫 줄 `dk`는 게시하지 않는다 — Vim처럼 무효")
+    func suppressesTheEditWhenTheReadProvesItInvalid() {
+        nonisolated(unsafe) var suppressed: [CGEvent] = []
+        nonisolated(unsafe) var changeCountReads = 0
+        makeAdapter(
+            changeCount: {
+                changeCountReads += 1
+                return 0
+            },
+            reader: FocusedTextReader { _ in Self.onFirstLine },
+            collecting: { suppressed.append($0) }
+        ).execute([.edit(.delete, .linewiseMotion(.lineUp, count: 1))], processID: 42)
+
+        #expect(suppressed.isEmpty, "선택 스트로크도 나가지 않는다 — 액션 통째로 스킵이다")
+        // 게시하지 않은 줄 단위 편집은 붙여넣기 단위 기억도 남기지 않는다 — 남기면 다음 `p`가
+        // linewise로 오판된다 (프로파일 disable 스킵과 같은 규칙).
+        #expect(changeCountReads == 0)
+
+        // 같은 액션이라도 읽기가 없으면 오늘의 무상태 시퀀스 그대로다 — 그리고 기억은 남는다.
+        nonisolated(unsafe) var fallback: [CGEvent] = []
+        makeAdapter(
+            changeCount: {
+                changeCountReads += 1
+                return 0
+            }, reader: FocusedTextReader { _ in nil }, collecting: { fallback.append($0) }
+        ).execute([.edit(.delete, .linewiseMotion(.lineUp, count: 1))], processID: 42)
+
+        #expect(!fallback.isEmpty)
+        #expect(changeCountReads == 1)
+    }
+
+    /// **재조립의 본체** — 줄 끝 `x`는 개행을 집는 대신 Vim처럼 마지막 글자를 지운다
+    /// (수용 엣지 1). 문서 끝도 줄 끝의 특수 경우라 같은 자리다 — 세션 1의 "문서 끝 `x`는
+    /// 무동작" 억제를 이 재조립이 덮어쓴다.
+    @Test("줄 끝 `x`는 왼쪽 한 글자를 지운다 — 방향 재조립")
+    func reassemblesTheSelectionAtTheLineEnd() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(
+            reader: FocusedTextReader { _ in Self.atDocumentEnd }, collecting: { posted.append($0) }
+        ).execute([.edit(.delete, .motion(.charRight, count: 1))], processID: 42)
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow), Int64(kVK_ANSI_X), Int64(kVK_ANSI_X),
+            ])
+        // 방향만 바뀌는 것이 아니라 **선택**이어야 한다 — Shift가 빠지면 캐럿만 움직이고
+        // 뒤이은 `Cmd-X`가 빈 선택에 나간다(정확화가 오히려 엣지 5를 만든다).
+        #expect(posted.prefix(2).allSatisfy { $0.flags.contains(.maskShift) })
+
+        // 읽기가 없으면 오늘의 무상태 시퀀스 그대로다 (`Shift-→`, `Cmd-X`).
+        nonisolated(unsafe) var fallback: [CGEvent] = []
+        makeAdapter(reader: FocusedTextReader { _ in nil }, collecting: { fallback.append($0) })
+            .execute([.edit(.delete, .motion(.charRight, count: 1))], processID: 42)
+
+        #expect(keyCodes(of: fallback) == Self.charDeleteKeyCodes)
+    }
+
+    /// 마지막 줄 `dgg`는 선행 `↓`가 줄 끝으로 포화해 마지막 줄을 빠뜨린다 (수용 엣지 4).
+    /// 정확화는 `cgg`가 이미 쓰는 "줄 끝에서 위로"로 접두만 바꾼다.
+    @Test("마지막 줄 `dgg`는 줄 끝에서 위로 선택한다")
+    func reassemblesTheDocumentStartPrefixOnTheLastLine() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(
+            reader: FocusedTextReader { _ in Self.atDocumentEnd }, collecting: { posted.append($0) }
+        ).execute([.edit(.delete, .linewiseMotion(.documentStart, count: 1))], processID: 42)
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),  // Cmd-→ (줄 끝)
+                Int64(kVK_UpArrow), Int64(kVK_UpArrow),  // Shift-Cmd-↑ (문서 시작까지 선택)
+                Int64(kVK_ANSI_X), Int64(kVK_ANSI_X),
+            ])
+        #expect(posted.prefix(2).allSatisfy { !$0.flags.contains(.maskShift) }, "접두는 이동이다")
+        #expect(posted.dropFirst(2).prefix(2).allSatisfy { $0.flags.contains(.maskShift) })
+    }
+
+    /// 문서 한가운데라면 억제하지 않는다 — 억제는 증명된 자리에서만 일어난다.
+    @Test("문서 한가운데 `x`는 그대로 나간다")
+    func doesNotSuppressAwayFromTheBoundary() {
+        let midDocument = FocusedText(
+            selection: NSRange(location: 1, length: 0), characterCount: 5,
+            window: "ab\ncd", windowRange: NSRange(location: 0, length: 5))
+
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(
+            reader: FocusedTextReader { _ in midDocument }, collecting: { posted.append($0) }
+        ).execute([.edit(.delete, .motion(.charRight, count: 1))], processID: 42)
+
+        #expect(keyCodes(of: posted) == Self.charDeleteKeyCodes)
+    }
+
+    /// **폴백 계약**: 읽기가 실패하든 성공하든 정확화만 갈릴 뿐 실행은 한다 — 실패 경로에서
+    /// 시퀀스가 달라지면 "읽기 실패 = 무동작"이라는 최악의 회귀가 된다 (Slack·VS Code는
+    /// 포커스 요소를 노출하지 않아 그 경로가 상시다).
+    ///
+    /// 샘플은 **문서 한가운데**이므로 어느 어휘도 정확화되지 않는다. 동시에 트립와이어이기도
+    /// 하다: 창(19자)이 `characterCount`(40)에 못 미쳐서, "오른쪽에 개행이 없으면 줄 끝"류의
+    /// 부실한 판정은 여기서 `d$`도 아닌 `x`를 삼키며 빨개진다. 창 안에 개행을 하나 두어
+    /// `dk`의 "위 줄 수"가 실제로 세어지게 한 것도 같은 이유다 — 세지 못하면 이 어휘가
+    /// 정확화 경로를 지나지 않아 검증이 공허해진다.
     @Test("읽기가 실패해도 성공해도 같은 무상태 시퀀스가 나간다")
     func sequencesAreIdenticalRegardlessOfReadOutcome() {
         let sample = FocusedText(
-            selection: NSRange(location: 4, length: 0), characterCount: 40,
-            window: "the quick brown fox", windowRange: NSRange(location: 0, length: 19))
+            selection: NSRange(location: 6, length: 0), characterCount: 40,
+            window: "the\nquick brown fox", windowRange: NSRange(location: 0, length: 19))
 
         nonisolated(unsafe) var succeeded: [CGEvent] = []
         makeAdapter(reader: FocusedTextReader { _ in sample }, collecting: { succeeded.append($0) })

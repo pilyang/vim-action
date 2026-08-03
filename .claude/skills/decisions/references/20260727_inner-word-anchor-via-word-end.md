@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260803_line-end-cursor-model-for-word-objects.md](20260803_line-end-cursor-model-for-word-objects.md) — 수용 엣지(단어 뒤 공백 위)가 1자 공백 런·줄 끝에서 해소됨 / 3타 시퀀스 결정과 그 유래는 유효(읽기 실패 시 상시 경로)
+
 # `iw` 앵커는 단어 끝 경유 3타
 
 - **결정일**: 2026-07-27

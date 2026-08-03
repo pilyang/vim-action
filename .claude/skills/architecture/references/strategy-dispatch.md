@@ -1,6 +1,6 @@
 # 전략 디스패치
 
-- **Last updated**: 2026-08-02 (M5 PR-A 구현 반영 — 디스패치 경로 AX 읽기 기반 구축, 소비자는 PR-B부터)
+- **Last updated**: 2026-08-03 (M5 PR-B 세션 3 반영 — 단어 런 질의 3종, `iw`·`cw` 상수 1타 정확화. PR-B 구현 완료)
 
 ## 현재 구조
 
@@ -56,9 +56,41 @@ flowchart TD
 
 키 시퀀스 생성은 **네 순수 매퍼**(`MotionKeyMapper` / `EditKeyMapper` / `VisualKeyMapper` / `CommandKeyMapper`)가 담당하고, 어댑터는 액션을 넷 중 하나로 보내 나온 `[KeyStroke]`를 CGEvent 쌍으로 바꿔 게시한다. 매퍼가 `nil`을 내면 그 액션은 **미지원**이며 스킵+요약 DEBUG 로그로 간다. **네 매퍼 어디도 빈 배열을 반환하지 않는다** — "지원 ⟹ 빈 시퀀스 아님"이 공통 불변식이라, 게시할 것이 없는 경우는 `nil`(정직한 스킵)로 표현한다. 무로그 삼킴 금지가 릴리스 게이트 규칙이기 때문이다. CGEvent 변환은 **액션 단위 all-or-nothing**이다 — 스트로크 하나라도 생성에 실패하면 그 액션 전체를 버리고 error 로그를 남긴다(부분 시퀀스는 편집에서 "선택은 어긋난 채 `Cmd-X`만 나가는" 파괴적 실행이 된다).
 
-어댑터의 스킵은 **세 종류로 갈린다**: 매퍼 `nil` = 미지원(요약 로그에 집계), 지원하지만 이번 입력에는 게시할 것이 없는 경우(사유를 아는 자리에서 자체 로그 — 유일한 사례가 텍스트 없는 클립보드의 `p`), 그리고 비-QWERTY 레이아웃 보류(`layoutBlocked` — 미지원과 **별도 요약** `비-QWERTY 레이아웃 스킵 ×N`). 구분이 필요한 이유는 같다: 섞이면 심사자가 구현된 어휘를 미구현으로 읽는다.
+어댑터의 스킵은 **네 종류로 갈린다**: 매퍼 `nil` = 미지원(요약 로그에 집계), 지원하지만 이번 입력에는 게시할 것이 없는 경우(`skipped` — 사유를 아는 자리에서 자체 로그. 사례는 텍스트 없는 클립보드의 `p`와 읽기가 Vim 무효를 증명한 편집 둘), 비-QWERTY 레이아웃 보류(`layoutBlocked` — 미지원과 **별도 요약** `비-QWERTY 레이아웃 스킵 ×N`), 그리고 프로파일 disable(`disabledByProfile` — 역시 별도 요약). 구분이 필요한 이유는 같다: 섞이면 심사자가 구현된 어휘를 미구현으로 읽고, 사용자 설정이 만든 무동작을 버그로 읽는다.
 
-**편집 매퍼** `EditKeyMapper`는 `(Operator, TextRange, ElementFamily) → [KeyStroke]?`이며, 모든 편집이 한 형태다: **범위를 Shift+모션으로 선택한 뒤 오퍼레이터 1타**(delete·change = `Cmd-X`, yank = `Cmd-C` + `←` collapse). change는 엔진이 이미 Insert로 전이해 뒤에 붙일 키가 없다. 선택 스트로크는 모션 매핑 결과의 각 스트로크에 `.maskShift`를 얹어 만들므로, `w`·`^`의 3타 조합도 앵커 고정·엔드포인트 이동으로 그대로 성립한다 — 편집 시퀀스의 모션별 특례는 `cw`→`ce` 하나뿐이다. linewise 반올림은 오퍼레이터별로 갈리고(delete/yank는 개행 포함, change는 줄 유지) 문서 끝에서는 빈 줄 1개가 남는다(`dgg`만 정확 — 감지가 원리적으로 불가). `iw`는 모션과 같은 "끝을 지나친 뒤 시작 복귀" 3타로 앵커를 잡는다(`Opt-→,Opt-←` 후 `Shift-Opt-→` — 캐럿이 단어 시작이어도 그 단어를 잡는다). 오퍼레이터 키만 ANSI 키코드라 QWERTY 계열을 가정한다. `Shift-Cmd-↑/↓`를 블록 이동에 쓰는 앱(Notion)에서는 `d/c/y`+`G`·`gg` 6조합이 파괴적으로 오동작한다 — 회피가 앱 축을 요구해 M4 프로파일까지 수용된 한계다. 문서 경계에서 선택이 접히거나 포화하는 **수용 엣지 5종**(줄 끝 `x` 줄 병합, 첫 줄 `dk` 아래 줄 삭제, 마지막 단어 `dw` 반전, 마지막 줄 `dgg` 누락, 빈 선택+오퍼레이터)과 소프트 랩 문단의 **시각 줄 단위** linewise(랩 문단에서 `dd`가 화면 행만 삭제)는 무상태 전제상 감지 불가로 수용됐다 — 정확화는 M5 AX 읽기 혼용의 몫. `ElementFamily`는 리졸버가 채우지만 이 매퍼에서 시퀀스를 가르지는 않는다 — `.textArea`와 `.textField`가 같은 분기이고 `.nonText`는 `nil` 봉쇄다(위 걸러내기 표). 모션 매퍼에는 family가 없다(화살표 이동은 계열 무관). [20260727_edit-keystroke-mapping-contract.md](../../decisions/references/20260727_edit-keystroke-mapping-contract.md), [20260727_linewise-newline-rounding.md](../../decisions/references/20260727_linewise-newline-rounding.md), [20260727_yank-collapse-to-range-start.md](../../decisions/references/20260727_yank-collapse-to-range-start.md), [20260727_operator-key-ansi-layout-assumption.md](../../decisions/references/20260727_operator-key-ansi-layout-assumption.md), [20260727_inner-word-anchor-via-word-end.md](../../decisions/references/20260727_inner-word-anchor-via-word-end.md), [20260727_notion-cmd-shift-vertical-conflict.md](../../decisions/references/20260727_notion-cmd-shift-vertical-conflict.md), [20260728_edit-boundary-saturation-accepted-edges.md](../../decisions/references/20260728_edit-boundary-saturation-accepted-edges.md), [20260728_linewise-visual-line-wrap-accepted-edge.md](../../decisions/references/20260728_linewise-visual-line-wrap-accepted-edge.md).
+**편집만은 분류 프로브가 셋**이다 — 매퍼가 `text`를 받으면서 `nil`이 "미지원"과 "읽기가 증명한 무효" 두 뜻을 갖기 때문이다. 전용 함수 `classifyEdit`이 ① `text`를 넘긴 호출 → ② **텍스트 프로브**(`text` 없이 재조회, 값이 나오면 `.skipped`) → ③ **builtIn 프로브**(`profile: .empty`, **`text`를 받지 않는다**) 순서로 묻는다. 순서가 계약이며 그것을 **구조가 강제한다**: 범용 `classify(_:builtIn:)`처럼 클로저로 열어 두면 호출부가 `text`를 어느 프로브에 넘기든 컴파일이 통과하고, 하나만 어긋나면 정확화 결과가 `.unsupported`로 집계돼 게이트 심사자가 구현된 어휘를 미구현으로 읽는다. 그래서 `text`를 받는 자리를 이 함수 안 한 곳으로 닫았다. 나머지 세 매퍼는 계속 프로브 둘이다 ([20260803_edit-keystrokes-takes-focused-text.md](../../decisions/references/20260803_edit-keystrokes-takes-focused-text.md)).
+
+**편집 매퍼** `EditKeyMapper`는 `(Operator, TextRange, ElementFamily, ResolvedProfile, FocusedText?) → [KeyStroke]?`이며, 모든 편집이 한 형태다: **범위를 Shift+모션으로 선택한 뒤 오퍼레이터 1타**(delete·change = `Cmd-X`, yank = `Cmd-C` + `←` collapse). change는 엔진이 이미 Insert로 전이해 뒤에 붙일 키가 없다. 선택 스트로크는 모션 매핑 결과의 각 스트로크에 `.maskShift`를 얹어 만들므로, `w`·`^`의 3타 조합도 앵커 고정·엔드포인트 이동으로 그대로 성립한다 — 편집 시퀀스의 모션별 특례는 `cw`→`ce` 하나뿐이다. linewise 반올림은 오퍼레이터별로 갈리고(delete/yank는 개행 포함, change는 줄 유지) 문서 끝에서는 빈 줄 1개가 남는다(`dgg`만 정확 — 감지가 원리적으로 불가). `iw`의 무상태 시퀀스는 모션과 같은 "끝을 지나친 뒤 시작 복귀" 3타다(`Opt-→,Opt-←` 후 `Shift-Opt-→` — 캐럿이 단어 시작이어도 그 단어를 잡는다). 읽기가 성공하면 아래 정확화 표가 1자 런과 줄 끝을 갈라내고, 남는 무상태 엣지는 **2자 이상의 공백·구두점 런**뿐이다. 오퍼레이터 키만 ANSI 키코드라 QWERTY 계열을 가정한다. `Shift-Cmd-↑/↓`를 블록 이동에 쓰는 앱(Notion)에서는 `d/c/y`+`G`·`gg` 6조합이 파괴적으로 오동작한다 — 회피가 앱 축을 요구해 M4 프로파일까지 수용된 한계다. 문서 경계에서 선택이 접히거나 포화하던 **수용 엣지 5종은 전부 해소됐다**(아래 정확화 표). 소프트 랩 문단의 **시각 줄 단위** linewise(랩 문단에서 `dd`가 화면 행만 삭제)는 아직 수용 상태이며, 창 읽기로는 해소되지 않는다.
+
+**정확화 표** — 읽기가 증명하면 시퀀스가 갈리고, 증명하지 못하면 위의 무상태 시퀀스가 그대로 나간다. 전부 캐럿(`selection.length == 0`)일 때만 발동한다. 살아 있는 선택은 우리가 비동기로 배달한 합성 이벤트가 만든 것이라 출발점을 증명할 수 없어 제외된다.
+
+| 모션 / 범위 | 증명된 조건 | 결과 |
+|---|---|---|
+| `charRight` | 줄 끝 & 줄에 글자 있음 | `Shift-←` 1타 — **엣지 1** |
+| `charRight` | 줄 끝 & 빈 줄 | 무효 (스킵) |
+| `charRight` | 줄에 남은 글자 `r < count` | `Shift-→ × r` |
+| `charLeft` | 줄 시작 (문서 시작 포함) | 무효 |
+| `charLeft` | 앞에 남은 글자 `r < count` | `Shift-← × r` |
+| `wordForward` | 캐럿 뒤 단어 시작 없음 | `Shift-Opt-→` 1타(= `ce`), 카운트 무관 — **엣지 3** |
+| `wordEndForward` | 문서 끝 | 무효 |
+| `wordBackward` | 문서 시작 | 무효 |
+| `lineEnd` / `lineStart` | 줄 끝 / 줄 시작 | 무효 |
+| `lineFirstNonBlank` | 캐럿이 그 줄 첫 비공백 | 무효 |
+| `.linewiseMotion(.lineUp, n)` | 위 줄 수 `< n` | 무효 — **엣지 2** |
+| `.linewiseMotion(.documentStart)`, `op != .change` | 마지막 줄 | 접두를 `Cmd-→`로 (= `cgg` 시퀀스) — **엣지 4** |
+| `.textObject(.word(.inner))` | 캐럿 런이 1자 | `Shift-→` 1타 |
+| `.textObject(.word(.inner))` | 줄 끝 && 직전이 `keyword` | `Shift-Opt-←` 1타 |
+| `wordEndForward`, `cw` 리타깃, `count == 1` | 캐럿이 런의 마지막 글자 | `Shift-→` 1타 |
+| `wordEndForward`, `cw` 리타깃, `count == 1` | 줄 끝 (문서 끝 포함) | `Shift-←` 1타 |
+| `wordEndForward`, `cw` 리타깃, `count == 1` | 빈 문서 | 무효 |
+
+무효는 매퍼 `nil` → 어댑터 `.skipped`이며 선택 스트로크도 나가지 않는다. 판정은 시퀀스와 **같은 `cw` 리타깃 함수**를 거치므로 `cw`는 `wordEndForward` 행으로 가며, 그 함수가 **리타깃 여부까지 함께 돌려준다** — Vim의 `e`는 단어 끝에서 다음 단어 끝으로 뛰므로 진짜 `ce`·`de`는 위의 `cw` 행에 들어오지 않고 현행 `Shift-Opt-→`가 옳다. 기본값은 "증명 못 함 = 현행 시퀀스"라 모션이 늘어도 조용한 억제·조용한 재조립이 생기지 않는다.
+
+**줄 끝에서만 Vim의 블록 커서 모델을 따른다**(캐럿이 줄 끝 = 커서가 마지막 글자 위) — 적용 범위는 `charRight`(엣지 1)와 **단어 어휘 `iw`·`cw`** 셋이다. 단어 어휘는 캐럿을 옮기는 것이 아니라 "커서가 놓인 대상"을 고르는 어휘라 모델 선택이 그 액션 안에서 닫히고, 줄 중간에서는 캐럿과 커서가 일치해 문제 자체가 없다. 모션 쪽은 계속 캐럿 모델이며 `charLeft`는 줄 시작에서 그냥 무효다. 문서 끝은 줄 끝의 특수 경우이므로 세션 1의 "문서 끝 `x`·`cw`는 무동작" 억제를 이 재조립들이 덮어썼다(남는 무효는 빈 줄·빈 문서). `iw`의 줄 끝만 `keyword`로 한정되는 것은 `Opt-←`가 구두점을 건너뛰어 `foo.` 뒤에서 `foo.` 전체를 잡기 때문이다 ([20260803_line-end-cursor-model-for-word-objects.md](../../decisions/references/20260803_line-end-cursor-model-for-word-objects.md)).
+
+설계 축은 **읽기를 분기의 근거로만 쓰는 것**이다: 절대 오프셋에 비례하는 스트로크(`Shift-→ × (문서끝 − 캐럿)` 류)는 채택하지 않으므로 재조립 결과가 위치 상대적이거나, 현행의 부분집합이거나, **상수 1타**다. 그래서 `execute` 사이의 낡은 읽기에서도 **최악이 현행 동작을 넘지 않는다** — 단어 어휘에서는 오히려 작아진다(현행 3타는 이웃 단어를 통째로 지우지만 재조립은 1자다). 유일한 예외가 엣지 1의 방향 반전(왼쪽 1글자)이며 규모·가시성·1 undo 단위를 근거로 명시 수용됐다. 부수 효과로 원자 그룹·청크 규칙에 새로 걸리는 것이 없다(재조립이 현행보다 길어지지 않는다). 남는 한계는 소프트 랩 미탐지다 — 줄 질의는 논리 줄, `Cmd-→`/`Cmd-←`는 시각 줄이라 랩 문단 중간에서는 증명이 서지 않고 현행 동작으로 간다(놓치는 방향). [20260803_boundary-saturation-refinement-table.md](../../decisions/references/20260803_boundary-saturation-refinement-table.md), [20260803_line-end-charwise-vim-cursor-model.md](../../decisions/references/20260803_line-end-charwise-vim-cursor-model.md), [20260803_constant-stroke-word-refinement.md](../../decisions/references/20260803_constant-stroke-word-refinement.md), [20260803_refinement-branches-not-stroke-counts.md](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md), [20260802_empty-selection-edit-suppression.md](../../decisions/references/20260802_empty-selection-edit-suppression.md), [20260803_soft-wrap-linewise-not-resolved-by-window-read.md](../../decisions/references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md).
+
+`ElementFamily`는 리졸버가 채우지만 이 매퍼에서 시퀀스를 가르지는 않는다 — `.textArea`와 `.textField`가 같은 분기이고 `.nonText`는 `nil` 봉쇄다(위 걸러내기 표). 모션 매퍼에는 family가 없다(화살표 이동은 계열 무관). [20260727_edit-keystroke-mapping-contract.md](../../decisions/references/20260727_edit-keystroke-mapping-contract.md), [20260727_linewise-newline-rounding.md](../../decisions/references/20260727_linewise-newline-rounding.md), [20260727_yank-collapse-to-range-start.md](../../decisions/references/20260727_yank-collapse-to-range-start.md), [20260727_operator-key-ansi-layout-assumption.md](../../decisions/references/20260727_operator-key-ansi-layout-assumption.md), [20260727_inner-word-anchor-via-word-end.md](../../decisions/references/20260727_inner-word-anchor-via-word-end.md), [20260727_notion-cmd-shift-vertical-conflict.md](../../decisions/references/20260727_notion-cmd-shift-vertical-conflict.md), [20260728_linewise-visual-line-wrap-accepted-edge.md](../../decisions/references/20260728_linewise-visual-line-wrap-accepted-edge.md).
 
 **Visual 매퍼** `VisualKeyMapper`는 `(VimAction, ElementFamily) → [KeyStroke]?`로 선택 **세션**(진입·확장·wise 전환·이탈)만 담당한다 — 선택에 오퍼레이터를 적용하는 `.edit(op, .selection)`은 `EditKeyMapper`의 몫이다(선택 시퀀스 없이 `Cmd-X`/`Cmd-C` 1타, 계열 분기 밖). **어댑터는 wise 상태를 들지 않는다**: `extendSelection(Motion)`은 `MotionKeyMapper.selectionStrokes(for:)`(모션 스트로크마다 Shift union)의 순수한 재사용이고 linewise 줄 반올림은 적용하지 않는다 — 편집의 범위 선택과 같은 함수를 쓰므로 **모션 매핑이 개선되면 편집과 Visual이 동시에 따라온다**. 시퀀스: `v`=`Shift-→`(Vim의 inclusive 시맨틱 — 무게시면 `vd`/`vy`가 무동작이고 이탈 `←`가 캐럿을 표류시킨다), `V`=`Cmd-←, Shift-↓`(`dd` 접두와 동일), `v`→`V`=`Shift-↓, Shift-Cmd-←`(포커스 줄만 반올림 — 앵커는 앱에 박혀 손댈 수 없다), `V`→`v`=`nil`(반올림에 역연산 없음), `clearSelection`=`←`(collapse 전담 — 그래서 `.selection` yank는 `Cmd-C`만 낸다). 이는 엔진이 문서화한 "앵커·범위는 어댑터 상태" 계약으로부터의 **의도적 이탈**이며, `V` 세션에서 Vim과 충실히 일치하는 것은 `j`·`0`·`G`와 오퍼레이터뿐이다(후진 확장은 앵커가 점이라 원리적으로 불가). **후진 확장은 charwise에서도 어긋난다** — 진입의 `Shift-→`가 모션의 출발점을 앵커 P가 아니라 P+1로 밀어, 단어 경계 모션의 착지가 한 단어 어긋난다(`vb`·`vh`는 빈 선택). 앵커를 옮겨도 포커스 출발점은 그대로라 상태로 넘을 수 없고, 실패 모드가 "선택이 안 생긴다"로 눈에 보여 수용됐다. [20260728_visual-charwise-entry-inclusive-selection.md](../../decisions/references/20260728_visual-charwise-entry-inclusive-selection.md), [20260728_visual-extend-stateless-no-linewise-rounding.md](../../decisions/references/20260728_visual-extend-stateless-no-linewise-rounding.md), [20260728_visual-switch-wise-focus-end-rounding.md](../../decisions/references/20260728_visual-switch-wise-focus-end-rounding.md), [20260728_visual-clear-selection-collapse-left.md](../../decisions/references/20260728_visual-clear-selection-collapse-left.md), [20260728_visual-charwise-backward-origin-shift.md](../../decisions/references/20260728_visual-charwise-backward-origin-shift.md).
 
@@ -76,8 +108,6 @@ flowchart TD
 
 ### 디스패치 경로 AX 읽기 (M5 혼용의 읽기 기반)
 
-**과도기 상태 (소비자 미배선)**: 읽기 기반은 구축됐고 **아직 아무 매퍼도 결과를 읽지 않는다** — 소비는 PR-B·C가 붙인다. 그래서 AX 호출은 현재 런타임에 0건이고, 그 사실을 어댑터 테스트가 계약으로 고정한다(소비가 붙으면 그 테스트가 뒤집혀 짚어 준다).
-
 정확 오프셋이 필요한 시퀀스(단어 경계, 경계 포화, Visual 앵커 등)를 위해 **게시 직렬 큐 위에서** 동기 AX 읽기를 한다. 콜백·메인 스레드는 계속 AX 무접촉이다 ([20260802_dispatch-read-on-posting-queue.md](../../decisions/references/20260802_dispatch-read-on-posting-queue.md), [20260802_focused-text-read-api-shape.md](../../decisions/references/20260802_focused-text-read-api-shape.md)).
 
 - **lazy 읽기**: `KeyboardAdapter.execute`가 **액션마다** `FocusedTextSnapshot`을 새로 만들고, 처음 물을 때 읽어 그 액션 동안 기억한다 — 같은 버스트의 앞 액션이 캐럿을 옮기므로 실행 직전 값만 정확하고(계열 스냅샷과 시점 요구가 정반대), 한 액션 안의 여러 소비자가 왕복을 곱하지 않는다. **실패도 기억한다** — 그러지 않으면 타임아웃 나는 앱에서 물음 수만큼 캡(50ms)을 문다.
@@ -87,10 +117,19 @@ flowchart TD
 
 읽기 비용 실측(웜 p50): TextEdit ~0.03ms, Notion `selectedRange` **7.1ms(max 16)** — 후자가 콜백 배치를 기각시킨 수치다. 리더(`FocusedTextReader`)는 어댑터에 주입한다 (골든 테스트가 실기기 AX 없이 읽기 결과를 주입하는 seam — `ActionExecutor.postEvent`·`PasteWiseResolver`와 같은 형태). 타임아웃과 포커스 요소 조회는 **`AXRead`가 단독 소유**해 리졸버 경로와 디스패치 경로가 같은 상수를 쓰는 것이 코드로 강제된다.
 
+**읽은 것에서 사실을 뽑는 파생 질의는 `FocusedText`의 extension**(`FocusedTextAnalysis.swift`, `nonisolated`)이며 읽기와 파일이 나뉜다 — 소비자가 늘어나는 쪽이 여기다. 열넷이다: 절대↔창 내 상대 오프셋 변환, 문서 시작/끝, 캐럿 기준 줄 시작/끝, **줄 끝/줄 시작까지 남은 문자 수**, **캐럿 위의 줄 수**, **마지막 줄 여부**, **캐럿 뒤 단어 시작 부재 증명**, **캐럿이 줄의 첫 비공백인가**, 그리고 단어 런 셋 — **런이 1자인가**, **캐럿이 런의 마지막 글자인가**, **줄 끝일 때 직전 글자의 런 클래스**. **증명하지 못하면 전부 `false`/`nil`** 이다(= 정확화하지 않음 = 현행 시퀀스) — 그래서 `hasWordStartAhead`가 아니라 `provesNoWordStartAhead`다: `false`가 항상 "정확화 안 함"이라야 확장의 보수 방향이 균일하다. 오프셋 단위는 **UTF-16**이다 — `Character` 단위로 인덱싱하면 이모지가 있는 창에서 개행 위치가 밀려 "잘못 정확화"라는 안전하지 않은 방향으로 틀린다. `isAtDocumentEnd`는 `>=`가 아니라 `==`이며 창이 문서 끝에 닿았다는 방증까지 요구한다(`AXNumberOfCharacters`를 어긋나게 보고하는 앱에서 `>=`는 편집 키를 영구히 삼킨다). 줄 거리·줄 수 질의도 같은 규칙이다: 창 안에 개행이 없으면 문서 경계에 **닿은 방향으로만** 답하고, 닿지 않았으면 `nil`이다. 단어 시작의 정의는 "공백류(space·tab·개행) 다음의 비공백"으로 macOS `Opt-→`(구두점도 경계)보다 **좁게** 잡는다 — 좁게 보면 "있다고 보고 정확화를 포기하는" 쪽으로 틀린다.
+
+**단어 런 질의는 오프셋을 만들지 않는다** — "이 단어가 어디서 시작해 어디서 끝나는가"가 아니라 캐럿 **±1자**의 술어다. 런 클래스는 넷(`blank` = space·tab / `keyword` = ASCII 영숫자·`_` / `punctuation` = 그 외 ASCII / `other` = 비ASCII)이고 **개행은 어느 런에도 속하지 않는 종결자**다(런에 넣으면 줄 끝 `iw`가 개행을 지워 줄이 병합된다). 로컬 술어라 ① 반경 clamp상 그 두 자리가 항상 창 안이라 "창 가장자리에 걸려 잘린 단어" 난점이 없고, ② 정확화하는 가지가 클래스와 무관한 `Shift-→`·`Shift-←`라 **우리 정의를 macOS `Opt-→`와 맞출 필요가 없다**(포기하는 가지는 기존 macOS 시맨틱 시퀀스 그대로다). 비ASCII를 `keyword`가 아니라 `other`로 둔 것은 보수 방향 때문이다 — 이웃과 클래스가 같아 런이 길게 세어져 포기하는 쪽으로 떨어지고, 이모지는 UTF-16 2단위라 애초에 1자 런이 되지 않는다 ([20260803_word-run-local-predicates-no-offsets.md](../../decisions/references/20260803_word-run-local-predicates-no-offsets.md)).
+
+**소비 지점은 `mapping`의 `.edit` 분기 한 곳**이고, 매퍼가 `EditKeyMapper.consultsFocusedText(_:)`로 "이 범위가 묻는가"를 답해 어댑터가 읽을지 정한다 — 범위 표가 어댑터로 복사되지 않고, 묻지 않는 어휘(모션·Visual·paste·undo)는 AX 왕복이 0건이다. 묻는 범위는 `.motion` 전체 + `.linewiseMotion(.lineUp)`·`.linewiseMotion(.documentStart)` + `.textObject(.word(.inner))`(`iw`)이며, `.line`(`dd`)과 `.linewiseMotion(.lineDown)`(`dj`)은 **일부러 빠져 있다** — 소프트 랩 논리 줄이 이 읽기로 해소되지 않아 물을 이유가 없고, 읽기 1회는 Notion에서 ~7ms이며 액션 수만큼 곱해진다.
+
+읽은 값은 `EditKeyMapper.keyStrokes(..., text:)`로 들어가 시퀀스를 다시 조립한다(위 정확화 표). 그래서 매퍼의 `nil`이 "미지원"과 "읽기가 증명한 무효" 두 뜻을 갖고, 어댑터의 편집 분류가 3-프로브로 늘었다(위 걸러내기 게이트 문단). `.skipped`의 자체 로그는 `op`·`range`·액션을 다 아는 `.edit` 분기에 남고, 분류 결과를 보고 남기므로 판정과 로그가 갈라질 자리가 없다. `recordLinewiseEdit`은 `.groups`일 때만 불리는 기존 구조 그대로라, 무효로 스킵된 `dk`는 붙여넣기 단위 기억도 남기지 않는다 ([20260803_edit-keystrokes-takes-focused-text.md](../../decisions/references/20260803_edit-keystrokes-takes-focused-text.md), [20260802_read-consumption-via-mapper-predicates.md](../../decisions/references/20260802_read-consumption-via-mapper-predicates.md)).
+
 ## 불변식·계약
 
 - **AX 호출은 콜백·메인 스레드에 들어오지 않는다** — 리졸버는 전용 큐, 디스패치 경로 읽기는 게시 큐. 탭 생존을 지키는 것은 타임아웃 값이 아니라 이 배치다. 메시징 타임아웃은 **경로 불문 50ms 단일 상수**이며 병적 정지가 큐를 잡아두는 것을 자르는 차단기다 — 실패 반환은 캡+2ms로 바운드됨이 실측됐고, 유일한 예외는 프로세스 생애 최초 AX 호출 1회(~23ms, 리졸버가 앱 시작 직후 흡수) ([20260802_ax-read-timeout-50ms-supersedes-3ms.md](../../decisions/references/20260802_ax-read-timeout-50ms-supersedes-3ms.md)).
 - `AXValue` 전체 읽기는 키당 경로에 넣지 않는다 — 비용이 문서 크기에 비례한다.
+- **읽기는 분기의 근거이지 스트로크 수의 근거가 아니다** — 절대 오프셋에 비례하는 스트로크를 내지 않는다. `execute` **사이**에는 낡은 값을 읽을 수 있고(`CGEvent.post`는 배달만 걸고 돌아온다), 오프셋 비례 스트로크는 그때 "엉뚱한 범위를 정확하게" 자른다. 재조립은 위치 상대적이거나, 현행 시퀀스의 부분집합이거나, 상수 1타여야 하며, 예외는 명시적으로 수용된 것 하나뿐이다(엣지 1의 방향 반전) ([20260803_refinement-branches-not-stroke-counts.md](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md)).
 - `force-text`는 프로파일에서 명시적으로만 선택하며, 자동 감지가 선택하는 일은 없다.
 
 ## 근거 요약
