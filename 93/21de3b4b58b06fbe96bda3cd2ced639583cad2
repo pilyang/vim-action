@@ -1,0 +1,22 @@
+VimAction/KeyboardAdapter.swift
+  s_0bce34d4f3cfa8::t_b83d39ab00998d 397-415
+  s_0bce34d4f3cfa8::t_31df2742c8ab6a 510-512,516-525
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_0bce34d4f3cfa8::t_4079d37773b9ad 47-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "9321de3b4b58b06fbe96bda3cd2ced639583cad2",
+  "prompts": {},
+  "sessions": {
+    "s_0bce34d4f3cfa8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cbc774cc-86e2-4222-85ff-2f895af04a8b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
