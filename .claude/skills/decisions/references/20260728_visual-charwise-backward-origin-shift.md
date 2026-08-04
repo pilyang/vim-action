@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260804_visual-backward-keyboard-reanchor.md](20260804_visual-backward-keyboard-reanchor.md) — "코드 무변경 수용"과 "상태로 넘을 수 없다" 판정이 재앵커 시퀀스로 대체됨 / 원인 분석(원점 이동 메커니즘)·진입 결정 유지·정정은 유효하며, 읽기 실패 폴백 경로에서는 수용 동작이 여전히 현행.
+
 # charwise Visual 후진 확장의 원점 이동 — 수용 엣지
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

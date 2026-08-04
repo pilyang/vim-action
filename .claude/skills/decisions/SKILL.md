@@ -168,9 +168,14 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | Date | Title | 요약 | Reference |
 |---|---|---|---|
 | 07-28 | charwise Visual 진입은 1문자 선택 | v는 Shift-→ 1타 즉시 선택 — inclusive 시맨틱 | [20260728_visual-charwise-entry-inclusive-selection.md](references/20260728_visual-charwise-entry-inclusive-selection.md) |
-| 07-28 | Visual 확장은 무상태 | extendSelection은 모션+Shift가 전부 — linewise 반올림 미적용 | [20260728_visual-extend-stateless-no-linewise-rounding.md](references/20260728_visual-extend-stateless-no-linewise-rounding.md) |
-| 07-28 | switchSelectionWise 반올림 | v→V는 포커스 끝만 반올림, V→v는 역연산 없어 nil 스킵 | [20260728_visual-switch-wise-focus-end-rounding.md](references/20260728_visual-switch-wise-focus-end-rounding.md) |
+| 07-28 | Visual 확장은 무상태 | extendSelection은 모션+Shift가 전부 — linewise 반올림 미적용 (앵커 상태·linewise 스킵은 20260804 부분 supersede — 무상태는 읽기 실패 폴백 전담) | [20260728_visual-extend-stateless-no-linewise-rounding.md](references/20260728_visual-extend-stateless-no-linewise-rounding.md) |
+| 07-28 | switchSelectionWise 반올림 | v→V는 포커스 끝만 반올림, V→v는 역연산 없어 nil 스킵 (20260804 부분 supersede — 앵커 반올림·조건부 V→v, 현행 시퀀스는 폴백) | [20260728_visual-switch-wise-focus-end-rounding.md](references/20260728_visual-switch-wise-focus-end-rounding.md) |
 | 07-28 | Visual collapse는 ← 1타 단일화 | clearSelection이 collapse 전담, .selection yank는 Cmd-C만 | [20260728_visual-clear-selection-collapse-left.md](references/20260728_visual-clear-selection-collapse-left.md) |
+| 08-04 | Visual 후진은 키보드 재앵커 | 접고 재확장(side 모델) — 후진형은 원점 이동 없음, 크로싱은 수용 엣지, AX 쓰기 기각 | [20260804_visual-backward-keyboard-reanchor.md](references/20260804_visual-backward-keyboard-reanchor.md) |
+| 08-04 | 앵커 상태는 게시 큐 협력자 | PasteWiseResolver 동형 주입 — 앵커·wise·side·pid·원캐럿, 수립은 진입 게시 직전 읽기 | [20260804_visual-anchor-state-collaborator.md](references/20260804_visual-anchor-state-collaborator.md) |
+| 08-04 | 앵커 무효화는 읽기 자가 검증 | 앵커 쪽 끝+pid 비교, 전용 신호 없음 — 헛실패 방향이 현행 강등이라 안전 | [20260804_visual-anchor-read-self-validation.md](references/20260804_visual-anchor-read-self-validation.md) |
+| 08-04 | V→v는 조건부 지원 | 원캐럿+줄 거리 다 알 때만 재선택(위치 상대), 모르면 현행 nil 유지 | [20260804_visual-switch-charwise-conditional.md](references/20260804_visual-switch-charwise-conditional.md) |
+| 08-04 | V 세션 charwise 모션은 스킵 | wise 알면 h l w b e 0 ^ $ 무게시(.skipped) — Vim 범위 무변화가 정확, desync는 무해 no-op | [20260804_visual-linewise-motion-range-noop.md](references/20260804_visual-linewise-motion-range-noop.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 
@@ -181,7 +186,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-26 | undo 단위 실측 — u=Cmd-Z 유지 | 합성 시퀀스는 1 undo 단위 실증, change만 분리 수용 | [20260726_undo-unit-cmdz-policy.md](references/20260726_undo-unit-cmdz-policy.md) |
 | 07-27 | Notion Shift-Cmd-↑/↓ 충돌 수용 | 블록 이동 충돌로 6조합 파괴적 오동작 — M4 프로파일이 해소 | [20260727_notion-cmd-shift-vertical-conflict.md](references/20260727_notion-cmd-shift-vertical-conflict.md) |
 | 07-28 | linewise 시각 줄 엣지 | 소프트 랩에서 dd/cc가 화면 행 단위 — 창 읽기로는 해소 불가(20260803), 단락 바인딩 실측이 재개 조건 | [20260728_linewise-visual-line-wrap-accepted-edge.md](references/20260728_linewise-visual-line-wrap-accepted-edge.md) |
-| 07-28 | charwise Visual 후진 원점 이동 | 진입 Shift-→가 원점을 P+1로 — vb·vh 빈 선택 수용, M5 AX 해소 | [20260728_visual-charwise-backward-origin-shift.md](references/20260728_visual-charwise-backward-origin-shift.md) |
+| 07-28 | charwise Visual 후진 원점 이동 | 진입 Shift-→가 원점을 P+1로 — vb·vh 빈 선택 (수용 결정은 20260804 재앵커로 부분 supersede — 읽기 실패 폴백만 잔존) | [20260728_visual-charwise-backward-origin-shift.md](references/20260728_visual-charwise-backward-origin-shift.md) |
 | 07-30 | 명령 어휘 비텍스트 UI 발사 | Finder p=파일 붙여넣기 등 — 도그푸딩 규율 추가, 리졸버가 구조적 해소 | [20260730_native-command-non-text-ui-hazard.md](references/20260730_native-command-non-text-ui-hazard.md) |
 
 ### 전략 디스패치·요소 리졸버

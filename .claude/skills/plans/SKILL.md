@@ -49,4 +49,4 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
-| 2026-08-02 | 2026-08-03 | M5 — AX 어댑터 + auto 전략 | MVP 1단계(M1~M4) 완료 후의 1차 확장. AX 읽기 혼용이 축 — M3 수용 엣지 대부분이 여기서 해소된다. **PR 단위 7개로 분해됨**(A 읽기 기반 → B·C 혼용 → D AX 어댑터·auto → E 스키마), PR마다 worktree. **PR-A·PR-B 머지 완료** — 경계 포화 5종·`^`·`iw`·`cw` 정확화. 다음은 PR-C1(Visual 앵커 상태 — 어댑터가 처음 상태를 든다) | [20260802_m5-ax-adapter.md](references/20260802_m5-ax-adapter.md) |
+| 2026-08-02 | 2026-08-04 | M5 — AX 어댑터 + auto 전략 | MVP 1단계(M1~M4) 완료 후의 1차 확장. AX 읽기 혼용이 축 — M3 수용 엣지 대부분이 여기서 해소된다. **PR 단위 7개로 분해됨**(A 읽기 기반 → B·C 혼용 → D AX 어댑터·auto → E 스키마), PR마다 worktree. **PR-A·PR-B 머지 완료**, **PR-C1 설계 세션 완료**(결정 5건 — 재앵커·협력자·자가 검증·V→v 조건부·V 세션 모션 스킵). 다음은 PR-C1 구현 세션(협력자 + `vh` 최소 소비자) | [20260802_m5-ax-adapter.md](references/20260802_m5-ax-adapter.md) |

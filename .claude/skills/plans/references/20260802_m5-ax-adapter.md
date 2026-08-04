@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-08-02
-- **갱신일**: 2026-08-03 (**PR-B 머지 완료** — main `69a81a6`. 다음은 PR-C1, 새 worktree에서 시작한다)
+- **갱신일**: 2026-08-04 (**PR-C1 설계 세션 완료** — worktree `feat/m5-pr-c1-visual-anchor-state`, 결정 5건 기록. 다음은 구현 세션)
 
 ## 목표
 
@@ -20,6 +20,7 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 - **PR-A 구현 완료** (브랜치 `feat/m5-pr-a-ax-read-foundation`): `AXRead`(타임아웃·포커스 요소 조회 단독 소유), `FocusedText`·`FocusedTextReader`·`FocusedTextSnapshot`(액션별 lazy·1회 memo·실패도 memo), `DispatchContext.processID`(출처 = 리졸버 `observedProcessID`), `KeyboardAdapter(reader:)`·`execute(processID:)`, sink 배선. API 모양은 [결정 문서](../../decisions/references/20260802_focused-text-read-api-shape.md)로 확정. **동작 diff 0** — 앱 785 + 엔진 81 테스트 통과, 빌드 경고 0.
 - **PR-B 세션 1/3 완료** (worktree `feat/m5-pr-b-hybrid-motion-edit`, 커밋 2개 + 문서): 읽기의 **첫 소비자**가 붙었고 수용 엣지 5(빈 선택+오퍼레이터)가 해소됐다. 결정 2건 기록: [소비 형태](../../decisions/references/20260802_read-consumption-via-mapper-predicates.md), [0폭 포화 억제](../../decisions/references/20260802_empty-selection-edit-suppression.md).
 - **PR-B 세션 2/3 완료** (커밋 2개 + 문서): **경계 포화 수용 엣지 5종 전부 해소** — 억제에서 시퀀스 재조립으로 넘어갔다. `EditKeyMapper.keyStrokes`가 `text:`를 받고 어댑터의 편집 분류가 3-프로브가 됐다. 결정 5건 기록: [재조립 원칙(레이스)](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md), [시그니처·3-프로브](../../decisions/references/20260803_edit-keystrokes-takes-focused-text.md), [정확화 표(엣지 2·3·4·`^`)](../../decisions/references/20260803_boundary-saturation-refinement-table.md), [줄 끝 Vim 커서 모델(엣지 1)](../../decisions/references/20260803_line-end-charwise-vim-cursor-model.md), [소프트 랩 미해소 사유](../../decisions/references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md). architecture `strategy-dispatch.md` 갱신 완료. 앱 테스트 1,043건 + 엔진 81건 통과, **빌드 경고 0**(세션 1이 남긴 격리 경고 4건도 함께 해소).
+- **PR-C1 설계 세션 완료** (2026-08-04, worktree `feat/m5-pr-c1-visual-anchor-state`, 코드 무변경 — 문서만): 설계 결정 5건 기록 — [키보드 재앵커](../../decisions/references/20260804_visual-backward-keyboard-reanchor.md)(side 모델, 후진형은 원점 이동 없음, 크로싱은 수용 엣지, AX 쓰기 기각), [앵커 상태는 게시 큐 협력자](../../decisions/references/20260804_visual-anchor-state-collaborator.md)(PasteWiseResolver 동형, 수립은 진입 게시 직전 읽기), [무효화는 읽기 자가 검증](../../decisions/references/20260804_visual-anchor-read-self-validation.md)(앵커 쪽 끝+pid, 전용 신호 없음), [V→v 조건부 지원](../../decisions/references/20260804_visual-switch-charwise-conditional.md), [V 세션 charwise 모션 스킵](../../decisions/references/20260804_visual-linewise-motion-range-noop.md)(`linewise: Bool` 상자 재검토 종결). architecture(strategy-dispatch·mode-engine) 갱신 완료. 옛 Visual 결정 3건 부분 supersede 마킹.
 - **PR-B 세션 3/3 완료** (커밋 2개 + 문서): **`iw`·`cw`→`ce` 정확화** — 단어 런 질의 3종(`caretRunIsSingleCharacter`·`caretIsAtRunEnd`·`runClassBeforeLineEnd`)을 세우고 1자 런·런 끝·줄 끝을 상수 1타로 재조립했다. 결정 3건 기록: [단어 질의는 로컬 술어(오프셋 없음)](../../decisions/references/20260803_word-run-local-predicates-no-offsets.md), [상수 1타 재조립 — 원칙 예외 없이 유지](../../decisions/references/20260803_constant-stroke-word-refinement.md), [줄 끝 커서 모델을 단어 어휘로 완화](../../decisions/references/20260803_line-end-cursor-model-for-word-objects.md). architecture 갱신 완료. 앱 테스트 **1,081건** + 엔진 81건 통과, 빌드 경고 0.
 
 ## 남은 것 (PR 단위 — 순서 = 의존 순서)
@@ -36,13 +37,13 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 
 ## 진행 중 컨텍스트
 
-- **PR-C1 착수 지점 (PR-B 인계)** — main `69a81a6`에서 **새 worktree**를 판다. PR-B 브랜치·worktree는 정리됐다.
-  - **무엇이 달라지는가**: 어댑터가 **처음으로 상태를 든다**(앵커·범위). PR-B까지의 정확화는 전부 무상태 매퍼의 시퀀스 재조립이었고, 그래서 PR-B와 분리한 것이다 — 구조 변화의 축이 다르다.
-  - **해소 대상**: [Visual charwise 후진 원점 이동](../../decisions/references/20260728_visual-charwise-backward-origin-shift.md)(`Vk`·`vb`·`vh`가 빈 선택이 되는 것) 전체, `V`→`v` 전환([현재 `nil` 스킵](../../decisions/references/20260728_visual-switch-wise-focus-end-rounding.md)), 앵커 쪽 linewise 반올림([현재 포커스 끝만](../../decisions/references/20260728_visual-extend-stateless-no-linewise-rounding.md)). 어댑터의 `linewise: Bool` 상자 재검토가 여기 속한다.
-  - **상태를 어디에 둘 것인가가 첫 설계 결정**: 선례는 `PasteWiseResolver`다 — 어댑터가 주입받는 유일한 상태 보유 협력자이고 **게시 직렬 큐가 단독 소유**한다. Visual 앵커도 같은 형태로 갈지, 아니면 어댑터 자신이 들지가 갈림길이며, 어느 쪽이든 큐 밖에서 읽히면 안 된다.
-  - **읽기 소비를 Visual로 넓힐 때의 게이트**: 지금 `consultsFocusedText`는 `EditKeyMapper` 소속이고 읽는 어휘는 편집뿐이다(모션·Visual·paste·undo는 AX 왕복 0건). Visual이 읽기를 쓰려면 같은 형태의 게이트가 `VisualKeyMapper`에도 필요하며, 넓힌 만큼 액션당 왕복 1회(Notion ~7ms)를 문다.
-  - **상속되는 계약**: `.unproven`이 기본값 / "지원 ⟹ 빈 시퀀스 아님"(무효는 `nil` → 정직한 스킵) / 읽기는 액션당 1회 lazy·실패도 memo / 읽기 실패 = 현행 무상태 시퀀스 폴백(Slack·VS Code 상시) / 재조립은 위치 상대적이거나 현행의 부분집합이거나 상수 1타.
-  - **앵커 상태의 새 함정**: 상태는 읽기와 달리 **`execute` 사이에 낡는 것으로 끝나지 않는다** — 사용자가 마우스로 선택을 바꾸거나 다른 앱을 다녀오면 우리가 든 앵커가 화면과 어긋난다. 무효화 조건(포커스 변경·앱 전환·마커 없는 입력)을 설계 초입에 정해야 한다.
+- **PR-C1 구현 세션 착수 지점 (설계 세션 인계)** — worktree `feat/m5-pr-c1-visual-anchor-state`에서 이어간다. 설계는 위 결정 5건으로 확정됐고 **코드는 아직 무변경**이다.
+  - **첫 구현 단위**: 앵커 상태 협력자 타입 + `beginSelection` 게시 직전 수립 + 자가 검증 골격 + **최소 소비자 하나(`vh` 재앵커)**를 끝까지 뚫어 설계를 검증한다. seam은 전부 선례 그대로(주입 협력자·`FocusedTextReader` 골든 주입).
+  - **구현 순서 제안**: ① 협력자 타입·수립·폐기 ② Visual 분기 읽기 배선(세션 술어) + 자가 검증 ③ `vh` 재앵커 ④ `vb`·`Vk`·`Vgg` 후진 전체 ⑤ `V` 세션 charwise 모션 스킵 ⑥ `v`→`V` 앵커 반올림 ⑦ `V`→`v` 조건부. ①~③이 세션 하나 분량, ④~⑦이 다음 세션.
+  - **매퍼 시그니처 주의**: Visual 매퍼의 `nil`이 "미지원"과 "스킵" 두 뜻을 갖게 되므로 편집의 `classifyEdit` 선례(프로브 순서를 구조로 강제)를 참고해 분류가 어긋나지 않게 한다 — `.skipped` 분류(V 세션 charwise 모션·검증 실패)와 `.unsupported`가 섞이면 게이트 심사가 틀린다.
+  - **상속되는 계약**: "지원 ⟹ 빈 시퀀스 아님"(스킵은 분류로) / 읽기는 액션당 1회 lazy·실패도 memo / 읽기·검증 실패 = 현행 무상태 시퀀스 폴백(Slack·VS Code 상시) / 재조립은 위치 상대적이거나 현행의 부분집합이거나 상수.
+  - **원자 그룹 재확인**: 재앵커 접두(`←,→` 등)와 재확장은 한 액션의 시퀀스라 기존 규칙("액션 1개의 전체 시퀀스는 원자")이 그대로 덮는다 — 새 원자 그룹 규칙은 필요 없어 보이나 구현에서 재확인.
+  - **V→v 열 거리 상한**: 극단 열에서 스트로크 폭주 여부를 구현에서 실측해 클램프를 정한다(결정 문서에 유보 항목으로 명시됨).
 
 - **실측 메모 (계속 유효)**: 정확화가 Notion에서는 키당 ~7ms를 산다(selectedRange 비용) — 액션별 스냅샷이 액션당 1회로 접어 주지만 **액션 수만큼은 곱해진다**. Slack·VS Code는 포커스 요소 미노출이라 혼용 정확화가 원리적으로 도달 불가(무상태 폴백 상시) — **세션 3 도그푸딩에서 Slack 컴포저로 확인 완료**(줄 끝 `x`가 여전히 줄을 병합 = 정확화 미적용). M5 안에서는 안 풀리며 PR-D2의 `auto` 프로브도 같은 이유로 Keyboard로 라우팅한다. Slack 쪽 개선 수단은 M4 프로파일뿐이다.
 - **읽기의 구조적 한계 (PR-C 이후도 상속)**: `CGEvent.post`는 배달만 걸어 두고 돌아오므로 **`execute` 사이**에는 낡은 값을 읽을 수 있다(`p` 직후 빠른 `x`). 한 `execute` **안**에는 레이스가 없다 — 엔진이 한 `.replace`에서 모션→편집을 섞어 내지 않음을 확인했다. 세션 2가 이 한계에 대한 재조립 쪽 답(원칙 + 엣지 1의 명시 예외)을 세웠고, 세션 3의 상수 1타는 그 원칙 안에서 오히려 최악을 **줄인다**(현행 3타는 이웃 단어 통째, 재조립은 1자).
