@@ -1,0 +1,50 @@
+.claude/skills/decisions/references/20260804_visual-anchor-read-self-validation.md
+  s_0bce34d4f3cfa8::t_ed4bf338e77e11 1-37
+.claude/skills/decisions/references/20260804_visual-linewise-motion-range-noop.md
+  s_0bce34d4f3cfa8::t_5f32a51be99313 1-34
+.claude/skills/decisions/references/20260728_visual-charwise-backward-origin-shift.md
+  s_0bce34d4f3cfa8::t_1e768b80ed5607 1-2
+.claude/skills/decisions/references/20260728_visual-extend-stateless-no-linewise-rounding.md
+  s_0bce34d4f3cfa8::t_57175cfb9d572f 1-2
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_0bce34d4f3cfa8::t_2fafee95f6dbbd 59
+  s_0bce34d4f3cfa8::t_8b9eae7d5ab4c0 124
+  s_0bce34d4f3cfa8::t_054bc7dc036535 3
+  s_0bce34d4f3cfa8::t_5583f3d2ecdfbd 95
+.claude/skills/decisions/references/20260804_visual-backward-keyboard-reanchor.md
+  s_0bce34d4f3cfa8::t_1f67139f2475a9 1-54
+.claude/skills/decisions/references/20260804_visual-switch-charwise-conditional.md
+  s_0bce34d4f3cfa8::t_6935b781042b61 1-38
+.claude/skills/plans/SKILL.md
+  s_0bce34d4f3cfa8::t_87d76661710923 52
+.claude/skills/decisions/references/20260728_visual-switch-wise-focus-end-rounding.md
+  s_0bce34d4f3cfa8::t_9e1fe9b53b32c9 1-2
+.claude/skills/decisions/SKILL.md
+  s_0bce34d4f3cfa8::t_85f5860028ac6f 189
+  s_0bce34d4f3cfa8::t_19a97751fd7e6a 171-172,174-178
+.claude/skills/architecture/references/mode-engine.md
+  s_0bce34d4f3cfa8::t_0e176d43d797ca 30
+  s_0bce34d4f3cfa8::t_ddac7240d6dde8 3
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_0bce34d4f3cfa8::t_99a917030e1de2 23
+  s_0bce34d4f3cfa8::t_c3ea33a660ab36 6
+  s_0bce34d4f3cfa8::t_8013f5f37b00ea 40-46
+.claude/skills/decisions/references/20260804_visual-anchor-state-collaborator.md
+  s_0bce34d4f3cfa8::t_da456ad2da7c29 1-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "d79d88c0a91856a0dbae66175616b9bfddaa3652",
+  "prompts": {},
+  "sessions": {
+    "s_0bce34d4f3cfa8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cbc774cc-86e2-4222-85ff-2f895af04a8b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
