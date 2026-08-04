@@ -394,7 +394,25 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
             // 게시가 확정된 뒤에만 상태를 남긴다 — `recordLinewiseEdit`과 같은 규칙이다.
             // 걸러진 액션이 side를 뒤집으면 다음 액션이 있지도 않은 재앵커를 전제로 계산한다.
-            if case .groups = result { visualAnchor.apply(update) }
+            if case .groups = result {
+                visualAnchor.apply(update)
+                #if DEBUG
+                // 상태 전이 관측 — 도그푸딩에서 각 액션이 어느 경로(수립·재앵커·폐기·무상태)를
+                // 탔는지 화면과 대조하는 유일한 수단이다.
+                switch update {
+                case .set(let state):
+                    Logger.eventTap.debug(
+                        "Visual 앵커 갱신 [\(String(describing: state.side), privacy: .public), pinned \(state.pinnedEnd, privacy: .public)]: \(String(describing: action), privacy: .public)"
+                    )
+                case .discard:
+                    Logger.eventTap.debug(
+                        "Visual 앵커 폐기 (게시 경로): \(String(describing: action), privacy: .public)"
+                    )
+                case .unchanged:
+                    break
+                }
+                #endif
+            }
             return result
 
         case .openLine, .undo, .redo, .scroll:
@@ -489,10 +507,22 @@ nonisolated struct KeyboardAdapter: Sendable {
                 // 옮기므로, linewise의 포커스 줄 거리만은 미상으로 좁힌다. 알던 값을 두면
                 // 다음 검증(앵커 쪽만 본다)이 낡은 거리를 못 잡는다.
                 visualAnchor.unknowFocusLineDistance()
+                #if DEBUG
+                Logger.eventTap.debug("Visual 읽기 실패 — 무상태 폴백 (상태 유지)")
+                #endif
                 return .none
             }
             guard let state = visualAnchor.validated(against: read, processID: text.processID)
-            else { return .none }
+            else {
+                #if DEBUG
+                // 어긋난 읽기의 실값을 남긴다 — 낡은 읽기 레이스와 앱 시맨틱 차이를
+                // 도그푸딩에서 가르는 근거가 이 줄이다.
+                Logger.eventTap.debug(
+                    "Visual 앵커 폐기 — 검증 불일치: 읽은 선택 [\(read.selection.location, privacy: .public), \(read.selection.upperBound, privacy: .public))"
+                )
+                #endif
+                return .none
+            }
             return .session(state, read)
         default:
             // `clearSelection` — 폐기는 증거가 필요 없다 (읽지 않는다).
