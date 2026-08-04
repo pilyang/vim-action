@@ -22,12 +22,13 @@ private func makeAdapter(
     changeCount: @escaping @Sendable () -> Int = { 0 },
     qwertyCommandKeys: @escaping @Sendable () -> Bool = { true },
     reader: FocusedTextReader = FocusedTextReader { _ in nil },
+    visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
     collecting posted: @escaping @Sendable (CGEvent) -> Void
 ) -> KeyboardAdapter {
     KeyboardAdapter(
         executor: ActionExecutor(postEvent: posted),
         pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount),
-        hasQwertyCommandKeys: qwertyCommandKeys, reader: reader)
+        hasQwertyCommandKeys: qwertyCommandKeys, reader: reader, visualAnchor: visualAnchor)
 }
 
 private func keyCodes(of events: [CGEvent]) -> [Int64] {
@@ -798,8 +799,9 @@ struct KeyboardAdapterLayoutGateTests {
     }
 }
 
-/// 캐럿 주변 리더 seam — 소비자는 `mapping`의 `.edit` 분기 **한 곳**이고, 그것도 `.motion`
-/// 범위만 묻는다. 여기서 고정하는 것은 세 가지다: 누가 읽는가(그리고 몇 번), 읽기가 실패해도
+/// 캐럿 주변 리더 seam — 소비자는 `mapping`의 `.edit` 분기(**범위 술어** — 표에 적힌 범위만
+/// 묻는다)와 Visual 세션 분기(**세션 술어** — 수립·자가 검증이 묻는다) 두 곳이다.
+/// 여기서 고정하는 것은 세 가지다: 누가 읽는가(그리고 몇 번), 읽기가 실패해도
 /// 실행은 하는가(폴백 계약), 그리고 읽기가 0폭 포화를 증명하면 게시를 멈추는가.
 ///
 /// 읽기 횟수를 고정하는 이유는 비용이다 — Notion에서 읽기 1회가 7ms이고 액션 수만큼 곱해진다.
@@ -841,7 +843,7 @@ struct KeyboardAdapterFocusedTextTests {
         Int64(kVK_RightArrow), Int64(kVK_RightArrow), Int64(kVK_ANSI_X), Int64(kVK_ANSI_X),
     ]
 
-    @Test("표에 적힌 범위만 읽는다 — 나머지 어휘는 왕복 0건")
+    @Test("표에 적힌 범위와 Visual 세션만 읽는다 — 나머지 어휘는 왕복 0건")
     func onlyTabulatedRangeEditsConsultTheReader() {
         nonisolated(unsafe) var reads = 0
         let reader = FocusedTextReader { _ in
@@ -851,7 +853,13 @@ struct KeyboardAdapterFocusedTextTests {
 
         makeAdapter(reader: reader, collecting: { _ in }).execute(Self.vocabulary, processID: 42)
 
-        #expect(reads == 4, "어휘 중 묻는 것은 `x`·`dk`·`dgg`·`diw` 넷이다 — `dd`·`dj`는 묻지 않는다")
+        #expect(
+            reads == 5,
+            """
+            편집은 `x`·`dk`·`dgg`·`diw` 넷(범위 술어), Visual은 `v` 진입 하나(세션 술어 — \
+            수립 읽기는 실패해도 왕복이다)다. `dd`·`dj`는 묻지 않고, `clearSelection`은 \
+            폐기만이라 읽지 않으며, 상태 없는 세션이라 확장도 있었다면 읽지 않았을 것이다.
+            """)
     }
 
     /// 스냅샷은 **액션마다 새로** 만든다 — 같은 버스트의 앞 액션이 캐럿을 옮기므로 앞 액션의
@@ -1015,5 +1023,239 @@ struct KeyboardAdapterFocusedTextTests {
         #expect(keyCodes(of: succeeded) == keyCodes(of: failed))
         #expect(keyCodes(of: succeeded) == keyCodes(of: noProcess))
         #expect(succeeded.map(\.flags) == failed.map(\.flags))
+    }
+}
+
+/// Visual 앵커 상태의 end-to-end 배선 (M5 PR-C1) — 수립·자가 검증·`vh` 재앵커·폐기가
+/// `execute` 경로에서 실제로 맞물리는지를 고정한다. 순수 로직 골든은
+/// `VisualAnchorMappingTests`가, 여기서는 세션 술어(누가 언제 읽는가)와 상태 수명이 주다.
+struct KeyboardAdapterVisualAnchorTests {
+    /// 문서 `"ab\ncde"`의 오프셋 4(`d` 앞 — **열 1**이라 `h`가 유효하다) 캐럿 —
+    /// `v` 진입 직전의 읽기. 열 0 앵커의 재앵커 봉쇄는 매퍼 골든이 전담한다.
+    private static let caretAtFour = FocusedText(
+        selection: NSRange(location: 4, length: 0), characterCount: 6,
+        window: "ab\ncde", windowRange: NSRange(location: 0, length: 6))
+
+    /// `v` 진입 `Shift-→`가 만든 진입형 선택 `[4, 5)` — 세션 중 액션의 읽기.
+    private static let entrySelection = FocusedText(
+        selection: NSRange(location: 4, length: 1), characterCount: 6,
+        window: "ab\ncde", windowRange: NSRange(location: 0, length: 6))
+
+    /// 호출 순서대로 준비된 값을 내주는 리더 — 준비가 소진되면 마지막 값을 반복한다.
+    /// (`execute` 사이의 연쇄를 한 리더로 표현하기 위한 것으로, 몇 번째 읽기인지가 곧 단언이다.)
+    private static func sequencedReader(
+        _ responses: [FocusedText?], reads: @escaping @Sendable () -> Void = {}
+    ) -> FocusedTextReader {
+        nonisolated(unsafe) var call = 0
+        return FocusedTextReader { _ in
+            reads()
+            defer { call += 1 }
+            return call < responses.count ? responses[call] : responses.last ?? nil
+        }
+    }
+
+    @Test("vh — 진입 수립 후 재앵커 시퀀스가 게시된다")
+    func entryThenCharLeftReanchors() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker()
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, Self.entrySelection]),
+            visualAnchor: tracker, collecting: { posted.append($0) }
+        ).execute(
+            [.beginSelection(linewise: false), .extendSelection(.charLeft)], processID: 42)
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),  // Shift-→ (진입)
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),  // ← (collapse)
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),  // → (A+1 재수립)
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),  // Shift-←
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),  // Shift-←
+            ])
+        #expect(posted.prefix(2).allSatisfy { $0.flags.contains(.maskShift) })
+        // 재앵커 접두 2타는 **이동**이다 — Shift가 실리면 collapse가 아니라 확장이 된다.
+        #expect(
+            posted.dropFirst(2).prefix(4).allSatisfy { !$0.flags.contains(.maskShift) },
+            "접두 ←,→는 Shift 없음")
+        #expect(posted.suffix(4).allSatisfy { $0.flags.contains(.maskShift) }, "재확장은 선택")
+        // 상태는 side가 반전된 채 남는다 — 다음 후진의 무보정 1타가 여기 딛는다.
+        #expect(tracker.current?.side == .right)
+        #expect(tracker.current?.pinnedEnd == 5)
+    }
+
+    /// 카운트는 반복 액션이다 — 첫 `h`만 재앵커(4타)하고 이후는 후진형이라 1타씩이다.
+    /// 리더가 계속 진입형 `[3, 4)`를 내줘도(낡은 읽기) 같다: 재앵커 뒤의 판정은 앵커 쪽
+    /// 끝(오른쪽 4)만 보므로 포커스 쪽이 낡아도 어긋나지 않는다.
+    @Test("3h — 재앵커 1회 후 무보정 1타씩, 낡은 읽기에도 동일")
+    func repeatedCharLeftReanchorsOnce() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, Self.entrySelection]),
+            collecting: { posted.append($0) }
+        ).execute(
+            [
+                .beginSelection(linewise: false),
+                .extendSelection(.charLeft), .extendSelection(.charLeft),
+                .extendSelection(.charLeft),
+            ], processID: 42)
+
+        // 진입 1타 + 재앵커 4타 + 후진 1타 + 후진 1타 = 7스트로크(이벤트 14건).
+        #expect(posted.count == 14)
+        #expect(
+            keyCodes(of: posted.suffix(4)) == [
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+            ])
+        #expect(posted.suffix(4).allSatisfy { $0.flags.contains(.maskShift) })
+    }
+
+    /// 앵커 쪽 끝이 어긋난 읽기 = 화면이 상태와 다르다(마우스·앱 지연) — 그 액션부터
+    /// 무상태 폴백이고 상태는 폐기된다. **폐기 뒤의 액션은 읽기 자체가 없다** — 상태가
+    /// 없으면 검증할 것도 없다는 세션 술어의 확인이다.
+    @Test("검증 실패 — 폴백 강등 + 폐기, 이후 읽기 0회")
+    func validationFailureFallsBackAndDiscards() {
+        let drifted = FocusedText(
+            selection: NSRange(location: 1, length: 2), characterCount: 6,
+            window: "ab\ncde", windowRange: NSRange(location: 0, length: 6))
+
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var reads = 0
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, drifted], reads: { reads += 1 }),
+            collecting: { posted.append($0) }
+        ).execute(
+            [
+                .beginSelection(linewise: false),
+                .extendSelection(.charLeft), .extendSelection(.charLeft),
+            ], processID: 42)
+
+        // 진입 Shift-→ 1타 + 폴백 Shift-← 1타 + (상태 없음) 폴백 Shift-← 1타.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+            ])
+        #expect(posted.allSatisfy { $0.flags.contains(.maskShift) })
+        #expect(reads == 2, "진입 수립 1회 + 첫 확장의 검증 1회 — 폐기 뒤에는 읽지 않는다")
+    }
+
+    @Test("pid 불일치 — 폴백 강등 + 폐기")
+    func processIDMismatchFallsBackAndDiscards() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker()
+        let adapter = makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, Self.entrySelection]),
+            visualAnchor: tracker, collecting: { posted.append($0) })
+
+        adapter.execute([.beginSelection(linewise: false)], processID: 42)
+        #expect(tracker.current != nil)
+
+        // 같은 세션 상태로 다른 앱의 읽기가 오면 — 앱을 다녀온 경우다 — 폐기 + 폴백.
+        adapter.execute([.extendSelection(.charLeft)], processID: 43)
+
+        #expect(keyCodes(of: posted.suffix(2)) == [Int64(kVK_LeftArrow), Int64(kVK_LeftArrow)])
+        #expect(posted.suffix(2).allSatisfy { $0.flags.contains(.maskShift) })
+        #expect(tracker.current == nil)
+    }
+
+    @Test("clearSelection — 상태 폐기, 이후 확장은 읽기 없이 폴백")
+    func clearSelectionDiscardsState() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var reads = 0
+        let tracker = VisualAnchorTracker()
+        let adapter = makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour], reads: { reads += 1 }),
+            visualAnchor: tracker, collecting: { posted.append($0) })
+
+        adapter.execute([.beginSelection(linewise: false), .clearSelection], processID: 42)
+        #expect(tracker.current == nil, "이탈이 세션 상태를 남기면 다음 세션이 낡은 앵커를 딛는다")
+        #expect(reads == 1, "clearSelection은 읽지 않는다 — 폐기는 증거가 필요 없다")
+
+        adapter.execute([.extendSelection(.charLeft)], processID: 42)
+        #expect(keyCodes(of: posted.suffix(2)) == [Int64(kVK_LeftArrow), Int64(kVK_LeftArrow)])
+        #expect(reads == 1, "상태가 없으면 확장도 읽지 않는다")
+    }
+
+    /// `v`→`V` 폴백은 포커스만 반올림해 상태와 화면이 어긋난다 — 앱 앵커는 그대로라 자가
+    /// 검증이 잡지 못하므로, 게시 시점에 폐기하는 것이 계약이다.
+    @Test("v→V 폴백 — 게시는 현행, 상태는 폐기")
+    func switchWiseFallbackDiscardsState() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker()
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, Self.entrySelection]),
+            visualAnchor: tracker, collecting: { posted.append($0) }
+        ).execute(
+            [.beginSelection(linewise: false), .switchSelectionWise(linewise: true)],
+            processID: 42)
+
+        // 진입 Shift-→ 뒤 폴백 전환 `Shift-↓, Shift-Cmd-←` 그대로.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_DownArrow), Int64(kVK_DownArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+            ])
+        #expect(tracker.current == nil)
+    }
+
+    @Test("pid가 없으면 Visual도 읽지 않는다 — 시퀀스는 무상태 그대로")
+    func missingProcessIDStaysStateless() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var reads = 0
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour], reads: { reads += 1 }),
+            collecting: { posted.append($0) }
+        ).execute([.beginSelection(linewise: false), .extendSelection(.charLeft)])
+
+        #expect(reads == 0)
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+            ])
+    }
+
+    /// 상태 갱신은 게시 **전**(매핑 확정 시점)에 일어나므로, 중단으로 이벤트가 버려지면
+    /// 재앵커된 상태가 재앵커되지 않은 화면 위에 남는다 — 진입형 선택 `[A, A+1)`이 새
+    /// `pinnedEnd`(A+1)와 우연히 일치해 자가 검증이 거짓 통과하는 유일한 자리라, 드롭
+    /// 경로는 상태를 폐기해야 한다.
+    @Test("중단으로 이벤트가 버려지면 상태도 함께 버린다")
+    func abortedExecutionDiscardsState() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var calls = 0
+        let tracker = VisualAnchorTracker()
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, Self.entrySelection]),
+            visualAnchor: tracker, collecting: { posted.append($0) }
+        ).execute(
+            [.beginSelection(linewise: false), .extendSelection(.charLeft)], processID: 42,
+            isCurrent: {
+                // 첫 확인(진입 가드)만 통과시키고 게시 직전 확인에서 끊는다 — 매핑과 상태
+                // 갱신은 끝났지만 이벤트는 한 건도 나가지 않은 상태를 만든다.
+                calls += 1
+                return calls == 1
+            })
+
+        #expect(posted.isEmpty)
+        #expect(tracker.current == nil, "게시되지 않은 재앵커가 상태로 남으면 다음 h가 선택을 지운다")
+    }
+
+    /// 읽기 실패는 폐기가 아니다 — 하지만 무상태 확장은 게시되어 포커스를 옮기므로,
+    /// linewise의 포커스 줄 거리만은 미상으로 좁혀야 한다. 알던 값이 남으면 `V`→`v`
+    /// 조건부 지원(다음 세션)이 낡은 거리로 잘못 재선택한다.
+    @Test("읽기 실패 중의 linewise 확장은 줄 거리를 미상으로 좁힌다")
+    func readFailureDuringLinewiseExtendUnknowsDistance() {
+        let tracker = VisualAnchorTracker()
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, nil]),
+            visualAnchor: tracker, collecting: { _ in }
+        ).execute(
+            [.beginSelection(linewise: true), .extendSelection(.lineDown)], processID: 42)
+
+        #expect(tracker.current != nil, "읽기 실패는 폐기 트리거가 아니다")
+        #expect(tracker.current?.focusLineDistance == nil)
+        #expect(tracker.current?.anchor == 3, "앵커(줄 시작)는 그대로다 — 좁힌 것은 거리뿐")
     }
 }

@@ -38,10 +38,16 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// `pasteWise`와 같다: 실제 AX를 읽으면 골든 테스트가 실기기 권한과 개발자 머신의
     /// 포커스 상태에 따라 갈린다.
     ///
-    /// 소비자는 `mapping`의 `.edit` 분기 **한 곳**이며, 그것도 범위가 캐럿 주변을 묻는
-    /// 경우(`EditKeyMapper.consultsFocusedText`)에만 읽는다 — 모션·Visual·paste·undo는
+    /// 소비자는 `mapping`의 `.edit` 분기와 Visual 세션 분기 **두 곳**이다. 편집은 범위가
+    /// 캐럿 주변을 묻는 경우(`EditKeyMapper.consultsFocusedText`)에만 읽는 **범위 술어**,
+    /// Visual은 앵커 상태의 수립·검증 때문에 읽는 **세션 술어**다 — 모션·paste·undo는
     /// 묻지 않으므로 AX 왕복이 0건이다. 읽기가 실패하면 정확화만 포기하고 실행은 한다.
     private let reader: FocusedTextReader
+
+    /// Visual 세션의 앵커 상태 — `pasteWise`와 같은 형태의 상태 보유 협력자이며 게시 직렬
+    /// 큐가 단독 소유한다. 주입하는 이유도 같다: 골든 테스트가 세션 중간 상태를 실기기
+    /// 없이 만든다 (`20260804_visual-anchor-state-collaborator.md`).
+    private let visualAnchor: VisualAnchorTracker
 
     init(
         executor: ActionExecutor = ActionExecutor(),
@@ -49,12 +55,14 @@ nonisolated struct KeyboardAdapter: Sendable {
         hasQwertyCommandKeys: @escaping @Sendable () -> Bool = {
             KeyTranslator.hasQwertyCommandKeys
         },
-        reader: FocusedTextReader = FocusedTextReader()
+        reader: FocusedTextReader = FocusedTextReader(),
+        visualAnchor: VisualAnchorTracker = VisualAnchorTracker()
     ) {
         self.executor = executor
         self.pasteWise = pasteWise
         self.hasQwertyCommandKeys = hasQwertyCommandKeys
         self.reader = reader
+        self.visualAnchor = visualAnchor
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.
@@ -171,15 +179,27 @@ nonisolated struct KeyboardAdapter: Sendable {
                     // 미지원 스킵(DEBUG)과 달리 실제 이상 상황이라 항상 남긴다.
                     Logger.eventTap.error(
                         "CGEvent 생성 실패 — 액션 폐기: \(String(describing: action), privacy: .public)")
+                    // 게시되지 않은 액션의 Visual 상태가 남으면 화면과 어긋난 채 검증을
+                    // 거짓 통과할 수 있다 — 재앵커 `.set`이 그 자리다(진입형 선택이 새
+                    // `pinnedEnd`와 우연히 일치한다). 폐기 = 무상태 강등이라 안전 방향이다.
+                    visualAnchor.apply(.discard)
                     continue
                 }
                 pending.append(contentsOf: groupEvents)
                 pendingStrokes += group.count
                 // 원자 그룹은 절대 가르지 않는다 — 경계는 그룹 **사이**에만 온다.
                 guard pendingStrokes >= Self.chunkStrokes, !holdsNextAction else { continue }
-                guard flush() else { return }
+                guard flush() else {
+                    // 위 CGEvent 실패와 같은 이유 — 폐기된 청크에 실린 Visual 액션의 상태가
+                    // 남으면 안 된다.
+                    visualAnchor.apply(.discard)
+                    return
+                }
             }
         }
+
+        // 마지막 청크가 중단으로 버려지면 그 안의 Visual 액션 상태도 함께 버린다 (위와 동일).
+        if !flush() { visualAnchor.apply(.discard) }
 
         #if DEBUG
         // 카운트 반복(`1000u`, Visual `1000j` 등)으로 액션이 수백~천 개일 수 있어 요약 1건으로
@@ -206,8 +226,6 @@ nonisolated struct KeyboardAdapter: Sendable {
             )
         }
         #endif
-
-        flush()
     }
 
     /// 한 청크에 담는 키스트로크 수 (스트로크 = keyDown+keyUp 쌍이라 이벤트로는 두 배).
@@ -288,7 +306,8 @@ nonisolated struct KeyboardAdapter: Sendable {
     ///
     /// `static`이 아닌 이유는 `.paste`가 주입된 클립보드 읽기를 쓰기 때문이다.
     ///
-    /// `text`를 읽는 것은 아래 `.edit` 분기 **한 곳**뿐이다 — 묻지 않으면 AX 왕복도 없다(lazy).
+    /// `text`를 읽는 것은 아래 `.edit` 분기와 Visual 세션 분기 **두 곳**이다 — 묻지 않으면
+    /// AX 왕복도 없다(lazy).
     private func mapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
         text: FocusedTextSnapshot
@@ -326,7 +345,8 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
 
         case .edit(let op, let range):
-            // **읽기의 유일한 소비 지점**이다 (M5 PR-B). 게이트 뒤·부수효과 앞이라
+            // **읽기의 첫 소비 지점**이다 (M5 PR-B — 둘째는 Visual 세션 분기).
+            // 게이트 뒤·부수효과 앞이라
             // `recordLinewiseEdit`·클립보드 오염 없이 빠져나가고, 범위가 묻지 않으면
             // AX 왕복도 없다(읽기는 lazy이므로 `value()`를 부르지 않으면 호출 0건이다).
             //
@@ -356,11 +376,26 @@ nonisolated struct KeyboardAdapter: Sendable {
             return result
 
         case .beginSelection, .extendSelection, .switchSelectionWise, .clearSelection:
-            return Self.classify(
-                VisualKeyMapper.keyStrokes(for: action, family: family, profile: profile)
-            ) {
-                VisualKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+            // **읽기의 두 번째 소비 지점**이다 (M5 PR-C1). 편집의 범위 술어와 달리 Visual은
+            // **세션 술어**다 — 앵커 상태의 수립(진입)과 자가 검증(세션 중)이 읽기의
+            // 소비자라, 어떤 액션이 읽는지는 범위가 아니라 세션 상태가 정한다.
+            let context = anchorContext(for: action, text: text)
+            let (result, update) = Self.classifyVisual(
+                action: action, family: family, profile: profile, anchor: context)
+            if case .skipped = result {
+                // 미지원이 아니라 "지원하지만 게시할 것이 없다" — 편집의 읽기 증명 무효와
+                // 같은 편이다. 세션 1에서는 도달하지 않는다: 첫 소비자는 `V` 세션의 범위
+                // 무변화 charwise 모션이다 (`20260804_visual-linewise-motion-range-noop.md`).
+                #if DEBUG
+                Logger.eventTap.debug(
+                    "Visual 스킵 — 범위 무변화가 정확 동작이다: \(String(describing: action), privacy: .public)"
+                )
+                #endif
             }
+            // 게시가 확정된 뒤에만 상태를 남긴다 — `recordLinewiseEdit`과 같은 규칙이다.
+            // 걸러진 액션이 side를 뒤집으면 다음 액션이 있지도 않은 재앵커를 전제로 계산한다.
+            if case .groups = result { visualAnchor.apply(update) }
+            return result
 
         case .openLine, .undo, .redo, .scroll:
             return Self.classify(
@@ -428,6 +463,71 @@ nonisolated struct KeyboardAdapter: Sendable {
         //    프로파일 disable로 둔갑한다.
         return EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: .empty)
             != nil ? .disabledByProfile : .unsupported
+    }
+
+    /// Visual 액션 1건의 정확화 입력 — 세션 술어의 본체다.
+    ///
+    /// 읽기 실패·pid 없음·상태 부재는 전부 `.none`으로 접힌다: 매퍼가 무상태 시퀀스를 내고
+    /// 실행은 한다 (Slack·VS Code 상시 경로). **검증 실패만 상태를 폐기하며**(`validated`가
+    /// 즉시 지운다) 읽기 실패는 폐기 트리거가 아니다 — Notion 타임아웃 1회로 세션을 잃으면
+    /// 남은 세션 전체가 폴백으로 강등된다. 그 사이 폴백이 화면을 바꿔도 다음 성공 읽기의
+    /// 자가 검증이 잡는다 (`20260804_visual-anchor-read-self-validation.md`).
+    private func anchorContext(
+        for action: VimAction, text: FocusedTextSnapshot
+    ) -> VisualAnchorContext {
+        switch action {
+        case .beginSelection:
+            // 수립 재료 — 진입 시퀀스가 게시되면 원래 캐럿은 파괴되므로 이 읽기가 유일한
+            // 시점이다. `mapping`은 게시보다 앞이라 "게시 직전"이 구조로 성립한다.
+            guard let processID = text.processID, let read = text.value() else { return .none }
+            return .establishing(read, processID)
+        case .extendSelection, .switchSelectionWise:
+            // 상태가 없으면 검증할 것도 없다 — AX 왕복 자체를 생략한다 (lazy 규칙 그대로).
+            guard visualAnchor.hasState else { return .none }
+            guard let read = text.value() else {
+                // 읽기 실패는 폐기가 아니다 — 다만 이어서 게시될 무상태 시퀀스가 포커스를
+                // 옮기므로, linewise의 포커스 줄 거리만은 미상으로 좁힌다. 알던 값을 두면
+                // 다음 검증(앵커 쪽만 본다)이 낡은 거리를 못 잡는다.
+                visualAnchor.unknowFocusLineDistance()
+                return .none
+            }
+            guard let state = visualAnchor.validated(against: read, processID: text.processID)
+            else { return .none }
+            return .session(state, read)
+        default:
+            // `clearSelection` — 폐기는 증거가 필요 없다 (읽지 않는다).
+            return .none
+        }
+    }
+
+    /// Visual 전용 분류 — 매퍼의 `nil`을 **세 스킵**으로 가른다. 앵커 상태가 정확화의 입력이
+    /// 되면서 `nil`이 "미지원"과 "정확화가 증명한 무게시" 두 뜻을 갖게 됐고, 그래서
+    /// `classifyEdit`과 같은 3-프로브다.
+    ///
+    /// 프로브 순서가 계약이고 그 계약을 이 함수의 존재가 강제한다 — `anchor`를 받는 자리를
+    /// 여기 한 곳으로 닫아, 정확화 결과가 `.unsupported`나 `.disabledByProfile`로 집계돼
+    /// 게이트 심사자가 구현된 어휘를 미구현으로 읽을 자리를 없앤다.
+    private static func classifyVisual(
+        action: VimAction, family: ElementFamily, profile: ResolvedProfile,
+        anchor: VisualAnchorContext
+    ) -> (mapping: Mapping, update: VisualAnchorUpdate) {
+        if let mapped = VisualKeyMapper.keyStrokes(
+            for: action, family: family, profile: profile, anchor: anchor) {
+            return (.groups([mapped.strokes]), mapped.anchor)
+        }
+        // ① 상태 프로브 — **builtIn보다 앞**이다. 상태 없이 답이 있었다면 `nil`을 만든 것은
+        //    미지원도 프로파일도 아니라 정확화다.
+        if anchor.isRefining,
+            VisualKeyMapper.keyStrokes(for: action, family: family, profile: profile) != nil {
+            return (.skipped, .unchanged)
+        }
+        // ② builtIn 프로브 — **`anchor`를 받지 않는다.** 여기에 상태가 새면 정확화 결과가
+        //    프로파일 disable로 둔갑한다.
+        return (
+            VisualKeyMapper.keyStrokes(for: action, family: family, profile: .empty) != nil
+                ? .disabledByProfile : .unsupported,
+            .unchanged
+        )
     }
 
     /// 이 계열에서 이 액션을 게시하는가 — 걸러내기 게이트 본체다.

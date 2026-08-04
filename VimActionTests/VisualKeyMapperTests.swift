@@ -13,6 +13,7 @@ import VimEngine
 // MARK: - 표기 상수
 
 private let left = KeyStroke(kVK_LeftArrow)
+private let right = KeyStroke(kVK_RightArrow)
 private let cmdLeft = KeyStroke(kVK_LeftArrow, [.maskCommand])
 
 private let selLeft = KeyStroke(kVK_LeftArrow, [.maskShift])
@@ -147,5 +148,217 @@ struct VisualKeyMapperTests {
     func nonVisualActionsAreUnsupported() {
         #expect(VisualKeyMapper.keyStrokes(for: .undo, family: .textArea) == nil)
         #expect(VisualKeyMapper.keyStrokes(for: .move(.charLeft), family: .textArea) == nil)
+    }
+}
+
+// MARK: - 앵커 정확화 진입점 (M5 PR-C1)
+
+/// `v` 진입 캐럿 4 (문서 "ab\ncde"의 `d` — **열 1**이라 왼쪽이 있다) 의 charwise 상태 —
+/// 세션 컨텍스트 픽스처의 기본형. 열 0 앵커는 재앵커가 막히는 별도 케이스라 전용 테스트가 있다.
+private func charwiseSession(side: VisualAnchorState.Side = .left) -> VisualAnchorState {
+    VisualAnchorState(
+        anchor: 4, wise: .charwise, side: side, pinnedEnd: side == .left ? 4 : 5,
+        processID: 42, originalCaret: nil, focusLineDistance: nil)
+}
+
+struct VisualAnchorMappingTests {
+    /// **폴백 바이트 동일** — `.none`이면 무상태 매핑과 시퀀스도 `nil`성도 같아야 한다.
+    /// 상태 부재·읽기 실패·검증 실패(Slack·VS Code 상시)가 전부 이 경로다.
+    @Test("anchor .none은 무상태 매핑과 바이트 동일이다", arguments: visualMappingFixtures)
+    func noneContextMatchesStatelessMapping(_ fixture: VisualMappingFixture) {
+        let stateless = VisualKeyMapper.keyStrokes(for: fixture.action, family: .textArea)
+        let refined = VisualKeyMapper.keyStrokes(
+            for: fixture.action, family: .textArea, profile: .empty, anchor: .none)
+
+        #expect(refined?.strokes == stateless, "\(fixture.vim)")
+        #expect((refined == nil) == (stateless == nil), "\(fixture.vim)")
+    }
+
+    // MARK: 수립
+
+    @Test("v 진입은 캐럿을 앵커로 수립한다 — side .left, pinnedEnd = 캐럿")
+    func charwiseEntryEstablishesCaretAnchor() {
+        let entry = focusedText("ab\ncd", caret: 3)
+
+        let result = VisualKeyMapper.keyStrokes(
+            for: .beginSelection(linewise: false), family: .textArea, profile: .empty,
+            anchor: .establishing(entry, 42))
+
+        #expect(result?.strokes == [selRight])
+        #expect(
+            result?.anchor
+                == .set(
+                    VisualAnchorState(
+                        anchor: 3, wise: .charwise, side: .left, pinnedEnd: 3, processID: 42,
+                        originalCaret: nil, focusLineDistance: nil)))
+    }
+
+    /// `V`는 앵커가 줄 시작이고, 진입 시퀀스가 파괴하기 전의 원래 캐럿을 함께 보관한다.
+    @Test("V 진입은 줄 시작을 앵커로, 원래 캐럿을 별도 보관한다")
+    func linewiseEntryEstablishesLineStartAnchor() {
+        let entry = focusedText("ab\ncd", caret: 4)  // 둘째 줄 "cd"의 c와 d 사이
+
+        let result = VisualKeyMapper.keyStrokes(
+            for: .beginSelection(linewise: true), family: .textArea, profile: .empty,
+            anchor: .establishing(entry, 42))
+
+        #expect(result?.strokes == [cmdLeft, selDown])
+        #expect(
+            result?.anchor
+                == .set(
+                    VisualAnchorState(
+                        anchor: 3, wise: .linewise, side: .left, pinnedEnd: 3, processID: 42,
+                        originalCaret: 4, focusLineDistance: 0)))
+    }
+
+    /// 창이 줄 시작에 못 닿으면 `V`의 앵커를 증명할 수 없다 — 근사 수립은 "잘못된 앵커를
+    /// 정확하게"라 수립하지 않는다. 진입 시퀀스는 그대로 나간다(무상태 폴백).
+    @Test("줄 시작을 증명 못 한 V 진입은 수립하지 않는다")
+    func linewiseEntryWithoutProvableLineStartDiscards() {
+        let truncated = FocusedText(
+            selection: NSRange(location: 11, length: 0), characterCount: 20,
+            window: "xyz", windowRange: NSRange(location: 10, length: 3))
+
+        let result = VisualKeyMapper.keyStrokes(
+            for: .beginSelection(linewise: true), family: .textArea, profile: .empty,
+            anchor: .establishing(truncated, 42))
+
+        #expect(result?.strokes == [cmdLeft, selDown])
+        #expect(result?.anchor == .discard)
+    }
+
+    /// 살아 있는 선택 위의 진입은 캐럿을 증명하지 못한다 — 수용 편차의 자리(charwise `P`
+    /// 접두 없음과 같은 뿌리)라 수립 없이 폴백이다.
+    @Test("선택이 살아 있는 진입은 수립하지 않는다")
+    func entryOnLiveSelectionDiscards() {
+        let live = focusedText("ab\ncd", caret: 1, length: 2)
+
+        let result = VisualKeyMapper.keyStrokes(
+            for: .beginSelection(linewise: false), family: .textArea, profile: .empty,
+            anchor: .establishing(live, 42))
+
+        #expect(result?.strokes == [selRight])
+        #expect(result?.anchor == .discard)
+    }
+
+    /// 읽기가 실패한 진입도 `.discard`다 — 새 세션이 화면에 생기는데 옛 상태가 남으면
+    /// 다음 검증이 우연히 통과할 수 있다. 새 진입은 옛 세션을 절대 남기지 않는다.
+    @Test("읽기 없는 진입은 옛 상태를 폐기한다")
+    func entryWithoutReadDiscards() {
+        let result = VisualKeyMapper.keyStrokes(
+            for: .beginSelection(linewise: false), family: .textArea, profile: .empty,
+            anchor: .none)
+
+        #expect(result?.anchor == .discard)
+    }
+
+    // MARK: 폴백 경로의 상태 계약
+
+    @Test("charwise 세션의 폴백 확장은 상태를 건드리지 않는다")
+    func charwiseFallbackExtendLeavesStateUnchanged() {
+        let result = VisualKeyMapper.keyStrokes(
+            for: .extendSelection(.wordForward), family: .textArea, profile: .empty,
+            anchor: .session(charwiseSession(), focusedText("ab\ncde", caret: 4, length: 1)))
+
+        #expect(result?.anchor == .unchanged)
+    }
+
+    /// linewise 세션의 폴백 확장 뒤에는 포커스 줄 거리를 아는 척할 수 없다 — 착지는 앱만
+    /// 안다. 알던 값을 두면 `V`→`v`가 낡은 거리로 잘못 재선택하므로 미상으로 좁힌다.
+    @Test("linewise 세션의 폴백 확장은 포커스 줄 거리를 미상으로 만든다")
+    func linewiseFallbackExtendUnknowsFocusLineDistance() {
+        let state = VisualAnchorState(
+            anchor: 3, wise: .linewise, side: .left, pinnedEnd: 3, processID: 42,
+            originalCaret: 4, focusLineDistance: 0)
+
+        let result = VisualKeyMapper.keyStrokes(
+            for: .extendSelection(.lineDown), family: .textArea, profile: .empty,
+            anchor: .session(state, focusedText("ab\ncd", caret: 3, length: 2)))
+
+        var expected = state
+        expected.focusLineDistance = nil
+        #expect(result?.anchor == .set(expected))
+    }
+
+    /// `v`→`V` 폴백은 포커스만 반올림해 wise·논리 앵커가 상태와 어긋나는데 앱 앵커는
+    /// 그대로라 자가 검증을 거짓 통과한다 — 폐기가 유일하게 정직하다.
+    @Test("v→V 폴백은 상태를 폐기한다")
+    func switchToLinewiseFallbackDiscards() {
+        let result = VisualKeyMapper.keyStrokes(
+            for: .switchSelectionWise(linewise: true), family: .textArea, profile: .empty,
+            anchor: .session(charwiseSession(), focusedText("ab\ncde", caret: 4, length: 1)))
+
+        #expect(result?.strokes == [selDown, selCmdLeft])
+        #expect(result?.anchor == .discard)
+    }
+
+    @Test("clearSelection은 상태를 폐기한다")
+    func clearSelectionDiscards() {
+        let result = VisualKeyMapper.keyStrokes(
+            for: .clearSelection, family: .textArea, profile: .empty, anchor: .none)
+
+        #expect(result?.strokes == [left])
+        #expect(result?.anchor == .discard)
+    }
+
+    // MARK: `vh` 재앵커 (최소 소비자)
+
+    /// 진입형 `[A, A+1)`의 `h` — 앱 앵커가 왼쪽 끝이라 `Shift-←`로는 왼쪽을 잡을 수 없다.
+    /// `←,→`로 캐럿을 A+1에 재수립한 뒤 `Shift-←×2`가 `[A−1, A+1)`을 만든다 (side 반전).
+    @Test("진입형 h는 재앵커한다 — ←,→ 후 Shift-←×2, side .right")
+    func entryShapedCharLeftReanchors() {
+        let result = VisualKeyMapper.keyStrokes(
+            for: .extendSelection(.charLeft), family: .textArea, profile: .empty,
+            anchor: .session(
+                charwiseSession(side: .left), focusedText("ab\ncde", caret: 4, length: 1)))
+
+        #expect(result?.strokes == [left, right, selLeft, selLeft])
+        var expected = charwiseSession(side: .left)
+        expected.side = .right
+        expected.pinnedEnd = 5
+        #expect(result?.anchor == .set(expected))
+    }
+
+    /// 앵커가 줄 시작(열 0)이면 재앵커하지 않는다 — Vim의 `h`는 앞 줄로 넘어가지 않는데,
+    /// 재앵커하면 개행을 선택해 뒤따르는 `d`가 줄을 병합하는 파괴적 회귀가 된다. 폴백
+    /// `Shift-←`는 선택을 접을 뿐이라(현행 수용 동작) 다음 읽기의 빈 선택 검증이 정리한다.
+    @Test("줄 시작 앵커의 진입형 h는 재앵커하지 않는다")
+    func entryShapedCharLeftAtLineStartStaysStateless() {
+        let atLineStart = VisualAnchorState(
+            anchor: 3, wise: .charwise, side: .left, pinnedEnd: 3,
+            processID: 42, originalCaret: nil, focusLineDistance: nil)
+
+        let result = VisualKeyMapper.keyStrokes(
+            for: .extendSelection(.charLeft), family: .textArea, profile: .empty,
+            anchor: .session(atLineStart, focusedText("ab\ncde", caret: 3, length: 1)))
+
+        #expect(result?.strokes == [selLeft])
+        #expect(result?.anchor == .unchanged)
+    }
+
+    /// 이미 전진 확장된 선택(길이 ≥ 2)의 `h`는 축소다 — 현행 `Shift-←` 1타가 그대로 맞아
+    /// 재앵커하지 않는다.
+    @Test("전진 확장된 선택의 h는 축소 — 현행 1타 그대로")
+    func extendedSelectionCharLeftShrinksWithoutReanchor() {
+        let result = VisualKeyMapper.keyStrokes(
+            for: .extendSelection(.charLeft), family: .textArea, profile: .empty,
+            anchor: .session(
+                charwiseSession(side: .left), focusedText("ab\ncde", caret: 4, length: 2)))
+
+        #expect(result?.strokes == [selLeft])
+        #expect(result?.anchor == .unchanged)
+    }
+
+    /// 후진형 `[F, A+1)`의 앱 포커스는 정확히 F — +1 원점 이동은 전진형에만 있어 연속
+    /// 후진은 무보정 1타다.
+    @Test("후진형 h는 무보정 Shift-← 1타다")
+    func backwardShapedCharLeftIsExact() {
+        let result = VisualKeyMapper.keyStrokes(
+            for: .extendSelection(.charLeft), family: .textArea, profile: .empty,
+            anchor: .session(
+                charwiseSession(side: .right), focusedText("ab\ncde", caret: 2, length: 3)))
+
+        #expect(result?.strokes == [selLeft])
+        #expect(result?.anchor == .unchanged)
     }
 }
