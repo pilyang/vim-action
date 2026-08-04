@@ -1,0 +1,68 @@
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_0bce34d4f3cfa8::t_fed53c52167c60 61
+  s_0bce34d4f3cfa8::t_5c5b73d88950e0 95
+  s_0bce34d4f3cfa8::t_bc9fcc728ee255 3
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_0bce34d4f3cfa8::t_e64b262b1e7096 24
+  s_0bce34d4f3cfa8::t_82e5d189db2a83 6
+  s_0bce34d4f3cfa8::t_ee95ef3ea9cc8a 41,43-44,46
+  s_0bce34d4f3cfa8::t_f5c1b2b1635674 47
+  s_0bce34d4f3cfa8::t_6e5ad122bac33c 42
+VimAction/VisualAnchor.swift
+  s_0bce34d4f3cfa8::t_b6224e212378f8 130-136
+  s_0bce34d4f3cfa8::t_d5589813500de4 1-129,137
+VimActionTests/VisualAnchorTests.swift
+  s_0bce34d4f3cfa8::t_05812bd8132485 1-133
+VimAction/KeyboardAdapter.swift
+  s_0bce34d4f3cfa8::t_73676776d3d7fa 182-185,192-197
+  s_0bce34d4f3cfa8::t_8e632e5cdc94cf 468-485,494-532
+  s_0bce34d4f3cfa8::t_82f3ac1ae81652 348-349
+  s_0bce34d4f3cfa8::t_80faaf9eec79b5 309-310
+  s_0bce34d4f3cfa8::t_ff12c094b4efee 379-393,395-398
+  s_0bce34d4f3cfa8::t_1e468b831a1bcd 486-493
+  s_0bce34d4f3cfa8::t_47f8dce877a3ae 201-203
+  s_0bce34d4f3cfa8::t_d8e3f8952f0187 41-43,47-51,58-59,65
+VimActionTests/VisualKeyMapperTests.swift
+  s_0bce34d4f3cfa8::t_c4201d790460c4 261
+  s_0bce34d4f3cfa8::t_ca5a0d82558b28 16
+  s_0bce34d4f3cfa8::t_f0513e11a96ad7 153-155,158-159,161-260,262-288,290-302,364
+  s_0bce34d4f3cfa8::t_182fb73cf8cae0 289
+  s_0bce34d4f3cfa8::t_f05375b13190e9 156-157,160
+  s_0bce34d4f3cfa8::t_6b13006a84177a 303-311,314-317,319-321,339-344,347-357,360-363
+  s_0bce34d4f3cfa8::t_70c7952d97ed9a 312-313,318,322-338,345-346,358-359
+VimAction/FocusedTextReader.swift
+  s_0bce34d4f3cfa8::t_8f6e7c9dd63e11 116-118
+.claude/skills/plans/SKILL.md
+  s_0bce34d4f3cfa8::t_3662c94d9a6d70 52
+VimActionTests/KeyboardAdapterTests.swift
+  s_0bce34d4f3cfa8::t_a712b2dc7e57f8 802-804
+  s_0bce34d4f3cfa8::t_5b095ed152f1c0 846,856-862
+  s_0bce34d4f3cfa8::t_d302384d501a81 1083
+  s_0bce34d4f3cfa8::t_af7b90c7630ed6 1219-1260
+  s_0bce34d4f3cfa8::t_ee5294adcd205f 1033-1037,1039,1041-1042
+  s_0bce34d4f3cfa8::t_25159ff24a259c 1062,1093,1124,1148,1168,1187,1208
+  s_0bce34d4f3cfa8::t_1f6c3e185ff517 25,31
+  s_0bce34d4f3cfa8::t_355df95b7947f2 1118-1119
+  s_0bce34d4f3cfa8::t_f2f3612dee380d 1028-1032,1038,1040,1043-1061,1063-1082,1084-1092,1094-1117,1120-1123,1125-1147,1149-1167,1169-1186,1188-1207,1209-1218,1261
+VimAction/VisualKeyMapper.swift
+  s_0bce34d4f3cfa8::t_70ec674570ea12 47-50,55-81,91-100,102-103
+  s_0bce34d4f3cfa8::t_fb92a570a2e7bc 82-90,101
+  s_0bce34d4f3cfa8::t_a70f86e4e84752 10-17,25-29,36-46,51-54,104-173
+  s_0bce34d4f3cfa8::t_180503b8b3ee77 234-237
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "d9cc15bc27cd159d145f29b52b935bbf210ecae3",
+  "prompts": {},
+  "sessions": {
+    "s_0bce34d4f3cfa8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cbc774cc-86e2-4222-85ff-2f895af04a8b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
