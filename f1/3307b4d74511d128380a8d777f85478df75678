@@ -1,0 +1,23 @@
+VimAction/VisualKeyMapper.swift
+  s_782d18508478e3::t_9e1147d3ca2b68 351,353-364
+  s_782d18508478e3::t_d2211d8b65f710 257-274
+VimActionTests/VisualKeyMapperTests.swift
+  s_782d18508478e3::t_2d2321cc6504a7 492-531
+  s_782d18508478e3::t_18199a9508369f 654-657,664-669
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "f13307b4d74511d128380a8d777f85478df75678",
+  "prompts": {},
+  "sessions": {
+    "s_782d18508478e3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fe7462d6-3701-4be9-81e5-d7dab444ca61",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
