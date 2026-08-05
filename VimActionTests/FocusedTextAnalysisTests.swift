@@ -482,3 +482,18 @@ struct VisualSelectionQueryTests {
         #expect(truncated.selectionEndCharactersToLineStart == nil, "창이 줄 시작에 못 닿는다")
     }
 }
+
+extension VisualSelectionQueryTests {
+    /// `V`→`v` 전진형의 초집합 봉쇄 근거 — 포커스 줄(선택 안의 마지막 줄) 길이.
+    @Test("선택 마지막 줄 길이 — V형 끝이면 앞 줄, 문서 끝 포화면 그 줄")
+    func selectionLastLineLength() {
+        // [3,6) — 끝이 셋째 줄 시작(직전 개행)이라 마지막 줄은 "cd"(2).
+        #expect(focusedText(Self.threeLines, caret: 3, length: 3).selectionLastLineLength == 2)
+        // [3,8) — 끝이 문서 끝(개행 없는 마지막 줄)이라 그 줄 "ef"(2).
+        #expect(focusedText(Self.threeLines, caret: 3, length: 5).selectionLastLineLength == 2)
+        // [3,5) — 끝이 줄 중간이고 문서 끝도 아니다: 증명 실패.
+        #expect(focusedText(Self.threeLines, caret: 3, length: 2).selectionLastLineLength == nil)
+        // 빈 포커스 줄("ab\n\n…")은 길이 0 — 어느 열도 실재하지 않는다.
+        #expect(focusedText("ab\n\ncd", caret: 0, length: 4).selectionLastLineLength == 0)
+    }
+}

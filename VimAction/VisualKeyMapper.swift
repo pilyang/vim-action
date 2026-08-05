@@ -101,7 +101,7 @@ nonisolated enum VisualKeyMapper {
         case .switchSelectionWise(let linewise):
             return linewise
                 ? roundToLinewiseRefinement(state, text, profile)
-                : restoreToCharwiseRefinement(state, profile)
+                : restoreToCharwiseRefinement(state, text, profile)
 
         default:
             // 진입·이탈은 정확화 대상이 아니다 — 수립은 `establishment`, 폐기는 `update`가
@@ -352,8 +352,13 @@ nonisolated enum VisualKeyMapper {
 
     /// ⑥ `v`→`V` — 앵커 쪽도 줄 반올림한다: 재앵커로 앵커를 줄 시작(전진형) 또는 줄 끝
     /// 다음(후진형)에 재수립하고 포커스 줄까지 재확장한다. 폴백(`.discard`)과 달리 전환 후
-    /// 상태가 완전히 수립되어 세션이 이어진다 — 옛 charwise 앵커를 `originalCaret`으로
-    /// 보관하므로 이후 `V`→`v` 재전환도 선다.
+    /// 상태가 완전히 수립되어 세션이 이어진다.
+    ///
+    /// `originalCaret`은 **보관하지 않는다** — ⑦의 열 근사("Vim 커서 열 = 원래 캐럿의 열")는
+    /// `V` 진입 세션에서만 성립한다(⑤가 열 이동을 전부 스킵하므로). charwise를 거쳐 온
+    /// 세션의 Vim 커서는 포커스 F에 있고 F의 열은 앵커 열과 무관하므로, 앵커를 넣으면
+    /// ⑦이 "잘못된 범위를 정확하게" 만든다. 모르는 것은 모른다고 남겨 ⑦이 정직하게
+    /// 스킵하게 한다.
     private static func roundToLinewiseRefinement(
         _ state: VisualAnchorState, _ text: FocusedText, _ profile: ResolvedProfile
     ) -> Refinement {
@@ -375,7 +380,7 @@ nonisolated enum VisualKeyMapper {
                 .set(
                     VisualAnchorState(
                         anchor: lineStart, wise: .linewise, side: .left, pinnedEnd: lineStart,
-                        processID: state.processID, originalCaret: state.anchor,
+                        processID: state.processID, originalCaret: nil,
                         focusLineDistance: lineSpan)))
         case .right:
             // `→`(A+1로 collapse), `↓, Cmd-←`(앵커 줄 끝 다음) 뒤 `Shift-↑ ×(k+1)`.
@@ -393,31 +398,39 @@ nonisolated enum VisualKeyMapper {
                         anchor: text.selection.upperBound - toLineStart, wise: .linewise,
                         side: .right,
                         pinnedEnd: text.selection.upperBound + toNewline + 1,
-                        processID: state.processID, originalCaret: state.anchor,
+                        processID: state.processID, originalCaret: nil,
                         focusLineDistance: -lineSpan)))
         }
     }
 
     /// ⑦ `V`→`v` — 원래 캐럿 P와 포커스 줄 거리 d를 **둘 다 알 때만** 재선택한다. 하나라도
-    /// 모르면(`gg`/`G` 경유, 검증·읽기 실패) 현행 `nil`(정직한 스킵)이다 — 근사 재선택은
-    /// "잘못된 범위를 정확하게" 만들고, 파괴적 오퍼레이터가 뒤따르는 자리라 스킵보다 나쁘다
-    /// (`20260804_visual-switch-charwise-conditional.md`).
+    /// 모르면(`gg`/`G` 경유, 검증·읽기 실패, ⑥으로 만들어진 세션) 현행 `nil`(정직한 스킵)
+    /// 이다 — 근사 재선택은 "잘못된 범위를 정확하게" 만들고, 파괴적 오퍼레이터가 뒤따르는
+    /// 자리라 스킵보다 나쁘다 (`20260804_visual-switch-charwise-conditional.md`).
     ///
     /// 재선택의 포커스 열은 P의 열로 근사한다 — ⑤가 `V` 세션의 열 이동을 전부 스킵하므로
-    /// Vim의 커서 열도 실제로 P의 열 그대로다(줄이 짧으면 양쪽 다 줄 끝으로 클램프).
+    /// Vim의 커서 열도 실제로 P의 열 그대로다. 단 **포커스 줄에 그 열의 문자가 실재함을
+    /// 창에서 증명해야 한다**: 줄이 열보다 짧으면 Vim 커서는 마지막 글자 *위*로 클램프되는데
+    /// macOS 캐럿은 마지막 글자 *뒤*(개행 오프셋)로 클램프되어, 마지막 inclusive 1타가
+    /// 개행을 집는다 — 뒤따르는 `d`가 줄을 병합하는 초집합이다.
     private static func restoreToCharwiseRefinement(
-        _ state: VisualAnchorState, _ profile: ResolvedProfile
+        _ state: VisualAnchorState, _ text: FocusedText, _ profile: ResolvedProfile
     ) -> Refinement {
         guard state.wise == .linewise, let caret = state.originalCaret,
             let distance = state.focusLineDistance
         else { return .unproven }
-        // 열 거리 상한 — 극단 열에서 위치 접두가 폭주하고 페이싱(5ms/타)이 곱해지므로
-        // 상한을 넘으면 정직한 스킵으로 후퇴한다. 도그푸딩 실측으로 확정하는 조절값이다
-        // (결정 유보 항목).
+        // 열·줄 거리 상한 — 위치 접두는 열에, 재확장은 줄 거리에 비례하고 페이싱(5ms/타)이
+        // 곱해지는데 페이싱 그룹은 원자(내부 중단 없음)라, 상한을 넘으면 정직한 스킵으로
+        // 후퇴한다. 도그푸딩 실측으로 확정하는 조절값이다 (결정 유보 항목).
         let column = caret - state.anchor
-        guard column >= 0, column <= Self.reselectColumnClamp else { return .unproven }
+        guard column >= 0, column <= Self.reselectSpanClamp,
+            abs(distance) <= Self.reselectSpanClamp
+        else { return .unproven }
         if distance >= 0 {
             guard state.side == .left,
+                // 포커스 줄(선택 안의 마지막 줄)에 목표 열의 문자가 실재해야 한다 — 위 초집합
+                // 봉쇄. 증명 못 하면(창 부족·빈 줄·열이 줄 밖) 스킵이다.
+                let focusLineLength = text.selectionLastLineLength, column < focusLineLength,
                 let down = MotionKeyMapper.selectionStrokes(for: .lineDown, profile: profile),
                 let inclusive = MotionKeyMapper.selectionStrokes(
                     for: .charRight, profile: profile)
@@ -434,12 +447,20 @@ nonisolated enum VisualKeyMapper {
                         focusLineDistance: nil)))
         }
         guard state.side == .right,
+            // 후진형의 포커스 줄은 선택의 첫 줄이다 — 왼쪽 끝이 줄 시작임을 증명해야 그 줄
+            // 길이를 잴 수 있고, 목표 열의 문자 실재가 위와 같은 초집합 봉쇄다.
+            text.isAtLineStart,
+            let focusLineLength = text.newlineDistanceAfterSelectionStart,
+            column < focusLineLength,
+            // `→ ×(열+1)`이 앵커 줄을 벗어나면(진입 캐럿이 줄 끝) 개행을 건너 열이 0으로
+            // 무너진다 — 앵커 줄 길이는 `pinnedEnd`(앵커 줄 끝 다음)에서 파생된다.
+            column < state.pinnedEnd - 1 - state.anchor,
             let up = MotionKeyMapper.selectionStrokes(for: .lineUp, profile: profile),
             let adjust = MotionKeyMapper.selectionStrokes(for: .charLeft, profile: profile)
         else { return .unproven }
         // `→`(앵커 줄 끝 다음으로 collapse), `↑`(열 0 보존 — 앵커 줄 시작), `→ ×(열+1)`
-        // (P+1로 — 화살표는 오프셋 +1씩이라 개행을 건너도 산술이 정확하다), `Shift-↑ ×|d|`
-        // (열 보존), `Shift-←`(inclusive 보정) → `[포커스줄 열 위치, P+1)`.
+        // (P+1로), `Shift-↑ ×|d|`(열 보존), `Shift-←`(inclusive 보정)
+        // → `[포커스줄 열 위치, P+1)`.
         return refinement(
             [stepRight, stepUp] + repeated([stepRight], column + 1)
                 + repeated(up, -distance) + adjust,
@@ -600,9 +621,10 @@ nonisolated enum VisualKeyMapper {
     /// 줄 시작 접두 (`Cmd-←`) — `v`→`V` 재수립이 앵커를 줄 시작으로 옮길 때 쓴다. 리터럴이다.
     private static let stepLineStart = KeyStroke(kVK_LeftArrow, [.maskCommand])
 
-    /// `V`→`v` 재선택의 열 거리 상한 — 위치 접두가 열에 비례하고 페이싱(5ms/타)이 곱해지므로
-    /// 폭주를 자른다. 도그푸딩 실측으로 확정하는 조절값이다 (결정 유보 항목).
-    private static let reselectColumnClamp = 32
+    /// `V`→`v` 재선택의 열·줄 거리 공통 상한 — 위치 접두는 열에, 재확장은 줄 거리에
+    /// 비례하고, 페이싱 그룹은 원자라 내부 중단이 없으므로 폭주를 여기서 자른다.
+    /// 도그푸딩 실측으로 확정하는 조절값이다 (결정 유보 항목).
+    private static let reselectSpanClamp = 32
 
     /// 카운트·거리 비례 반복 — `EditKeyMapper.repeated`와 같은 형태다.
     private static func repeated(_ strokes: [KeyStroke], _ count: Int) -> [KeyStroke] {

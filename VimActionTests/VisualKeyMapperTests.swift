@@ -675,9 +675,10 @@ struct VisualLinewiseMotionSkipTests {
 /// 해소), `V`→`v`는 보관된 원래 캐럿과 줄 거리로 재선택한다.
 struct VisualSwitchWiseRefinementTests {
     /// 같은 줄 안의 `v`→`V` — `←`(A로 collapse), `Cmd-←`(줄 시작), `Shift-↓`(줄 통째).
-    /// 전환 후 상태가 완전히 수립되고 옛 charwise 앵커가 `originalCaret`으로 보관되어
-    /// 이후 `V`→`v` 재전환도 선다.
-    @Test("v→V는 앵커 줄을 재수립한다 — 같은 줄")
+    /// `originalCaret`은 보관하지 않는다 — ⑦의 열 근사는 `V` 진입 세션에서만 성립하므로
+    /// (charwise를 거친 세션의 Vim 커서는 포커스에 있다), 넣으면 ⑦이 잘못된 범위를
+    /// 정확하게 만든다.
+    @Test("v→V는 앵커 줄을 재수립한다 — 같은 줄, 원래 캐럿은 미보관")
     func roundToLinewiseSameLine() {
         let result = VisualKeyMapper.keyStrokes(
             for: .switchSelectionWise(linewise: true), family: .textArea, profile: .empty,
@@ -689,7 +690,7 @@ struct VisualSwitchWiseRefinementTests {
                 == .set(
                     VisualAnchorState(
                         anchor: 3, wise: .linewise, side: .left, pinnedEnd: 3, processID: 42,
-                        originalCaret: 4, focusLineDistance: 0)))
+                        originalCaret: nil, focusLineDistance: 0)))
         #expect(result?.paced == true)
     }
 
@@ -711,7 +712,7 @@ struct VisualSwitchWiseRefinementTests {
                 == .set(
                     VisualAnchorState(
                         anchor: 3, wise: .linewise, side: .left, pinnedEnd: 3, processID: 42,
-                        originalCaret: 3, focusLineDistance: 1)))
+                        originalCaret: nil, focusLineDistance: 1)))
     }
 
     /// 후진형 — `→`(A+1로 collapse), `↓, Cmd-←`(앵커 줄 끝 다음) 뒤 `Shift-↑ ×(k+1)`.
@@ -732,7 +733,7 @@ struct VisualSwitchWiseRefinementTests {
                 == .set(
                     VisualAnchorState(
                         anchor: 3, wise: .linewise, side: .right, pinnedEnd: 6, processID: 42,
-                        originalCaret: 4, focusLineDistance: -1)))
+                        originalCaret: nil, focusLineDistance: -1)))
     }
 
     /// ⑦ 전진형 — `←`(앵커 줄 시작), `→ ×열`(P로), `Shift-↓ ×d`(열 보존), `Shift-→`
@@ -775,19 +776,53 @@ struct VisualSwitchWiseRefinementTests {
 
     /// 조건 불충족은 현행 `nil`(정직한 스킵) 그대로다 — 근사 재선택은 "잘못된 범위를
     /// 정확하게"라 파괴적 오퍼레이터 앞에서 스킵보다 나쁘다.
-    @Test("원래 캐럿·줄 거리·열 상한 — 하나라도 어긋나면 V→v는 nil이다")
+    @Test("원래 캐럿·줄 거리·상한 — 하나라도 어긋나면 V→v는 nil이다")
     func restoreToCharwiseRequiresBothInputs() {
         let text = focusedText(threeLines, caret: 3, length: 3)
         let noCaret = linewiseSession(originalCaret: nil)
         let noDistance = linewiseSession(distance: nil)
         // 열 33 — 상한(32) 초과. 위치 접두 폭주를 자르는 클램프다 (실측으로 확정할 조절값).
         let farColumn = linewiseSession(originalCaret: 36)
+        // 줄 거리도 같은 상한이다 — 페이싱 그룹은 원자라 내부 중단이 없어, `V` 뒤 수백 `j`의
+        // `v`가 무제한이면 중단 불가한 초 단위 버스트가 된다.
+        let farDistance = linewiseSession(distance: 33)
 
-        for state in [noCaret, noDistance, farColumn] {
+        for state in [noCaret, noDistance, farColumn, farDistance] {
             let result = VisualKeyMapper.keyStrokes(
                 for: .switchSelectionWise(linewise: false), family: .textArea, profile: .empty,
                 anchor: .session(state, text))
             #expect(result == nil)
         }
+    }
+
+    /// 포커스 줄에 목표 열의 문자가 없으면 재선택하지 않는다 — Vim 커서는 마지막 글자 *위*로,
+    /// macOS 캐럿은 마지막 글자 *뒤*(개행)로 클램프가 갈려, inclusive 1타가 개행을 집으면
+    /// 뒤따르는 `d`가 줄을 병합하는 초집합이 된다.
+    @Test("짧은 포커스 줄의 V→v는 nil이다 — 개행 포획 봉쇄")
+    func restoreToCharwiseRequiresColumnOnFocusLine() {
+        // "abcdef\nxy\nzzzz" — V(캐럿 4, 열 4) 후 j: 포커스 줄 "xy"는 열 4가 없다.
+        let shortFocus = VisualAnchorState(
+            anchor: 0, wise: .linewise, side: .left, pinnedEnd: 0, processID: 42,
+            originalCaret: 4, focusLineDistance: 1)
+        let forward = VisualKeyMapper.keyStrokes(
+            for: .switchSelectionWise(linewise: false), family: .textArea, profile: .empty,
+            anchor: .session(shortFocus, focusedText("abcdef\nxy\nzzzz", caret: 0, length: 10)))
+        #expect(forward == nil)
+
+        // 진입 캐럿이 줄 끝(열 = 줄 길이)이어도 같다 — 그 열의 문자가 없다.
+        let atLineEnd = linewiseSession(originalCaret: 5)  // "cd" 줄 끝 (열 2, 줄 길이 2)
+        let lineEnd = VisualKeyMapper.keyStrokes(
+            for: .switchSelectionWise(linewise: false), family: .textArea, profile: .empty,
+            anchor: .session(atLineEnd, focusedText(threeLines, caret: 3, length: 3)))
+        #expect(lineEnd == nil)
+
+        // 후진형 — 포커스 줄이 빈 줄이면(길이 0) 어느 열도 실재하지 않는다.
+        let emptyFocus = VisualAnchorState(
+            anchor: 4, wise: .linewise, side: .right, pinnedEnd: 7, processID: 42,
+            originalCaret: 5, focusLineDistance: -1)
+        let backward = VisualKeyMapper.keyStrokes(
+            for: .switchSelectionWise(linewise: false), family: .textArea, profile: .empty,
+            anchor: .session(emptyFocus, focusedText("ab\n\ncd\nef", caret: 3, length: 4)))
+        #expect(backward == nil)
     }
 }

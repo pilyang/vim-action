@@ -1288,7 +1288,9 @@ struct KeyboardAdapterVisualAnchorTests {
             ])
         #expect(tracker.current?.wise == .linewise)
         #expect(tracker.current?.pinnedEnd == 3)
-        #expect(tracker.current?.originalCaret == 4, "옛 charwise 앵커 보관 — V→v 재전환의 원천")
+        // 원래 캐럿은 미보관 — ⑦의 열 근사는 `V` 진입 세션에서만 성립하므로, 전환 세션의
+        // `V`→`v`는 정직한 스킵으로 남는다.
+        #expect(tracker.current?.originalCaret == nil)
     }
 
     /// 읽기 실패는 폐기가 아니다 — 하지만 무상태 확장은 게시되어 포커스를 옮기므로,

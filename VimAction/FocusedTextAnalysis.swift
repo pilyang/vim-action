@@ -94,13 +94,7 @@ nonisolated extension FocusedText {
     /// 캐럿(선택 시작) 앞으로 이 **논리 줄**의 시작까지 남은 문자 수. 위와 대칭이며
     /// `Shift-←`의 clamp 근거다 (Vim의 `h`는 앞 줄로 넘어가지 않는다).
     var charactersToLineStart: Int? {
-        guard let offset = offsetInWindow(selection.location) else { return nil }
-        let units = windowUnits
-        for index in stride(from: offset, to: 0, by: -1) where units[index - 1] == Self.newline {
-            return offset - index
-        }
-        guard windowRange.location == 0 else { return nil }
-        return offset
+        offsetInWindow(selection.location).flatMap(lineStartDistance(from:))
     }
 
     /// 캐럿이 놓인 줄 **위에 있는 줄의 개수**. `dk`가 Vim처럼 무효인지(위로 갈 줄이 없는지)를
@@ -235,13 +229,20 @@ nonisolated extension FocusedText {
     /// 선택 **끝** 기준, 그 줄의 시작까지의 문자 수 — `charactersToLineStart`(선택 시작 기준)의
     /// 끝쪽 대칭이다. `v`→`V` 후진형이 앵커 줄 시작(논리 앵커)을 계산하는 근거다.
     var selectionEndCharactersToLineStart: Int? {
+        offsetInWindow(selection.upperBound).flatMap(lineStartDistance(from:))
+    }
+
+    /// 선택 안의 **마지막 줄**의 길이 — `V`→`v` 전진형 재선택이 "포커스 줄에 목표 열의 문자가
+    /// 실재하는가"를 묻는 근거다. 선택 끝이 줄 시작이면(V형 — 개행까지 포함) 그 **앞** 줄이고,
+    /// 선택 끝이 문서 끝이면(개행 없는 마지막 줄로 포화) 끝이 속한 줄이다. 어느 쪽도 증명하지
+    /// 못하면 `nil` — 그 줄이 어디서 시작하는지 창으로 알 수 없다.
+    var selectionLastLineLength: Int? {
         guard let offset = offsetInWindow(selection.upperBound) else { return nil }
-        let units = windowUnits
-        for index in stride(from: offset, to: 0, by: -1) where units[index - 1] == Self.newline {
-            return offset - index
+        if offset > 0, utf16Unit(at: offset - 1) == Self.newline {
+            return lineStartDistance(from: offset - 1)
         }
-        guard windowRange.location == 0 else { return nil }
-        return offset
+        guard isAtDocumentEnd else { return nil }
+        return lineStartDistance(from: offset)
     }
 
     /// 창 안 상대 오프셋에서 다음 개행까지의 거리 — 개행을 **찾은 경우에만** 값이 있다
@@ -252,6 +253,17 @@ nonisolated extension FocusedText {
             return index - offset
         }
         return nil
+    }
+
+    /// 창 안 상대 오프셋에서 그 줄의 시작까지의 거리 — 위의 후진 대칭이되, 창 시작이 문서
+    /// 시작에 닿은 경우만 줄 시작으로 인정하는 폴백이 있다 (`charactersToLineStart` 원형).
+    private func lineStartDistance(from offset: Int) -> Int? {
+        let units = windowUnits
+        for index in stride(from: offset, to: 0, by: -1) where units[index - 1] == Self.newline {
+            return offset - index
+        }
+        guard windowRange.location == 0 else { return nil }
+        return offset
     }
 
     /// 캐럿이 논리 줄 끝(문서 끝 포함)일 때 **직전 문자**의 런 클래스. 줄 끝이 아니거나 직전이
