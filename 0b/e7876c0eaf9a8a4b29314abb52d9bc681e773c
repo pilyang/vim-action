@@ -1,0 +1,30 @@
+.claude/skills/decisions/SKILL.md
+  s_782d18508478e3::t_91af95cc58d75d 179-180
+.claude/skills/decisions/references/20260805_visual-refined-group-stroke-pacing.md
+  s_782d18508478e3::t_62ffd3e8d7860d 1-30
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_782d18508478e3::t_fee3b93e85a3c6 3
+  s_782d18508478e3::t_6552103ab3e15f 95
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_782d18508478e3::t_96dc5ac3a6ee9f 6
+  s_782d18508478e3::t_848fae78fe86e0 25
+  s_782d18508478e3::t_bc141e6a53a127 42-56
+.claude/skills/decisions/references/20260805_reanchor-prefix-collapse-shortcut.md
+  s_782d18508478e3::t_96332647c85e88 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "0be7876c0eaf9a8a4b29314abb52d9bc681e773c",
+  "prompts": {},
+  "sessions": {
+    "s_782d18508478e3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fe7462d6-3701-4be9-81e5-d7dab444ca61",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
