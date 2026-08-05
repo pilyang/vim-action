@@ -1,0 +1,28 @@
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_782d18508478e3::t_f908982ec01dd7 3
+  s_782d18508478e3::t_8ee227a3af2cdc 95
+.claude/skills/decisions/SKILL.md
+  s_782d18508478e3::t_716d5eba27b3cc 174
+.claude/skills/decisions/references/20260805_reanchor-prefix-collapse-shortcut.md
+  s_782d18508478e3::t_892d0ccc1dfce6 27-31
+.claude/skills/decisions/references/20260804_visual-backward-keyboard-reanchor.md
+  s_782d18508478e3::t_2f2d88e13d8fef 1-2
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_782d18508478e3::t_757a094faf9651 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "89577104095dac541811d43e99b7a8f6bc645361",
+  "prompts": {},
+  "sessions": {
+    "s_782d18508478e3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fe7462d6-3701-4be9-81e5-d7dab444ca61",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
