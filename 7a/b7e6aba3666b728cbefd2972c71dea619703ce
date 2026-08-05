@@ -1,0 +1,38 @@
+VimAction/FocusedTextAnalysis.swift
+  s_782d18508478e3::t_fd1117217bc6a7 97
+  s_782d18508478e3::t_2eb902d6f4d0b0 232-239,241-242,244-245,258-267
+  s_782d18508478e3::t_ab9b1a27bcb0cc 268
+VimActionTests/VisualKeyMapperTests.swift
+  s_782d18508478e3::t_859c51432de6ac 779,786-788,790,797-826
+  s_782d18508478e3::t_5d094a18aeacbf 715
+  s_782d18508478e3::t_1f272f5dc09b59 736
+  s_782d18508478e3::t_6a694e979e92ed 678-681,693
+  s_782d18508478e3::t_ea555ca746912c 827
+VimActionTests/FocusedTextAnalysisTests.swift
+  s_782d18508478e3::t_55d56cf1730c9b 485-499
+VimAction/VisualKeyMapper.swift
+  s_782d18508478e3::t_b1193045d2228e 355-361
+  s_782d18508478e3::t_9a3d6848d43f95 104
+  s_782d18508478e3::t_a81c89a5aa9f1b 401
+  s_782d18508478e3::t_5e11293a4b773c 624-627
+  s_782d18508478e3::t_422581078dc8b7 407-409,412-415,417,422-424,426-428,431-433,450-457,462-463
+  s_782d18508478e3::t_72a6d9aea7b7e3 383
+VimActionTests/KeyboardAdapterTests.swift
+  s_782d18508478e3::t_3aba3ae910e6b5 1291-1293
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "7ab7e6aba3666b728cbefd2972c71dea619703ce",
+  "prompts": {},
+  "sessions": {
+    "s_782d18508478e3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fe7462d6-3701-4be9-81e5-d7dab444ca61",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
