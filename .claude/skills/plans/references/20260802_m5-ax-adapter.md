@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-08-02
-- **갱신일**: 2026-08-04 (**PR-C1 구현 세션 1 완료** — 구현 순서 ①~③: 앵커 협력자·세션 술어 읽기·자가 검증·`vh` 재앵커. 다음은 구현 세션 2 — ④~⑦)
+- **갱신일**: 2026-08-05 (**PR-C1 구현 세션 2 완료** — 정확화 본체 ④~⑦ + 페이싱·접두 단축 + 3-에이전트 리뷰 반영. 남은 것은 도그푸딩 + PR 생성)
 
 ## 목표
 
@@ -22,6 +22,7 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 - **PR-B 세션 2/3 완료** (커밋 2개 + 문서): **경계 포화 수용 엣지 5종 전부 해소** — 억제에서 시퀀스 재조립으로 넘어갔다. `EditKeyMapper.keyStrokes`가 `text:`를 받고 어댑터의 편집 분류가 3-프로브가 됐다. 결정 5건 기록: [재조립 원칙(레이스)](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md), [시그니처·3-프로브](../../decisions/references/20260803_edit-keystrokes-takes-focused-text.md), [정확화 표(엣지 2·3·4·`^`)](../../decisions/references/20260803_boundary-saturation-refinement-table.md), [줄 끝 Vim 커서 모델(엣지 1)](../../decisions/references/20260803_line-end-charwise-vim-cursor-model.md), [소프트 랩 미해소 사유](../../decisions/references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md). architecture `strategy-dispatch.md` 갱신 완료. 앱 테스트 1,043건 + 엔진 81건 통과, **빌드 경고 0**(세션 1이 남긴 격리 경고 4건도 함께 해소).
 - **PR-C1 설계 세션 완료** (2026-08-04, worktree `feat/m5-pr-c1-visual-anchor-state`, 코드 무변경 — 문서만): 설계 결정 5건 기록 — [키보드 재앵커](../../decisions/references/20260804_visual-backward-keyboard-reanchor.md)(side 모델, 후진형은 원점 이동 없음, 크로싱은 수용 엣지, AX 쓰기 기각), [앵커 상태는 게시 큐 협력자](../../decisions/references/20260804_visual-anchor-state-collaborator.md)(PasteWiseResolver 동형, 수립은 진입 게시 직전 읽기), [무효화는 읽기 자가 검증](../../decisions/references/20260804_visual-anchor-read-self-validation.md)(앵커 쪽 끝+pid, 전용 신호 없음), [V→v 조건부 지원](../../decisions/references/20260804_visual-switch-charwise-conditional.md), [V 세션 charwise 모션 스킵](../../decisions/references/20260804_visual-linewise-motion-range-noop.md)(`linewise: Bool` 상자 재검토 종결). architecture(strategy-dispatch·mode-engine) 갱신 완료. 옛 Visual 결정 3건 부분 supersede 마킹.
 - **PR-C1 구현 세션 1 완료** (2026-08-04, 구현 순서 ①~③): 어댑터가 처음으로 상태를 든다 — `VisualAnchor.swift` 신규(`VisualAnchorState`·`Update`·`Context` + `VisualAnchorTracker`, `PasteWiseResolver` 동형 주입·게시 큐 단독 소유), `VisualKeyMapper.keyStrokes(...anchor:)` 정확화 진입점(`.none` = 무상태와 바이트 동일을 위임으로 보장, 시퀀스와 `VisualAnchorUpdate`를 함께 반환), 어댑터 Visual 분기의 세션 술어 읽기 + `classifyVisual` 3-프로브(`classifyEdit` 동형) + `.groups` 확정 후 상태 적용, **`vh` 재앵커 끝까지 관통**(진입형만 `←,→`+`Shift-←×2`·side 반전, 길이≥2 축소·후진형은 1타). `v`·`V` 수립 규칙 모두 포함(증명 실패 = 수립 안 함 + 옛 상태 폐기). 앱 테스트 전체 + 엔진 81건 통과, 앱 빌드 경고 0. architecture `strategy-dispatch.md` 갱신 완료. **구현 수준 보강 5건**(결정 문언 밖, 방향은 전부 보수 — 뒤 3건은 3-에이전트 리뷰가 잡은 실이슈): ⓐ 자가 검증에 "선택이 비어 있지 않음" 추가(빈 선택 = 세션 사망 증거) ⓑ 읽기 실패는 폐기 트리거가 아님(그 액션만 폴백) ⓒ **드롭 경로(중단·CGEvent 실패)는 상태 폐기** — 갱신이 게시 전이라, 게시 안 된 재앵커 `.set`은 진입형 선택과 우연히 일치해 검증을 거짓 통과하는 유일한 자리였다 ⓓ **줄 시작(열 0) 앵커의 `h`는 재앵커 봉쇄** — Vim은 no-op인데 재앵커는 개행을 선택하는 파괴적 회귀였다(편집 `charLeftRefinement`와 같은 규칙) ⓔ **읽기 실패 중의 linewise 확장도 줄 거리를 미상으로 좁힘**(무상태 확장이 게시되므로).
+- **PR-C1 구현 세션 2 완료** (2026-08-05, 커밋 2개 — 구현 + 리뷰 반영): **정확화 본체 ④~⑦ 완성.** `refined` 3상태 전환(`.invalid`/`.refined`/`.unproven` — `EditKeyMapper.Refinement` 동형), ④ 후진 전체 + 전진 대칭(`vb` 단어 시작 ×2·`vl`(`vhll`)·`Vk`·`Vj`(`Vkjj`)·`Vgg` — 축소 경로는 d ±1 유지, 재앵커는 창 증명 가드), ⑤ `V` 세션 charwise 모션 8종 무게시, ⑥ `v`→`V` 재앵커+`.set`, ⑦ `V`→`v` 조건부 재선택. 확정 결정 2건 구현+기록: [정확화 그룹 한정 페이싱 5ms](../../decisions/references/20260805_visual-refined-group-stroke-pacing.md)(스코프 모순 — 스크롤이 다타 그룹 — 은 사용자 확인으로 refined 한정 해소), [재앵커 접두 collapse 1타](../../decisions/references/20260805_reanchor-prefix-collapse-shortcut.md)(`Vk` d=0의 `←,↓`→`→` 확장 포함). 전진 대칭 포함도 사용자 확인. `FocusedTextAnalysis` 파생 술어 8종 추가. **3-에이전트 리뷰(정합성 Opus·단순성·관례)가 잡은 실이슈 3건 반영**: ⓐ ⑦ inclusive 보정의 개행 포획(포커스 줄이 열보다 짧을 때 — Vim/macOS 클램프 지점 1차이) → 포커스 줄 문자 실재 증명 가드 ⓑ ⑥의 `originalCaret` 보관은 열 근사 전제(⑤) 밖이라 회수 — 전환 세션의 `V`→`v`는 정직한 스킵 ⓒ ⑦ 줄 거리 무상한 → 열과 공통 상한 32(`reselectSpanClamp`, 원자 페이싱 그룹의 중단 불가 폭주 차단). architecture `strategy-dispatch.md` 갱신 완료. 앱 테스트 **1,171건** + 엔진 81건 통과, 빌드 경고 0.
 - **PR-B 세션 3/3 완료** (커밋 2개 + 문서): **`iw`·`cw`→`ce` 정확화** — 단어 런 질의 3종(`caretRunIsSingleCharacter`·`caretIsAtRunEnd`·`runClassBeforeLineEnd`)을 세우고 1자 런·런 끝·줄 끝을 상수 1타로 재조립했다. 결정 3건 기록: [단어 질의는 로컬 술어(오프셋 없음)](../../decisions/references/20260803_word-run-local-predicates-no-offsets.md), [상수 1타 재조립 — 원칙 예외 없이 유지](../../decisions/references/20260803_constant-stroke-word-refinement.md), [줄 끝 커서 모델을 단어 어휘로 완화](../../decisions/references/20260803_line-end-cursor-model-for-word-objects.md). architecture 갱신 완료. 앱 테스트 **1,081건** + 엔진 81건 통과, 빌드 경고 0.
 
 ## 남은 것 (PR 단위 — 순서 = 의존 순서)
@@ -38,19 +39,21 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 
 ## 진행 중 컨텍스트
 
-- **PR-C1 구현 세션 2 착수 지점 (세션 1 인계)** — worktree `feat/m5-pr-c1-visual-anchor-state`에서 이어간다. ①~③은 완료됐고(위 "완료된 것") 남은 것은 **④ `vb`·`Vk`·`Vgg` 후진 전체 ⑤ `V` 세션 charwise 모션 스킵 ⑥ `v`→`V` 앵커 반올림 ⑦ `V`→`v` 조건부** + 도그푸딩 + PR 생성이다.
-  - **얹는 자리가 이미 있다**: 정확화 분기는 전부 `VisualKeyMapper.refined(for:state:text:profile:)` 한 함수에 들어간다 — `vh`가 그 최소 소비자다. 단 **⑤를 얹으려면 `refined`의 반환을 3상태로 바꿔야 한다**(리뷰 확인): 지금은 `VisualStrokes?` 2상태라 `nil`이 무조건 무상태 위임이고, "정확화가 무게시를 증명" 신호를 낼 통로가 없어 `classifyVisual` 프로브 ①이 구조적으로 도달 불가다 — `EditKeyMapper.Refinement`(`.invalid`/`.selection`/`.unproven`)와 같은 3상태 전환이 그 시점의 최소 변경이다. 프로브 ①·`.skipped` 자체 로그 배선은 이미 있다. ⑥은 폴백 `v`→`V`의 `.discard`를 재앵커+`.set`으로 교체, ⑦은 `nil` 유지 조건(원래 캐럿·줄 거리 미상)을 그대로 두고 아는 경우만 재선택을 추가한다.
-  - **linewise 확장의 줄 거리 추적**: 폴백 확장이 `focusLineDistance`를 미상(nil)으로 좁혀 두므로, 세션 2는 정확 `j`/`k` 경로에서 ±1을 넣도록 **좁히기만** 하면 된다(낡은 known이 남는 실패 모드는 원천 봉쇄됨).
-  - **`vb`는 PR-B 단어 런 술어 재사용**: 캐럿이 단어 시작이면 `Shift-Opt-←` ×2 (결정 문서 표). `Vk` 재앵커(`←,↓`)의 `pinnedEnd`는 앵커 줄 끝 다음 — 상태 필드가 이를 위해 이미 있다.
-  - **V→v 열 거리 상한**: 극단 열에서 스트로크 폭주 여부를 구현에서 실측해 클램프를 정한다(결정 문서에 유보 항목으로 명시됨).
-  - **상속되는 계약**(변화 없음): "지원 ⟹ 빈 시퀀스 아님" / 읽기는 액션당 1회 lazy·실패도 memo / 읽기·검증 실패 = 현행 무상태 폴백(Slack·VS Code 상시) / 재조립은 위치 상대·부분집합·상수 / 상태 갱신은 `.groups` 확정 뒤(`recordLinewiseEdit` 선례). 원자 그룹은 재확인 완료 — 액션 1건 = 그룹 1개라 재앵커 접두가 갈라질 수 없다.
-  - **세션 1 도그푸딩 실측 (2026-08-04 완료 — 세션 2의 첫 설계 입력)**: TextEdit `vh` 정상, Slack 폴백 바이트 동일 확인, 마우스 개입 후 자가 검증 강등 정상. **Notion에서 발견 2건**:
-    - **버스트 드롭**: 재앵커 4타(`←,→,Shift-←×2`)를 0간격으로 게시하면 Notion(웹 에디터)이 뒤의 Shift 확장을 소화하지 못해 접두만 반영된다(손 입력·이벤트당 5ms 프로브에서는 완전 정상 — 시맨틱 문제 아님, **간격 문제로 확정**). 세션 2 설계 항목: **다타 그룹 내 스트로크 페이싱**(간격 실측 — 5ms 충분 확인·최솟값 미정 / 범위는 다타 그룹 한정이면 카운트 버스트 영향 없음 / 전역 이벤트당 지연은 스크롤·버스트 저하로 기각) + **재앵커 접두 `→` 1타 단축 검토**(선택 위 `→`는 오른쪽 끝 collapse — 진입형에선 `←,→`와 동치, 4타→3타).
-    - **빠른 연타의 낡은 읽기**: Notion AX가 진입을 아직 반영 못 한 캐럿(길이 0)을 돌려주면 검증 실패 → 무상태 폴백 = **PR 이전 동작 그대로**(로그 `검증 불일치: 읽은 선택 [3, 3)`). 설계된 강등이 실증됨 — 계속 수용.
-    - **전략 메모**: 재앵커 수혜 밴드 = "읽기 O" 앱인데 그런 앱이 쓰기까지 신뢰되면(D2) AX 쓰기가 재앵커를 대체한다 — **Notion을 D2 프로브 1순위로**. C1의 앵커 상태·자가 검증 기계는 AX 어댑터의 범위 계산에도 그대로 필요해 낭비 아님.
-    - **방향 고민 — 결정 보류, 세션 2 초입에 논의**(사용자 제기, decisions 기록 금지 요청): ⓐ 웹 에디터류의 버스트 취약성을 전제로 "시퀀스는 최대한 가볍게"를 설계 압력으로 승격할지 ⓑ 키보드 베이스는 부분 허용(편차 수용) 폭을 어디까지 둘지 ⓒ AX로 가능한 것(쓰기 포함)은 AX로 최대한 옮기는 재배분. 세션 1의 분석: 이번 실패 원인은 길이가 아니라 간격이었고(페이싱으로 해소 가능, 다타 그룹 한정이면 버스트 무영향), 기존 불변식이 이미 길이를 바운드하며, ⓒ는 로드맵(D1·D2) 그 자체 — 논의 결과가 방향을 바꾸면 그때 decisions로.
-  - **도그푸딩 오인 금지 (세션 1 반영)**: 읽기 성공 앱에서 `vh`(진입 직후 포함)가 **커서 왼쪽을 잡아야 정상** — 단 열 0에서는 종전처럼 선택이 접힌다(Vim no-op 방향의 봉쇄, 의도). Notion은 위 페이싱 항목 해소 전까지 재앵커가 접두만 반영될 수 있다. `vb`·`Vk` 빈 선택·크로싱은 아직 종전대로.
-  - **오인 방지 — 테스트 타깃 기존 경고**: `xcodebuild test` 빌드에서 `SafetyToggleTests`·`ExecutionWiringTests`·`KeyboardAdapterTests`(기존 라인)의 경고 수 건이 관측된다 — 세션 1이 손대지 않은 파일들로, 이번 변경과 무관한 기존 상태다(현 Xcode가 새로 표면화한 것으로 추정). 경고 0 기준선은 **앱 빌드**에서 확인됐다. 자기 변경 탓으로 오인 금지 — 정리하려면 별도 작업으로.
+- **PR-C1 마감 지점 (세션 2 인계)** — worktree `feat/m5-pr-c1-visual-anchor-state`, 커밋 2개(`8fc2f1d` 구현, `7ab7e6a` 리뷰 반영) + 문서. 구현·테스트·리뷰·결정 기록·architecture 갱신은 전부 완료됐고 남은 것은 **도그푸딩 → (필요시 조정) → PR 생성**뿐이다.
+  - **도그푸딩 체크리스트**:
+    - TextEdit: `vb`(단어 중간 ×1·단어 시작 ×2), `vhll`(둘째 `l`이 앵커 오른쪽을 다시 잡는다), `Vk`·`Vkjj`·`Vgg`, `v`→`V`(같은 줄·여러 줄 — 앵커 줄도 통째), `V`(j 몇 번)→`v`(원래 캐럿에서 재선택) 화면 대조. 관측 로그(`Visual 앵커 갱신/폐기`)와 함께.
+    - Notion: **페이싱 확인이 핵심** — 재앵커 3타가 접두만이 아니라 끝까지 반영되는가(세션 1의 버스트 드롭 해소 확인), 접두 단축 `→` collapse가 `←,→`와 동치인가(깨지면 2타 복귀 — 결정 문서에 명시된 복귀 조건).
+    - Slack: 폴백 바이트 동일 — `vh`·`vb`·`v`→`V`가 종전 그대로(무상태 시퀀스, 페이싱 없음).
+    - ⑦ 열·줄 거리 상한(`reselectSpanClamp` = 32) 실측 확정 — 결정 유보 항목. 상한 안에서 페이싱 지연 체감(32타 × 5ms ≈ 160ms)이 수용 가능한지 포함.
+  - **도그푸딩 오인 금지 (세션 2 반영)**: 읽기 성공 앱에서 —
+    - `V` 세션의 `h l w b e 0 ^ $`가 **아무 일도 하지 않는 것이 의도**다(Vim 범위 무변화). 폴백 앱(Slack)에서는 종전처럼 게시된다.
+    - `v`→`V` 뒤의 `V`→`v`는 **스킵이 의도**다(전환 세션은 `originalCaret` 미보관 — 열 근사가 성립하지 않아 리뷰에서 회수됨). `V` 진입 세션의 `V`→`v`만 재선택한다.
+    - `V`→`v`는 포커스 줄이 원래 캐럿 열보다 짧거나, 진입 캐럿이 줄 끝이었거나, 열·줄 거리가 32를 넘으면 **스킵이 의도**다(개행 포획·폭주 봉쇄).
+    - `vl`은 앵커가 줄 끝이면, `vh`는 열 0이면 종전처럼 선택이 접힌다(Vim no-op 방향 봉쇄).
+    - `Vgg` 전진형은 **소프트 랩 문단에서 줄 중간에서 끊길 수 있다**(리뷰 관찰 — `↓`는 시각 행, 증명은 논리 줄). 부분집합 방향이고 다음 액션의 자가 검증이 폐기해 자가 치유되지만, 폴백과 달리 줄 정렬이 깨져 보일 수 있다.
+    - Notion 빠른 연타의 낡은 읽기 → 무상태 폴백(`검증 불일치` 로그)은 세션 1의 설계된 강등 그대로 — 계속 수용.
+  - **전략 메모 (세션 1에서 계승)**: 재앵커 수혜 밴드 = "읽기 O" 앱인데 그런 앱이 쓰기까지 신뢰되면(D2) AX 쓰기가 재앵커를 대체한다 — **Notion을 D2 프로브 1순위로**. C1의 앵커 상태·자가 검증 기계는 AX 어댑터의 범위 계산에도 그대로 필요해 낭비 아님. (세션 1의 "방향 고민 ⓐⓑⓒ"는 세션 2 초입에 논의 종결 — 전부 현행/로드맵 유지라 decisions 기록 없음. ⓐ의 "동치 시퀀스면 짧은 쪽 선호"만 접두 단축 결정에 반영됨.)
+  - **오인 방지 — 테스트 타깃 기존 경고**: `xcodebuild test` 빌드에서 `SafetyToggleTests`·`ExecutionWiringTests`·`KeyboardAdapterTests`(기존 라인)의 경고 수 건이 관측된다 — 이번 변경과 무관한 기존 상태다. 경고 0 기준선은 **앱 빌드**에서 확인한다. 자기 변경 탓으로 오인 금지 — 정리하려면 별도 작업으로.
 
 - **실측 메모 (계속 유효)**: 정확화가 Notion에서는 키당 ~7ms를 산다(selectedRange 비용) — 액션별 스냅샷이 액션당 1회로 접어 주지만 **액션 수만큼은 곱해진다**. Slack·VS Code는 포커스 요소 미노출이라 혼용 정확화가 원리적으로 도달 불가(무상태 폴백 상시) — **세션 3 도그푸딩에서 Slack 컴포저로 확인 완료**(줄 끝 `x`가 여전히 줄을 병합 = 정확화 미적용). M5 안에서는 안 풀리며 PR-D2의 `auto` 프로브도 같은 이유로 Keyboard로 라우팅한다. Slack 쪽 개선 수단은 M4 프로파일뿐이다.
 - **읽기의 구조적 한계 (PR-C 이후도 상속)**: `CGEvent.post`는 배달만 걸어 두고 돌아오므로 **`execute` 사이**에는 낡은 값을 읽을 수 있다(`p` 직후 빠른 `x`). 한 `execute` **안**에는 레이스가 없다 — 엔진이 한 `.replace`에서 모션→편집을 섞어 내지 않음을 확인했다. 세션 2가 이 한계에 대한 재조립 쪽 답(원칙 + 엣지 1의 명시 예외)을 세웠고, 세션 3의 상수 1타는 그 원칙 안에서 오히려 최악을 **줄인다**(현행 3타는 이웃 단어 통째, 재조립은 1자).

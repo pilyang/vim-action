@@ -176,6 +176,8 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-04 | 앵커 무효화는 읽기 자가 검증 | 앵커 쪽 끝+pid 비교, 전용 신호 없음 — 헛실패 방향이 현행 강등이라 안전 | [20260804_visual-anchor-read-self-validation.md](references/20260804_visual-anchor-read-self-validation.md) |
 | 08-04 | V→v는 조건부 지원 | 원캐럿+줄 거리 다 알 때만 재선택(위치 상대), 모르면 현행 nil 유지 | [20260804_visual-switch-charwise-conditional.md](references/20260804_visual-switch-charwise-conditional.md) |
 | 08-04 | V 세션 charwise 모션은 스킵 | wise 알면 h l w b e 0 ^ $ 무게시(.skipped) — Vim 범위 무변화가 정확, desync는 무해 no-op | [20260804_visual-linewise-motion-range-noop.md](references/20260804_visual-linewise-motion-range-noop.md) |
+| 08-05 | 정확화 그룹 한정 스트로크 페이싱 | refined 다타 그룹만 스트로크 사이 5ms(Notion 버스트 드롭 실측) — 스크롤·카운트·폴백은 타이밍까지 현행 | [20260805_visual-refined-group-stroke-pacing.md](references/20260805_visual-refined-group-stroke-pacing.md) |
+| 08-05 | 재앵커 접두는 collapse 1타 | `←,→`·`←,↓` → `→`(선택 존재 시 동치, 코드 경로 보장) — 깨지는 앱 발견 시 2타 복귀 | [20260805_reanchor-prefix-collapse-shortcut.md](references/20260805_reanchor-prefix-collapse-shortcut.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 
