@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260805_reanchor-prefix-collapse-shortcut.md](20260805_reanchor-prefix-collapse-shortcut.md) — 대표 시퀀스 표의 재앵커 접두(`←,→`·`←,↓`)가 collapse 1타(`→`)로 단축됨 (개행 없는 마지막 줄은 `→, Shift-Cmd-←` 변형). 재앵커 방식 자체·side 모델·후진형 무보정·크로싱 수용 엣지는 그대로 유효.
+
 # Visual 후진·wise 재적용은 키보드 재앵커 시퀀스
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

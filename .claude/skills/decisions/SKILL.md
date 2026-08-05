@@ -171,7 +171,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-28 | Visual 확장은 무상태 | extendSelection은 모션+Shift가 전부 — linewise 반올림 미적용 (앵커 상태·linewise 스킵은 20260804 부분 supersede — 무상태는 읽기 실패 폴백 전담) | [20260728_visual-extend-stateless-no-linewise-rounding.md](references/20260728_visual-extend-stateless-no-linewise-rounding.md) |
 | 07-28 | switchSelectionWise 반올림 | v→V는 포커스 끝만 반올림, V→v는 역연산 없어 nil 스킵 (20260804 부분 supersede — 앵커 반올림·조건부 V→v, 현행 시퀀스는 폴백) | [20260728_visual-switch-wise-focus-end-rounding.md](references/20260728_visual-switch-wise-focus-end-rounding.md) |
 | 07-28 | Visual collapse는 ← 1타 단일화 | clearSelection이 collapse 전담, .selection yank는 Cmd-C만 | [20260728_visual-clear-selection-collapse-left.md](references/20260728_visual-clear-selection-collapse-left.md) |
-| 08-04 | Visual 후진은 키보드 재앵커 | 접고 재확장(side 모델) — 후진형은 원점 이동 없음, 크로싱은 수용 엣지, AX 쓰기 기각 | [20260804_visual-backward-keyboard-reanchor.md](references/20260804_visual-backward-keyboard-reanchor.md) |
+| 08-04 | Visual 후진은 키보드 재앵커 | 접고 재확장(side 모델) — 후진형은 원점 이동 없음, 크로싱은 수용 엣지, AX 쓰기 기각 (접두는 08-05 단축으로 부분 supersede) | [20260804_visual-backward-keyboard-reanchor.md](references/20260804_visual-backward-keyboard-reanchor.md) |
 | 08-04 | 앵커 상태는 게시 큐 협력자 | PasteWiseResolver 동형 주입 — 앵커·wise·side·pid·원캐럿, 수립은 진입 게시 직전 읽기 | [20260804_visual-anchor-state-collaborator.md](references/20260804_visual-anchor-state-collaborator.md) |
 | 08-04 | 앵커 무효화는 읽기 자가 검증 | 앵커 쪽 끝+pid 비교, 전용 신호 없음 — 헛실패 방향이 현행 강등이라 안전 | [20260804_visual-anchor-read-self-validation.md](references/20260804_visual-anchor-read-self-validation.md) |
 | 08-04 | V→v는 조건부 지원 | 원캐럿+줄 거리 다 알 때만 재선택(위치 상대), 모르면 현행 nil 유지 | [20260804_visual-switch-charwise-conditional.md](references/20260804_visual-switch-charwise-conditional.md) |

@@ -24,4 +24,8 @@
 
 - 갱신한 architecture reference: [strategy-dispatch.md](../../architecture/references/strategy-dispatch.md)
 - `VimAction/VisualKeyMapper.swift` 재앵커 분기(`charLeftRefinement`·`wordBackwardRefinement`·`lineUpRefinement`)
-- 관련: [재앵커](20260804_visual-backward-keyboard-reanchor.md)(대표 시퀀스 표의 `←,→`·`←,↓` 접두를 이 결정이 단축), [페이싱](20260805_visual-refined-group-stroke-pacing.md)
+- 관련: [페이싱](20260805_visual-refined-group-stroke-pacing.md)
+
+## Supersedes
+
+- [20260804_visual-backward-keyboard-reanchor.md](20260804_visual-backward-keyboard-reanchor.md) — **부분**: 대표 시퀀스 표의 재앵커 접두(`←,→`·`←,↓`)만 collapse 1타로 단축한다. 재앵커 방식·side 모델·후진형 무보정 관측·크로싱 수용 엣지는 그대로 유효.
