@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260804_visual-backward-keyboard-reanchor.md](20260804_visual-backward-keyboard-reanchor.md) · [20260804_visual-switch-charwise-conditional.md](20260804_visual-switch-charwise-conditional.md) — `v`→`V`의 "앵커는 손댈 수 없다" 수용 편차는 재앵커로, `V`→`v`의 "복원 원리적 불가 = nil"은 조건부 지원으로 대체됨 / 포커스 쪽 반올림 시퀀스·`nil`의 로그 근거는 조건 불충족·읽기 실패 폴백 경로에서 그대로 유효.
+
 # switchSelectionWise는 포커스 끝만 줄 반올림, V→v는 미지원
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260804_visual-anchor-state-collaborator.md](20260804_visual-anchor-state-collaborator.md) · [20260804_visual-linewise-motion-range-noop.md](20260804_visual-linewise-motion-range-noop.md) — "어댑터는 wise(앵커) 상태를 들지 않는다"가 협력자 보유로, 단계 2.5 후보였던 `linewise: Bool` 상자는 상태의 wise 필드 + charwise 모션 스킵으로 대체됨 / `V` 세션 편차 표·무상태 근거 4종은 히스토리로 유효하고, 읽기 실패 폴백 경로의 동작은 여전히 이 문서의 무상태 시퀀스.
+
 # Visual 선택 확장은 무상태 — linewise 줄 반올림 미적용 수용
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

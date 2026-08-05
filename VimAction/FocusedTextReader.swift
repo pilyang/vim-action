@@ -113,7 +113,9 @@ nonisolated struct FocusedTextReader: Sendable {
 /// 옮기므로 **실행 직전 값만 정확하다**. 그래서 읽기는 콜백 선읽기가 아니라 소비 지점의
 /// lazy이며, 한 액션 안에서는 1회로 접는다 (Notion에서 읽기 1회가 7ms다).
 nonisolated final class FocusedTextSnapshot {
-    private let processID: pid_t?
+    /// 읽기 대상 pid. 노출하는 이유는 Visual 앵커의 자가 검증이다 — 읽은 pid와 검증하는
+    /// pid가 **같은 값임을 구조로 보장**한다 (따로 나르면 두 값이 어긋날 자리가 생긴다).
+    let processID: pid_t?
     private let reader: FocusedTextReader
     /// 이중 옵셔널이 memo 여부와 읽기 실패를 가른다 — 바깥 `nil`은 "아직 안 읽었다",
     /// 안쪽 `nil`은 "읽었는데 실패했다"다. **실패도 기억하는 것이 요점이다**: 한 액션 안에서
