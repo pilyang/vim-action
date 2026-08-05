@@ -1,0 +1,24 @@
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_782d18508478e3::t_3f177be865bab5 6
+  s_782d18508478e3::t_0056e5db77ad45 34
+  s_782d18508478e3::t_e30e0db45196d2 54-55
+  s_782d18508478e3::t_079d7f140ad664 42-47
+.claude/skills/plans/SKILL.md
+  s_782d18508478e3::t_e687acae72d415 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "7bbbd79b10b16a600d9f086d5617165a5a5a2865",
+  "prompts": {},
+  "sessions": {
+    "s_782d18508478e3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fe7462d6-3701-4be9-81e5-d7dab444ca61",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
