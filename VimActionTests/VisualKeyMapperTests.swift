@@ -489,6 +489,46 @@ struct VisualLinewiseRefinementTests {
         #expect(result?.paced == true)
     }
 
+    /// 개행 없는 마지막 줄의 `Vk` — `→` collapse가 문서 끝(열 ≠ 0)에 서므로 `Shift-Cmd-←`로
+    /// 포커스를 앵커 줄 시작에 세운 뒤 위로 늘린다. 이 분기 없이는 폴백 `Shift-↑`가 앵커를
+    /// 넘어 위 줄만 선택하는 크로싱이 된다 (도그푸딩 실증 — 공백 윗줄에서 가장 눈에 띈다).
+    @Test("마지막 줄의 Vk는 →,Shift-Cmd-← 재앵커다")
+    func lineUpAtLastLineReanchorsViaLineStart() {
+        let lastLine = linewiseSession(anchor: 6, pinnedEnd: 6, originalCaret: 7)
+
+        let result = VisualKeyMapper.keyStrokes(
+            for: .extendSelection(.lineUp), family: .textArea, profile: .empty,
+            anchor: .session(lastLine, focusedText(threeLines, caret: 6, length: 2)))
+
+        #expect(result?.strokes == [right, selCmdLeft, selUp])
+        var expected = lastLine
+        expected.side = .right
+        expected.pinnedEnd = 8
+        expected.focusLineDistance = -1
+        #expect(result?.anchor == .set(expected))
+        #expect(result?.paced == true)
+    }
+
+    /// 문서 끝을 증명 못 하면(경계를 어긋나게 보고하는 앱) 마지막 줄 재앵커도 서지 않는다 —
+    /// 폴백은 현행 그대로이고 거리만 미상으로 좁힌다.
+    @Test("문서 끝 미증명의 마지막 줄 Vk는 폴백이다")
+    func lineUpAtUnprovenLastLineStaysStateless() {
+        let lastLine = linewiseSession(anchor: 6, pinnedEnd: 6, originalCaret: 7)
+        // characterCount가 창과 어긋난다 — `isAtDocumentEnd`가 서지 않는 Chromium형 보고.
+        let mismatched = FocusedText(
+            selection: NSRange(location: 6, length: 2), characterCount: 99,
+            window: threeLines, windowRange: NSRange(location: 0, length: 8))
+
+        let result = VisualKeyMapper.keyStrokes(
+            for: .extendSelection(.lineUp), family: .textArea, profile: .empty,
+            anchor: .session(lastLine, mismatched))
+
+        #expect(result?.strokes == [selUp])
+        var narrowed = lastLine
+        narrowed.focusLineDistance = nil
+        #expect(result?.anchor == .set(narrowed))
+    }
+
     /// 첫 줄의 `Vk`는 Vim no-op다 — 증명이 절대적(오프셋 0 = 문서 시작)이라 무게시가
     /// 정확 동작이고, 매퍼 `nil`을 어댑터의 상태 프로브가 `.skipped`로 가른다.
     @Test("첫 줄의 Vk는 무게시 nil이다")
@@ -611,19 +651,22 @@ struct VisualLinewiseRefinementTests {
         #expect(result?.paced == true)
     }
 
-    /// 앵커 줄의 개행을 증명 못 하면(개행 없는 마지막 줄 — `↓`가 포화하는 자리) 폴백이다.
-    @Test("마지막 줄 앵커의 Vgg는 재앵커하지 않는다")
-    func documentStartOnLastLineAnchorStaysStateless() {
+    /// 개행 없는 마지막 줄의 `Vgg` — `↓` 착지가 없어 `Vk`의 마지막 줄 재앵커와 같은 접두를
+    /// 쓴다: 앵커를 문서 끝에 남기고 문서 시작까지 통째로.
+    @Test("마지막 줄 앵커의 Vgg는 →,Shift-Cmd-← 재앵커다")
+    func documentStartOnLastLineAnchorReanchorsViaLineStart() {
         let lastLine = linewiseSession(anchor: 6, pinnedEnd: 6, originalCaret: 7)
 
         let result = VisualKeyMapper.keyStrokes(
             for: .extendSelection(.documentStart), family: .textArea, profile: .empty,
             anchor: .session(lastLine, focusedText(threeLines, caret: 6, length: 2)))
 
-        #expect(result?.strokes == [selCmdUp])
-        var narrowed = lastLine
-        narrowed.focusLineDistance = nil
-        #expect(result?.anchor == .set(narrowed))
+        #expect(result?.strokes == [right, selCmdLeft, selCmdUp])
+        var expected = lastLine
+        expected.side = .right
+        expected.pinnedEnd = 8
+        expected.focusLineDistance = nil
+        #expect(result?.anchor == .set(expected))
     }
 
     /// 후진형 `Vgg` — 앱 앵커가 이미 앵커 줄 끝 다음이라 1타다. 착지 줄 수는 알 수 없어

@@ -254,10 +254,24 @@ nonisolated enum VisualKeyMapper {
             // 이라 무게시가 정확 동작이다.
             guard text.selection.location > 0 else { return .invalid }
             // 방향 전환 — `→`가 선택을 오른쪽 끝(= 앵커 줄 끝 다음)으로 접는다. 결정 표의
-            // `←,↓`와 동치이되 1타이고, 마지막 줄에서 `↓`가 줄 끝으로 포화하는 엣지도 없다.
-            // 단 그 동치는 오른쪽 끝이 **줄 시작(열 0)일 때만** 성립한다 — 아니면(개행 없는
-            // 마지막 줄) `Shift-↑`가 열을 끌고 올라가 부분 줄을 선택하므로 증명을 요구한다.
-            guard text.selectionEndIsAtLineStart else { return .unproven }
+            // `←,↓`와 동치이되 1타다. 단 그 동치는 오른쪽 끝이 **줄 시작(열 0)일 때만**
+            // 성립한다 — 아니면 `Shift-↑`가 열을 끌고 올라가 부분 줄을 선택한다.
+            guard text.selectionEndIsAtLineStart else {
+                // 개행 없는 마지막 줄 — 오른쪽 끝이 문서 끝(열 ≠ 0)이라 위 접두가 못 선다.
+                // 대신 `Shift-Cmd-←`로 포커스를 앵커 줄 시작(열 0)에 세운 뒤 위로 늘린다:
+                // 앱 앵커는 문서 끝에 남고, 이후 `Shift-↑`는 줄 시작으로만 착지한다.
+                // (도그푸딩 실증 — 이 분기 없이는 폴백 `Shift-↑`가 앵커를 넘어 위 줄만
+                // 선택하는 크로싱이 된다. 공백 윗줄에서 가장 눈에 띄었다.)
+                guard text.isAtDocumentEnd,
+                    let toLineStart = MotionKeyMapper.selectionStrokes(
+                        for: .lineStart, profile: profile)
+                else { return .unproven }
+                var reanchored = state
+                reanchored.side = .right
+                reanchored.pinnedEnd = text.selection.upperBound
+                reanchored.focusLineDistance = -1
+                return refinement([stepRight] + toLineStart + upward, .set(reanchored))
+            }
             var reanchored = state
             reanchored.side = .right
             reanchored.pinnedEnd = text.selection.upperBound
@@ -334,10 +348,20 @@ nonisolated enum VisualKeyMapper {
             // `←`(왼쪽 끝 = 앵커 줄 시작으로 collapse) 뒤 `↓`가 앵커 줄 끝 다음(다음 줄
             // 시작)에 착지한다 — 거리와 무관하게 성립해 d 미상(`gg`/`G` 경유 뒤)에도 정확화가
             // 선다. 착지 오프셋(= 새 pinnedEnd)은 앵커 줄의 개행을 창에서 증명해야 계산할 수
-            // 있고, 증명 못 하면(개행 없는 마지막 줄 포함 — `↓`가 줄 끝으로 포화하는 자리다)
-            // 현행 폴백이다.
+            // 있다.
             guard let toNewline = text.newlineDistanceAfterSelectionStart else {
-                return .unproven
+                // 개행 없는 마지막 줄 — `↓` 착지가 없다. `Vk`의 마지막 줄 재앵커와 같은
+                // 접두로 앵커를 오른쪽 끝(= 문서 끝)에 남기고 문서 시작까지 통째로 늘린다.
+                guard text.isAtDocumentEnd,
+                    let toLineStart = MotionKeyMapper.selectionStrokes(
+                        for: .lineStart, profile: profile)
+                else { return .unproven }
+                var reanchored = state
+                reanchored.side = .right
+                reanchored.pinnedEnd = text.selection.upperBound
+                reanchored.focusLineDistance = nil
+                return refinement(
+                    [stepRight] + toLineStart + toDocumentStart, .set(reanchored))
             }
             var reanchored = state
             reanchored.side = .right
