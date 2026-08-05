@@ -1067,23 +1067,22 @@ struct KeyboardAdapterVisualAnchorTests {
         #expect(
             keyCodes(of: posted) == [
                 Int64(kVK_RightArrow), Int64(kVK_RightArrow),  // Shift-→ (진입)
-                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),  // ← (collapse)
-                Int64(kVK_RightArrow), Int64(kVK_RightArrow),  // → (A+1 재수립)
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),  // → (오른쪽 끝 A+1로 collapse)
                 Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),  // Shift-←
                 Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),  // Shift-←
             ])
         #expect(posted.prefix(2).allSatisfy { $0.flags.contains(.maskShift) })
-        // 재앵커 접두 2타는 **이동**이다 — Shift가 실리면 collapse가 아니라 확장이 된다.
+        // 재앵커 접두 `→`는 **collapse**다 — Shift가 실리면 접기가 아니라 확장이 된다.
         #expect(
-            posted.dropFirst(2).prefix(4).allSatisfy { !$0.flags.contains(.maskShift) },
-            "접두 ←,→는 Shift 없음")
+            posted.dropFirst(2).prefix(2).allSatisfy { !$0.flags.contains(.maskShift) },
+            "접두 →는 Shift 없음")
         #expect(posted.suffix(4).allSatisfy { $0.flags.contains(.maskShift) }, "재확장은 선택")
         // 상태는 side가 반전된 채 남는다 — 다음 후진의 무보정 1타가 여기 딛는다.
         #expect(tracker.current?.side == .right)
         #expect(tracker.current?.pinnedEnd == 5)
     }
 
-    /// 카운트는 반복 액션이다 — 첫 `h`만 재앵커(4타)하고 이후는 후진형이라 1타씩이다.
+    /// 카운트는 반복 액션이다 — 첫 `h`만 재앵커(3타)하고 이후는 후진형이라 1타씩이다.
     /// 리더가 계속 진입형 `[3, 4)`를 내줘도(낡은 읽기) 같다: 재앵커 뒤의 판정은 앵커 쪽
     /// 끝(오른쪽 4)만 보므로 포커스 쪽이 낡아도 어긋나지 않는다.
     @Test("3h — 재앵커 1회 후 무보정 1타씩, 낡은 읽기에도 동일")
@@ -1099,8 +1098,8 @@ struct KeyboardAdapterVisualAnchorTests {
                 .extendSelection(.charLeft),
             ], processID: 42)
 
-        // 진입 1타 + 재앵커 4타 + 후진 1타 + 후진 1타 = 7스트로크(이벤트 14건).
-        #expect(posted.count == 14)
+        // 진입 1타 + 재앵커 3타 + 후진 1타 + 후진 1타 = 6스트로크(이벤트 12건).
+        #expect(posted.count == 12)
         #expect(
             keyCodes(of: posted.suffix(4)) == [
                 Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
@@ -1178,13 +1177,14 @@ struct KeyboardAdapterVisualAnchorTests {
     }
 
     /// `v`→`V` 폴백은 포커스만 반올림해 상태와 화면이 어긋난다 — 앱 앵커는 그대로라 자가
-    /// 검증이 잡지 못하므로, 게시 시점에 폐기하는 것이 계약이다.
+    /// 검증이 잡지 못하므로, 게시 시점에 폐기하는 것이 계약이다. 읽기 실패로 정확화(⑥)가
+    /// 서지 못한 전환이 이 폴백 경로다.
     @Test("v→V 폴백 — 게시는 현행, 상태는 폐기")
     func switchWiseFallbackDiscardsState() {
         nonisolated(unsafe) var posted: [CGEvent] = []
         let tracker = VisualAnchorTracker()
         makeAdapter(
-            reader: Self.sequencedReader([Self.caretAtFour, Self.entrySelection]),
+            reader: Self.sequencedReader([Self.caretAtFour, nil]),
             visualAnchor: tracker, collecting: { posted.append($0) }
         ).execute(
             [.beginSelection(linewise: false), .switchSelectionWise(linewise: true)],
@@ -1240,6 +1240,55 @@ struct KeyboardAdapterVisualAnchorTests {
 
         #expect(posted.isEmpty)
         #expect(tracker.current == nil, "게시되지 않은 재앵커가 상태로 남으면 다음 h가 선택을 지운다")
+    }
+
+    /// ⑤ end-to-end — `V` 세션의 charwise 모션은 무게시 `.skipped`다: 이벤트가 한 건도
+    /// 나가지 않되, 상태는 그대로 남는다 (화면 불변 = 거리 포함 전부 유효 유지).
+    @Test("V 세션의 h는 무게시 스킵 — 상태는 유지된다")
+    func linewiseSessionCharwiseMotionSkipsWithoutPublishing() {
+        // `V` 진입 직전 캐럿 4 → 앵커 줄 시작 3. 진입 후 선택 [3, 6).
+        let linewiseSelection = FocusedText(
+            selection: NSRange(location: 3, length: 3), characterCount: 6,
+            window: "ab\ncde", windowRange: NSRange(location: 0, length: 6))
+
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker()
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, linewiseSelection]),
+            visualAnchor: tracker, collecting: { posted.append($0) }
+        ).execute(
+            [.beginSelection(linewise: true), .extendSelection(.charLeft)], processID: 42)
+
+        // 진입 `Cmd-←, Shift-↓` 2타뿐 — `h`는 Vim에서 범위 무변화라 무게시가 정확 동작이다.
+        #expect(posted.count == 4)
+        #expect(tracker.current?.wise == .linewise)
+        #expect(tracker.current?.focusLineDistance == 0, "무게시는 상태도 건드리지 않는다")
+    }
+
+    /// ⑥ end-to-end — `v`→`V` 정확화가 재앵커를 게시하고 상태를 linewise로 재수립한다.
+    /// 폴백의 `.discard`(위 테스트)와 달리 세션이 이어진다.
+    @Test("v→V 정확화 — 재앵커 게시 + 상태 재수립")
+    func switchWiseRefinementReanchorsAndReestablishes() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker()
+        makeAdapter(
+            reader: Self.sequencedReader([Self.caretAtFour, Self.entrySelection]),
+            visualAnchor: tracker, collecting: { posted.append($0) }
+        ).execute(
+            [.beginSelection(linewise: false), .switchSelectionWise(linewise: true)],
+            processID: 42)
+
+        // 진입 Shift-→ 뒤 재앵커 `←, Cmd-←, Shift-↓` — 앵커 줄도 통째로 잡는다.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_DownArrow), Int64(kVK_DownArrow),
+            ])
+        #expect(tracker.current?.wise == .linewise)
+        #expect(tracker.current?.pinnedEnd == 3)
+        #expect(tracker.current?.originalCaret == 4, "옛 charwise 앵커 보관 — V→v 재전환의 원천")
     }
 
     /// 읽기 실패는 폐기가 아니다 — 하지만 무상태 확장은 게시되어 포커스를 옮기므로,

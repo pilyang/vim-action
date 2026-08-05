@@ -175,6 +175,85 @@ nonisolated extension FocusedText {
         return runEnds(rightOf: offset, own)
     }
 
+    /// 캐럿(선택 시작) 위 문자가 **단어 시작**임을 증명했는가 — `vb` 재앵커가 `Shift-Opt-←`를
+    /// ×2로 늘리는 조건이다. Vim의 `b`는 커서가 단어 시작이면 **이전** 단어 시작으로 뛰는데,
+    /// macOS의 1타는 그 자리로 돌아올 뿐이라 선택이 자라지 않는다.
+    ///
+    /// 단어 시작의 정의는 `provesNoWordStartAhead`와 같은 좁은 것("공백류 다음의 비공백")이다 —
+    /// macOS `Opt-←`도 공백 경계에서는 확실히 멈추므로 이 좁은 정의에서만 ×2의 동치가 선다.
+    /// 구두점 경계는 앱마다 갈려 증명이 서지 않고, `false`는 ×1(덜 후진 — 보이는 편차)로
+    /// 떨어져 보수 방향이 유지된다.
+    var caretIsAtWordStart: Bool {
+        guard let offset = offsetInWindow(selection.location),
+            let unit = utf16Unit(at: offset), !Self.isWhitespace(unit)
+        else { return false }
+        guard offset > 0 else { return windowRange.location == 0 }
+        return utf16Unit(at: offset - 1).map(Self.isWhitespace) ?? false
+    }
+
+    /// 선택 끝 위치에 문자가 존재함을 증명했는가 (개행 포함) — `Vj`가 포커스 줄 거리를 +1로
+    /// 넓히기 전의 근거다. 문서 끝에서는 `Shift-↓`가 포화해 화면은 안 움직이는데 거리만 늘면
+    /// `V`→`v`가 낡은 거리로 어긋난다. 창이 그 위치에 닿지 않으면 증명 실패(= 정확화 포기)다.
+    var provesCharacterAfterSelectionEnd: Bool {
+        guard let offset = offsetInWindow(selection.upperBound) else { return false }
+        return utf16Unit(at: offset) != nil
+    }
+
+    /// 선택 끝이 **줄 시작**(직전이 개행)임을 증명했는가 — `Vk` 재앵커의 `→` collapse가
+    /// 열 0에 착지함을 요구하는 근거다. 개행 없는 마지막 줄에서는 거짓이라, 재앵커의
+    /// `Shift-↑`가 열을 끌고 올라가 부분 줄을 선택하는 것을 막는다.
+    var selectionEndIsAtLineStart: Bool {
+        guard let offset = offsetInWindow(selection.upperBound), offset > 0 else {
+            return false
+        }
+        return utf16Unit(at: offset - 1) == Self.newline
+    }
+
+    /// 선택 **내부**의 개행 수 — 선택이 창 안에 완전히 들어올 때만 증명된다. `v`→`V` 반올림이
+    /// 앵커 줄에서 포커스 줄까지 재확장할 줄 거리가 이것이다.
+    var newlinesInsideSelection: Int? {
+        guard let lower = offsetInWindow(selection.location),
+            let upper = offsetInWindow(selection.upperBound)
+        else { return nil }
+        return windowUnits[lower..<upper].filter { $0 == Self.newline }.count
+    }
+
+    /// 선택 시작에서 **증명된 개행**까지의 거리 (개행 자체는 세지 않는다). `charactersToLineEnd`
+    /// 와 달리 문서 끝 폴백이 없다 — 개행의 존재 자체가 필요한 소비자(`Vgg` 재앵커의 앵커 줄 끝
+    /// 다음 계산)용이라, 창 안에 개행이 없으면 마지막 줄이든 창 부족이든 `nil`이다.
+    var newlineDistanceAfterSelectionStart: Int? {
+        guard let offset = offsetInWindow(selection.location) else { return nil }
+        return provenNewlineDistance(from: offset)
+    }
+
+    /// 위와 같되 선택 **끝** 기준 — `v`→`V` 후진형이 앵커 줄 끝을 증명하는 근거다.
+    var newlineDistanceAfterSelectionEnd: Int? {
+        guard let offset = offsetInWindow(selection.upperBound) else { return nil }
+        return provenNewlineDistance(from: offset)
+    }
+
+    /// 선택 **끝** 기준, 그 줄의 시작까지의 문자 수 — `charactersToLineStart`(선택 시작 기준)의
+    /// 끝쪽 대칭이다. `v`→`V` 후진형이 앵커 줄 시작(논리 앵커)을 계산하는 근거다.
+    var selectionEndCharactersToLineStart: Int? {
+        guard let offset = offsetInWindow(selection.upperBound) else { return nil }
+        let units = windowUnits
+        for index in stride(from: offset, to: 0, by: -1) where units[index - 1] == Self.newline {
+            return offset - index
+        }
+        guard windowRange.location == 0 else { return nil }
+        return offset
+    }
+
+    /// 창 안 상대 오프셋에서 다음 개행까지의 거리 — 개행을 **찾은 경우에만** 값이 있다
+    /// (문서 끝 폴백 없음).
+    private func provenNewlineDistance(from offset: Int) -> Int? {
+        let units = windowUnits
+        for index in offset..<units.count where units[index] == Self.newline {
+            return index - offset
+        }
+        return nil
+    }
+
     /// 캐럿이 논리 줄 끝(문서 끝 포함)일 때 **직전 문자**의 런 클래스. 줄 끝이 아니거나 직전이
     /// 개행이거나 증명할 수 없으면 `nil`.
     ///

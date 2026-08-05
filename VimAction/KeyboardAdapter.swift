@@ -133,14 +133,38 @@ nonisolated struct KeyboardAdapter: Sendable {
             return true
         }
 
+        /// Visual 정확화 다타 그룹을 **스트로크(다운·업 쌍) 사이 고정 간격**으로 게시한다 —
+        /// Notion 실측에서 0간격 버스트는 재앵커의 Shift 확장을 소화하지 못했다(이벤트당
+        /// 5ms 프로브는 완전 정상 — 간격 문제로 확정). 그룹은 원자라 내부 중단 확인은 없다
+        /// (최대 수 타 × 5ms라 무해). 최신 여부 확인·중단 계약은 `flush`와 같다.
+        /// 반환 false = 이 실행이 밀려남 — 호출자는 즉시 그만둔다.
+        func postPaced(_ events: [CGEvent]) -> Bool {
+            if postedChunks > 0 { Thread.sleep(forTimeInterval: Self.chunkInterval) }
+            guard isCurrent() else {
+                #if DEBUG
+                Logger.eventTap.debug(
+                    "실행 중단 — 페이싱 그룹 폐기 (게시 청크 \(postedChunks, privacy: .public))")
+                #endif
+                return false
+            }
+            for index in stride(from: 0, to: events.count, by: 2) {
+                if index > 0 { Thread.sleep(forTimeInterval: Self.pacedStrokeInterval) }
+                executor.post(Array(events[index..<min(index + 2, events.count)]))
+            }
+            postedChunks += 1
+            return true
+        }
+
         for action in actions {
             // 액션마다 새 스냅샷 — 앞 액션이 캐럿을 옮겼으므로 이전 액션의 읽기를 물려받으면
             // 낡은 오프셋으로 계산한다. 만드는 것만으로는 AX를 부르지 않는다 (lazy).
             let text = FocusedTextSnapshot(processID: processID, reader: reader)
             let groups: [[KeyStroke]]
+            let paced: Bool
             switch mapping(for: action, family: family, profile: profile, text: text) {
-            case .groups(let mapped):
+            case .groups(let mapped, let pacedGroups):
                 groups = mapped
+                paced = pacedGroups
             case .unsupported:
                 #if DEBUG
                 skippedCount += 1
@@ -183,6 +207,18 @@ nonisolated struct KeyboardAdapter: Sendable {
                     // 거짓 통과할 수 있다 — 재앵커 `.set`이 그 자리다(진입형 선택이 새
                     // `pinnedEnd`와 우연히 일치한다). 폐기 = 무상태 강등이라 안전 방향이다.
                     visualAnchor.apply(.discard)
+                    continue
+                }
+                // 페이싱 그룹은 pending과 섞지 않고 단독으로, 스트로크 사이 간격을 두고
+                // 게시한다 — 순서 보존을 위해 미뤄 둔 것을 먼저 비운다. 1타 그룹은 간격
+                // 자체가 없으므로 일반 경로 그대로다.
+                if paced, group.count >= 2 {
+                    guard flush(), postPaced(groupEvents) else {
+                        // 아래 flush 실패와 같은 이유 — 폐기된 게시에 실린 Visual 액션의
+                        // 상태가 남으면 안 된다.
+                        visualAnchor.apply(.discard)
+                        return
+                    }
                     continue
                 }
                 pending.append(contentsOf: groupEvents)
@@ -243,6 +279,11 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 게시 직렬 큐를 막는 것이 곧 스로틀이며, 새 키는 탭 콜백에서 래치만 세우고 그 뒤에 쌓인다.
     private static let chunkInterval: TimeInterval = 0.002
 
+    /// Visual 정확화 다타 그룹의 스트로크 간 간격 — 도그푸딩 조절값이다 (Notion 실측:
+    /// 5ms 충분 확인, 최솟값 미탐). `chunkInterval`과 달리 중단 장치가 아니라 **대상 앱이
+    /// 각 스트로크의 의미(collapse → 이동 → Shift 확장)를 소화할 시간**이다.
+    private static let pacedStrokeInterval: TimeInterval = 0.005
+
     /// 원자 그룹 하나의 CGEvent. 하나라도 생성에 실패하면 `nil` — 부분 시퀀스를 내지 않는다.
     private static func events(for strokes: [KeyStroke]) -> [CGEvent]? {
         var events: [CGEvent] = []
@@ -279,7 +320,13 @@ nonisolated struct KeyboardAdapter: Sendable {
     private enum Mapping {
         /// **원자 그룹**의 목록. 청크 경계는 그룹 사이에만 올 수 있다 — 대부분의 액션은
         /// 그룹 1개(액션 전체)이고, `.paste`만 카운트만큼 갈라져 온다.
-        case groups([[KeyStroke]])
+        ///
+        /// `paced`는 **Visual 정확화 그룹만** 참이다 — 다타 그룹의 스트로크 사이에 고정
+        /// 간격을 둔다 (Notion 실측: 0간격 버스트는 재앵커의 Shift 확장을 소화하지 못했고,
+        /// 이벤트당 5ms에서는 완전 정상 — 간격 문제로 확정). 범위를 정확화 그룹으로
+        /// 한정해야 스크롤(15~30타 단일 그룹)·폴백 카운트 반복(`500x`)·카운트 버스트가
+        /// 타이밍까지 현행 그대로다.
+        case groups([[KeyStroke]], paced: Bool)
         /// 매퍼가 `nil` — 이 어휘가 아직 구현되지 않았다. 요약 로그에 집계된다.
         case unsupported
         /// 지원하지만 이번엔 게시할 것이 없다. 사유를 아는 자리에서 **자체 로그를 이미 남겼다**.
@@ -433,7 +480,7 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 파고들 틈을 매퍼가 직접 낸다. 분류 규칙은 `classify`와 같고 그룹 모양만 다르다.
             if let groups = CommandKeyMapper.pasteStrokeGroups(
                 before: before, count: count, wise: wise, family: family, profile: profile) {
-                return .groups(groups)
+                return .groups(groups, paced: false)
             }
             return CommandKeyMapper.pasteStrokeGroups(
                 before: before, count: count, wise: wise, family: family, profile: .empty) != nil
@@ -450,7 +497,7 @@ nonisolated struct KeyboardAdapter: Sendable {
     private static func classify(
         _ strokes: [KeyStroke]?, builtIn: () -> [KeyStroke]?
     ) -> Mapping {
-        if let strokes { return .groups([strokes]) }
+        if let strokes { return .groups([strokes], paced: false) }
         return builtIn() != nil ? .disabledByProfile : .unsupported
     }
 
@@ -468,7 +515,7 @@ nonisolated struct KeyboardAdapter: Sendable {
     ) -> Mapping {
         if let strokes = EditKeyMapper.keyStrokes(
             for: op, range: range, family: family, profile: profile, text: text) {
-            return .groups([strokes])
+            return .groups([strokes], paced: false)
         }
         // ① 텍스트 프로브 — **`builtIn`보다 앞**이다. 읽기 없이 답이 있었다면 `nil`을 만든 것은
         //    미지원도 프로파일도 아니라 정확화다.
@@ -543,7 +590,7 @@ nonisolated struct KeyboardAdapter: Sendable {
     ) -> (mapping: Mapping, update: VisualAnchorUpdate) {
         if let mapped = VisualKeyMapper.keyStrokes(
             for: action, family: family, profile: profile, anchor: anchor) {
-            return (.groups([mapped.strokes]), mapped.anchor)
+            return (.groups([mapped.strokes], paced: mapped.paced), mapped.anchor)
         }
         // ① 상태 프로브 — **builtIn보다 앞**이다. 상태 없이 답이 있었다면 `nil`을 만든 것은
         //    미지원도 프로파일도 아니라 정확화다.

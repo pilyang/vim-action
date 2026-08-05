@@ -371,3 +371,114 @@ struct FocusedTextAnalysisTests {
         #expect(focusedText(document, caret: 14).isAtLineFirstNonBlank == false, "문서 끝")
     }
 }
+
+// MARK: - Visual 선택 기준 파생 질의 (M5 PR-C1 세션 2)
+
+/// 캐럿이 아니라 **선택 범위**를 기준으로 답하는 질의들 — Visual 재앵커·wise 전환의 근거다.
+/// 공통 계약은 위와 같다: 증명하지 못하면 `false`/`nil`(= 정확화하지 않음)이다.
+struct VisualSelectionQueryTests {
+    /// 문서 `"ab\ncd\nef"` — 오프셋: a0 b1 \n2 c3 d4 \n5 e6 f7, 문서 끝 8.
+    private static let threeLines = "ab\ncd\nef"
+
+    /// `vb` ×2의 조건 — 단어 시작 정의는 `provesNoWordStartAhead`와 같은 좁은 것
+    /// ("공백류 다음의 비공백")이다. 구두점 경계는 증명이 서지 않아 ×1(보수 방향)로 남는다.
+    @Test("단어 시작 판정 — 공백류 다음의 비공백만 참이다")
+    func caretIsAtWordStartRequiresWhitespaceBoundary() {
+        let document = "foo b.ar\nbaz"
+
+        #expect(focusedText(document, caret: 0, length: 1).caretIsAtWordStart, "문서 시작 (|foo)")
+        #expect(focusedText(document, caret: 4, length: 1).caretIsAtWordStart, "공백 뒤 (|b.ar)")
+        #expect(focusedText(document, caret: 9, length: 1).caretIsAtWordStart, "개행 뒤 (|baz)")
+        #expect(
+            focusedText(document, caret: 1, length: 1).caretIsAtWordStart == false, "단어 중간")
+        #expect(
+            focusedText(document, caret: 6, length: 1).caretIsAtWordStart == false,
+            "구두점 뒤 — macOS 경계와 갈릴 수 있어 증명하지 않는다")
+        #expect(
+            focusedText(document, caret: 3, length: 1).caretIsAtWordStart == false, "공백 자신")
+        // 창 시작에 걸린 캐럿은 왼쪽을 볼 수 없다 — 문서 시작에 닿았을 때만 경계로 인정한다.
+        let truncated = FocusedText(
+            selection: NSRange(location: 4, length: 1), characterCount: 12,
+            window: "b.ar", windowRange: NSRange(location: 4, length: 4))
+        #expect(truncated.caretIsAtWordStart == false)
+    }
+
+    /// `Vj` 확장의 조건 — 선택 끝 위치에 문자(개행 포함)가 실재해야 `Shift-↓`가 실제로
+    /// 한 줄을 소비한다. 문서 끝 포화가 거리 추적을 어긋내는 것을 막는다.
+    @Test("선택 끝 다음 문자 존재 증명 — 문서 끝·창 끝은 거짓이다")
+    func provesCharacterAfterSelectionEnd() {
+        #expect(
+            focusedText(Self.threeLines, caret: 3, length: 3).provesCharacterAfterSelectionEnd,
+            "[3,6) 다음은 e")
+        #expect(
+            focusedText(Self.threeLines, caret: 3, length: 5).provesCharacterAfterSelectionEnd
+                == false, "[3,8)은 문서 끝")
+        // 창이 선택 끝에서 끊기면 뒤가 있는지 알 수 없다 — 증명 실패다.
+        let truncated = FocusedText(
+            selection: NSRange(location: 3, length: 3), characterCount: 20,
+            window: "cd\n", windowRange: NSRange(location: 3, length: 3))
+        #expect(truncated.provesCharacterAfterSelectionEnd == false)
+    }
+
+    /// `Vk`·`Vj` 재앵커의 조건 — collapse가 열 0에 착지함을 요구한다. 개행 없는 마지막
+    /// 줄은 거짓이라 재앵커가 열을 끌고 올라가는 부분 선택을 막는다.
+    @Test("선택 끝의 줄 시작 판정 — 직전이 개행일 때만 참이다")
+    func selectionEndIsAtLineStart() {
+        #expect(
+            focusedText(Self.threeLines, caret: 3, length: 3).selectionEndIsAtLineStart,
+            "[3,6) 직전은 개행")
+        #expect(
+            focusedText(Self.threeLines, caret: 3, length: 2).selectionEndIsAtLineStart == false,
+            "[3,5) 직전은 d")
+        #expect(
+            focusedText(Self.threeLines, caret: 3, length: 5).selectionEndIsAtLineStart == false,
+            "[3,8) — 개행 없는 문서 끝")
+    }
+
+    /// `v`→`V`의 줄 거리 — 선택이 창 안에 완전히 들어올 때만 셀 수 있다.
+    @Test("선택 내부 개행 수 — 창이 선택을 다 덮을 때만 값이 있다")
+    func newlinesInsideSelection() {
+        #expect(focusedText(Self.threeLines, caret: 3, length: 2).newlinesInsideSelection == 0)
+        #expect(focusedText(Self.threeLines, caret: 1, length: 6).newlinesInsideSelection == 2)
+        let truncated = FocusedText(
+            selection: NSRange(location: 1, length: 6), characterCount: 8,
+            window: "cd\nef", windowRange: NSRange(location: 3, length: 5))
+        #expect(truncated.newlinesInsideSelection == nil)
+    }
+
+    /// `Vgg`·`v`→`V` 재앵커의 앵커 줄 끝 — `charactersToLineEnd`와 달리 **개행을 찾은
+    /// 경우에만** 값이 있다(문서 끝 폴백 없음). 개행의 실재 자체가 착지 보장이기 때문이다.
+    @Test("증명된 개행까지의 거리 — 문서 끝 폴백이 없다")
+    func provenNewlineDistances() {
+        #expect(
+            focusedText(Self.threeLines, caret: 3, length: 1).newlineDistanceAfterSelectionStart
+                == 2)
+        #expect(
+            focusedText(Self.threeLines, caret: 6, length: 1).newlineDistanceAfterSelectionStart
+                == nil, "마지막 줄 — 개행이 없다")
+        #expect(
+            focusedText(Self.threeLines, caret: 3, length: 1).newlineDistanceAfterSelectionEnd
+                == 1, "선택 끝 4에서 개행 5까지")
+        #expect(
+            focusedText(Self.threeLines, caret: 6, length: 2).newlineDistanceAfterSelectionEnd
+                == nil)
+    }
+
+    /// `v`→`V` 후진형의 앵커 줄 시작 — 선택 **끝** 기준의 `charactersToLineStart` 대칭이다.
+    @Test("선택 끝 기준 줄 시작까지 거리")
+    func selectionEndCharactersToLineStart() {
+        #expect(
+            focusedText(Self.threeLines, caret: 1, length: 4).selectionEndCharactersToLineStart
+                == 2, "선택 끝 5 — 줄 시작 3")
+        #expect(
+            focusedText(Self.threeLines, caret: 0, length: 2).selectionEndCharactersToLineStart
+                == 2, "첫 줄은 문서 시작까지")
+        #expect(
+            focusedText(Self.threeLines, caret: 1, length: 5).selectionEndCharactersToLineStart
+                == 0, "선택 끝 직전이 개행이면 0 — 앵커 줄 개념이 서지 않는 자리")
+        let truncated = FocusedText(
+            selection: NSRange(location: 1, length: 4), characterCount: 8,
+            window: "d", windowRange: NSRange(location: 4, length: 1))
+        #expect(truncated.selectionEndCharactersToLineStart == nil, "창이 줄 시작에 못 닿는다")
+    }
+}
