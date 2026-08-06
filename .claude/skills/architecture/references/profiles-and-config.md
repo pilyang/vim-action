@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-02 (M4 세션 B / PR-B2 — 메뉴바 최전면 앱 편의 기능 2종: `FrontmostAppGate`의 비자신 캐시 + `@Observable`, `ConfigStore.prepareProfileFile`, 주석뿐인 `profileScaffoldYAML`)
+- **Last updated**: 2026-08-06 (M5 PR-C2 세션 2 — scroll 프로파일 값의 의미 확장: AX 뷰포트 정확값보다 **우선하는 명시값** — 명시 extent는 AX 읽기 자체가 생략된다)
 
 ## 현재 구조
 
@@ -14,7 +14,7 @@
 
 - `~/.config/vim-action/config.yaml` — 파싱 결과가 곧 최종값.
 - `~/.config/vim-action/profiles/<bundle-id>.yaml` — 앱 하나당 파일 하나, 그것이 곧 최종값.
-- "기본값"은 값의 **부재**로 표현된다 — 파일·항목이 없으면 코드 상수(scroll 15/30, 매퍼 키 테이블)가 그대로 쓰인다. 값의 출처 계층이라는 개념은 없다.
+- "기본값"은 값의 **부재**로 표현된다 — 파일·항목이 없으면 코드 폴백(매퍼 키 테이블, scroll은 AX 뷰포트 → 상수 15/30 사다리)이 그대로 쓰인다. 값의 출처 계층이라는 개념은 없다. **scroll 값만은 M5부터 의미가 하나 늘었다**: 명시하면 AX 뷰포트 정확값보다 우선하며 그 extent는 AX 읽기 자체가 생략된다 — AX가 뷰포트를 오보하는 앱(번들 Notion 프로파일 12/24가 실사례)의 명시적 워크어라운드를 겸한다 ([20260806_scroll-line-count-priority-ladder.md](../../decisions/references/20260806_scroll-line-count-priority-ladder.md)).
 
 수용한 대가: 이후 버전이 **기존 파일 안의 항목을 갱신하지 못한다**(새로 추가되는 프로파일 *파일*은 시딩으로 들어온다). 사용자가 지운 프로파일 파일은 다음 실행에 부활하므로, 프로파일을 안 쓰려면 파일 삭제가 아니라 내용을 비우거나 `config.yaml`에서 그 앱을 off한다.
 

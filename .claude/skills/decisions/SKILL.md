@@ -166,6 +166,8 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-06 | `.selection` wise는 확정 스트림 추적 | 게시 확정된 begin/switch의 wise를 PasteWiseResolver가 note — 화면 진실 추적(엔진 확장·앵커 병합 기각) | [20260806_selection-wise-from-confirmed-stream.md](references/20260806_selection-wise-from-confirmed-stream.md) |
 | 08-06 | 줄 끝 charwise `p`는 접두 생략 | 읽기가 줄 끝 증명 시 `→` 없이 `Cmd-V` — 줄 끝 커서 모델 네 번째 적용, paste가 읽기 셋째 소비자 | [20260806_charwise-paste-line-end-no-prefix.md](references/20260806_charwise-paste-line-end-no-prefix.md) |
 | 08-06 | `.paste` 그룹도 페이싱 | Notion 0간격 버스트가 linewise 접두 화살표를 드롭(로그 판독) — 정확화 그룹과 같은 5ms 대응, 20260805 부분 supersede | [20260806_paste-groups-stroke-pacing.md](references/20260806_paste-groups-stroke-pacing.md) |
+| 08-06 | 스크롤 줄 수 우선순위 사다리 | 프로파일 명시값 > AX 뷰포트 > 상수 15/30 (extent별 독립) — 명시 extent는 술어가 읽기 생략 | [20260806_scroll-line-count-priority-ladder.md](references/20260806_scroll-line-count-priority-ladder.md) |
+| 08-06 | 뷰포트 줄 수 클램프만·무페이싱 | `min(max(1,n),200)`(파서 상한 정렬·음수 트랩 가드), half=n/2·full=n−2(Vim 겹침), 스크롤 페이싱 없음 유지 | [20260806_scroll-viewport-clamp-no-pacing.md](references/20260806_scroll-viewport-clamp-no-pacing.md) |
 
 ### 실행 계층 — Visual 시퀀스
 
@@ -220,3 +222,5 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-03 | 단어 질의는 로컬 술어 (오프셋 없음) | Vim 런 4클래스(blank/keyword/punctuation/other, 개행은 종결자) + 캐럿 ±1자 술어 3종 — 오프셋을 안 쓰니 `Opt-→` 정합·잘린 단어 난점이 소멸 | [20260803_word-run-local-predicates-no-offsets.md](references/20260803_word-run-local-predicates-no-offsets.md) |
 | 08-03 | `iw`·`cw` 재조립은 상수 1타 | 스트로크 수 원칙 예외 없이 유지 — 1자 런/런 끝만 1타로 정확화, 낡은 읽기 최악이 현행보다 작아지고 원자 그룹도 4타→2타. `cw`와 진짜 `ce`·`de`는 리타깃 플래그로 갈림 | [20260803_constant-stroke-word-refinement.md](references/20260803_constant-stroke-word-refinement.md) |
 | 08-03 | 줄 끝 커서 모델을 `iw`·`cw`로 완화 | 줄 끝 = 커서가 마지막 글자 위 — `iw`는 `Shift-Opt-←`(키워드 한정), `cw`는 `Shift-←`. 완화가 단어 어휘 안에서 닫히는 것이 근거(모션은 캐럿 모델 유지) | [20260803_line-end-cursor-model-for-word-objects.md](references/20260803_line-end-cursor-model-for-word-objects.md) |
+| 08-06 | 뷰포트 줄 수는 `AXLineForIndex` 차 | visible 양 끝 표시 줄 번호 차 — 화살표 단위와 일치(소프트 랩 정확, 개행 세기는 6× 과소 기각), 문서 전체 가시는 오보 가드(`provenViewport`)로 폴백 | [20260806_viewport-lines-via-line-for-index.md](references/20260806_viewport-lines-via-line-for-index.md) |
+| 08-06 | 뷰포트 스냅샷은 execute당 1회 | "액션마다 새로" 계약의 명시적 이탈 — 뷰포트 높이는 버스트 불변, 액션별 재읽기는 이득 0에 최악 33×50ms | [20260806_viewport-snapshot-per-execute.md](references/20260806_viewport-snapshot-per-execute.md) |
