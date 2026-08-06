@@ -261,6 +261,209 @@ struct KeyboardAdapterTests {
             ])
     }
 
+    /// charwise 편집도 기억한다 — 줄 끝 `x`가 개행을 잘라내면 내용이 개행으로 끝나
+    /// 휴리스틱은 linewise로 오판하고, `p`가 엉뚱하게 줄 단위로 붙여넣는다.
+    @Test("직전 dw 뒤의 p는 클립보드가 linewise로 보여도 charwise로 붙여넣는다")
+    func charwiseEditIsRememberedAsCharwise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        // 클립보드는 linewise로 보인다(잘라낸 내용이 개행으로 끝난 상황).
+        let adapter = makeAdapter(clipboard: .linewise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.delete, .motion(.wordForward, count: 1))])
+        posted = []
+        count += 1  // 대상 앱이 잘라내기를 처리해 클립보드를 썼다.
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // charwise `p` = `→` 뒤에 `Cmd-V`.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// `cc`의 내용은 실제로 charwise다(줄 유지·개행 없음) — 휴리스틱에 맡기지 않고 그
+    /// 사실을 직접 기억한다. 위의 "linewise로 기억하지 않는다"에서 한 발 더 나간 것이다.
+    @Test("직전 cc 뒤의 p는 클립보드가 linewise로 보여도 charwise로 붙여넣는다")
+    func changeIsRememberedAsCharwise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .linewise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.change, .line(count: 1))])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// Visual linewise 세션의 `d`는 줄 단위 내용을 남긴다 — Notion은 끝 개행을 안 붙여
+    /// 휴리스틱이 charwise로 오판한다 (`ddp`와 같은 오판 클래스).
+    @Test("V 세션의 d 뒤 p는 클립보드가 charwise로 보여도 linewise로 붙여넣는다")
+    func linewiseSelectionEditIsRememberedAsLinewise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.beginSelection(linewise: true)])
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // linewise `p` 접두 = `Cmd-→, →, Cmd-←` 뒤에 `Cmd-V`.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// Visual charwise 세션 — 선택이 개행을 물고 끝나면 휴리스틱이 linewise로 오판한다.
+    @Test("v 세션의 y 뒤 p는 클립보드가 linewise로 보여도 charwise로 붙여넣는다")
+    func charwiseSelectionEditIsRememberedAsCharwise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .linewise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.beginSelection(linewise: false)])
+        adapter.execute([.edit(.yank, .selection), .clearSelection])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 세션 wise는 게시가 확정된 전환을 따라간다 — `v`→`V` 폴백 시퀀스는 게시되므로
+    /// 이후 `.selection` 편집의 내용은 줄 단위다.
+    @Test("v→V 전환 뒤의 selection 편집은 linewise로 기억된다")
+    func postedWiseSwitchUpdatesRememberedWise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.beginSelection(linewise: false)])
+        adapter.execute([.switchSelectionWise(linewise: true)])
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// `V`→`v` 폴백은 매퍼 `nil`(정직한 스킵)이라 화면 선택이 그대로 줄 단위다 —
+    /// 게시되지 않은 전환은 wise도 바꾸지 않아야 기억이 내용과 일치한다.
+    @Test("스킵된 V→v 전환은 기억되는 wise를 바꾸지 않는다")
+    func skippedWiseSwitchKeepsRememberedWise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.beginSelection(linewise: true)])
+        adapter.execute([.switchSelectionWise(linewise: false)])  // 무상태 폴백 = 스킵
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // 화면 선택은 여전히 줄 단위였으므로 linewise가 내용 진실이다.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 걸러진 begin(`.nonText`·`.unresolved`)은 note를 못 남기지만 **옛 세션의 wise만은
+    /// 반드시 잊어야 한다** — 남으면 뒤의 `.selection` 편집이 이전 세션의 wise로 기록돼,
+    /// 휴리스틱이었다면 맞았을 자리를 틀리게 만든다 (앱 전환 콜드 창의 `v` 시나리오).
+    @Test("걸러진 begin은 이전 세션 wise를 잊는다 — selection 편집은 휴리스틱으로 남는다")
+    func filteredBeginForgetsPreviousSessionWise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        // 이전 세션: V 세션의 d가 linewise를 note한다.
+        adapter.execute([.beginSelection(linewise: true)])
+        adapter.execute([.edit(.delete, .selection)])
+        count += 1
+        // 새 세션: 앱 전환 콜드 창(.unresolved)의 v — 게이트에 걸러져 note가 없다.
+        adapter.execute([.beginSelection(linewise: false)], family: .unresolved)
+        // 화면의 charwise 선택을 d가 자른다 — 낡은 linewise가 기록되면 안 되는 자리다.
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // 기억이 없으므로 휴리스틱(끝 개행 없음 = charwise)을 따른다.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 세션 wise를 모르는 `.selection` 편집은 기억을 남기지 않는다 — begin 없이 온 편집은
+    /// 휴리스틱으로 남는 것이 보수 방향이다 (기록할 근거가 없다).
+    @Test("begin 없이 온 selection 편집은 기억을 남기지 않는다")
+    func selectionEditWithoutSessionWiseLeavesNoMemory() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .linewise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // 기억이 없으므로 휴리스틱(클립보드 끝 개행 = linewise)을 따른다.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
     /// charwise `3p` — 위치 접두는 **1회만**이고 `Cmd-V`만 반복한다. 접두가 반복되면
     /// 두 번째 붙여넣기가 한 칸씩 밀린 곳으로 간다.
     @Test("charwise 3p는 → 1타 뒤 Cmd-V 3연타다")
@@ -703,9 +906,9 @@ struct KeyboardAdapterElementFamilyTests {
         #expect(keyCodes(of: fromUnresolved) == keyCodes(of: fromTextArea), "\(action)")
     }
 
-    /// **게이트가 부수효과보다 앞이라는 계약.** `.edit`의 `recordLinewiseEdit()`은 매퍼 호출
-    /// 전에 불리므로, 게이트가 뒤에 있으면 게시하지도 않은 편집이 기억돼 다음 `p`의 wise가
-    /// 오염된다. `recordLinewiseEdit()`이 주입된 `changeCount`를 읽는다는 사실로 관측한다.
+    /// **게이트가 부수효과보다 앞이라는 계약.** 게이트가 뒤에 있으면 게시하지도 않은
+    /// 편집이 `recordEdit`으로 기억돼 다음 `p`의 wise가 오염된다.
+    /// `recordEdit`이 주입된 `changeCount`를 읽는다는 사실로 관측한다.
     @Test("비텍스트 편집은 붙여넣기 단위 기억을 남기지 않는다")
     func nonTextEditDoesNotRecordPasteWise() {
         nonisolated(unsafe) var changeCountReads = 0

@@ -23,7 +23,7 @@ import VimEngine
 nonisolated struct KeyboardAdapter: Sendable {
     private let executor: ActionExecutor
 
-    /// 붙여넣기 단위 판정. 우리가 게시한 줄 단위 편집을 기억하므로 **상태를 가진 참조 타입**이며,
+    /// 붙여넣기 단위 판정. 우리가 게시한 편집의 wise를 기억하므로 **상태를 가진 참조 타입**이며,
     /// 게시 직렬 큐가 단독 소유한다. 주입하는 이유는 `ActionExecutor.postEvent`와 같다 —
     /// 실제 패스트보드를 읽으면 테스트가 **개발자의 클립보드**에 따라 갈려 비결정적이 된다.
     private let pasteWise: PasteWiseResolver
@@ -359,8 +359,14 @@ nonisolated struct KeyboardAdapter: Sendable {
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
         text: FocusedTextSnapshot
     ) -> Mapping {
+        // 새 Visual 세션의 시작은 옛 세션 wise를 **게이트보다 앞에서** 잊는다 — note는
+        // 게시 확정에 게이팅되므로, 걸러진 begin(`.nonText`·`.unresolved`) 뒤의
+        // `.selection` 편집이 이전 세션의 wise로 기록되는 구멍을 여기서 막는다. 망각은
+        // 기록이 아니라서 "게이트가 부수효과보다 앞" 계약을 깨지 않는다(보수 방향 —
+        // 틀려봐야 휴리스틱 폴백이다).
+        if case .beginSelection = action { pasteWise.forgetSelectionWise() }
         // `actions:` disable 판정은 **모든 게이트·부수효과보다 앞**이다 — 사용자가 끈
-        // 액션은 `recordLinewiseEdit`·클립보드 읽기 같은 부수효과도 남기면 안 되고
+        // 액션은 `recordEdit`·클립보드 읽기 같은 부수효과도 남기면 안 되고
         // (걸러내기 게이트가 부수효과보다 앞인 것과 같은 규칙), 분류도 미지원이 아니라
         // `.disabledByProfile`이어야 한다.
         if let configAction = Self.configAction(for: action),
@@ -371,7 +377,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         // 셋 다 "게이트가 부수효과보다 앞이어야 한다"로 모인다
         // (`20260801_non-text-filter-keeps-motion-and-scroll.md`):
         //   ① `.move`에는 family가 없다 (모션은 계열 무관이 계약).
-        //   ② 아래 `.edit`은 매퍼 호출 **전에** `recordLinewiseEdit()`을 부른다 — 게시하지도
+        //   ② 아래 `.edit`은 게시 확정 시 `recordEdit`으로 wise를 기억한다 — 게시하지도
         //      않을 편집을 기억하면 뒤따르는 `p`의 wise가 오염된다.
         //   ③ 아래 `.paste`는 매퍼 호출 전에 클립보드를 읽는다 — 순서가 반대면 걸러내기가
         //      "클립보드에 텍스트 없음"(`.skipped`)으로 잘못 집계돼 스킵 2종 구분이 무너진다.
@@ -380,7 +386,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         // 매퍼는 키코드를 고정 게시하고 대상 앱이 활성 레이아웃으로 재해석하므로, AZERTY에서
         // `u`의 `Cmd-Z`는 `Cmd-W`(창 닫기 — 데이터 손실)가 된다. 화살표·Return만 쓰는
         // 액션(모션·스크롤·openLine·선택)은 레이아웃 무관이라 통과한다. 걸러내기 게이트와
-        // 같은 이유로 부수효과(`recordLinewiseEdit`·클립보드 읽기)보다 앞이다.
+        // 같은 이유로 부수효과(`recordEdit`·클립보드 읽기)보다 앞이다.
         guard hasQwertyCommandKeys() || !Self.synthesizesAnsiLetterCommand(action) else {
             return .layoutBlocked
         }
@@ -394,7 +400,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         case .edit(let op, let range):
             // **읽기의 첫 소비 지점**이다 (M5 PR-B — 둘째는 Visual 세션 분기).
             // 게이트 뒤·부수효과 앞이라
-            // `recordLinewiseEdit`·클립보드 오염 없이 빠져나가고, 범위가 묻지 않으면
+            // `recordEdit`·클립보드 오염 없이 빠져나가고, 범위가 묻지 않으면
             // AX 왕복도 없다(읽기는 lazy이므로 `value()`를 부르지 않으면 호출 0건이다).
             //
             // 읽기 실패·타임아웃·pid 없음은 전부 `nil`이라 매퍼가 무상태 시퀀스를 낸다 —
@@ -412,13 +418,20 @@ nonisolated struct KeyboardAdapter: Sendable {
                 )
                 #endif
             }
-            // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
-            // 휴리스틱(앱마다 틀린다)에 기대지 않게 그 사실을 기억해 둔다. **게시가 확정된
-            // 뒤에만** 기억한다 — 프로파일 disable로 스킵된 편집이 기억을 남기면, 다음
-            // 외부 복사 한 번 뒤의 `p`가 linewise로 오판된다 (게이트 2종과 같은 규칙이되,
-            // 모션 disable은 매퍼 안에서야 드러나므로 판정이 앞설 수 없어 기억을 뒤로 미룬다).
-            if case .groups = result, Self.isLinewise(op, range) {
-                pasteWise.recordLinewiseEdit()
+            // 편집은 전부 클립보드를 쓴다(delete·change는 `Cmd-X`, yank는 `Cmd-C`) — 뒤따르는
+            // `p`가 끝 개행 휴리스틱(앱마다 틀린다)에 기대지 않게 내용의 wise를 기억해 둔다.
+            // **게시가 확정된 뒤에만** 기억한다 — 프로파일 disable로 스킵된 편집이 기억을
+            // 남기면, 다음 외부 복사 한 번 뒤의 `p`가 그 wise로 오판된다 (게이트 2종과 같은
+            // 규칙이되, 모션 disable은 매퍼 안에서야 드러나므로 판정이 앞설 수 없어 기억을
+            // 뒤로 미룬다).
+            if case .groups = result {
+                if case .selection = range {
+                    // 내용 wise는 범위가 아니라 세션이 정한다 — change도 선택을 그대로
+                    // 자르므로(cc의 줄 유지 반올림이 없다) 세션 wise가 곧 내용이다.
+                    pasteWise.recordSelectionEdit()
+                } else if let wise = Self.contentWise(op, range) {
+                    pasteWise.recordEdit(wise)
+                }
             }
             return result
 
@@ -439,10 +452,19 @@ nonisolated struct KeyboardAdapter: Sendable {
                 )
                 #endif
             }
-            // 게시가 확정된 뒤에만 상태를 남긴다 — `recordLinewiseEdit`과 같은 규칙이다.
+            // 게시가 확정된 뒤에만 상태를 남긴다 — `recordEdit`과 같은 규칙이다.
             // 걸러진 액션이 side를 뒤집으면 다음 액션이 있지도 않은 재앵커를 전제로 계산한다.
             if case .groups = result {
                 visualAnchor.apply(update)
+                // 게시가 확정된 진입·전환의 wise를 세션 wise로 note한다 — `.selection`
+                // 편집의 내용 wise는 세션이 정하는데, 스킵된 전환(`V`→`v` 폴백 `nil`)은
+                // 화면 선택이 그대로라 **확정 스트림만** 따라가야 기억이 내용과 일치한다.
+                switch action {
+                case .beginSelection(let linewise), .switchSelectionWise(let linewise):
+                    pasteWise.noteSelectionWise(linewise ? .linewise : .charwise)
+                default:
+                    break
+                }
                 #if DEBUG
                 // 상태 전이 관측 — 도그푸딩에서 각 액션이 어느 경로(수립·재앵커·폐기·무상태)를
                 // 탔는지 화면과 대조하는 유일한 수단이다.
@@ -660,18 +682,23 @@ nonisolated struct KeyboardAdapter: Sendable {
         }
     }
 
-    /// 이 편집이 클립보드에 **줄 단위** 내용을 남기는가.
+    /// 이 편집이 클립보드에 남기는 내용의 wise. `nil` = 미지의 범위라 기록하지 않는다
+    /// (휴리스틱 폴백 — 보수 방향). `.selection`은 여기 오지 않는다 — 내용 wise를 범위가
+    /// 아니라 세션이 정하므로 `recordSelectionEdit()`이 따로 맡는다.
     ///
-    /// `change`는 제외한다 — `cc`는 마지막 확장을 줄 끝으로 바꿔 개행을 남기지 않으므로
-    /// 내용이 실제로 charwise이고, 그렇게 붙여넣는 것이 맞다.
+    /// 줄 범위에서 `change`만 charwise인 것은 내용 진실이다 — `cc`는 마지막 확장을 줄 끝으로
+    /// 바꿔 개행을 남기지 않으므로 내용이 실제로 charwise이고, 그렇게 붙여넣는 것이 맞다.
     /// `TextRange`에 exhaustive switch를 걸지 않는 것은 매퍼와 같은 계약이다.
-    private static func isLinewise(_ op: VimAction.Operator, _ range: VimAction.TextRange) -> Bool {
-        guard op != .change else { return false }
+    private static func contentWise(
+        _ op: VimAction.Operator, _ range: VimAction.TextRange
+    ) -> PasteWise? {
         switch range {
         case .line, .linewiseMotion:
-            return true
+            return op == .change ? .charwise : .linewise
+        case .motion, .textObject:
+            return .charwise
         default:
-            return false
+            return nil
         }
     }
 

@@ -9,7 +9,7 @@ import VimEngine
 
 /// Visual 정확화 진입점의 반환 — 시퀀스와 함께 **상태 변화까지** 낸다. 재앵커가 side를
 /// 뒤집는 것은 시퀀스 선택과 한 몸의 결정이라, 갈라 두면 두 곳이 조용히 어긋난다.
-/// 적용은 어댑터가 `.groups` 확정 뒤에 한다 (`recordLinewiseEdit` 선례).
+/// 적용은 어댑터가 `.groups` 확정 뒤에 한다 (`recordEdit` 선례).
 nonisolated struct VisualStrokes: Equatable, Sendable {
     var strokes: [KeyStroke]
     var anchor: VisualAnchorUpdate
