@@ -1,0 +1,40 @@
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_aa8129ae3ded8f::t_bd191fe45f541b 43-44
+  s_aa8129ae3ded8f::t_f15caa123e0aa7 26
+  s_aa8129ae3ded8f::t_f25458f52fc6b3 6
+  s_aa8129ae3ded8f::t_482f01e09f7093 36
+.claude/skills/decisions/SKILL.md
+  s_aa8129ae3ded8f::t_fe9e856866f89e 162
+  s_aa8129ae3ded8f::t_b5f3a7cf3372f0 165-166
+.claude/skills/decisions/references/20260806_selection-wise-from-confirmed-stream.md
+  s_aa8129ae3ded8f::t_1d29865f9968d2 9-11
+  s_aa8129ae3ded8f::t_db043bdd8e38a1 1-8,12-36
+.claude/skills/decisions/references/20260806_paste-wise-memory-covers-all-edits.md
+  s_aa8129ae3ded8f::t_f243c892fda68a 1-43
+.claude/skills/plans/SKILL.md
+  s_aa8129ae3ded8f::t_95cd3ab787a317 52
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_aa8129ae3ded8f::t_bb73fb5cdfca5c 3
+  s_aa8129ae3ded8f::t_c3bab02bf920c7 95
+  s_aa8129ae3ded8f::t_6885f521bf5768 126
+  s_aa8129ae3ded8f::t_ee65e725576042 97
+  s_aa8129ae3ded8f::t_18fb8c13f68077 55
+.claude/skills/decisions/references/20260730_paste-wise-from-our-own-edit.md
+  s_aa8129ae3ded8f::t_6d9f0fb6fee084 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "475670f8cf246ebafac447e54d1b49b99e3d4357",
+  "prompts": {},
+  "sessions": {
+    "s_aa8129ae3ded8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f7784e37-c099-40fc-bbef-25c7c06e4903",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
