@@ -1,0 +1,56 @@
+VimActionTests/ViewportReaderTests.swift
+  s_6760bf7049fce6::t_06e873bd35aa74 1-154
+VimActionTests/KeyboardAdapterTests.swift
+  s_6760bf7049fce6::t_0a4b4fb4db9a7b 9
+  s_6760bf7049fce6::t_2266ffdfe8d45a 1044-1046
+  s_6760bf7049fce6::t_1d9f75fe5b1b01 1105-1106
+  s_6760bf7049fce6::t_c4dbc1272cd1b8 1274-1394
+  s_6760bf7049fce6::t_612cdb2ffac764 27,33-34
+VimAction/ProfileScaffold.swift
+  s_6760bf7049fce6::t_9e38e34b36abc0 23-25
+VimAction/ViewportReader.swift
+  s_6760bf7049fce6::t_9b0f23d47e0fa6 1-42,44,46-52,67-122
+  s_6760bf7049fce6::t_431546cbab8c14 43,45,53-66
+VimActionTests/CommandKeyMapperTests.swift
+  s_6760bf7049fce6::t_ed4a99ce88b0dc 43-44,47-50,54,70-71
+  s_6760bf7049fce6::t_e2cfb079cc785d 175-176
+  s_6760bf7049fce6::t_6ded04dcd351ad 105-134
+  s_6760bf7049fce6::t_a6896c867a50c9 300-302,315-327
+  s_6760bf7049fce6::t_64d4c51d787499 328-330
+VimAction/KeyboardAdapter.swift
+  s_6760bf7049fce6::t_89f08fc35ae46d 41-45
+  s_6760bf7049fce6::t_a803b4a46e977d 53-58,66-67,74
+  s_6760bf7049fce6::t_ecff4c31415b57 168-173,180-181
+  s_6760bf7049fce6::t_a0556aa50e5728 345-347
+  s_6760bf7049fce6::t_816ebff6ec9465 375-377
+  s_6760bf7049fce6::t_7bcd44b42298e7 380
+  s_6760bf7049fce6::t_4ddfa444590a9b 507,514-530,533
+  s_6760bf7049fce6::t_0bf64ea0935454 531-532
+  s_6760bf7049fce6::t_33476ef1502007 534
+VimActionTests/ProfileOverrideMappingTests.swift
+  s_6760bf7049fce6::t_9ca76405244354 144-172
+VimAction/CommandKeyMapper.swift
+  s_6760bf7049fce6::t_c8cb938e2aca8c 77-78,80
+  s_6760bf7049fce6::t_1ecf1760f577d8 177-178,182-200,202,205-210
+  s_6760bf7049fce6::t_c447765a7a979a 50-53,55-56
+VimAction/BundledConfig/notion.id.yaml
+  s_6760bf7049fce6::t_62d58096a29bc6 4-7
+VimAction/ResolvedProfile.swift
+  s_6760bf7049fce6::t_472064efb09114 33-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "a72685f3cb779a058ce29f01f81ab38415af2c74",
+  "prompts": {},
+  "sessions": {
+    "s_6760bf7049fce6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "82e8e7f6-50ac-4b19-a059-2b497bef5f3c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
