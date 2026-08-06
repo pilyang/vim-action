@@ -1,0 +1,30 @@
+VimAction/Clipboard.swift
+  s_aa8129ae3ded8f::t_47562073e9dfa7 7
+  s_aa8129ae3ded8f::t_5daba8aa61c25f 119-141
+VimAction/KeyboardAdapter.swift
+  s_aa8129ae3ded8f::t_d4d68b3da901c6 283-286
+  s_aa8129ae3ded8f::t_18b3fd648d55e3 503-508,511-514,516-518
+  s_aa8129ae3ded8f::t_89f27d5677e33e 136-137
+  s_aa8129ae3ded8f::t_56d228b1cffa68 326-330
+VimActionTests/KeyboardAdapterTests.swift
+  s_aa8129ae3ded8f::t_f1e09845eb725b 1095,1098-1100
+  s_aa8129ae3ded8f::t_b75ec28eeee42e 467-501
+VimAction/CommandKeyMapper.swift
+  s_aa8129ae3ded8f::t_56932be8fa57db 92-98,101,105,116,123-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "555ea8080b23424c301a82ec0964032d53c611c2",
+  "prompts": {},
+  "sessions": {
+    "s_aa8129ae3ded8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f7784e37-c099-40fc-bbef-25c7c06e4903",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
