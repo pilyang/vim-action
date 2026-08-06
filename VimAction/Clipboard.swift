@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import os
 
 /// 시스템 클립보드 접근 — v1은 레지스터가 없고 이것이 무명 레지스터다.
 /// 읽기는 붙여넣기 경로가, 쓰기는 메뉴의 'Copy Bundle ID' 하나가 쓴다.
@@ -115,7 +116,29 @@ nonisolated final class PasteWiseResolver: @unchecked Sendable {
         // 정확히 1 늘었을 때만 그 쓰기가 우리 편집의 결과다. 아직 안 늘었으면(비동기 처리가
         // 끝나지 않았거나 잘라낼 것이 없었으면) 클립보드는 여전히 **이전** 내용이고,
         // 2 이상 늘었으면 그 사이 다른 쓰기가 끼어들어 기억이 내용을 설명하지 못한다.
-        if let recorded, readChangeCount() == recorded.beforeWrite + 1 { return recorded.wise }
+        if let recorded {
+            let delta = readChangeCount() - recorded.beforeWrite
+            if delta == 1 {
+                #if DEBUG
+                // 판정 출처 관측 — 도그푸딩에서 "기억 대 휴리스틱"과 델타를 화면과 대조하는
+                // 유일한 수단이다 (앱의 패스트보드 쓰기 횟수는 여기서만 보인다).
+                Logger.eventTap.debug(
+                    "paste wise \(String(describing: recorded.wise), privacy: .public) — 기억 (델타 1)"
+                )
+                #endif
+                return recorded.wise
+            }
+            #if DEBUG
+            Logger.eventTap.debug(
+                "paste wise \(String(describing: heuristic), privacy: .public) — 휴리스틱 (기억 델타 \(delta, privacy: .public))"
+            )
+            #endif
+            return heuristic
+        }
+        #if DEBUG
+        Logger.eventTap.debug(
+            "paste wise \(String(describing: heuristic), privacy: .public) — 휴리스틱 (기억 없음)")
+        #endif
         return heuristic
     }
 }

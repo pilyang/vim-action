@@ -133,7 +133,8 @@ nonisolated struct KeyboardAdapter: Sendable {
             return true
         }
 
-        /// Visual 정확화 다타 그룹을 **스트로크(다운·업 쌍) 사이 고정 간격**으로 게시한다 —
+        /// 페이싱 다타 그룹(Visual 정확화·paste 접두)을 **스트로크(다운·업 쌍) 사이 고정
+        /// 간격**으로 게시한다 —
         /// Notion 실측에서 0간격 버스트는 재앵커의 Shift 확장을 소화하지 못했다(이벤트당
         /// 5ms 프로브는 완전 정상 — 간격 문제로 확정). 그룹은 원자라 내부 중단 확인은 없다
         /// (최대 수 타 × 5ms라 무해). 최신 여부 확인·중단 계약은 `flush`와 같다.
@@ -279,9 +280,10 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 게시 직렬 큐를 막는 것이 곧 스로틀이며, 새 키는 탭 콜백에서 래치만 세우고 그 뒤에 쌓인다.
     private static let chunkInterval: TimeInterval = 0.002
 
-    /// Visual 정확화 다타 그룹의 스트로크 간 간격 — 도그푸딩 조절값이다 (Notion 실측:
-    /// 5ms 충분 확인, 최솟값 미탐). `chunkInterval`과 달리 중단 장치가 아니라 **대상 앱이
-    /// 각 스트로크의 의미(collapse → 이동 → Shift 확장)를 소화할 시간**이다.
+    /// 페이싱 다타 그룹(Visual 정확화·paste 접두)의 스트로크 간 간격 — 도그푸딩
+    /// 조절값이다 (Notion 실측: 5ms 충분 확인, 최솟값 미탐). `chunkInterval`과 달리 중단
+    /// 장치가 아니라 **대상 앱이 각 스트로크의 의미(collapse·이동 → Shift 확장·Cmd-V)를
+    /// 소화할 시간**이다.
     private static let pacedStrokeInterval: TimeInterval = 0.005
 
     /// 원자 그룹 하나의 CGEvent. 하나라도 생성에 실패하면 `nil` — 부분 시퀀스를 내지 않는다.
@@ -321,11 +323,11 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// **원자 그룹**의 목록. 청크 경계는 그룹 사이에만 올 수 있다 — 대부분의 액션은
         /// 그룹 1개(액션 전체)이고, `.paste`만 카운트만큼 갈라져 온다.
         ///
-        /// `paced`는 **Visual 정확화 그룹만** 참이다 — 다타 그룹의 스트로크 사이에 고정
-        /// 간격을 둔다 (Notion 실측: 0간격 버스트는 재앵커의 Shift 확장을 소화하지 못했고,
-        /// 이벤트당 5ms에서는 완전 정상 — 간격 문제로 확정). 범위를 정확화 그룹으로
-        /// 한정해야 스크롤(15~30타 단일 그룹)·폴백 카운트 반복(`500x`)·카운트 버스트가
-        /// 타이밍까지 현행 그대로다.
+        /// `paced`는 **Visual 정확화 그룹과 `.paste`** 만 참이다 — 다타 그룹의 스트로크
+        /// 사이에 고정 간격을 둔다 (Notion 실측: 0간격 버스트는 재앵커의 Shift 확장도,
+        /// 붙여넣기 접두의 화살표도 소화하지 못했고, 이벤트당 5ms에서는 완전 정상 — 간격
+        /// 문제로 확정). 범위를 이 둘로 한정해야 스크롤(15~30타 단일 그룹)·폴백 카운트
+        /// 반복(`500x`)·카운트 버스트가 타이밍까지 현행 그대로다.
         case groups([[KeyStroke]], paced: Bool)
         /// 매퍼가 `nil` — 이 어휘가 아직 구현되지 않았다. 요약 로그에 집계된다.
         case unsupported
@@ -498,11 +500,22 @@ nonisolated struct KeyboardAdapter: Sendable {
                 Logger.eventTap.debug("paste 스킵 — 클립보드에 텍스트가 없다")
                 return .skipped
             }
+            // **읽기의 세 번째 소비 지점** — charwise `p`만 줄 끝 증명을 위해 묻는다
+            // (`P`·linewise는 왕복 0건 유지). 읽기 실패·pid 없음은 `nil`이라 현행 접두
+            // 그대로다. 정확화가 접두를 비울 뿐 `nil`을 새로 만들지 않으므로 편집·Visual과
+            // 달리 프로브는 그대로 둘이다.
+            let focused = CommandKeyMapper.pasteConsultsFocusedText(before: before, wise: wise)
+                ? text.value() : nil
             // 유일하게 그룹이 여럿인 액션 — 액션 1개 안에서 카운트가 곱해지므로 래치가
             // 파고들 틈을 매퍼가 직접 낸다. 분류 규칙은 `classify`와 같고 그룹 모양만 다르다.
+            // `paced`인 것은 접두 다타 그룹(linewise 4타 등)이 Notion 0간격 버스트에서
+            // 화살표를 소화하지 못해 `Cmd-V`가 낡은 캐럿에서 터지기 때문이다 (도그푸딩 실측 —
+            // Visual 정확화 그룹과 같은 약점·같은 대응). 후속 `Cmd-V` 그룹은 1타라 자연히
+            // 일반 경로다.
             if let groups = CommandKeyMapper.pasteStrokeGroups(
-                before: before, count: count, wise: wise, family: family, profile: profile) {
-                return .groups(groups, paced: false)
+                before: before, count: count, wise: wise, family: family, profile: profile,
+                text: focused) {
+                return .groups(groups, paced: true)
             }
             return CommandKeyMapper.pasteStrokeGroups(
                 before: before, count: count, wise: wise, family: family, profile: .empty) != nil

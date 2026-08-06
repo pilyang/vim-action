@@ -89,13 +89,20 @@ nonisolated enum CommandKeyMapper {
     /// 독립이라 어디서 끊겨도 "덜 붙여넣음"으로 끝난다.
     ///
     /// 매핑 자체는 그대로다 — 평탄화하면 이전과 같은 시퀀스다.
+    /// 이 붙여넣기가 캐럿 주변 읽기를 묻는가 — 어댑터가 읽을지 정하는 술어다
+    /// (`EditKeyMapper.consultsFocusedText`와 같은 자리). charwise `p`만 줄 끝 증명을
+    /// 위해 묻고, `P`·linewise는 읽기 없이도 접두가 정확하므로 AX 왕복이 0건 유지된다.
+    static func pasteConsultsFocusedText(before: Bool, wise: PasteWise) -> Bool {
+        !before && wise == .charwise
+    }
+
     static func pasteStrokeGroups(
         before: Bool, count: Int, wise: PasteWise, family: ElementFamily,
-        profile: ResolvedProfile = .empty
+        profile: ResolvedProfile = .empty, text: FocusedText? = nil
     ) -> [[KeyStroke]]? {
         // 엔진은 count 1 이상만 낸다(0은 `0` 모션 규칙이 선점한다). 그래도 가드가 있는 이유는
         // 접두만 남은 시퀀스가 "붙여넣기 없이 캐럿만 움직인다"는 조용한 오동작이기 때문이다.
-        guard count >= 1, let prefix = prefix(before: before, wise: wise, profile: profile)
+        guard count >= 1, let prefix = prefix(before: before, wise: wise, profile: profile, text: text)
         else { return nil }
         let paste = profile.pasteStrokes ?? [pasteKey]
         return [prefix + paste]
@@ -106,13 +113,19 @@ nonisolated enum CommandKeyMapper {
     /// charwise에서 접두가 없다. `nil`은 접두 모션이 프로파일에서 disable된 경우다 —
     /// 접두 없이 `Cmd-V`만 내면 위치가 틀린 채 붙으므로 붙여넣기 전체를 접는다.
     private static func prefix(
-        before: Bool, wise: PasteWise, profile: ResolvedProfile
+        before: Bool, wise: PasteWise, profile: ResolvedProfile, text: FocusedText?
     ) -> [KeyStroke]? {
         switch (wise, before) {
         case (.charwise, true):
             return []
 
         case (.charwise, false):
+            // **줄 끝이 증명되면 접두가 없다** — Vim 커서는 줄 끝을 넘지 못하므로(마지막 글자
+            // 위) "커서 뒤"가 곧 지금 캐럿 자리다. `→`를 내면 다음 줄 시작으로 포화해 붙여넣기가
+            // 줄을 넘는다 (도그푸딩 실측 — 줄 끝 `xp`가 글자를 다음 줄로 보냈다). 편집 정확화와
+            // 같은 줄 끝 Vim 커서 모델이고, 빈 줄·문서 끝도 같은 판정에 덮인다. 살아 있는 선택은
+            // 출발점을 증명할 수 없어 제외한다 (정확화 표의 공통 발동 조건).
+            if let text, text.selection.length == 0, text.isAtLineEnd { return [] }
             // 캐럿은 문자 **사이**이고 Vim의 커서는 문자 **위**라, "커서 문자 뒤"는 한 칸 오른쪽이다.
             return move(.charRight, profile)
 

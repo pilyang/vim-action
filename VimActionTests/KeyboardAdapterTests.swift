@@ -464,6 +464,41 @@ struct KeyboardAdapterTests {
             ])
     }
 
+    /// 줄 끝의 Vim 커서는 마지막 글자 **위**라 "커서 뒤"가 곧 지금 캐럿 자리다 — `→`를
+    /// 내면 다음 줄 시작으로 포화해 붙여넣기가 줄을 넘는다 (도그푸딩 실측: 줄 끝 `xp`가
+    /// 글자를 다음 줄로 보냈다). 편집 정확화(엣지 1)와 같은 줄 끝 커서 모델이다.
+    @Test("줄 끝이 증명된 charwise p는 → 접두 없이 Cmd-V만 낸다")
+    func charwisePasteAtProvenLineEndDropsPrefix() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // 문서 "ab\ncd", 캐럿 2 = 첫 줄 끝 (b 뒤, 개행 앞).
+        let adapter = makeAdapter(
+            clipboard: .charwise,
+            reader: FocusedTextReader { _ in focusedText("ab\ncd", caret: 2) }
+        ) { posted.append($0) }
+
+        adapter.execute([.paste(before: false, count: 1)], processID: 1)
+
+        #expect(keyCodes(of: posted) == [Int64(kVK_ANSI_V), Int64(kVK_ANSI_V)])
+    }
+
+    /// 줄 중간에서는 증명이 서도 현행 그대로다 — 정확화는 줄 끝 분기 하나뿐이다.
+    @Test("줄 중간의 charwise p는 → 접두를 유지한다")
+    func charwisePasteMidLineKeepsPrefix() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            clipboard: .charwise,
+            reader: FocusedTextReader { _ in focusedText("ab\ncd", caret: 1) }
+        ) { posted.append($0) }
+
+        adapter.execute([.paste(before: false, count: 1)], processID: 1)
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
     /// charwise `3p` — 위치 접두는 **1회만**이고 `Cmd-V`만 반복한다. 접두가 반복되면
     /// 두 번째 붙여넣기가 한 칸씩 밀린 곳으로 간다.
     @Test("charwise 3p는 → 1타 뒤 Cmd-V 3연타다")
@@ -1057,11 +1092,12 @@ struct KeyboardAdapterFocusedTextTests {
         makeAdapter(reader: reader, collecting: { _ in }).execute(Self.vocabulary, processID: 42)
 
         #expect(
-            reads == 5,
+            reads == 6,
             """
             편집은 `x`·`dk`·`dgg`·`diw` 넷(범위 술어), Visual은 `v` 진입 하나(세션 술어 — \
-            수립 읽기는 실패해도 왕복이다)다. `dd`·`dj`는 묻지 않고, `clearSelection`은 \
-            폐기만이라 읽지 않으며, 상태 없는 세션이라 확장도 있었다면 읽지 않았을 것이다.
+            수립 읽기는 실패해도 왕복이다), 붙여넣기는 charwise `p` 하나(줄 끝 증명)다. \
+            `dd`·`dj`는 묻지 않고, `clearSelection`은 폐기만이라 읽지 않으며, 상태 없는 \
+            세션이라 확장도 있었다면 읽지 않았을 것이다.
             """)
     }
 
