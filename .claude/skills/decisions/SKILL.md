@@ -159,9 +159,11 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-30 | o/O 시퀀스 | o=Cmd-→,Return / O=Cmd-←,Return,↑ — 수용 엣지 4종 | [20260730_openline-return-sequence.md](references/20260730_openline-return-sequence.md) |
 | 07-30 | paste wise 끝 개행 휴리스틱 | 클립보드 끝 개행으로 charwise/linewise, linewise p는 꼬리 보정 | [20260730_paste-wise-trailing-newline-heuristic.md](references/20260730_paste-wise-trailing-newline-heuristic.md) |
 | 07-30 | 스크롤은 화살표 반복 | 페이지 키는 죽은 기능(실측) — ↓/↑ 반복(half 15·full 30) | [20260730_scroll-arrow-repetition.md](references/20260730_scroll-arrow-repetition.md) |
-| 07-30 | paste wise는 우리 편집을 기억 | 줄 단위 편집을 changeCount와 기억 — 휴리스틱은 외부 복사 전담으로 강등 | [20260730_paste-wise-from-our-own-edit.md](references/20260730_paste-wise-from-our-own-edit.md) |
+| 07-30 | paste wise는 우리 편집을 기억 | 줄 단위 편집을 changeCount와 기억 — 휴리스틱은 외부 복사 전담으로 강등 (기억 대상 한정은 20260806 부분 supersede) | [20260730_paste-wise-from-our-own-edit.md](references/20260730_paste-wise-from-our-own-edit.md) |
 | 08-01 | 비-QWERTY 레이아웃 가드 | 행동 검사(Z/X/C/V 번역 확인)로 판별, 문자 명령 키 액션 보류(layoutBlocked) | [20260801_non-qwerty-command-key-layout-guard.md](references/20260801_non-qwerty-command-key-layout-guard.md) |
 | 08-02 | 프로파일 재정의 전파는 조회 전면 | 단일 지점=MotionKeyMapper(옵셔널) — 명령 접두·yank collapse까지 전파, disabled는 복합 통째 스킵 + .disabledByProfile 분류 | [20260802_profile-override-propagation-full-lookup.md](references/20260802_profile-override-propagation-full-lookup.md) |
+| 08-06 | paste wise 기억은 편집 전반 | 클립보드 쓰기 편집 전부 기록(change=charwise 포함) — 휴리스틱은 외부 복사 전담, 델타-1 불변 | [20260806_paste-wise-memory-covers-all-edits.md](references/20260806_paste-wise-memory-covers-all-edits.md) |
+| 08-06 | `.selection` wise는 확정 스트림 추적 | 게시 확정된 begin/switch의 wise를 PasteWiseResolver가 note — 화면 진실 추적(엔진 확장·앵커 병합 기각) | [20260806_selection-wise-from-confirmed-stream.md](references/20260806_selection-wise-from-confirmed-stream.md) |
 
 ### 실행 계층 — Visual 시퀀스
 
