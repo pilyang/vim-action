@@ -1,0 +1,32 @@
+.claude/skills/decisions/references/20260727_operator-key-ansi-layout-assumption.md
+  s_0aa4d3330d7724::t_0e6386a890a992 3-4
+.claude/skills/decisions/references/20260806_non-qwerty-command-key-reverse-lookup.md
+  s_0aa4d3330d7724::t_8539ac42c6f0be 1-44
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_0aa4d3330d7724::t_058ab04f004c27 63
+  s_0aa4d3330d7724::t_6d42238e938c55 55
+  s_0aa4d3330d7724::t_036e0520e8cafa 3
+  s_0aa4d3330d7724::t_a4b151f2c2c9fd 97
+.claude/skills/decisions/references/20260801_non-qwerty-command-key-layout-guard.md
+  s_0aa4d3330d7724::t_085ed30d7f71b2 3-4
+.claude/skills/decisions/SKILL.md
+  s_0aa4d3330d7724::t_beb01750f2ea6b 171
+  s_0aa4d3330d7724::t_3a5a1a7f24b76d 163
+  s_0aa4d3330d7724::t_fe87be24db4785 156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "d32cf4bad9c3f40b40c2a08bc2b38bfbf912c2d8",
+  "prompts": {},
+  "sessions": {
+    "s_0aa4d3330d7724": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "736fcf34-de98-405f-b424-bd2bda1258a4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
