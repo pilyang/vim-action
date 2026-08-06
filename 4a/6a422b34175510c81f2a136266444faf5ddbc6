@@ -1,0 +1,24 @@
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_6760bf7049fce6::t_19fa826361ca36 58
+  s_6760bf7049fce6::t_2e06a8eb0991bb 27
+.claude/skills/decisions/SKILL.md
+  s_6760bf7049fce6::t_d04a8b30cb4d7d 199
+.claude/skills/decisions/references/20260806_slack-scroll-arrow-composer-escape-accepted.md
+  s_6760bf7049fce6::t_30608fb7234963 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "4a6a422b34175510c81f2a136266444faf5ddbc6",
+  "prompts": {},
+  "sessions": {
+    "s_6760bf7049fce6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "82e8e7f6-50ac-4b19-a059-2b497bef5f3c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
