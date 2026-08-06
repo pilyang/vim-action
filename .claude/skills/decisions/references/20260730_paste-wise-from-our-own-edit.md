@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260806_paste-wise-memory-covers-all-edits.md](20260806_paste-wise-memory-covers-all-edits.md)·[20260806_selection-wise-from-confirmed-stream.md](20260806_selection-wise-from-confirmed-stream.md) — 기억 대상의 linewise 한정(change 제외·`.selection` 범위 밖)이 대체됨 / 기억 우선 원칙·델타-1 규칙·휴리스틱 폴백 구조는 유효
+
 # 붙여넣기 wise는 우리 편집을 기억해서 정한다 — 휴리스틱은 폴백
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

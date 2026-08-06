@@ -20,7 +20,9 @@ nonisolated func profileScaffoldYAML(bundleID: String) -> String {
     #
     # All four fields are optional:
     #   name    display name
-    #   scroll  half_page_lines / full_page_lines (valid 1...200, defaults to 15/30)
+    #   scroll  half_page_lines / full_page_lines (valid 1...200). When set, the value
+    #           wins over the AX-measured viewport; when absent, the app reads the
+    #           viewport and falls back to 15/30 where that read fails.
     #   motions per-motion key sequence override, or disabled
     #   actions open_line / paste / undo / redo: the action's own key, or disabled
     #           (scroll takes disabled only — its keys come from the line_down/line_up motions)

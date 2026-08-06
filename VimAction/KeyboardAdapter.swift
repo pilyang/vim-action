@@ -3,6 +3,7 @@
 //  VimAction
 //
 
+import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 import os
@@ -23,7 +24,7 @@ import VimEngine
 nonisolated struct KeyboardAdapter: Sendable {
     private let executor: ActionExecutor
 
-    /// 붙여넣기 단위 판정. 우리가 게시한 줄 단위 편집을 기억하므로 **상태를 가진 참조 타입**이며,
+    /// 붙여넣기 단위 판정. 우리가 게시한 편집의 wise를 기억하므로 **상태를 가진 참조 타입**이며,
     /// 게시 직렬 큐가 단독 소유한다. 주입하는 이유는 `ActionExecutor.postEvent`와 같다 —
     /// 실제 패스트보드를 읽으면 테스트가 **개발자의 클립보드**에 따라 갈려 비결정적이 된다.
     private let pasteWise: PasteWiseResolver
@@ -34,14 +35,20 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 바뀌므로 액션마다 다시 물어야 한다.
     private let hasQwertyCommandKeys: @Sendable () -> Bool
 
+    /// 현재 레이아웃에서 `z/x/c/v`를 내는 키코드의 역조회 표 — 비-QWERTY에서 게시 직전
+    /// 논리 ANSI 키코드(6/7/8/9)를 치환하는 입력이다. 주입 이유·클로저인 이유는
+    /// `hasQwertyCommandKeys`와 같다 (`20260806_non-qwerty-command-key-reverse-lookup.md`).
+    private let commandKeyCodes: @Sendable () -> [Character: CGKeyCode]
+
     /// 캐럿 주변 텍스트 리더 — 무상태 시퀀스를 정확화하는 입력이다. 주입하는 이유는
     /// `pasteWise`와 같다: 실제 AX를 읽으면 골든 테스트가 실기기 권한과 개발자 머신의
     /// 포커스 상태에 따라 갈린다.
     ///
-    /// 소비자는 `mapping`의 `.edit` 분기와 Visual 세션 분기 **두 곳**이다. 편집은 범위가
-    /// 캐럿 주변을 묻는 경우(`EditKeyMapper.consultsFocusedText`)에만 읽는 **범위 술어**,
-    /// Visual은 앵커 상태의 수립·검증 때문에 읽는 **세션 술어**다 — 모션·paste·undo는
-    /// 묻지 않으므로 AX 왕복이 0건이다. 읽기가 실패하면 정확화만 포기하고 실행은 한다.
+    /// 소비자는 `mapping`의 `.edit` 분기·Visual 세션 분기·`.paste` 분기 **세 곳**이다.
+    /// 편집은 범위가 캐럿 주변을 묻는 경우(`EditKeyMapper.consultsFocusedText`)에만 읽는
+    /// **범위 술어**, Visual은 앵커 상태의 수립·검증 때문에 읽는 **세션 술어**, 붙여넣기는
+    /// charwise `p`의 줄 끝 증명(`pasteConsultsFocusedText`)만 읽는다 — 모션·undo는 묻지
+    /// 않으므로 AX 왕복이 0건이다. 읽기가 실패하면 정확화만 포기하고 실행은 한다.
     private let reader: FocusedTextReader
 
     /// Visual 세션의 앵커 상태 — `pasteWise`와 같은 형태의 상태 보유 협력자이며 게시 직렬
@@ -49,20 +56,32 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 없이 만든다 (`20260804_visual-anchor-state-collaborator.md`).
     private let visualAnchor: VisualAnchorTracker
 
+    /// 뷰포트 표시 줄 수 리더 — 스크롤 근사(15/30)를 정확화하는 입력이며 `reader`(캐럿 주변
+    /// 창)와 **별개의 프리미티브**다. 주입 이유는 `reader`와 같다. 소비자는 `mapping`의
+    /// `.scroll` 분기 한 곳이고, 그 extent의 프로파일 명시값이 있으면 묻지 않는다
+    /// (`CommandKeyMapper.scrollConsultsViewport`).
+    private let viewportReader: ViewportReader
+
     init(
         executor: ActionExecutor = ActionExecutor(),
         pasteWise: PasteWiseResolver = PasteWiseResolver(),
         hasQwertyCommandKeys: @escaping @Sendable () -> Bool = {
             KeyTranslator.hasQwertyCommandKeys
         },
+        commandKeyCodes: @escaping @Sendable () -> [Character: CGKeyCode] = {
+            KeyTranslator.commandKeyCodes
+        },
         reader: FocusedTextReader = FocusedTextReader(),
-        visualAnchor: VisualAnchorTracker = VisualAnchorTracker()
+        visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
+        viewportReader: ViewportReader = ViewportReader()
     ) {
         self.executor = executor
         self.pasteWise = pasteWise
         self.hasQwertyCommandKeys = hasQwertyCommandKeys
+        self.commandKeyCodes = commandKeyCodes
         self.reader = reader
         self.visualAnchor = visualAnchor
+        self.viewportReader = viewportReader
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.
@@ -133,7 +152,8 @@ nonisolated struct KeyboardAdapter: Sendable {
             return true
         }
 
-        /// Visual 정확화 다타 그룹을 **스트로크(다운·업 쌍) 사이 고정 간격**으로 게시한다 —
+        /// 페이싱 다타 그룹(Visual 정확화·paste 접두)을 **스트로크(다운·업 쌍) 사이 고정
+        /// 간격**으로 게시한다 —
         /// Notion 실측에서 0간격 버스트는 재앵커의 Shift 확장을 소화하지 못했다(이벤트당
         /// 5ms 프로브는 완전 정상 — 간격 문제로 확정). 그룹은 원자라 내부 중단 확인은 없다
         /// (최대 수 타 × 5ms라 무해). 최신 여부 확인·중단 계약은 `flush`와 같다.
@@ -155,15 +175,45 @@ nonisolated struct KeyboardAdapter: Sendable {
             return true
         }
 
+        // 뷰포트 스냅샷은 **execute당 1회**다 — 액션별 재생성 계약(`FocusedTextSnapshot`)의
+        // 사유는 앞 액션이 캐럿을 옮긴다는 것인데, 뷰포트 높이는 버스트 중 불변이라 액션별
+        // 재읽기는 이득 0에 비용만 곱한다(`3Ctrl-f`는 엔진이 액션 3건으로 복제한다).
+        // 만드는 것만으로는 AX를 부르지 않는다 (lazy).
+        let viewport = ViewportSnapshot(processID: processID, reader: viewportReader)
+
         for action in actions {
             // 액션마다 새 스냅샷 — 앞 액션이 캐럿을 옮겼으므로 이전 액션의 읽기를 물려받으면
             // 낡은 오프셋으로 계산한다. 만드는 것만으로는 AX를 부르지 않는다 (lazy).
             let text = FocusedTextSnapshot(processID: processID, reader: reader)
+            // 레이아웃도 액션당 1회 스냅샷 — 게이트(mapping)와 치환(게시 직전)이 같은 값을
+            // 읽어야, 그 사이 레이아웃 전환으로 "게이트는 통과했는데 표에는 없는" 창이
+            // 생기지 않는다. QWERTY면 표는 읽지 않는다 (치환 자체가 생략된다).
+            let layout = LayoutSnapshot(
+                isQwerty: hasQwertyCommandKeys(), commandKeyCodes: commandKeyCodes)
             let groups: [[KeyStroke]]
             let paced: Bool
-            switch mapping(for: action, family: family, profile: profile, text: text) {
+            switch mapping(
+                for: action, family: family, profile: profile, text: text, viewport: viewport,
+                layout: layout) {
             case .groups(let mapped, let pacedGroups):
-                groups = mapped
+                // 게시 직전의 단일 치환 단계 — 비-QWERTY에서만 논리 ANSI 명령 키코드
+                // (6/7/8/9)를 현재 레이아웃의 역조회 키코드로 바꾼다. QWERTY 생략이
+                // 현행 바이트 동일의 증명이다.
+                if layout.isQwerty {
+                    groups = mapped
+                } else if let substituted = Self.rewritten(mapped, using: layout.commandKeyCodes) {
+                    groups = substituted
+                } else {
+                    // 게이트가 필요 문자를 확인한 뒤라 정상 경로에서는 도달하지 않는다
+                    // (레이아웃 스냅샷을 게이트와 공유한다). ANSI 코드가 비-QWERTY로
+                    // 그대로 나가는 것이 이 축의 위험 그 자체라, CGEvent 생성 실패와
+                    // 같은 all-or-nothing으로 액션을 폐기한다.
+                    Logger.eventTap.error(
+                        "역조회 치환 실패 — 액션 폐기: \(String(describing: action), privacy: .public)"
+                    )
+                    visualAnchor.apply(.discard)
+                    continue
+                }
                 paced = pacedGroups
             case .unsupported:
                 #if DEBUG
@@ -279,9 +329,10 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 게시 직렬 큐를 막는 것이 곧 스로틀이며, 새 키는 탭 콜백에서 래치만 세우고 그 뒤에 쌓인다.
     private static let chunkInterval: TimeInterval = 0.002
 
-    /// Visual 정확화 다타 그룹의 스트로크 간 간격 — 도그푸딩 조절값이다 (Notion 실측:
-    /// 5ms 충분 확인, 최솟값 미탐). `chunkInterval`과 달리 중단 장치가 아니라 **대상 앱이
-    /// 각 스트로크의 의미(collapse → 이동 → Shift 확장)를 소화할 시간**이다.
+    /// 페이싱 다타 그룹(Visual 정확화·paste 접두)의 스트로크 간 간격 — 도그푸딩
+    /// 조절값이다 (Notion 실측: 5ms 충분 확인, 최솟값 미탐). `chunkInterval`과 달리 중단
+    /// 장치가 아니라 **대상 앱이 각 스트로크의 의미(collapse·이동 → Shift 확장·Cmd-V)를
+    /// 소화할 시간**이다.
     private static let pacedStrokeInterval: TimeInterval = 0.005
 
     /// 원자 그룹 하나의 CGEvent. 하나라도 생성에 실패하면 `nil` — 부분 시퀀스를 내지 않는다.
@@ -321,11 +372,12 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// **원자 그룹**의 목록. 청크 경계는 그룹 사이에만 올 수 있다 — 대부분의 액션은
         /// 그룹 1개(액션 전체)이고, `.paste`만 카운트만큼 갈라져 온다.
         ///
-        /// `paced`는 **Visual 정확화 그룹만** 참이다 — 다타 그룹의 스트로크 사이에 고정
-        /// 간격을 둔다 (Notion 실측: 0간격 버스트는 재앵커의 Shift 확장을 소화하지 못했고,
-        /// 이벤트당 5ms에서는 완전 정상 — 간격 문제로 확정). 범위를 정확화 그룹으로
-        /// 한정해야 스크롤(15~30타 단일 그룹)·폴백 카운트 반복(`500x`)·카운트 버스트가
-        /// 타이밍까지 현행 그대로다.
+        /// `paced`는 **Visual 정확화 그룹과 `.paste`** 만 참이다 — 다타 그룹의 스트로크
+        /// 사이에 고정 간격을 둔다 (Notion 실측: 0간격 버스트는 재앵커의 Shift 확장도,
+        /// 붙여넣기 접두의 화살표도 소화하지 못했고, 이벤트당 5ms에서는 완전 정상 — 간격
+        /// 문제로 확정). 범위를 이 둘로 한정해야 스크롤(단일 화살표 그룹 — 뷰포트 유래면
+        /// 최대 200타)·폴백 카운트 반복(`500x`)·카운트 버스트가 타이밍까지 현행 그대로다.
+        /// 스크롤이 계속 무페이싱인 것은 드롭의 실패 방향이 "덜 스크롤"이라 무해해서다.
         case groups([[KeyStroke]], paced: Bool)
         /// 매퍼가 `nil` — 이 어휘가 아직 구현되지 않았다. 요약 로그에 집계된다.
         case unsupported
@@ -340,6 +392,57 @@ nonisolated struct KeyboardAdapter: Sendable {
         case disabledByProfile
     }
 
+    /// 액션 1건 처리 동안 고정되는 레이아웃 상태 — 게이트(`mapping`)와 치환(게시 직전)이
+    /// 같은 값을 읽는 것이 계약이다. 따로 읽으면 그 사이 레이아웃 전환으로 게이트는
+    /// 통과했는데 치환 표에는 없는 창이 생긴다.
+    private struct LayoutSnapshot {
+        let isQwerty: Bool
+        let commandKeyCodes: [Character: CGKeyCode]
+
+        init(isQwerty: Bool, commandKeyCodes: () -> [Character: CGKeyCode]) {
+            self.isQwerty = isQwerty
+            // QWERTY면 치환이 생략되므로 표를 읽을 이유가 없다.
+            self.commandKeyCodes = isQwerty ? [:] : commandKeyCodes()
+        }
+    }
+
+    /// 논리 ANSI 명령 키코드(6/7/8/9 = Z/X/C/V)를 역조회 키코드로 치환한다. 플래그는
+    /// 보존한다 — redo의 `Shift-Cmd`는 z의 새 키코드에 그대로 얹힌다.
+    ///
+    /// 6/7/8/9가 명령 키 외의 의미로 시퀀스에 등장할 길은 없다: 우리가 합성하는 다른 키는
+    /// 화살표·Return·기능 키뿐이고, 프로파일 스트로크 어휘(`ConfigKey`)도 문자 키를
+    /// 제외한다 — `KeyboardAdapterLayoutGateTests`가 전 매퍼 출력으로 고정하는 사실이다.
+    ///
+    /// `nil` = 치환 대상 키코드가 표에 없다 — 호출측이 액션을 통째로 폐기한다(부분 치환은
+    /// ANSI 코드가 비-QWERTY로 그대로 나가는 부분 시퀀스류의 파괴적 실행이다).
+    private static func rewritten(
+        _ groups: [[KeyStroke]], using codes: [Character: CGKeyCode]
+    ) -> [[KeyStroke]]? {
+        var result: [[KeyStroke]] = []
+        result.reserveCapacity(groups.count)
+        for group in groups {
+            var strokes: [KeyStroke] = []
+            strokes.reserveCapacity(group.count)
+            for stroke in group {
+                guard let character = Self.logicalCommandKeyCharacters[stroke.keyCode] else {
+                    strokes.append(stroke)
+                    continue
+                }
+                guard let keyCode = codes[character] else { return nil }
+                strokes.append(KeyStroke(Int(keyCode), stroke.flags))
+            }
+            result.append(strokes)
+        }
+        return result
+    }
+
+    /// 논리 ANSI 명령 키코드 → 기대 문자. 치환과 게이트(`requiredCommandCharacters`)가
+    /// 참조하는 유일한 대응표다.
+    private static let logicalCommandKeyCharacters: [CGKeyCode: Character] = [
+        CGKeyCode(kVK_ANSI_Z): "z", CGKeyCode(kVK_ANSI_X): "x",
+        CGKeyCode(kVK_ANSI_C): "c", CGKeyCode(kVK_ANSI_V): "v",
+    ]
+
     /// 액션 → 합성할 키스트로크.
     ///
     /// `VimAction`에 exhaustive switch를 걸지 않는 것이 계약이다 — 엔진에 케이스가 늘어도
@@ -353,14 +456,21 @@ nonisolated struct KeyboardAdapter: Sendable {
     ///
     /// `static`이 아닌 이유는 `.paste`가 주입된 클립보드 읽기를 쓰기 때문이다.
     ///
-    /// `text`를 읽는 것은 아래 `.edit` 분기와 Visual 세션 분기 **두 곳**이다 — 묻지 않으면
-    /// AX 왕복도 없다(lazy).
+    /// `text`를 읽는 것은 아래 `.edit` 분기·Visual 세션 분기·`.paste` 분기 **세 곳**이다 —
+    /// 묻지 않으면 AX 왕복도 없다(lazy). `viewport`는 `.scroll` 분기만 읽는다 — 별개
+    /// 프리미티브라 `text`와 리더도 수명(execute당 1회)도 다르다.
     private func mapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
-        text: FocusedTextSnapshot
+        text: FocusedTextSnapshot, viewport: ViewportSnapshot, layout: LayoutSnapshot
     ) -> Mapping {
+        // 새 Visual 세션의 시작은 옛 세션 wise를 **게이트보다 앞에서** 잊는다 — note는
+        // 게시 확정에 게이팅되므로, 걸러진 begin(`.nonText`·`.unresolved`) 뒤의
+        // `.selection` 편집이 이전 세션의 wise로 기록되는 구멍을 여기서 막는다. 망각은
+        // 기록이 아니라서 "게이트가 부수효과보다 앞" 계약을 깨지 않는다(보수 방향 —
+        // 틀려봐야 휴리스틱 폴백이다).
+        if case .beginSelection = action { pasteWise.forgetSelectionWise() }
         // `actions:` disable 판정은 **모든 게이트·부수효과보다 앞**이다 — 사용자가 끈
-        // 액션은 `recordLinewiseEdit`·클립보드 읽기 같은 부수효과도 남기면 안 되고
+        // 액션은 `recordEdit`·클립보드 읽기 같은 부수효과도 남기면 안 되고
         // (걸러내기 게이트가 부수효과보다 앞인 것과 같은 규칙), 분류도 미지원이 아니라
         // `.disabledByProfile`이어야 한다.
         if let configAction = Self.configAction(for: action),
@@ -371,17 +481,24 @@ nonisolated struct KeyboardAdapter: Sendable {
         // 셋 다 "게이트가 부수효과보다 앞이어야 한다"로 모인다
         // (`20260801_non-text-filter-keeps-motion-and-scroll.md`):
         //   ① `.move`에는 family가 없다 (모션은 계열 무관이 계약).
-        //   ② 아래 `.edit`은 매퍼 호출 **전에** `recordLinewiseEdit()`을 부른다 — 게시하지도
+        //   ② 아래 `.edit`은 게시 확정 시 `recordEdit`으로 wise를 기억한다 — 게시하지도
         //      않을 편집을 기억하면 뒤따르는 `p`의 wise가 오염된다.
         //   ③ 아래 `.paste`는 매퍼 호출 전에 클립보드를 읽는다 — 순서가 반대면 걸러내기가
         //      "클립보드에 텍스트 없음"(`.skipped`)으로 잘못 집계돼 스킵 2종 구분이 무너진다.
         guard Self.survivesFilterGate(action, family: family) else { return .unsupported }
-        // 비-QWERTY 레이아웃 게이트 — ANSI **문자** 키코드를 합성하는 액션만 보류한다.
-        // 매퍼는 키코드를 고정 게시하고 대상 앱이 활성 레이아웃으로 재해석하므로, AZERTY에서
-        // `u`의 `Cmd-Z`는 `Cmd-W`(창 닫기 — 데이터 손실)가 된다. 화살표·Return만 쓰는
-        // 액션(모션·스크롤·openLine·선택)은 레이아웃 무관이라 통과한다. 걸러내기 게이트와
-        // 같은 이유로 부수효과(`recordLinewiseEdit`·클립보드 읽기)보다 앞이다.
-        guard hasQwertyCommandKeys() || !Self.synthesizesAnsiLetterCommand(action) else {
+        // 비-QWERTY 레이아웃 게이트 — ANSI **문자** 키코드를 합성하는 액션만 본다. 매퍼는
+        // ANSI 상수를 논리 키코드로 내고 대상 앱은 활성 레이아웃으로 재해석하므로, 치환
+        // 없이는 AZERTY에서 `u`의 `Cmd-Z`가 `Cmd-W`(창 닫기 — 데이터 손실)가 된다.
+        // 비-QWERTY에서는 이 액션이 필요로 하는 문자가 역조회 표에 있으면 통과시키고
+        // (게시 직전 치환이 처리한다 — `execute`), 못 찾은 문자가 필요하면 종전대로
+        // 보류한다(최후 방어선). 화살표·Return만 쓰는 액션(모션·스크롤·openLine·선택)은
+        // 필요 문자가 없어 통과한다. 걸러내기 게이트와 같은 이유로 부수효과(`recordEdit`·
+        // 클립보드 읽기)보다 앞이다.
+        guard layout.isQwerty
+            || Self.requiredCommandCharacters(action).allSatisfy({
+                layout.commandKeyCodes[$0] != nil
+            })
+        else {
             return .layoutBlocked
         }
 
@@ -394,7 +511,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         case .edit(let op, let range):
             // **읽기의 첫 소비 지점**이다 (M5 PR-B — 둘째는 Visual 세션 분기).
             // 게이트 뒤·부수효과 앞이라
-            // `recordLinewiseEdit`·클립보드 오염 없이 빠져나가고, 범위가 묻지 않으면
+            // `recordEdit`·클립보드 오염 없이 빠져나가고, 범위가 묻지 않으면
             // AX 왕복도 없다(읽기는 lazy이므로 `value()`를 부르지 않으면 호출 0건이다).
             //
             // 읽기 실패·타임아웃·pid 없음은 전부 `nil`이라 매퍼가 무상태 시퀀스를 낸다 —
@@ -412,13 +529,20 @@ nonisolated struct KeyboardAdapter: Sendable {
                 )
                 #endif
             }
-            // 줄 단위 편집은 클립보드에 줄 단위 내용을 남긴다 — 뒤따르는 `p`가 끝 개행
-            // 휴리스틱(앱마다 틀린다)에 기대지 않게 그 사실을 기억해 둔다. **게시가 확정된
-            // 뒤에만** 기억한다 — 프로파일 disable로 스킵된 편집이 기억을 남기면, 다음
-            // 외부 복사 한 번 뒤의 `p`가 linewise로 오판된다 (게이트 2종과 같은 규칙이되,
-            // 모션 disable은 매퍼 안에서야 드러나므로 판정이 앞설 수 없어 기억을 뒤로 미룬다).
-            if case .groups = result, Self.isLinewise(op, range) {
-                pasteWise.recordLinewiseEdit()
+            // 편집은 전부 클립보드를 쓴다(delete·change는 `Cmd-X`, yank는 `Cmd-C`) — 뒤따르는
+            // `p`가 끝 개행 휴리스틱(앱마다 틀린다)에 기대지 않게 내용의 wise를 기억해 둔다.
+            // **게시가 확정된 뒤에만** 기억한다 — 프로파일 disable로 스킵된 편집이 기억을
+            // 남기면, 다음 외부 복사 한 번 뒤의 `p`가 그 wise로 오판된다 (게이트 2종과 같은
+            // 규칙이되, 모션 disable은 매퍼 안에서야 드러나므로 판정이 앞설 수 없어 기억을
+            // 뒤로 미룬다).
+            if case .groups = result {
+                if case .selection = range {
+                    // 내용 wise는 범위가 아니라 세션이 정한다 — change도 선택을 그대로
+                    // 자르므로(cc의 줄 유지 반올림이 없다) 세션 wise가 곧 내용이다.
+                    pasteWise.recordSelectionEdit()
+                } else if let wise = Self.contentWise(op, range) {
+                    pasteWise.recordEdit(wise)
+                }
             }
             return result
 
@@ -439,10 +563,19 @@ nonisolated struct KeyboardAdapter: Sendable {
                 )
                 #endif
             }
-            // 게시가 확정된 뒤에만 상태를 남긴다 — `recordLinewiseEdit`과 같은 규칙이다.
+            // 게시가 확정된 뒤에만 상태를 남긴다 — `recordEdit`과 같은 규칙이다.
             // 걸러진 액션이 side를 뒤집으면 다음 액션이 있지도 않은 재앵커를 전제로 계산한다.
             if case .groups = result {
                 visualAnchor.apply(update)
+                // 게시가 확정된 진입·전환의 wise를 세션 wise로 note한다 — `.selection`
+                // 편집의 내용 wise는 세션이 정하는데, 스킵된 전환(`V`→`v` 폴백 `nil`)은
+                // 화면 선택이 그대로라 **확정 스트림만** 따라가야 기억이 내용과 일치한다.
+                switch action {
+                case .beginSelection(let linewise), .switchSelectionWise(let linewise):
+                    pasteWise.noteSelectionWise(linewise ? .linewise : .charwise)
+                default:
+                    break
+                }
                 #if DEBUG
                 // 상태 전이 관측 — 도그푸딩에서 각 액션이 어느 경로(수립·재앵커·폐기·무상태)를
                 // 탔는지 화면과 대조하는 유일한 수단이다.
@@ -462,9 +595,30 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
             return result
 
-        case .openLine, .undo, .redo, .scroll:
+        case .openLine, .undo, .redo:
             return Self.classify(
                 CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
+            ) {
+                CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+            }
+
+        case .scroll(let extent, _):
+            // **읽기의 네 번째 소비 지점** — 뷰포트 표시 줄 수로 반복 줄 수를 정확화한다.
+            // 그 extent의 프로파일 명시값이 있으면 묻지 않고(우선순위상 AX가 어차피 진다),
+            // 읽기 실패·pid 없음은 `nil`이라 현행 사다리(프로파일 → 상수 15/30) 그대로다.
+            // 정확화가 줄 수만 바꾸고 `nil`을 새로 만들지 않으므로 paste처럼 프로브는 둘이다.
+            let lines = CommandKeyMapper.scrollConsultsViewport(extent: extent, profile: profile)
+                ? viewport.value() : nil
+            #if DEBUG
+            if let lines {
+                Logger.eventTap.debug(
+                    "스크롤 뷰포트 정확화: \(lines, privacy: .public)줄 — \(String(describing: action), privacy: .public)"
+                )
+            }
+            #endif
+            return Self.classify(
+                CommandKeyMapper.keyStrokes(
+                    for: action, family: family, profile: profile, viewportLines: lines)
             ) {
                 CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
             }
@@ -476,11 +630,22 @@ nonisolated struct KeyboardAdapter: Sendable {
                 Logger.eventTap.debug("paste 스킵 — 클립보드에 텍스트가 없다")
                 return .skipped
             }
+            // **읽기의 세 번째 소비 지점** — charwise `p`만 줄 끝 증명을 위해 묻는다
+            // (`P`·linewise는 왕복 0건 유지). 읽기 실패·pid 없음은 `nil`이라 현행 접두
+            // 그대로다. 정확화가 접두를 비울 뿐 `nil`을 새로 만들지 않으므로 편집·Visual과
+            // 달리 프로브는 그대로 둘이다.
+            let focused = CommandKeyMapper.pasteConsultsFocusedText(before: before, wise: wise)
+                ? text.value() : nil
             // 유일하게 그룹이 여럿인 액션 — 액션 1개 안에서 카운트가 곱해지므로 래치가
             // 파고들 틈을 매퍼가 직접 낸다. 분류 규칙은 `classify`와 같고 그룹 모양만 다르다.
+            // `paced`인 것은 접두 다타 그룹(linewise 4타 등)이 Notion 0간격 버스트에서
+            // 화살표를 소화하지 못해 `Cmd-V`가 낡은 캐럿에서 터지기 때문이다 (도그푸딩 실측 —
+            // Visual 정확화 그룹과 같은 약점·같은 대응). 후속 `Cmd-V` 그룹은 1타라 자연히
+            // 일반 경로다.
             if let groups = CommandKeyMapper.pasteStrokeGroups(
-                before: before, count: count, wise: wise, family: family, profile: profile) {
-                return .groups(groups, paced: false)
+                before: before, count: count, wise: wise, family: family, profile: profile,
+                text: focused) {
+                return .groups(groups, paced: true)
             }
             return CommandKeyMapper.pasteStrokeGroups(
                 before: before, count: count, wise: wise, family: family, profile: .empty) != nil
@@ -647,31 +812,41 @@ nonisolated struct KeyboardAdapter: Sendable {
         }
     }
 
-    /// ANSI 문자 키코드의 `Cmd-` 조합을 합성하는 액션인가 — 비-QWERTY 레이아웃 게이트 대상.
-    /// `.edit`은 오퍼레이터 스트로크(`Cmd-X`/`Cmd-C`), `.paste`는 `Cmd-V`,
-    /// `.undo`/`.redo`는 `Cmd-Z`다. `VimAction`에 exhaustive switch를 걸지 않는 것은
-    /// 매퍼와 같은 계약이다.
-    private static func synthesizesAnsiLetterCommand(_ action: VimAction) -> Bool {
+    /// 이 액션이 합성하는 ANSI 문자 명령 키의 문자 — 비-QWERTY 게이트의 판정 재료다.
+    /// 빈 집합 = 문자 명령 키를 합성하지 않는다(레이아웃 무관 통과). `.edit`은 오퍼레이터
+    /// 스트로크(yank = `Cmd-C`, delete·change = `Cmd-X`), `.paste`는 `Cmd-V`,
+    /// `.undo`/`.redo`는 `Cmd-Z`(redo는 같은 z에 Shift)다. `VimAction`에 exhaustive
+    /// switch를 걸지 않는 것은 매퍼와 같은 계약이다.
+    private static func requiredCommandCharacters(_ action: VimAction) -> Set<Character> {
         switch action {
-        case .edit, .paste, .undo, .redo:
-            return true
+        case .edit(let op, _):
+            return op == .yank ? ["c"] : ["x"]
+        case .paste:
+            return ["v"]
+        case .undo, .redo:
+            return ["z"]
         default:
-            return false
+            return []
         }
     }
 
-    /// 이 편집이 클립보드에 **줄 단위** 내용을 남기는가.
+    /// 이 편집이 클립보드에 남기는 내용의 wise. `nil` = 미지의 범위라 기록하지 않는다
+    /// (휴리스틱 폴백 — 보수 방향). `.selection`은 여기 오지 않는다 — 내용 wise를 범위가
+    /// 아니라 세션이 정하므로 `recordSelectionEdit()`이 따로 맡는다.
     ///
-    /// `change`는 제외한다 — `cc`는 마지막 확장을 줄 끝으로 바꿔 개행을 남기지 않으므로
-    /// 내용이 실제로 charwise이고, 그렇게 붙여넣는 것이 맞다.
+    /// 줄 범위에서 `change`만 charwise인 것은 내용 진실이다 — `cc`는 마지막 확장을 줄 끝으로
+    /// 바꿔 개행을 남기지 않으므로 내용이 실제로 charwise이고, 그렇게 붙여넣는 것이 맞다.
     /// `TextRange`에 exhaustive switch를 걸지 않는 것은 매퍼와 같은 계약이다.
-    private static func isLinewise(_ op: VimAction.Operator, _ range: VimAction.TextRange) -> Bool {
-        guard op != .change else { return false }
+    private static func contentWise(
+        _ op: VimAction.Operator, _ range: VimAction.TextRange
+    ) -> PasteWise? {
         switch range {
         case .line, .linewiseMotion:
-            return true
+            return op == .change ? .charwise : .linewise
+        case .motion, .textObject:
+            return .charwise
         default:
-            return false
+            return nil
         }
     }
 

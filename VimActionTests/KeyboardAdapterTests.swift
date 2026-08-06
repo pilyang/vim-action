@@ -6,6 +6,7 @@
 import Carbon.HIToolbox
 import CoreGraphics
 import Testing
+import VimActionConfig
 import VimEngine
 @testable import VimAction
 
@@ -21,14 +22,20 @@ private func makeAdapter(
     clipboard wise: PasteWise? = .charwise,
     changeCount: @escaping @Sendable () -> Int = { 0 },
     qwertyCommandKeys: @escaping @Sendable () -> Bool = { true },
+    // 기본값이 **빈 표**인 것이 요점이다 — 실값(`KeyTranslator.commandKeyCodes`)을 읽으면
+    // 테스트가 개발자 머신의 레이아웃에 갈리고, 빈 표는 "역조회 전부 실패"라 비-QWERTY
+    // 통째 보류 테스트가 치환 도입 전과 같은 의미로 성립한다.
+    commandKeyCodes: @escaping @Sendable () -> [Character: CGKeyCode] = { [:] },
     reader: FocusedTextReader = FocusedTextReader { _ in nil },
     visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
+    viewport: ViewportReader = ViewportReader { _ in nil },
     collecting posted: @escaping @Sendable (CGEvent) -> Void
 ) -> KeyboardAdapter {
     KeyboardAdapter(
         executor: ActionExecutor(postEvent: posted),
         pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount),
-        hasQwertyCommandKeys: qwertyCommandKeys, reader: reader, visualAnchor: visualAnchor)
+        hasQwertyCommandKeys: qwertyCommandKeys, commandKeyCodes: commandKeyCodes,
+        reader: reader, visualAnchor: visualAnchor, viewportReader: viewport)
 }
 
 private func keyCodes(of events: [CGEvent]) -> [Int64] {
@@ -253,6 +260,244 @@ struct KeyboardAdapterTests {
         posted = []
         count += 1
         adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// charwise 편집도 기억한다 — 줄 끝 `x`가 개행을 잘라내면 내용이 개행으로 끝나
+    /// 휴리스틱은 linewise로 오판하고, `p`가 엉뚱하게 줄 단위로 붙여넣는다.
+    @Test("직전 dw 뒤의 p는 클립보드가 linewise로 보여도 charwise로 붙여넣는다")
+    func charwiseEditIsRememberedAsCharwise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        // 클립보드는 linewise로 보인다(잘라낸 내용이 개행으로 끝난 상황).
+        let adapter = makeAdapter(clipboard: .linewise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.delete, .motion(.wordForward, count: 1))])
+        posted = []
+        count += 1  // 대상 앱이 잘라내기를 처리해 클립보드를 썼다.
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // charwise `p` = `→` 뒤에 `Cmd-V`.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// `cc`의 내용은 실제로 charwise다(줄 유지·개행 없음) — 휴리스틱에 맡기지 않고 그
+    /// 사실을 직접 기억한다. 위의 "linewise로 기억하지 않는다"에서 한 발 더 나간 것이다.
+    @Test("직전 cc 뒤의 p는 클립보드가 linewise로 보여도 charwise로 붙여넣는다")
+    func changeIsRememberedAsCharwise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .linewise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.change, .line(count: 1))])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// Visual linewise 세션의 `d`는 줄 단위 내용을 남긴다 — Notion은 끝 개행을 안 붙여
+    /// 휴리스틱이 charwise로 오판한다 (`ddp`와 같은 오판 클래스).
+    @Test("V 세션의 d 뒤 p는 클립보드가 charwise로 보여도 linewise로 붙여넣는다")
+    func linewiseSelectionEditIsRememberedAsLinewise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.beginSelection(linewise: true)])
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // linewise `p` 접두 = `Cmd-→, →, Cmd-←` 뒤에 `Cmd-V`.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// Visual charwise 세션 — 선택이 개행을 물고 끝나면 휴리스틱이 linewise로 오판한다.
+    @Test("v 세션의 y 뒤 p는 클립보드가 linewise로 보여도 charwise로 붙여넣는다")
+    func charwiseSelectionEditIsRememberedAsCharwise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .linewise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.beginSelection(linewise: false)])
+        adapter.execute([.edit(.yank, .selection), .clearSelection])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 세션 wise는 게시가 확정된 전환을 따라간다 — `v`→`V` 폴백 시퀀스는 게시되므로
+    /// 이후 `.selection` 편집의 내용은 줄 단위다.
+    @Test("v→V 전환 뒤의 selection 편집은 linewise로 기억된다")
+    func postedWiseSwitchUpdatesRememberedWise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.beginSelection(linewise: false)])
+        adapter.execute([.switchSelectionWise(linewise: true)])
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// `V`→`v` 폴백은 매퍼 `nil`(정직한 스킵)이라 화면 선택이 그대로 줄 단위다 —
+    /// 게시되지 않은 전환은 wise도 바꾸지 않아야 기억이 내용과 일치한다.
+    @Test("스킵된 V→v 전환은 기억되는 wise를 바꾸지 않는다")
+    func skippedWiseSwitchKeepsRememberedWise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.beginSelection(linewise: true)])
+        adapter.execute([.switchSelectionWise(linewise: false)])  // 무상태 폴백 = 스킵
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // 화면 선택은 여전히 줄 단위였으므로 linewise가 내용 진실이다.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 걸러진 begin(`.nonText`·`.unresolved`)은 note를 못 남기지만 **옛 세션의 wise만은
+    /// 반드시 잊어야 한다** — 남으면 뒤의 `.selection` 편집이 이전 세션의 wise로 기록돼,
+    /// 휴리스틱이었다면 맞았을 자리를 틀리게 만든다 (앱 전환 콜드 창의 `v` 시나리오).
+    @Test("걸러진 begin은 이전 세션 wise를 잊는다 — selection 편집은 휴리스틱으로 남는다")
+    func filteredBeginForgetsPreviousSessionWise() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .charwise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        // 이전 세션: V 세션의 d가 linewise를 note한다.
+        adapter.execute([.beginSelection(linewise: true)])
+        adapter.execute([.edit(.delete, .selection)])
+        count += 1
+        // 새 세션: 앱 전환 콜드 창(.unresolved)의 v — 게이트에 걸러져 note가 없다.
+        adapter.execute([.beginSelection(linewise: false)], family: .unresolved)
+        // 화면의 charwise 선택을 d가 자른다 — 낡은 linewise가 기록되면 안 되는 자리다.
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // 기억이 없으므로 휴리스틱(끝 개행 없음 = charwise)을 따른다.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 세션 wise를 모르는 `.selection` 편집은 기억을 남기지 않는다 — begin 없이 온 편집은
+    /// 휴리스틱으로 남는 것이 보수 방향이다 (기록할 근거가 없다).
+    @Test("begin 없이 온 selection 편집은 기억을 남기지 않는다")
+    func selectionEditWithoutSessionWiseLeavesNoMemory() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var count = 7
+        let adapter = makeAdapter(clipboard: .linewise, changeCount: { count }) {
+            posted.append($0)
+        }
+
+        adapter.execute([.edit(.delete, .selection)])
+        posted = []
+        count += 1
+        adapter.execute([.paste(before: false, count: 1)])
+
+        // 기억이 없으므로 휴리스틱(클립보드 끝 개행 = linewise)을 따른다.
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+                Int64(kVK_ANSI_V), Int64(kVK_ANSI_V),
+            ])
+    }
+
+    /// 줄 끝의 Vim 커서는 마지막 글자 **위**라 "커서 뒤"가 곧 지금 캐럿 자리다 — `→`를
+    /// 내면 다음 줄 시작으로 포화해 붙여넣기가 줄을 넘는다 (도그푸딩 실측: 줄 끝 `xp`가
+    /// 글자를 다음 줄로 보냈다). 편집 정확화(엣지 1)와 같은 줄 끝 커서 모델이다.
+    @Test("줄 끝이 증명된 charwise p는 → 접두 없이 Cmd-V만 낸다")
+    func charwisePasteAtProvenLineEndDropsPrefix() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // 문서 "ab\ncd", 캐럿 2 = 첫 줄 끝 (b 뒤, 개행 앞).
+        let adapter = makeAdapter(
+            clipboard: .charwise,
+            reader: FocusedTextReader { _ in focusedText("ab\ncd", caret: 2) }
+        ) { posted.append($0) }
+
+        adapter.execute([.paste(before: false, count: 1)], processID: 1)
+
+        #expect(keyCodes(of: posted) == [Int64(kVK_ANSI_V), Int64(kVK_ANSI_V)])
+    }
+
+    /// 줄 중간에서는 증명이 서도 현행 그대로다 — 정확화는 줄 끝 분기 하나뿐이다.
+    @Test("줄 중간의 charwise p는 → 접두를 유지한다")
+    func charwisePasteMidLineKeepsPrefix() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            clipboard: .charwise,
+            reader: FocusedTextReader { _ in focusedText("ab\ncd", caret: 1) }
+        ) { posted.append($0) }
+
+        adapter.execute([.paste(before: false, count: 1)], processID: 1)
 
         #expect(
             keyCodes(of: posted) == [
@@ -703,9 +948,9 @@ struct KeyboardAdapterElementFamilyTests {
         #expect(keyCodes(of: fromUnresolved) == keyCodes(of: fromTextArea), "\(action)")
     }
 
-    /// **게이트가 부수효과보다 앞이라는 계약.** `.edit`의 `recordLinewiseEdit()`은 매퍼 호출
-    /// 전에 불리므로, 게이트가 뒤에 있으면 게시하지도 않은 편집이 기억돼 다음 `p`의 wise가
-    /// 오염된다. `recordLinewiseEdit()`이 주입된 `changeCount`를 읽는다는 사실로 관측한다.
+    /// **게이트가 부수효과보다 앞이라는 계약.** 게이트가 뒤에 있으면 게시하지도 않은
+    /// 편집이 `recordEdit`으로 기억돼 다음 `p`의 wise가 오염된다.
+    /// `recordEdit`이 주입된 `changeCount`를 읽는다는 사실로 관측한다.
     @Test("비텍스트 편집은 붙여넣기 단위 기억을 남기지 않는다")
     func nonTextEditDoesNotRecordPasteWise() {
         nonisolated(unsafe) var changeCountReads = 0
@@ -797,10 +1042,167 @@ struct KeyboardAdapterLayoutGateTests {
         adapter.execute([.undo])
         #expect(keyCodes(of: posted) == [Int64(kVK_ANSI_Z), Int64(kVK_ANSI_Z)])
     }
+
+    // MARK: 역조회 치환 (`20260806_non-qwerty-command-key-reverse-lookup.md`)
+
+    /// AZERTY 실측 표 — z만 W 자리(13)로 옮겨가고 x/c/v는 QWERTY와 같다.
+    private static let azertyCodes: [Character: CGKeyCode] = [
+        "z": 13, "x": 7, "c": 8, "v": 9,
+    ]
+
+    /// Dvorak 실측 표 — 4키 전부 재배열이다.
+    private static let dvorakCodes: [Character: CGKeyCode] = [
+        "z": 44, "x": 11, "c": 34, "v": 47,
+    ]
+
+    @Test("비-QWERTY + 역조회 성공: undo·redo가 치환된 키코드로 게시된다 (플래그 보존)")
+    func reverseLookupRewritesUndoRedo() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { false }, commandKeyCodes: { Self.azertyCodes },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.undo])
+        #expect(keyCodes(of: posted) == [13, 13])
+        #expect(posted.allSatisfy { $0.flags.contains(.maskCommand) })
+        #expect(posted.allSatisfy { !$0.flags.contains(.maskShift) })
+
+        // redo는 같은 z 키코드에 Shift가 얹힌다 — shifted 역조회가 따로 없는 이유다.
+        posted.removeAll()
+        adapter.execute([.redo])
+        #expect(keyCodes(of: posted) == [13, 13])
+        #expect(posted.allSatisfy { $0.flags.contains(.maskCommand) })
+        #expect(posted.allSatisfy { $0.flags.contains(.maskShift) })
+    }
+
+    @Test("비-QWERTY + 역조회 성공: 편집·paste의 명령 키만 치환되고 화살표는 그대로다")
+    func reverseLookupRewritesEditAndPasteCommandKeysOnly() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { false }, commandKeyCodes: { Self.dvorakCodes },
+            collecting: { posted.append($0) })
+
+        // delete = `Shift-→, Cmd-X` — 화살표(124)는 손대지 않고 X(7)만 11로 바뀐다.
+        adapter.execute([.edit(.delete, .motion(.charRight, count: 1))])
+        #expect(keyCodes(of: posted) == [Int64(kVK_RightArrow), Int64(kVK_RightArrow), 11, 11])
+
+        // yank(.selection) = `Cmd-C` 1타 — C(8)가 34로 바뀐다.
+        posted.removeAll()
+        adapter.execute([.edit(.yank, .selection)])
+        #expect(keyCodes(of: posted) == [34, 34])
+
+        // charwise p = `→` 접두 + `Cmd-V` — V(9)가 47로 바뀐다.
+        posted.removeAll()
+        adapter.execute([.paste(before: false, count: 1)])
+        #expect(keyCodes(of: posted) == [Int64(kVK_RightArrow), Int64(kVK_RightArrow), 47, 47])
+    }
+
+    @Test("부분 역조회: 못 찾은 문자가 필요한 액션만 보류된다 (액션별 판정)")
+    func partialLookupBlocksOnlyActionsNeedingMissingCharacter() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // z만 찾은 표 — undo/redo는 살고, x가 필요한 delete는 보류된다.
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { false }, commandKeyCodes: { ["z": 13] },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+        #expect(posted.isEmpty)
+
+        adapter.execute([.undo])
+        #expect(keyCodes(of: posted) == [13, 13])
+    }
+
+    @Test("부분 역조회로 보류된 편집은 붙여넣기 단위 기억을 남기지 않는다")
+    func partialLookupBlockedEditDoesNotRecordPasteWise() {
+        nonisolated(unsafe) var changeCountReads = 0
+        let adapter = makeAdapter(
+            changeCount: {
+                changeCountReads += 1
+                return 0
+            },
+            qwertyCommandKeys: { false }, commandKeyCodes: { ["z": 13] },
+            collecting: { _ in })
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+
+        #expect(changeCountReads == 0, "게이트가 기억보다 앞이다")
+    }
+
+    @Test("QWERTY에서는 치환이 통째로 생략된다 (표가 달라도 현행 바이트 동일)")
+    func qwertySkipsRewriteEntirely() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // 표가 Dvorak 값이어도 QWERTY면 읽히지 않는다 — 생략이 곧 현행 바이트 동일의 증명.
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { true }, commandKeyCodes: { Self.dvorakCodes },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.undo, .edit(.yank, .selection)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_ANSI_Z), Int64(kVK_ANSI_Z), Int64(kVK_ANSI_C), Int64(kVK_ANSI_C),
+            ])
+    }
+}
+
+/// 게시 직전 치환의 안전 전제 고정 — 논리 ANSI 명령 키코드(6/7/8/9 = Z/X/C/V)는 문자 명령
+/// 키를 합성하는 액션(`.edit`·`.paste`·`.undo`·`.redo`)의 명령 스트로크에만 등장한다.
+/// 여기서는 그 밖의 전 매퍼 출력(모션 전 어휘·Visual 세션·openLine·스크롤)에 이 키코드가
+/// 없음을 스윕한다 — 깨지면 치환이 명령 키가 아닌 스트로크를 바꾸게 되므로, 새 어휘가
+/// 문자 키를 합성하려면 이 테스트와 게이트(`requiredCommandCharacters`)를 함께 확장해야
+/// 한다. 프로파일 스트로크 어휘(`ConfigKey`)는 타입 차원에서 문자 키가 없다.
+struct LogicalCommandKeyCodeExclusivityTests {
+    private static let commandKeyCodes: Set<CGKeyCode> = [
+        CGKeyCode(kVK_ANSI_Z), CGKeyCode(kVK_ANSI_X),
+        CGKeyCode(kVK_ANSI_C), CGKeyCode(kVK_ANSI_V),
+    ]
+
+    @Test("모션 매퍼 전 어휘에 명령 키코드가 없다")
+    func motionSequencesCarryNoCommandKeyCodes() {
+        for motion in Motion.allCases {
+            let strokes = MotionKeyMapper.keyStrokes(for: motion) ?? []
+            #expect(
+                strokes.allSatisfy { !Self.commandKeyCodes.contains($0.keyCode) },
+                "\(motion)")
+        }
+    }
+
+    @Test("Visual 세션 매퍼 전 어휘에 명령 키코드가 없다")
+    func visualSequencesCarryNoCommandKeyCodes() {
+        var actions: [VimAction] = [
+            .beginSelection(linewise: false), .beginSelection(linewise: true),
+            .switchSelectionWise(linewise: false), .switchSelectionWise(linewise: true),
+            .clearSelection,
+        ]
+        actions += Motion.allCases.map { .extendSelection($0) }
+        for action in actions {
+            let strokes = VisualKeyMapper.keyStrokes(for: action, family: .textArea) ?? []
+            #expect(
+                strokes.allSatisfy { !Self.commandKeyCodes.contains($0.keyCode) },
+                "\(action)")
+        }
+    }
+
+    @Test("openLine·스크롤 시퀀스에 명령 키코드가 없다")
+    func delegationSequencesCarryNoCommandKeyCodes() {
+        let actions: [VimAction] = [
+            .openLine(above: false), .openLine(above: true),
+            .scroll(.halfPage, forward: true), .scroll(.halfPage, forward: false),
+            .scroll(.fullPage, forward: true), .scroll(.fullPage, forward: false),
+        ]
+        for action in actions {
+            let strokes = CommandKeyMapper.keyStrokes(for: action, family: .textArea) ?? []
+            #expect(
+                strokes.allSatisfy { !Self.commandKeyCodes.contains($0.keyCode) },
+                "\(action)")
+        }
+    }
 }
 
 /// 캐럿 주변 리더 seam — 소비자는 `mapping`의 `.edit` 분기(**범위 술어** — 표에 적힌 범위만
-/// 묻는다)와 Visual 세션 분기(**세션 술어** — 수립·자가 검증이 묻는다) 두 곳이다.
+/// 묻는다)·Visual 세션 분기(**세션 술어** — 수립·자가 검증이 묻는다)·`.paste` 분기(charwise
+/// `p`의 줄 끝 증명) 세 곳이다. 스크롤은 여기 없다 — 별개 프리미티브(`ViewportReader`,
+/// `KeyboardAdapterViewportTests`)를 읽는다.
 /// 여기서 고정하는 것은 세 가지다: 누가 읽는가(그리고 몇 번), 읽기가 실패해도
 /// 실행은 하는가(폴백 계약), 그리고 읽기가 0폭 포화를 증명하면 게시를 멈추는가.
 ///
@@ -854,11 +1256,13 @@ struct KeyboardAdapterFocusedTextTests {
         makeAdapter(reader: reader, collecting: { _ in }).execute(Self.vocabulary, processID: 42)
 
         #expect(
-            reads == 5,
+            reads == 6,
             """
             편집은 `x`·`dk`·`dgg`·`diw` 넷(범위 술어), Visual은 `v` 진입 하나(세션 술어 — \
-            수립 읽기는 실패해도 왕복이다)다. `dd`·`dj`는 묻지 않고, `clearSelection`은 \
-            폐기만이라 읽지 않으며, 상태 없는 세션이라 확장도 있었다면 읽지 않았을 것이다.
+            수립 읽기는 실패해도 왕복이다), 붙여넣기는 charwise `p` 하나(줄 끝 증명)다. \
+            `dd`·`dj`는 묻지 않고, `clearSelection`은 폐기만이라 읽지 않으며, 상태 없는 \
+            세션이라 확장도 있었다면 읽지 않았을 것이다. 스크롤은 이 리더가 아니라 \
+            뷰포트 리더를 읽는다 — 여기 6에 들어오지 않는다.
             """)
     }
 
@@ -1023,6 +1427,127 @@ struct KeyboardAdapterFocusedTextTests {
         #expect(keyCodes(of: succeeded) == keyCodes(of: failed))
         #expect(keyCodes(of: succeeded) == keyCodes(of: noProcess))
         #expect(succeeded.map(\.flags) == failed.map(\.flags))
+    }
+}
+
+/// 뷰포트 리더 seam (M5 PR-C2 ②) — 소비자는 `mapping`의 `.scroll` 분기 **한 곳**이다.
+/// 여기서 고정하는 것도 셋이다: 누가 읽는가(스크롤만 — 그 extent의 프로파일 명시값이 없을
+/// 때만), 몇 번 읽는가(**execute당 1회** — 뷰포트 높이는 버스트 중 불변이라
+/// `FocusedTextSnapshot`의 액션당 계약과 수명이 다르다), 실패 폴백(15/30 바이트 동일 —
+/// 정확화만 포기하고 게시는 한다).
+struct KeyboardAdapterViewportTests {
+    private static func profile(half: Int? = nil, full: Int? = nil) -> ResolvedProfile {
+        ResolvedProfile(AppProfile(halfPageLines: half, fullPageLines: full))
+    }
+
+    @Test("viewport 40의 Ctrl-d — ↓ 20타, 수정키 없음")
+    func halfPageUsesViewportLines() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(viewport: ViewportReader { _ in 40 }, collecting: { posted.append($0) })
+            .execute([.scroll(.halfPage, forward: true)], processID: 42)
+
+        #expect(posted.count == 20 * 2, "20스트로크 × keyDown+keyUp")
+        #expect(keyCodes(of: posted).allSatisfy { $0 == Int64(kVK_DownArrow) })
+        #expect(
+            posted.allSatisfy {
+                $0.flags.isDisjoint(with: [.maskAlternate, .maskCommand, .maskControl, .maskShift])
+            })
+    }
+
+    /// 우선순위 사다리의 첫 칸 — 프로파일 명시값은 AX를 **이기는** 것이 아니라 읽기 자체를
+    /// 생략시킨다(`scrollConsultsViewport` 술어). extent별 독립: half만 명시면 full은 읽는다.
+    @Test("프로파일 명시 extent는 뷰포트를 읽지 않는다 — extent별 독립")
+    func explicitProfileExtentSkipsTheRead() {
+        nonisolated(unsafe) var reads = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            viewport: ViewportReader { _ in
+                reads += 1
+                return 40
+            }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.scroll(.halfPage, forward: true)], profile: Self.profile(half: 5), processID: 42)
+        #expect(reads == 0, "half 명시 — 읽기 생략")
+        #expect(posted.count == 5 * 2, "명시값 5가 이긴다")
+
+        posted.removeAll()
+        adapter.execute(
+            [.scroll(.fullPage, forward: true)], profile: Self.profile(half: 5), processID: 42)
+        #expect(reads == 1, "full은 미명시 — 읽는다")
+        #expect(posted.count == 38 * 2, "full = 뷰포트 40 − 2")
+    }
+
+    @Test("pid가 없으면 리더를 부르지 않고 상수 폴백으로 게시한다")
+    func missingProcessIDSkipsTheRead() {
+        nonisolated(unsafe) var reads = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(
+            viewport: ViewportReader { _ in
+                reads += 1
+                return 40
+            }, collecting: { posted.append($0) }
+        ).execute([.scroll(.halfPage, forward: true)])
+
+        #expect(reads == 0)
+        #expect(posted.count == 15 * 2, "폴백 = 코드 상수 15")
+    }
+
+    /// 무상태 폴백의 바이트 동일 계약 — 읽기 실패가 스크롤을 죽이면 안 된다.
+    @Test("읽기 실패는 15/30 상수와 바이트 동일하게 게시한다")
+    func failedReadFallsBackToConstants() {
+        nonisolated(unsafe) var failed: [CGEvent] = []
+        makeAdapter(viewport: ViewportReader { _ in nil }, collecting: { failed.append($0) })
+            .execute(
+                [.scroll(.halfPage, forward: true), .scroll(.fullPage, forward: false)],
+                processID: 42)
+
+        nonisolated(unsafe) var noRead: [CGEvent] = []
+        makeAdapter(collecting: { noRead.append($0) })
+            .execute([.scroll(.halfPage, forward: true), .scroll(.fullPage, forward: false)])
+
+        #expect(failed.count == (15 + 30) * 2)
+        #expect(keyCodes(of: failed) == keyCodes(of: noRead))
+        #expect(failed.map(\.flags) == noRead.map(\.flags))
+    }
+
+    /// `3Ctrl-f`는 엔진이 액션 3건으로 복제한다 — 액션마다 읽으면 정확도 이득 0에 비용만
+    /// 곱해지므로(타임아웃 앱 최악 33×50ms) 뷰포트 스냅샷은 execute당 1회다.
+    @Test("뷰포트 읽기는 execute당 1회다 — 액션 수만큼 곱해지지 않는다")
+    func viewportIsReadOncePerExecute() {
+        nonisolated(unsafe) var reads = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(
+            viewport: ViewportReader { _ in
+                reads += 1
+                return 40
+            }, collecting: { posted.append($0) }
+        ).execute(
+            [.scroll(.halfPage, forward: true), .scroll(.halfPage, forward: true)], processID: 42)
+
+        #expect(reads == 1)
+        #expect(posted.count == 20 * 2 * 2, "두 액션 모두 같은 읽기로 정확화된다")
+    }
+
+    /// 별개 프리미티브 계약 — 스크롤이 캐럿 주변 리더(`FocusedTextReader`)를 건드리기
+    /// 시작하면 `reads == 6` 왕복 고정이 조용히 무너진다.
+    @Test("스크롤은 캐럿 주변 리더를 부르지 않는다")
+    func scrollDoesNotTouchTheFocusedTextReader() {
+        nonisolated(unsafe) var focusedReads = 0
+        nonisolated(unsafe) var viewportReads = 0
+        makeAdapter(
+            reader: FocusedTextReader { _ in
+                focusedReads += 1
+                return nil
+            },
+            viewport: ViewportReader { _ in
+                viewportReads += 1
+                return 40
+            }, collecting: { _ in }
+        ).execute([.scroll(.fullPage, forward: true)], processID: 42)
+
+        #expect(focusedReads == 0)
+        #expect(viewportReads == 1)
     }
 }
 

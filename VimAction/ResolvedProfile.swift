@@ -30,7 +30,9 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
     }
 
     let name: String?
-    /// 스크롤 줄 수 재정의 — `nil`이면 `CommandKeyMapper`의 코드 상수(15/30)가 쓰인다.
+    /// 스크롤 줄 수 재정의 — 명시값은 AX 뷰포트 정확값보다 **우선**하며 그 extent는 읽기
+    /// 자체가 생략된다. `nil`이면 AX 뷰포트를 시도하고, 그것도 실패하면 `CommandKeyMapper`의
+    /// 코드 상수(15/30)다 (`20260806_scroll-line-count-priority-ladder.md`).
     let halfPageLines: Int?
     let fullPageLines: Int?
     let motionOverrides: [Motion: Override]

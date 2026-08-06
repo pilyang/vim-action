@@ -1,5 +1,7 @@
 # 비-QWERTY 레이아웃 가드 — ANSI 문자 명령 키 합성 액션 보류
 
+> Superseded (부분) by [20260806_non-qwerty-command-key-reverse-lookup.md](20260806_non-qwerty-command-key-reverse-lookup.md) — "통째 보류"는 역조회 실패 시 최후 방어선으로 좁아짐 / 판별(행동 검사)·게이트 위치·별도 요약 로그는 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-01

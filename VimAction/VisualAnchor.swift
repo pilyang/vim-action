@@ -62,7 +62,7 @@ nonisolated struct VisualAnchorState: Equatable, Sendable {
 }
 
 /// 매퍼가 시퀀스와 함께 돌려주는 상태 변화 — 게시가 확정된 액션만 상태를 남기도록
-/// (`recordLinewiseEdit` 선례), 적용은 어댑터가 `.groups` 확정 뒤에 한다.
+/// (`recordEdit` 선례), 적용은 어댑터가 `.groups` 확정 뒤에 한다.
 nonisolated enum VisualAnchorUpdate: Equatable, Sendable {
     case unchanged
     case set(VisualAnchorState)

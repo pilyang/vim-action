@@ -142,3 +142,70 @@ struct KeyTranslatorTests {
         #expect(KeyTranslator.translate(flagsChanged) == nil)
     }
 }
+
+/// 역조회 픽스처 — 레이아웃 ID와 기대 표. 기대값은 세션 초입 프로브 실측이다
+/// (`20260806_non-qwerty-command-key-reverse-lookup.md`).
+struct ReverseLookupFixture: Sendable, CustomTestStringConvertible {
+    var name: String
+    var inputSourceID: String
+    var expected: [Character: CGKeyCode]
+
+    var testDescription: String { name }
+}
+
+let reverseLookupFixtures: [ReverseLookupFixture] = [
+    // 대조군 — ANSI 상수 그대로여야 한다.
+    .init(
+        name: "US(QWERTY): 6/7/8/9 그대로",
+        inputSourceID: "com.apple.keylayout.US",
+        expected: ["z": 6, "x": 7, "c": 8, "v": 9]),
+    // AZERTY — z만 W 자리로 옮겨가고 x/c/v는 QWERTY와 같다 (하단열이 w,x,c,v).
+    .init(
+        name: "French(AZERTY): z→13, 나머지 그대로",
+        inputSourceID: "com.apple.keylayout.French",
+        expected: ["z": 13, "x": 7, "c": 8, "v": 9]),
+    // Dvorak — 4키 전부 재배열.
+    .init(
+        name: "Dvorak: 4키 전부 재배열",
+        inputSourceID: "com.apple.keylayout.Dvorak",
+        expected: ["z": 44, "x": 11, "c": 34, "v": 47]),
+]
+
+/// 역조회(`commandKeyCodes(in:)`)를 **실 레이아웃 데이터**로 단언한다 — TIS 설치 목록에서
+/// 입력 소스 **전환 없이** 데이터를 가져오므로 헤드리스로 돌고 머신의 활성 레이아웃과
+/// 무관하다 (세션 초입 프로브로 확인 — 목록이 시스템 동봉 레이아웃 251종을 반환했다).
+@MainActor
+struct CommandKeyReverseLookupTests {
+    @Test("실 레이아웃 데이터 역조회", arguments: reverseLookupFixtures)
+    func reverseLookupAgainstInstalledLayout(_ fixture: ReverseLookupFixture) {
+        // 시스템 동봉 레이아웃이라 사실상 항상 있다 — 미존재(향후 macOS가 빼는 경우)만
+        // 방어적으로 건너뛴다. 단언 자체를 조건부로 만들지 않기 위한 최소한의 가드다.
+        guard let layoutData = Self.installedLayoutData(inputSourceID: fixture.inputSourceID)
+        else { return }
+
+        #expect(
+            KeyTranslator.commandKeyCodes(in: layoutData) == fixture.expected, "\(fixture.name)")
+    }
+
+    /// TIS 설치 목록(키보드 레이아웃 한정)에서 ID로 레이아웃 데이터를 찾는다.
+    private static func installedLayoutData(inputSourceID: String) -> Data? {
+        let filter =
+            [kTISPropertyInputSourceType as String: kTISTypeKeyboardLayout as String]
+            as CFDictionary
+        guard
+            let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue()
+                as? [TISInputSource]
+        else { return nil }
+        for source in list {
+            guard
+                let idPointer = TISGetInputSourceProperty(source, kTISPropertyInputSourceID),
+                Unmanaged<CFString>.fromOpaque(idPointer).takeUnretainedValue() as String
+                    == inputSourceID,
+                let dataPointer = TISGetInputSourceProperty(
+                    source, kTISPropertyUnicodeKeyLayoutData)
+            else { continue }
+            return Unmanaged<CFData>.fromOpaque(dataPointer).takeUnretainedValue() as Data
+        }
+        return nil
+    }
+}

@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260806_paste-groups-stroke-pacing.md](20260806_paste-groups-stroke-pacing.md) — 페이싱 범위에 `.paste` 그룹 추가 / 5ms 상수·정확화 그룹 페이싱·스크롤 등 타이밍 현행 유지 원칙은 유효
+
 # Visual 정확화 그룹 한정 스트로크 페이싱 (5ms)
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
