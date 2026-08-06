@@ -1,5 +1,7 @@
 # 오퍼레이터 키는 ANSI 고정 키코드 — QWERTY 계열 가정
 
+> Superseded (부분) by [20260806_non-qwerty-command-key-reverse-lookup.md](20260806_non-qwerty-command-key-reverse-lookup.md) — "역조회하지 않는다"(이연)는 어댑터 게시 경로 치환으로 해소됨 / 매퍼가 ANSI 상수를 논리 키코드로 내는 계약은 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-07-27

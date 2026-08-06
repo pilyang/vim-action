@@ -153,14 +153,14 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-27 | 편집 키스트로크 매핑 계약 | EditKeyMapper (op,range,family)→[KeyStroke]? — Shift 선택 후 오퍼레이터 1타 | [20260727_edit-keystroke-mapping-contract.md](references/20260727_edit-keystroke-mapping-contract.md) |
 | 07-27 | linewise 개행 반올림 | delete/yank는 개행 포함·change는 줄 유지, 문서 끝 빈 줄 수용 | [20260727_linewise-newline-rounding.md](references/20260727_linewise-newline-rounding.md) |
 | 07-27 | yank collapse는 왼쪽 | Cmd-C 뒤 ← 1타로 범위 시작에 붙임 — 방향 분기 불필요 | [20260727_yank-collapse-to-range-start.md](references/20260727_yank-collapse-to-range-start.md) |
-| 07-27 | 오퍼레이터 키 ANSI 고정 | Cmd-X/C는 ANSI 키코드 고정 = QWERTY 가정, 역조회 이연 | [20260727_operator-key-ansi-layout-assumption.md](references/20260727_operator-key-ansi-layout-assumption.md) |
+| 07-27 | 오퍼레이터 키 ANSI 고정 | Cmd-X/C는 ANSI 키코드 고정 = QWERTY 가정 (역조회 이연은 20260806 부분 supersede — ANSI는 논리 키코드로 유지) | [20260727_operator-key-ansi-layout-assumption.md](references/20260727_operator-key-ansi-layout-assumption.md) |
 | 07-27 | iw 앵커는 단어 끝 경유 3타 | Opt-← 1타는 앞 단어 삭제 위험 — ^와 같은 복귀 패턴으로 교체 (수용 엣지는 20260803 부분 supersede, 3타는 읽기 실패 시 상시 경로) | [20260727_inner-word-anchor-via-word-end.md](references/20260727_inner-word-anchor-via-word-end.md) |
 | 07-30 | 명령 매퍼 신설 | CommandKeyMapper(o/O·p/P·u/Ctrl-r·스크롤) — 네이티브 위임 계열, NSPasteboard는 주입 seam | [20260730_command-key-mapper-scope.md](references/20260730_command-key-mapper-scope.md) |
 | 07-30 | o/O 시퀀스 | o=Cmd-→,Return / O=Cmd-←,Return,↑ — 수용 엣지 4종 | [20260730_openline-return-sequence.md](references/20260730_openline-return-sequence.md) |
 | 07-30 | paste wise 끝 개행 휴리스틱 | 클립보드 끝 개행으로 charwise/linewise, linewise p는 꼬리 보정 | [20260730_paste-wise-trailing-newline-heuristic.md](references/20260730_paste-wise-trailing-newline-heuristic.md) |
 | 07-30 | 스크롤은 화살표 반복 | 페이지 키는 죽은 기능(실측) — ↓/↑ 반복(half 15·full 30) | [20260730_scroll-arrow-repetition.md](references/20260730_scroll-arrow-repetition.md) |
 | 07-30 | paste wise는 우리 편집을 기억 | 줄 단위 편집을 changeCount와 기억 — 휴리스틱은 외부 복사 전담으로 강등 (기억 대상 한정은 20260806 부분 supersede) | [20260730_paste-wise-from-our-own-edit.md](references/20260730_paste-wise-from-our-own-edit.md) |
-| 08-01 | 비-QWERTY 레이아웃 가드 | 행동 검사(Z/X/C/V 번역 확인)로 판별, 문자 명령 키 액션 보류(layoutBlocked) | [20260801_non-qwerty-command-key-layout-guard.md](references/20260801_non-qwerty-command-key-layout-guard.md) |
+| 08-01 | 비-QWERTY 레이아웃 가드 | 행동 검사(Z/X/C/V 번역 확인)로 판별 (통째 보류는 20260806 역조회로 부분 supersede — 가드는 최후 방어선) | [20260801_non-qwerty-command-key-layout-guard.md](references/20260801_non-qwerty-command-key-layout-guard.md) |
 | 08-02 | 프로파일 재정의 전파는 조회 전면 | 단일 지점=MotionKeyMapper(옵셔널) — 명령 접두·yank collapse까지 전파, disabled는 복합 통째 스킵 + .disabledByProfile 분류 | [20260802_profile-override-propagation-full-lookup.md](references/20260802_profile-override-propagation-full-lookup.md) |
 | 08-06 | paste wise 기억은 편집 전반 | 클립보드 쓰기 편집 전부 기록(change=charwise 포함) — 휴리스틱은 외부 복사 전담, 델타-1 불변 | [20260806_paste-wise-memory-covers-all-edits.md](references/20260806_paste-wise-memory-covers-all-edits.md) |
 | 08-06 | `.selection` wise는 확정 스트림 추적 | 게시 확정된 begin/switch의 wise를 PasteWiseResolver가 note — 화면 진실 추적(엔진 확장·앵커 병합 기각) | [20260806_selection-wise-from-confirmed-stream.md](references/20260806_selection-wise-from-confirmed-stream.md) |
@@ -168,6 +168,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-06 | `.paste` 그룹도 페이싱 | Notion 0간격 버스트가 linewise 접두 화살표를 드롭(로그 판독) — 정확화 그룹과 같은 5ms 대응, 20260805 부분 supersede | [20260806_paste-groups-stroke-pacing.md](references/20260806_paste-groups-stroke-pacing.md) |
 | 08-06 | 스크롤 줄 수 우선순위 사다리 | 프로파일 명시값 > AX 뷰포트 > 상수 15/30 (extent별 독립) — 명시 extent는 술어가 읽기 생략 | [20260806_scroll-line-count-priority-ladder.md](references/20260806_scroll-line-count-priority-ladder.md) |
 | 08-06 | 뷰포트 줄 수 클램프만·무페이싱 | `min(max(1,n),200)`(파서 상한 정렬·음수 트랩 가드), half=n/2·full=n−2(Vim 겹침), 스크롤 페이싱 없음 유지 | [20260806_scroll-viewport-clamp-no-pacing.md](references/20260806_scroll-viewport-clamp-no-pacing.md) |
+| 08-06 | 비-QWERTY 역조회 치환 | KeyTranslator가 z/x/c/v 키코드 역조회 캐시, 어댑터가 게시 직전 6/7/8/9 치환(QWERTY는 생략) — layoutBlocked는 역조회 실패 시 최후 방어선 | [20260806_non-qwerty-command-key-reverse-lookup.md](references/20260806_non-qwerty-command-key-reverse-lookup.md) |
 
 ### 실행 계층 — Visual 시퀀스
 
