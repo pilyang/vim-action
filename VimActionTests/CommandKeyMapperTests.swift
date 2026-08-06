@@ -40,12 +40,18 @@ struct CommandMappingFixture: Sendable, CustomTestStringConvertible {
     var vim: String
     var action: VimAction
     var wise: PasteWise?
+    /// 스크롤 정확화 입력 — `nil`이면 무상태(코드 상수) 경로다. 스크롤 외 액션은 무시한다.
+    var viewportLines: Int?
     var expected: [KeyStroke]?
 
-    init(_ vim: String, _ action: VimAction, wise: PasteWise? = nil, _ expected: [KeyStroke]?) {
+    init(
+        _ vim: String, _ action: VimAction, wise: PasteWise? = nil, viewportLines: Int? = nil,
+        _ expected: [KeyStroke]?
+    ) {
         self.vim = vim
         self.action = action
         self.wise = wise
+        self.viewportLines = viewportLines
         self.expected = expected
     }
 
@@ -61,7 +67,8 @@ struct CommandMappingFixture: Sendable, CustomTestStringConvertible {
 
     func actual(family: ElementFamily) -> [KeyStroke]? {
         guard case .paste(let before, let count) = action, let wise else {
-            return CommandKeyMapper.keyStrokes(for: action, family: family)
+            return CommandKeyMapper.keyStrokes(
+                for: action, family: family, viewportLines: viewportLines)
         }
         return CommandKeyMapper.pasteStrokeGroups(
             before: before, count: count, wise: wise, family: family)?.flatMap { $0 }
@@ -93,6 +100,36 @@ let scrollFixtures: [CommandMappingFixture] = [
     .init("Ctrl-u", .scroll(.halfPage, forward: false), Array(repeating: up, count: 15)),
     .init("Ctrl-f", .scroll(.fullPage, forward: true), Array(repeating: down, count: 30)),
     .init("Ctrl-b", .scroll(.fullPage, forward: false), Array(repeating: up, count: 30)),
+]
+
+/// 뷰포트 정확화 골든 (M5 PR-C2 ②) — 읽은 **표시 줄 수**가 코드 상수만 대체한다.
+/// 산식은 Vim 그대로: half = 뷰포트/2, full = 뷰포트 − 2(문맥 2줄 겹침). 경계 둘이 계약이다 —
+/// 하한 1(뷰포트 1~2줄에서 `full = n − 2`가 0·음수로 떨어지면 `Array(repeating:count:)`가
+/// 트랩한다)과 상한 200(파서 `scrollLineRange` 상한 정렬 — 읽기 오보·거대 창 폭주 가드).
+let refinedScrollFixtures: [CommandMappingFixture] = [
+    .init(
+        "Ctrl-d (뷰포트 40)", .scroll(.halfPage, forward: true), viewportLines: 40,
+        Array(repeating: down, count: 20)),
+    .init(
+        "Ctrl-u (뷰포트 40)", .scroll(.halfPage, forward: false), viewportLines: 40,
+        Array(repeating: up, count: 20)),
+    .init(
+        "Ctrl-f (뷰포트 40)", .scroll(.fullPage, forward: true), viewportLines: 40,
+        Array(repeating: down, count: 38)),
+    .init(
+        "Ctrl-b (뷰포트 40)", .scroll(.fullPage, forward: false), viewportLines: 40,
+        Array(repeating: up, count: 38)),
+    .init(
+        "Ctrl-d (뷰포트 41 — 절반 내림)", .scroll(.halfPage, forward: true), viewportLines: 41,
+        Array(repeating: down, count: 20)),
+    .init("Ctrl-d (뷰포트 1 — 하한)", .scroll(.halfPage, forward: true), viewportLines: 1, [down]),
+    .init("Ctrl-f (뷰포트 1 — 하한)", .scroll(.fullPage, forward: true), viewportLines: 1, [down]),
+    .init(
+        "Ctrl-d (뷰포트 500 — 상한)", .scroll(.halfPage, forward: true), viewportLines: 500,
+        Array(repeating: down, count: 200)),
+    .init(
+        "Ctrl-f (뷰포트 500 — 상한)", .scroll(.fullPage, forward: true), viewportLines: 500,
+        Array(repeating: down, count: 200)),
 ]
 
 /// 붙여넣기 8조합 — wise 2종 × before 2종 × count 변형.
@@ -135,7 +172,8 @@ let outOfVocabularyFixtures: [CommandMappingFixture] = [
 ]
 
 let commandMappingFixtures: [CommandMappingFixture] =
-    openLineFixtures + undoRedoFixtures + scrollFixtures + pasteFixtures + outOfVocabularyFixtures
+    openLineFixtures + undoRedoFixtures + scrollFixtures + refinedScrollFixtures + pasteFixtures
+    + outOfVocabularyFixtures
 
 /// 이 매퍼가 덮어야 하는 어휘 전수. 골든이 하나라도 빠뜨리면 그 액션은 배선 후에도
 /// 조용히 스킵된다.
@@ -259,8 +297,9 @@ struct CommandKeyMapperTests {
     }
 
     /// 스크롤은 **한 종류의 화살표만** 반복한다 — 다른 키가 섞이면 캐럿이 옆으로 새거나
-    /// 편집이 나간다. full은 half의 정확히 2배이며, 방향은 화살표 종류로만 갈린다.
-    @Test("스크롤은 한 종류 화살표의 반복이고 full은 half의 2배다")
+    /// 편집이 나간다. "full은 half의 정확히 2배"는 **상수(폴백) 경로 한정** 불변식이다 —
+    /// 뷰포트 경로의 산식은 아래 `viewportFormulae`가 고정한다.
+    @Test("스크롤은 한 종류 화살표의 반복이고 상수 경로의 full은 half의 2배다")
     func scrollRepeatsSingleArrow() {
         for (forward, arrow) in [(true, down), (false, up)] {
             let half = CommandKeyMapper.keyStrokes(
@@ -270,6 +309,22 @@ struct CommandKeyMapperTests {
             #expect(half?.allSatisfy { $0 == arrow } == true, "forward: \(forward)")
             #expect(full?.allSatisfy { $0 == arrow } == true, "forward: \(forward)")
             #expect(full?.count == (half?.count ?? 0) * 2, "forward: \(forward)")
+        }
+    }
+
+    /// 뷰포트 경로의 산식 — half = 뷰포트/2(내림), full = 뷰포트 − 2(Vim의 문맥 2줄 겹침).
+    /// full이 half의 2배가 **아닌** 것이 상수 경로와의 의도된 차이다.
+    @Test("뷰포트 산식 — half는 절반 내림, full은 뷰포트 − 2")
+    func viewportFormulae() {
+        for (viewport, half, full) in [(40, 20, 38), (41, 20, 39), (3, 1, 1), (2, 1, 1)] {
+            #expect(
+                CommandKeyMapper.keyStrokes(
+                    for: .scroll(.halfPage, forward: true), family: .textArea,
+                    viewportLines: viewport)?.count == half, "뷰포트 \(viewport)")
+            #expect(
+                CommandKeyMapper.keyStrokes(
+                    for: .scroll(.fullPage, forward: true), family: .textArea,
+                    viewportLines: viewport)?.count == full, "뷰포트 \(viewport)")
         }
     }
 

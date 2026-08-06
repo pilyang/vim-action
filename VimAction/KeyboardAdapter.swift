@@ -38,16 +38,23 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// `pasteWise`와 같다: 실제 AX를 읽으면 골든 테스트가 실기기 권한과 개발자 머신의
     /// 포커스 상태에 따라 갈린다.
     ///
-    /// 소비자는 `mapping`의 `.edit` 분기와 Visual 세션 분기 **두 곳**이다. 편집은 범위가
-    /// 캐럿 주변을 묻는 경우(`EditKeyMapper.consultsFocusedText`)에만 읽는 **범위 술어**,
-    /// Visual은 앵커 상태의 수립·검증 때문에 읽는 **세션 술어**다 — 모션·paste·undo는
-    /// 묻지 않으므로 AX 왕복이 0건이다. 읽기가 실패하면 정확화만 포기하고 실행은 한다.
+    /// 소비자는 `mapping`의 `.edit` 분기·Visual 세션 분기·`.paste` 분기 **세 곳**이다.
+    /// 편집은 범위가 캐럿 주변을 묻는 경우(`EditKeyMapper.consultsFocusedText`)에만 읽는
+    /// **범위 술어**, Visual은 앵커 상태의 수립·검증 때문에 읽는 **세션 술어**, 붙여넣기는
+    /// charwise `p`의 줄 끝 증명(`pasteConsultsFocusedText`)만 읽는다 — 모션·undo는 묻지
+    /// 않으므로 AX 왕복이 0건이다. 읽기가 실패하면 정확화만 포기하고 실행은 한다.
     private let reader: FocusedTextReader
 
     /// Visual 세션의 앵커 상태 — `pasteWise`와 같은 형태의 상태 보유 협력자이며 게시 직렬
     /// 큐가 단독 소유한다. 주입하는 이유도 같다: 골든 테스트가 세션 중간 상태를 실기기
     /// 없이 만든다 (`20260804_visual-anchor-state-collaborator.md`).
     private let visualAnchor: VisualAnchorTracker
+
+    /// 뷰포트 표시 줄 수 리더 — 스크롤 근사(15/30)를 정확화하는 입력이며 `reader`(캐럿 주변
+    /// 창)와 **별개의 프리미티브**다. 주입 이유는 `reader`와 같다. 소비자는 `mapping`의
+    /// `.scroll` 분기 한 곳이고, 그 extent의 프로파일 명시값이 있으면 묻지 않는다
+    /// (`CommandKeyMapper.scrollConsultsViewport`).
+    private let viewportReader: ViewportReader
 
     init(
         executor: ActionExecutor = ActionExecutor(),
@@ -56,13 +63,15 @@ nonisolated struct KeyboardAdapter: Sendable {
             KeyTranslator.hasQwertyCommandKeys
         },
         reader: FocusedTextReader = FocusedTextReader(),
-        visualAnchor: VisualAnchorTracker = VisualAnchorTracker()
+        visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
+        viewportReader: ViewportReader = ViewportReader()
     ) {
         self.executor = executor
         self.pasteWise = pasteWise
         self.hasQwertyCommandKeys = hasQwertyCommandKeys
         self.reader = reader
         self.visualAnchor = visualAnchor
+        self.viewportReader = viewportReader
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.
@@ -156,13 +165,20 @@ nonisolated struct KeyboardAdapter: Sendable {
             return true
         }
 
+        // 뷰포트 스냅샷은 **execute당 1회**다 — 액션별 재생성 계약(`FocusedTextSnapshot`)의
+        // 사유는 앞 액션이 캐럿을 옮긴다는 것인데, 뷰포트 높이는 버스트 중 불변이라 액션별
+        // 재읽기는 이득 0에 비용만 곱한다(`3Ctrl-f`는 엔진이 액션 3건으로 복제한다).
+        // 만드는 것만으로는 AX를 부르지 않는다 (lazy).
+        let viewport = ViewportSnapshot(processID: processID, reader: viewportReader)
+
         for action in actions {
             // 액션마다 새 스냅샷 — 앞 액션이 캐럿을 옮겼으므로 이전 액션의 읽기를 물려받으면
             // 낡은 오프셋으로 계산한다. 만드는 것만으로는 AX를 부르지 않는다 (lazy).
             let text = FocusedTextSnapshot(processID: processID, reader: reader)
             let groups: [[KeyStroke]]
             let paced: Bool
-            switch mapping(for: action, family: family, profile: profile, text: text) {
+            switch mapping(
+                for: action, family: family, profile: profile, text: text, viewport: viewport) {
             case .groups(let mapped, let pacedGroups):
                 groups = mapped
                 paced = pacedGroups
@@ -326,8 +342,9 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// `paced`는 **Visual 정확화 그룹과 `.paste`** 만 참이다 — 다타 그룹의 스트로크
         /// 사이에 고정 간격을 둔다 (Notion 실측: 0간격 버스트는 재앵커의 Shift 확장도,
         /// 붙여넣기 접두의 화살표도 소화하지 못했고, 이벤트당 5ms에서는 완전 정상 — 간격
-        /// 문제로 확정). 범위를 이 둘로 한정해야 스크롤(15~30타 단일 그룹)·폴백 카운트
-        /// 반복(`500x`)·카운트 버스트가 타이밍까지 현행 그대로다.
+        /// 문제로 확정). 범위를 이 둘로 한정해야 스크롤(단일 화살표 그룹 — 뷰포트 유래면
+        /// 최대 200타)·폴백 카운트 반복(`500x`)·카운트 버스트가 타이밍까지 현행 그대로다.
+        /// 스크롤이 계속 무페이싱인 것은 드롭의 실패 방향이 "덜 스크롤"이라 무해해서다.
         case groups([[KeyStroke]], paced: Bool)
         /// 매퍼가 `nil` — 이 어휘가 아직 구현되지 않았다. 요약 로그에 집계된다.
         case unsupported
@@ -355,11 +372,12 @@ nonisolated struct KeyboardAdapter: Sendable {
     ///
     /// `static`이 아닌 이유는 `.paste`가 주입된 클립보드 읽기를 쓰기 때문이다.
     ///
-    /// `text`를 읽는 것은 아래 `.edit` 분기와 Visual 세션 분기 **두 곳**이다 — 묻지 않으면
-    /// AX 왕복도 없다(lazy).
+    /// `text`를 읽는 것은 아래 `.edit` 분기·Visual 세션 분기·`.paste` 분기 **세 곳**이다 —
+    /// 묻지 않으면 AX 왕복도 없다(lazy). `viewport`는 `.scroll` 분기만 읽는다 — 별개
+    /// 프리미티브라 `text`와 리더도 수명(execute당 1회)도 다르다.
     private func mapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
-        text: FocusedTextSnapshot
+        text: FocusedTextSnapshot, viewport: ViewportSnapshot
     ) -> Mapping {
         // 새 Visual 세션의 시작은 옛 세션 wise를 **게이트보다 앞에서** 잊는다 — note는
         // 게시 확정에 게이팅되므로, 걸러진 begin(`.nonText`·`.unresolved`) 뒤의
@@ -486,9 +504,30 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
             return result
 
-        case .openLine, .undo, .redo, .scroll:
+        case .openLine, .undo, .redo:
             return Self.classify(
                 CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
+            ) {
+                CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+            }
+
+        case .scroll(let extent, _):
+            // **읽기의 네 번째 소비 지점** — 뷰포트 표시 줄 수로 반복 줄 수를 정확화한다.
+            // 그 extent의 프로파일 명시값이 있으면 묻지 않고(우선순위상 AX가 어차피 진다),
+            // 읽기 실패·pid 없음은 `nil`이라 현행 사다리(프로파일 → 상수 15/30) 그대로다.
+            // 정확화가 줄 수만 바꾸고 `nil`을 새로 만들지 않으므로 paste처럼 프로브는 둘이다.
+            let lines = CommandKeyMapper.scrollConsultsViewport(extent: extent, profile: profile)
+                ? viewport.value() : nil
+            #if DEBUG
+            if let lines {
+                Logger.eventTap.debug(
+                    "스크롤 뷰포트 정확화: \(lines, privacy: .public)줄 — \(String(describing: action), privacy: .public)"
+                )
+            }
+            #endif
+            return Self.classify(
+                CommandKeyMapper.keyStrokes(
+                    for: action, family: family, profile: profile, viewportLines: lines)
             ) {
                 CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
             }

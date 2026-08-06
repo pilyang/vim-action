@@ -6,6 +6,7 @@
 import Carbon.HIToolbox
 import CoreGraphics
 import Testing
+import VimActionConfig
 import VimEngine
 @testable import VimAction
 
@@ -23,12 +24,14 @@ private func makeAdapter(
     qwertyCommandKeys: @escaping @Sendable () -> Bool = { true },
     reader: FocusedTextReader = FocusedTextReader { _ in nil },
     visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
+    viewport: ViewportReader = ViewportReader { _ in nil },
     collecting posted: @escaping @Sendable (CGEvent) -> Void
 ) -> KeyboardAdapter {
     KeyboardAdapter(
         executor: ActionExecutor(postEvent: posted),
         pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount),
-        hasQwertyCommandKeys: qwertyCommandKeys, reader: reader, visualAnchor: visualAnchor)
+        hasQwertyCommandKeys: qwertyCommandKeys, reader: reader, visualAnchor: visualAnchor,
+        viewportReader: viewport)
 }
 
 private func keyCodes(of events: [CGEvent]) -> [Int64] {
@@ -1038,7 +1041,9 @@ struct KeyboardAdapterLayoutGateTests {
 }
 
 /// 캐럿 주변 리더 seam — 소비자는 `mapping`의 `.edit` 분기(**범위 술어** — 표에 적힌 범위만
-/// 묻는다)와 Visual 세션 분기(**세션 술어** — 수립·자가 검증이 묻는다) 두 곳이다.
+/// 묻는다)·Visual 세션 분기(**세션 술어** — 수립·자가 검증이 묻는다)·`.paste` 분기(charwise
+/// `p`의 줄 끝 증명) 세 곳이다. 스크롤은 여기 없다 — 별개 프리미티브(`ViewportReader`,
+/// `KeyboardAdapterViewportTests`)를 읽는다.
 /// 여기서 고정하는 것은 세 가지다: 누가 읽는가(그리고 몇 번), 읽기가 실패해도
 /// 실행은 하는가(폴백 계약), 그리고 읽기가 0폭 포화를 증명하면 게시를 멈추는가.
 ///
@@ -1097,7 +1102,8 @@ struct KeyboardAdapterFocusedTextTests {
             편집은 `x`·`dk`·`dgg`·`diw` 넷(범위 술어), Visual은 `v` 진입 하나(세션 술어 — \
             수립 읽기는 실패해도 왕복이다), 붙여넣기는 charwise `p` 하나(줄 끝 증명)다. \
             `dd`·`dj`는 묻지 않고, `clearSelection`은 폐기만이라 읽지 않으며, 상태 없는 \
-            세션이라 확장도 있었다면 읽지 않았을 것이다.
+            세션이라 확장도 있었다면 읽지 않았을 것이다. 스크롤은 이 리더가 아니라 \
+            뷰포트 리더를 읽는다 — 여기 6에 들어오지 않는다.
             """)
     }
 
@@ -1262,6 +1268,127 @@ struct KeyboardAdapterFocusedTextTests {
         #expect(keyCodes(of: succeeded) == keyCodes(of: failed))
         #expect(keyCodes(of: succeeded) == keyCodes(of: noProcess))
         #expect(succeeded.map(\.flags) == failed.map(\.flags))
+    }
+}
+
+/// 뷰포트 리더 seam (M5 PR-C2 ②) — 소비자는 `mapping`의 `.scroll` 분기 **한 곳**이다.
+/// 여기서 고정하는 것도 셋이다: 누가 읽는가(스크롤만 — 그 extent의 프로파일 명시값이 없을
+/// 때만), 몇 번 읽는가(**execute당 1회** — 뷰포트 높이는 버스트 중 불변이라
+/// `FocusedTextSnapshot`의 액션당 계약과 수명이 다르다), 실패 폴백(15/30 바이트 동일 —
+/// 정확화만 포기하고 게시는 한다).
+struct KeyboardAdapterViewportTests {
+    private static func profile(half: Int? = nil, full: Int? = nil) -> ResolvedProfile {
+        ResolvedProfile(AppProfile(halfPageLines: half, fullPageLines: full))
+    }
+
+    @Test("viewport 40의 Ctrl-d — ↓ 20타, 수정키 없음")
+    func halfPageUsesViewportLines() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(viewport: ViewportReader { _ in 40 }, collecting: { posted.append($0) })
+            .execute([.scroll(.halfPage, forward: true)], processID: 42)
+
+        #expect(posted.count == 20 * 2, "20스트로크 × keyDown+keyUp")
+        #expect(keyCodes(of: posted).allSatisfy { $0 == Int64(kVK_DownArrow) })
+        #expect(
+            posted.allSatisfy {
+                $0.flags.isDisjoint(with: [.maskAlternate, .maskCommand, .maskControl, .maskShift])
+            })
+    }
+
+    /// 우선순위 사다리의 첫 칸 — 프로파일 명시값은 AX를 **이기는** 것이 아니라 읽기 자체를
+    /// 생략시킨다(`scrollConsultsViewport` 술어). extent별 독립: half만 명시면 full은 읽는다.
+    @Test("프로파일 명시 extent는 뷰포트를 읽지 않는다 — extent별 독립")
+    func explicitProfileExtentSkipsTheRead() {
+        nonisolated(unsafe) var reads = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            viewport: ViewportReader { _ in
+                reads += 1
+                return 40
+            }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.scroll(.halfPage, forward: true)], profile: Self.profile(half: 5), processID: 42)
+        #expect(reads == 0, "half 명시 — 읽기 생략")
+        #expect(posted.count == 5 * 2, "명시값 5가 이긴다")
+
+        posted.removeAll()
+        adapter.execute(
+            [.scroll(.fullPage, forward: true)], profile: Self.profile(half: 5), processID: 42)
+        #expect(reads == 1, "full은 미명시 — 읽는다")
+        #expect(posted.count == 38 * 2, "full = 뷰포트 40 − 2")
+    }
+
+    @Test("pid가 없으면 리더를 부르지 않고 상수 폴백으로 게시한다")
+    func missingProcessIDSkipsTheRead() {
+        nonisolated(unsafe) var reads = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(
+            viewport: ViewportReader { _ in
+                reads += 1
+                return 40
+            }, collecting: { posted.append($0) }
+        ).execute([.scroll(.halfPage, forward: true)])
+
+        #expect(reads == 0)
+        #expect(posted.count == 15 * 2, "폴백 = 코드 상수 15")
+    }
+
+    /// 무상태 폴백의 바이트 동일 계약 — 읽기 실패가 스크롤을 죽이면 안 된다.
+    @Test("읽기 실패는 15/30 상수와 바이트 동일하게 게시한다")
+    func failedReadFallsBackToConstants() {
+        nonisolated(unsafe) var failed: [CGEvent] = []
+        makeAdapter(viewport: ViewportReader { _ in nil }, collecting: { failed.append($0) })
+            .execute(
+                [.scroll(.halfPage, forward: true), .scroll(.fullPage, forward: false)],
+                processID: 42)
+
+        nonisolated(unsafe) var noRead: [CGEvent] = []
+        makeAdapter(collecting: { noRead.append($0) })
+            .execute([.scroll(.halfPage, forward: true), .scroll(.fullPage, forward: false)])
+
+        #expect(failed.count == (15 + 30) * 2)
+        #expect(keyCodes(of: failed) == keyCodes(of: noRead))
+        #expect(failed.map(\.flags) == noRead.map(\.flags))
+    }
+
+    /// `3Ctrl-f`는 엔진이 액션 3건으로 복제한다 — 액션마다 읽으면 정확도 이득 0에 비용만
+    /// 곱해지므로(타임아웃 앱 최악 33×50ms) 뷰포트 스냅샷은 execute당 1회다.
+    @Test("뷰포트 읽기는 execute당 1회다 — 액션 수만큼 곱해지지 않는다")
+    func viewportIsReadOncePerExecute() {
+        nonisolated(unsafe) var reads = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        makeAdapter(
+            viewport: ViewportReader { _ in
+                reads += 1
+                return 40
+            }, collecting: { posted.append($0) }
+        ).execute(
+            [.scroll(.halfPage, forward: true), .scroll(.halfPage, forward: true)], processID: 42)
+
+        #expect(reads == 1)
+        #expect(posted.count == 20 * 2 * 2, "두 액션 모두 같은 읽기로 정확화된다")
+    }
+
+    /// 별개 프리미티브 계약 — 스크롤이 캐럿 주변 리더(`FocusedTextReader`)를 건드리기
+    /// 시작하면 `reads == 6` 왕복 고정이 조용히 무너진다.
+    @Test("스크롤은 캐럿 주변 리더를 부르지 않는다")
+    func scrollDoesNotTouchTheFocusedTextReader() {
+        nonisolated(unsafe) var focusedReads = 0
+        nonisolated(unsafe) var viewportReads = 0
+        makeAdapter(
+            reader: FocusedTextReader { _ in
+                focusedReads += 1
+                return nil
+            },
+            viewport: ViewportReader { _ in
+                viewportReads += 1
+                return 40
+            }, collecting: { _ in }
+        ).execute([.scroll(.fullPage, forward: true)], processID: 42)
+
+        #expect(focusedReads == 0)
+        #expect(viewportReads == 1)
     }
 }
 

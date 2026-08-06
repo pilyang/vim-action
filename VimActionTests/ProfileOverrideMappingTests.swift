@@ -141,6 +141,35 @@ struct ProfileOverrideMappingTests {
             CommandKeyMapper.keyStrokes(
                 for: .scroll(.halfPage, forward: true), family: .textArea, profile: profile)
                 == nil)
+        #expect(
+            CommandKeyMapper.keyStrokes(
+                for: .scroll(.halfPage, forward: true), family: .textArea, profile: profile,
+                viewportLines: 40) == nil, "뷰포트 정확화도 disable을 되살리지 못한다")
+    }
+
+    /// 우선순위 사다리의 첫 칸 (M5 PR-C2 ②) — **프로파일 명시값 > AX 뷰포트 > 코드 상수.**
+    /// 사용자가 적은 값은 읽기 값이 함께 와도 언제나 이긴다.
+    @Test("scroll 프로파일 명시값이 뷰포트 읽기 값을 이긴다")
+    func profileScrollBeatsViewport() {
+        let strokes = CommandKeyMapper.keyStrokes(
+            for: .scroll(.halfPage, forward: true), family: .textArea,
+            profile: makeProfile(half: 5), viewportLines: 40)
+        #expect(strokes?.count == 5)
+    }
+
+    /// 술어는 사다리의 코드 측 최적화다 — 명시 extent는 AX 값이 어차피 지므로 어댑터가
+    /// 왕복 자체를 생략한다. **extent별 독립**: half만 명시면 full은 계속 묻는다.
+    @Test("scrollConsultsViewport — 명시 extent만 묻지 않는다")
+    func scrollConsultPredicateIsPerExtent() {
+        #expect(CommandKeyMapper.scrollConsultsViewport(extent: .halfPage, profile: .empty))
+        #expect(CommandKeyMapper.scrollConsultsViewport(extent: .fullPage, profile: .empty))
+
+        let halfOnly = makeProfile(half: 12)
+        #expect(!CommandKeyMapper.scrollConsultsViewport(extent: .halfPage, profile: halfOnly))
+        #expect(CommandKeyMapper.scrollConsultsViewport(extent: .fullPage, profile: halfOnly))
+
+        let both = makeProfile(half: 12, full: 24)
+        #expect(!CommandKeyMapper.scrollConsultsViewport(extent: .fullPage, profile: both))
     }
 
     @Test("openLine(o)의 위치 접두가 재정의를 따라온다")

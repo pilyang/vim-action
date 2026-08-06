@@ -47,8 +47,13 @@ nonisolated enum CommandKeyMapper {
     ///
     /// 프로파일의 모션 재정의·disable은 위치 접두(`move`)를 통해 여기에도 전파된다 —
     /// disable된 모션을 접두로 쓰는 액션은 통째로 `nil`(정직한 스킵)이 된다.
+    ///
+    /// `viewportLines`는 스크롤만 소비하는 정확화 입력이다 (`EditKeyMapper.keyStrokes(text:)`와
+    /// 같은 자리) — `nil`이면 현행 폴백 사다리(프로파일 → 코드 상수) 그대로라 바이트 동일이
+    /// 보장되고, 정확화가 `nil`을 새로 만들지 않으므로 어댑터의 프로브도 둘 그대로다.
     static func keyStrokes(
-        for action: VimAction, family: ElementFamily, profile: ResolvedProfile = .empty
+        for action: VimAction, family: ElementFamily, profile: ResolvedProfile = .empty,
+        viewportLines: Int? = nil
     ) -> [KeyStroke]? {
         switch action {
         case .openLine(let above):
@@ -69,9 +74,10 @@ nonisolated enum CommandKeyMapper {
             // macOS에는 **캐럿을 한 뷰포트만큼 옮기는 키 프리미티브가 없다**. PageUp/PageDown은
             // 뷰만 옮기고 캐럿을 두고 가며, Vim 레이어는 모든 키가 모션이라 다음 키 한 번에
             // 스크롤이 통째로 되돌아온다(실측). Vim의 `Ctrl-d`/`Ctrl-f`는 본래 **커서 이동**이므로
-            // 화살표 반복으로 근사한다 (`20260730_scroll-arrow-repetition.md`).
+            // 화살표 반복으로 근사하고, 줄 수는 읽은 뷰포트가 정확화한다
+            // (`20260730_scroll-arrow-repetition.md`).
             guard let line = move(forward ? .lineDown : .lineUp, profile) else { return nil }
-            return repeated(line, lineCount(for: extent, profile))
+            return repeated(line, lineCount(for: extent, profile, viewportLines))
 
         default:
             // `VimAction`에 exhaustive switch를 걸지 않는 것이 계약이다.
@@ -168,20 +174,40 @@ nonisolated enum CommandKeyMapper {
         profile.newLineStrokes ?? [returnKey]
     }
 
-    /// 스크롤 1회가 옮길 줄 수. 뷰포트 높이를 모르는 상태의 **근사값**이다 — 실제 높이는
-    /// 요소 리졸버가 AX(`AXVisibleCharacterRange`)로 읽을 수 있게 되는 M5에서 정확해지고,
-    /// 그전까지는 M4 프로파일의 조절값이 된다.
+    /// 뷰포트를 읽지 못했을 때 스크롤 1회가 옮길 줄 수 — 폴백 사다리의 마지막 칸이다.
+    /// 읽기 실패 앱(Slack·VS Code — 포커스 요소 미노출)에서는 이 근사가 상시 경로다.
     private static let halfPageLines = 15
     private static let fullPageLines = 30
 
-    /// 프로파일 재정의가 있으면 그것, 없으면 코드 상수 — 프로파일은 "값 없음"만 표현하고
-    /// 기본값 15/30은 여기 남는다.
+    /// AX 유래 줄 수의 상한. 파서의 `scrollLineRange`(1...200) 상한과 정렬한다 — 어느 출처든
+    /// 스크롤 줄 수는 1...200이라는 이야기가 하나가 된다. 하한 `max(1, …)`은 안전 필수다:
+    /// 뷰포트 1~2줄에서 `full = n − 2`가 0·음수가 되는데 `Array(repeating:count:)`는 음수에서
+    /// 트랩하고, 0은 "지원 ⟹ 빈 시퀀스 아님" 불변식을 깬다.
+    private static let viewportLineClamp = 200
+
+    /// 이 스크롤이 뷰포트 읽기를 묻는가 — 어댑터가 읽을지 정하는 술어다
+    /// (`pasteConsultsFocusedText`와 같은 자리). **그 extent의 프로파일 명시값이 있으면 묻지
+    /// 않는다** — 우선순위상 AX 값이 어차피 쓰이지 않으므로 왕복 자체를 생략한다(번들 Notion
+    /// 프로파일처럼 명시값이 곧 오보 앱의 방어선인 경우 헛 읽기도 함께 사라진다).
+    static func scrollConsultsViewport(
+        extent: VimAction.ScrollExtent, profile: ResolvedProfile
+    ) -> Bool {
+        (extent == .halfPage ? profile.halfPageLines : profile.fullPageLines) == nil
+    }
+
+    /// 우선순위 사다리: **프로파일 명시값 > AX 정확값 > 코드 상수 15/30.** 사용자가 적은 값은
+    /// 언제나 이기고, AX는 코드 상수만 대체한다 — 그래서 읽기 실패(`nil`)의 폴백이 현행과
+    /// 바이트 동일이다. 산식은 Vim 그대로다: half = 뷰포트 절반, full = 뷰포트 − 2(문맥 겹침).
     private static func lineCount(
-        for extent: VimAction.ScrollExtent, _ profile: ResolvedProfile
+        for extent: VimAction.ScrollExtent, _ profile: ResolvedProfile, _ viewportLines: Int?
     ) -> Int {
         extent == .halfPage
-            ? profile.halfPageLines ?? halfPageLines
-            : profile.fullPageLines ?? fullPageLines
+            ? profile.halfPageLines ?? viewportLines.map { clamped($0 / 2) } ?? halfPageLines
+            : profile.fullPageLines ?? viewportLines.map { clamped($0 - 2) } ?? fullPageLines
+    }
+
+    private static func clamped(_ lines: Int) -> Int {
+        min(max(1, lines), viewportLineClamp)
     }
 
     /// 모션 스트로크 그대로 — 위치를 잡는 접두에 쓴다. `EditKeyMapper`와 같은 재사용이라
