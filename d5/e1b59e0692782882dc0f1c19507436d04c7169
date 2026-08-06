@@ -1,0 +1,40 @@
+.claude/skills/decisions/references/20260806_viewport-snapshot-per-execute.md
+  s_6760bf7049fce6::t_c6e1ece3106fe2 1-36
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_6760bf7049fce6::t_54f72b9478c333 44-46,48
+  s_6760bf7049fce6::t_8a51bb024212a1 37
+  s_6760bf7049fce6::t_3d298b0d26cd63 27
+  s_6760bf7049fce6::t_a16f639a847534 6
+.claude/skills/decisions/SKILL.md
+  s_6760bf7049fce6::t_c9e2fa9b4e2f5a 169-170
+  s_6760bf7049fce6::t_2d58df910d11d3 225-226
+.claude/skills/decisions/references/20260806_viewport-lines-via-line-for-index.md
+  s_6760bf7049fce6::t_9afa42e6adb893 1-55
+.claude/skills/decisions/references/20260806_scroll-viewport-clamp-no-pacing.md
+  s_6760bf7049fce6::t_0f5aa3cd784589 1-46
+.claude/skills/architecture/references/profiles-and-config.md
+  s_6760bf7049fce6::t_440552a4974be9 17
+  s_6760bf7049fce6::t_2feac2cbe45f81 3
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_6760bf7049fce6::t_f3b5ad90e0ebd4 3
+  s_6760bf7049fce6::t_9aa9a0e10e70db 124
+  s_6760bf7049fce6::t_2892e55531e5df 97
+.claude/skills/decisions/references/20260806_scroll-line-count-priority-ladder.md
+  s_6760bf7049fce6::t_de74c8d8809b70 1-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "d5e1b59e0692782882dc0f1c19507436d04c7169",
+  "prompts": {},
+  "sessions": {
+    "s_6760bf7049fce6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "82e8e7f6-50ac-4b19-a059-2b497bef5f3c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
