@@ -1,0 +1,30 @@
+.claude/skills/decisions/references/20260806_paste-groups-stroke-pacing.md
+  s_aa8129ae3ded8f::t_5399545a457f2b 1-27
+.claude/skills/decisions/references/20260805_visual-refined-group-stroke-pacing.md
+  s_aa8129ae3ded8f::t_336f20af3404d8 1-2
+.claude/skills/decisions/SKILL.md
+  s_aa8129ae3ded8f::t_6885dff49f32ac 183
+  s_aa8129ae3ded8f::t_e9de7f989fd41a 167-168
+.claude/skills/decisions/references/20260806_charwise-paste-line-end-no-prefix.md
+  s_aa8129ae3ded8f::t_d1622704f3f381 1-26
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_aa8129ae3ded8f::t_7fc80c0ede387f 97
+  s_aa8129ae3ded8f::t_607547ee4ee1e1 124
+  s_aa8129ae3ded8f::t_e7cb706e0355fd 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "23085cb21952abf3367132066041b92844959fd7",
+  "prompts": {},
+  "sessions": {
+    "s_aa8129ae3ded8f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f7784e37-c099-40fc-bbef-25c7c06e4903",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
