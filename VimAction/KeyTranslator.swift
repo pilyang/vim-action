@@ -119,10 +119,12 @@ enum KeyTranslator {
         return data
     }
 
-    /// 합성 명령 키(`Cmd-Z/X/C/V`)의 물리 위치가 QWERTY와 일치하는가 — **출력 쪽** 안전판의
-    /// 판별값이다. 입력 번역의 ASCII-capable 방어는 출력을 덮지 못한다: 매퍼는 ANSI 키코드를
-    /// 고정 게시하고 대상 앱이 활성 레이아웃으로 재해석하므로, AZERTY에서는 `u`의 `Cmd-Z`가
-    /// `Cmd-W`(창 닫기)가 된다 (`20260730_cmd-z-ansi-layout-escalation.md`).
+    /// 합성 명령 키(`Cmd-Z/X/C/V`)의 물리 위치가 QWERTY와 일치하는가 — **출력 쪽** 치환
+    /// 생략의 판별값이다. 입력 번역의 ASCII-capable 방어는 출력을 덮지 못한다: 매퍼는 ANSI
+    /// 키코드를 논리 키코드로 내고 대상 앱이 활성 레이아웃으로 재해석하므로, 치환 없이는
+    /// AZERTY에서 `u`의 `Cmd-Z`가 `Cmd-W`(창 닫기)가 된다
+    /// (`20260730_cmd-z-ansi-layout-escalation.md`). true면 어댑터가 치환을 생략한다 —
+    /// 현행 바이트 동일이 증명이고, 비-QWERTY에서만 `commandKeyCodes` 치환이 활성이다.
     ///
     /// 게시 큐의 어댑터가 읽으므로 잠금 상자다. 초기값 true인 이유: 값은 translate 경로(메인)가
     /// 레이아웃 캐시를 채울 때마다 갱신되고, 액션은 항상 translate를 거친 키에서만 나오므로
@@ -147,15 +149,79 @@ enum KeyTranslator {
         ]
         let matches = expected.allSatisfy { character(for: $0.0, shifted: false) == $0.1 }
         qwertyCommandKeysBox.withLock { $0 = matches }
+        // 역조회는 같은 트리거에서 함께 갱신한다 — 판별과 표의 생명주기가 같아야 어긋날
+        // 창이 없다. 위 행동 검사가 캐시를 비웠다면(번역 실패) 표도 비운다 — 빈 표는
+        // 어댑터 게이트에서 전부 보류라 보수 방향이다.
+        let codes = cachedLayoutData.map(commandKeyCodes(in:)) ?? [:]
+        commandKeyCodesBox.withLock { $0 = codes }
+    }
+
+    /// 현재 레이아웃에서 합성 명령 키 문자(`z/x/c/v`)를 내는 키코드의 역조회 표 —
+    /// 비-QWERTY에서 어댑터가 게시 직전 논리 ANSI 키코드(6/7/8/9)를 치환하는 입력이다.
+    /// 잠금 상자·갱신 시점·초기값의 논리는 전부 `hasQwertyCommandKeys`와 같다
+    /// (`20260806_non-qwerty-command-key-reverse-lookup.md`).
+    private nonisolated static let commandKeyCodesBox = OSAllocatedUnfairLock<
+        [Character: CGKeyCode]
+    >(initialState: [
+        "z": CGKeyCode(kVK_ANSI_Z), "x": CGKeyCode(kVK_ANSI_X),
+        "c": CGKeyCode(kVK_ANSI_C), "v": CGKeyCode(kVK_ANSI_V),
+    ])
+    nonisolated static var commandKeyCodes: [Character: CGKeyCode] {
+        commandKeyCodesBox.withLock { $0 }
+    }
+
+    /// 레이아웃 데이터에서 `z/x/c/v`를 내는 키코드를 찾는다 — 키코드 0~50(ANSI 문자 구역)
+    /// 단일 패스, 문자당 첫 키코드, 4개를 다 찾으면 조기 종료(QWERTY는 키코드 9에서 끝난다).
+    /// 못 찾은 문자는 항목이 없다 — 어댑터는 그 문자가 필요한 액션만 보류한다.
+    /// shifted는 보지 않는다 — redo(`Shift-Cmd-Z`)는 z 키코드에 Shift 플래그를 얹으면 된다.
+    ///
+    /// `layoutData`를 받는 이유는 테스트 seam이다 — 실 레이아웃 데이터(TIS 목록에서 전환
+    /// 없이 획득한 French·Dvorak)로 역조회를 단언한다.
+    static func commandKeyCodes(in layoutData: Data) -> [Character: CGKeyCode] {
+        let wanted: Set<Character> = ["z", "x", "c", "v"]
+        var codes: [Character: CGKeyCode] = [:]
+        for keyCode: UInt16 in 0...50 {
+            guard
+                let character = try? character(for: keyCode, shifted: false, layoutData: layoutData),
+                wanted.contains(character), codes[character] == nil
+            else { continue }
+            codes[character] = CGKeyCode(keyCode)
+            if codes.count == wanted.count { break }
+        }
+        return codes
     }
 
     /// 현재 ASCII-capable 레이아웃으로 keycode → 문자 번역.
+    private static func character(for keyCode: UInt16, shifted: Bool) -> Character? {
+        guard let layoutData = currentLayoutData() else { return nil }
+        do {
+            return try character(for: keyCode, shifted: shifted, layoutData: layoutData)
+        } catch let error as TranslationFailure {
+            // API 실패는 셋업 문제 — 캐시된 데이터가 원인일 수 있다. 유지하면 영구
+            // 무번역이 되므로 버려서 다음 키가 새로 조회하게 한다 (캐시 도입 전의
+            // 키마다 재조회 자가 치유 복원).
+            cachedLayoutData = nil
+            logSetupFailureOnce("UCKeyTranslate 실패 status=\(error.status)")
+            return nil
+        } catch {
+            return nil  // 도달 불가 — 던지는 에러는 TranslationFailure뿐이다.
+        }
+    }
+
+    /// UCKeyTranslate의 API 수준 실패 — 정상적인 번역 불가(`nil`)와 구분해 던진다.
+    /// 라이브 경로만 캐시 폐기 자가 치유를 해야 해서다 (주입 데이터는 캐시와 무관).
+    private struct TranslationFailure: Error {
+        let status: OSStatus
+    }
+
+    /// 주어진 레이아웃 데이터로 keycode → 문자 번역 — 라이브 경로와 역조회·테스트가
+    /// 같은 번역 본체를 쓴다.
     ///
     /// base 문자 유도에는 shift만 반영한다 — ctrl/opt/cmd/capsLock를 섞으면
     /// `Ctrl-d` 같은 조합에서 제어 문자가 나와 base를 잃기 때문이다.
-    private static func character(for keyCode: UInt16, shifted: Bool) -> Character? {
-        guard let layoutData = currentLayoutData() else { return nil }
-
+    private static func character(
+        for keyCode: UInt16, shifted: Bool, layoutData: Data
+    ) throws -> Character? {
         let modifierKeyState: UInt32 = shifted ? UInt32((shiftKey >> 8) & 0xFF) : 0
         var deadKeyState: UInt32 = 0
         var chars = [UniChar](repeating: 0, count: 4)
@@ -179,14 +245,8 @@ enum KeyTranslator {
             )
         }
 
-        // API 실패는 셋업 문제(1회 기록), dead key 진행·빈 출력은 정상적인 번역 불가.
-        guard status == noErr else {
-            // 캐시된 데이터가 원인일 수 있다 — 유지하면 영구 무번역이 되므로 버려서
-            // 다음 키가 새로 조회하게 한다 (캐시 도입 전의 키마다 재조회 자가 치유 복원).
-            cachedLayoutData = nil
-            logSetupFailureOnce("UCKeyTranslate 실패 status=\(status)")
-            return nil
-        }
+        // API 실패는 셋업 문제(호출측에서 1회 기록), dead key 진행·빈 출력은 정상적인 번역 불가.
+        guard status == noErr else { throw TranslationFailure(status: status) }
         guard deadKeyState == 0, length > 0 else { return nil }
 
         let string = String(utf16CodeUnits: chars, count: Int(length))

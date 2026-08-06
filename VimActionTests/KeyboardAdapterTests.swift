@@ -22,6 +22,10 @@ private func makeAdapter(
     clipboard wise: PasteWise? = .charwise,
     changeCount: @escaping @Sendable () -> Int = { 0 },
     qwertyCommandKeys: @escaping @Sendable () -> Bool = { true },
+    // 기본값이 **빈 표**인 것이 요점이다 — 실값(`KeyTranslator.commandKeyCodes`)을 읽으면
+    // 테스트가 개발자 머신의 레이아웃에 갈리고, 빈 표는 "역조회 전부 실패"라 비-QWERTY
+    // 통째 보류 테스트가 치환 도입 전과 같은 의미로 성립한다.
+    commandKeyCodes: @escaping @Sendable () -> [Character: CGKeyCode] = { [:] },
     reader: FocusedTextReader = FocusedTextReader { _ in nil },
     visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
     viewport: ViewportReader = ViewportReader { _ in nil },
@@ -30,8 +34,8 @@ private func makeAdapter(
     KeyboardAdapter(
         executor: ActionExecutor(postEvent: posted),
         pasteWise: PasteWiseResolver(readClipboard: { wise }, readChangeCount: changeCount),
-        hasQwertyCommandKeys: qwertyCommandKeys, reader: reader, visualAnchor: visualAnchor,
-        viewportReader: viewport)
+        hasQwertyCommandKeys: qwertyCommandKeys, commandKeyCodes: commandKeyCodes,
+        reader: reader, visualAnchor: visualAnchor, viewportReader: viewport)
 }
 
 private func keyCodes(of events: [CGEvent]) -> [Int64] {
@@ -1037,6 +1041,161 @@ struct KeyboardAdapterLayoutGateTests {
         qwerty = true
         adapter.execute([.undo])
         #expect(keyCodes(of: posted) == [Int64(kVK_ANSI_Z), Int64(kVK_ANSI_Z)])
+    }
+
+    // MARK: 역조회 치환 (`20260806_non-qwerty-command-key-reverse-lookup.md`)
+
+    /// AZERTY 실측 표 — z만 W 자리(13)로 옮겨가고 x/c/v는 QWERTY와 같다.
+    private static let azertyCodes: [Character: CGKeyCode] = [
+        "z": 13, "x": 7, "c": 8, "v": 9,
+    ]
+
+    /// Dvorak 실측 표 — 4키 전부 재배열이다.
+    private static let dvorakCodes: [Character: CGKeyCode] = [
+        "z": 44, "x": 11, "c": 34, "v": 47,
+    ]
+
+    @Test("비-QWERTY + 역조회 성공: undo·redo가 치환된 키코드로 게시된다 (플래그 보존)")
+    func reverseLookupRewritesUndoRedo() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { false }, commandKeyCodes: { Self.azertyCodes },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.undo])
+        #expect(keyCodes(of: posted) == [13, 13])
+        #expect(posted.allSatisfy { $0.flags.contains(.maskCommand) })
+        #expect(posted.allSatisfy { !$0.flags.contains(.maskShift) })
+
+        // redo는 같은 z 키코드에 Shift가 얹힌다 — shifted 역조회가 따로 없는 이유다.
+        posted.removeAll()
+        adapter.execute([.redo])
+        #expect(keyCodes(of: posted) == [13, 13])
+        #expect(posted.allSatisfy { $0.flags.contains(.maskCommand) })
+        #expect(posted.allSatisfy { $0.flags.contains(.maskShift) })
+    }
+
+    @Test("비-QWERTY + 역조회 성공: 편집·paste의 명령 키만 치환되고 화살표는 그대로다")
+    func reverseLookupRewritesEditAndPasteCommandKeysOnly() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { false }, commandKeyCodes: { Self.dvorakCodes },
+            collecting: { posted.append($0) })
+
+        // delete = `Shift-→, Cmd-X` — 화살표(124)는 손대지 않고 X(7)만 11로 바뀐다.
+        adapter.execute([.edit(.delete, .motion(.charRight, count: 1))])
+        #expect(keyCodes(of: posted) == [Int64(kVK_RightArrow), Int64(kVK_RightArrow), 11, 11])
+
+        // yank(.selection) = `Cmd-C` 1타 — C(8)가 34로 바뀐다.
+        posted.removeAll()
+        adapter.execute([.edit(.yank, .selection)])
+        #expect(keyCodes(of: posted) == [34, 34])
+
+        // charwise p = `→` 접두 + `Cmd-V` — V(9)가 47로 바뀐다.
+        posted.removeAll()
+        adapter.execute([.paste(before: false, count: 1)])
+        #expect(keyCodes(of: posted) == [Int64(kVK_RightArrow), Int64(kVK_RightArrow), 47, 47])
+    }
+
+    @Test("부분 역조회: 못 찾은 문자가 필요한 액션만 보류된다 (액션별 판정)")
+    func partialLookupBlocksOnlyActionsNeedingMissingCharacter() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // z만 찾은 표 — undo/redo는 살고, x가 필요한 delete는 보류된다.
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { false }, commandKeyCodes: { ["z": 13] },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+        #expect(posted.isEmpty)
+
+        adapter.execute([.undo])
+        #expect(keyCodes(of: posted) == [13, 13])
+    }
+
+    @Test("부분 역조회로 보류된 편집은 붙여넣기 단위 기억을 남기지 않는다")
+    func partialLookupBlockedEditDoesNotRecordPasteWise() {
+        nonisolated(unsafe) var changeCountReads = 0
+        let adapter = makeAdapter(
+            changeCount: {
+                changeCountReads += 1
+                return 0
+            },
+            qwertyCommandKeys: { false }, commandKeyCodes: { ["z": 13] },
+            collecting: { _ in })
+
+        adapter.execute([.edit(.delete, .line(count: 1))])
+
+        #expect(changeCountReads == 0, "게이트가 기억보다 앞이다")
+    }
+
+    @Test("QWERTY에서는 치환이 통째로 생략된다 (표가 달라도 현행 바이트 동일)")
+    func qwertySkipsRewriteEntirely() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // 표가 Dvorak 값이어도 QWERTY면 읽히지 않는다 — 생략이 곧 현행 바이트 동일의 증명.
+        let adapter = makeAdapter(
+            qwertyCommandKeys: { true }, commandKeyCodes: { Self.dvorakCodes },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.undo, .edit(.yank, .selection)])
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_ANSI_Z), Int64(kVK_ANSI_Z), Int64(kVK_ANSI_C), Int64(kVK_ANSI_C),
+            ])
+    }
+}
+
+/// 게시 직전 치환의 안전 전제 고정 — 논리 ANSI 명령 키코드(6/7/8/9 = Z/X/C/V)는 문자 명령
+/// 키를 합성하는 액션(`.edit`·`.paste`·`.undo`·`.redo`)의 명령 스트로크에만 등장한다.
+/// 여기서는 그 밖의 전 매퍼 출력(모션 전 어휘·Visual 세션·openLine·스크롤)에 이 키코드가
+/// 없음을 스윕한다 — 깨지면 치환이 명령 키가 아닌 스트로크를 바꾸게 되므로, 새 어휘가
+/// 문자 키를 합성하려면 이 테스트와 게이트(`requiredCommandCharacters`)를 함께 확장해야
+/// 한다. 프로파일 스트로크 어휘(`ConfigKey`)는 타입 차원에서 문자 키가 없다.
+struct LogicalCommandKeyCodeExclusivityTests {
+    private static let commandKeyCodes: Set<CGKeyCode> = [
+        CGKeyCode(kVK_ANSI_Z), CGKeyCode(kVK_ANSI_X),
+        CGKeyCode(kVK_ANSI_C), CGKeyCode(kVK_ANSI_V),
+    ]
+
+    @Test("모션 매퍼 전 어휘에 명령 키코드가 없다")
+    func motionSequencesCarryNoCommandKeyCodes() {
+        for motion in Motion.allCases {
+            let strokes = MotionKeyMapper.keyStrokes(for: motion) ?? []
+            #expect(
+                strokes.allSatisfy { !Self.commandKeyCodes.contains($0.keyCode) },
+                "\(motion)")
+        }
+    }
+
+    @Test("Visual 세션 매퍼 전 어휘에 명령 키코드가 없다")
+    func visualSequencesCarryNoCommandKeyCodes() {
+        var actions: [VimAction] = [
+            .beginSelection(linewise: false), .beginSelection(linewise: true),
+            .switchSelectionWise(linewise: false), .switchSelectionWise(linewise: true),
+            .clearSelection,
+        ]
+        actions += Motion.allCases.map { .extendSelection($0) }
+        for action in actions {
+            let strokes = VisualKeyMapper.keyStrokes(for: action, family: .textArea) ?? []
+            #expect(
+                strokes.allSatisfy { !Self.commandKeyCodes.contains($0.keyCode) },
+                "\(action)")
+        }
+    }
+
+    @Test("openLine·스크롤 시퀀스에 명령 키코드가 없다")
+    func delegationSequencesCarryNoCommandKeyCodes() {
+        let actions: [VimAction] = [
+            .openLine(above: false), .openLine(above: true),
+            .scroll(.halfPage, forward: true), .scroll(.halfPage, forward: false),
+            .scroll(.fullPage, forward: true), .scroll(.fullPage, forward: false),
+        ]
+        for action in actions {
+            let strokes = CommandKeyMapper.keyStrokes(for: action, family: .textArea) ?? []
+            #expect(
+                strokes.allSatisfy { !Self.commandKeyCodes.contains($0.keyCode) },
+                "\(action)")
+        }
     }
 }
 

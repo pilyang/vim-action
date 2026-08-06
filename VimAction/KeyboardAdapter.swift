@@ -3,6 +3,7 @@
 //  VimAction
 //
 
+import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 import os
@@ -34,6 +35,11 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 바뀌므로 액션마다 다시 물어야 한다.
     private let hasQwertyCommandKeys: @Sendable () -> Bool
 
+    /// 현재 레이아웃에서 `z/x/c/v`를 내는 키코드의 역조회 표 — 비-QWERTY에서 게시 직전
+    /// 논리 ANSI 키코드(6/7/8/9)를 치환하는 입력이다. 주입 이유·클로저인 이유는
+    /// `hasQwertyCommandKeys`와 같다 (`20260806_non-qwerty-command-key-reverse-lookup.md`).
+    private let commandKeyCodes: @Sendable () -> [Character: CGKeyCode]
+
     /// 캐럿 주변 텍스트 리더 — 무상태 시퀀스를 정확화하는 입력이다. 주입하는 이유는
     /// `pasteWise`와 같다: 실제 AX를 읽으면 골든 테스트가 실기기 권한과 개발자 머신의
     /// 포커스 상태에 따라 갈린다.
@@ -62,6 +68,9 @@ nonisolated struct KeyboardAdapter: Sendable {
         hasQwertyCommandKeys: @escaping @Sendable () -> Bool = {
             KeyTranslator.hasQwertyCommandKeys
         },
+        commandKeyCodes: @escaping @Sendable () -> [Character: CGKeyCode] = {
+            KeyTranslator.commandKeyCodes
+        },
         reader: FocusedTextReader = FocusedTextReader(),
         visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
         viewportReader: ViewportReader = ViewportReader()
@@ -69,6 +78,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         self.executor = executor
         self.pasteWise = pasteWise
         self.hasQwertyCommandKeys = hasQwertyCommandKeys
+        self.commandKeyCodes = commandKeyCodes
         self.reader = reader
         self.visualAnchor = visualAnchor
         self.viewportReader = viewportReader
@@ -175,12 +185,35 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 액션마다 새 스냅샷 — 앞 액션이 캐럿을 옮겼으므로 이전 액션의 읽기를 물려받으면
             // 낡은 오프셋으로 계산한다. 만드는 것만으로는 AX를 부르지 않는다 (lazy).
             let text = FocusedTextSnapshot(processID: processID, reader: reader)
+            // 레이아웃도 액션당 1회 스냅샷 — 게이트(mapping)와 치환(게시 직전)이 같은 값을
+            // 읽어야, 그 사이 레이아웃 전환으로 "게이트는 통과했는데 표에는 없는" 창이
+            // 생기지 않는다. QWERTY면 표는 읽지 않는다 (치환 자체가 생략된다).
+            let layout = LayoutSnapshot(
+                isQwerty: hasQwertyCommandKeys(), commandKeyCodes: commandKeyCodes)
             let groups: [[KeyStroke]]
             let paced: Bool
             switch mapping(
-                for: action, family: family, profile: profile, text: text, viewport: viewport) {
+                for: action, family: family, profile: profile, text: text, viewport: viewport,
+                layout: layout) {
             case .groups(let mapped, let pacedGroups):
-                groups = mapped
+                // 게시 직전의 단일 치환 단계 — 비-QWERTY에서만 논리 ANSI 명령 키코드
+                // (6/7/8/9)를 현재 레이아웃의 역조회 키코드로 바꾼다. QWERTY 생략이
+                // 현행 바이트 동일의 증명이다.
+                if layout.isQwerty {
+                    groups = mapped
+                } else if let substituted = Self.rewritten(mapped, using: layout.commandKeyCodes) {
+                    groups = substituted
+                } else {
+                    // 게이트가 필요 문자를 확인한 뒤라 정상 경로에서는 도달하지 않는다
+                    // (레이아웃 스냅샷을 게이트와 공유한다). ANSI 코드가 비-QWERTY로
+                    // 그대로 나가는 것이 이 축의 위험 그 자체라, CGEvent 생성 실패와
+                    // 같은 all-or-nothing으로 액션을 폐기한다.
+                    Logger.eventTap.error(
+                        "역조회 치환 실패 — 액션 폐기: \(String(describing: action), privacy: .public)"
+                    )
+                    visualAnchor.apply(.discard)
+                    continue
+                }
                 paced = pacedGroups
             case .unsupported:
                 #if DEBUG
@@ -359,6 +392,57 @@ nonisolated struct KeyboardAdapter: Sendable {
         case disabledByProfile
     }
 
+    /// 액션 1건 처리 동안 고정되는 레이아웃 상태 — 게이트(`mapping`)와 치환(게시 직전)이
+    /// 같은 값을 읽는 것이 계약이다. 따로 읽으면 그 사이 레이아웃 전환으로 게이트는
+    /// 통과했는데 치환 표에는 없는 창이 생긴다.
+    private struct LayoutSnapshot {
+        let isQwerty: Bool
+        let commandKeyCodes: [Character: CGKeyCode]
+
+        init(isQwerty: Bool, commandKeyCodes: () -> [Character: CGKeyCode]) {
+            self.isQwerty = isQwerty
+            // QWERTY면 치환이 생략되므로 표를 읽을 이유가 없다.
+            self.commandKeyCodes = isQwerty ? [:] : commandKeyCodes()
+        }
+    }
+
+    /// 논리 ANSI 명령 키코드(6/7/8/9 = Z/X/C/V)를 역조회 키코드로 치환한다. 플래그는
+    /// 보존한다 — redo의 `Shift-Cmd`는 z의 새 키코드에 그대로 얹힌다.
+    ///
+    /// 6/7/8/9가 명령 키 외의 의미로 시퀀스에 등장할 길은 없다: 우리가 합성하는 다른 키는
+    /// 화살표·Return·기능 키뿐이고, 프로파일 스트로크 어휘(`ConfigKey`)도 문자 키를
+    /// 제외한다 — `KeyboardAdapterLayoutGateTests`가 전 매퍼 출력으로 고정하는 사실이다.
+    ///
+    /// `nil` = 치환 대상 키코드가 표에 없다 — 호출측이 액션을 통째로 폐기한다(부분 치환은
+    /// ANSI 코드가 비-QWERTY로 그대로 나가는 부분 시퀀스류의 파괴적 실행이다).
+    private static func rewritten(
+        _ groups: [[KeyStroke]], using codes: [Character: CGKeyCode]
+    ) -> [[KeyStroke]]? {
+        var result: [[KeyStroke]] = []
+        result.reserveCapacity(groups.count)
+        for group in groups {
+            var strokes: [KeyStroke] = []
+            strokes.reserveCapacity(group.count)
+            for stroke in group {
+                guard let character = Self.logicalCommandKeyCharacters[stroke.keyCode] else {
+                    strokes.append(stroke)
+                    continue
+                }
+                guard let keyCode = codes[character] else { return nil }
+                strokes.append(KeyStroke(Int(keyCode), stroke.flags))
+            }
+            result.append(strokes)
+        }
+        return result
+    }
+
+    /// 논리 ANSI 명령 키코드 → 기대 문자. 치환과 게이트(`requiredCommandCharacters`)가
+    /// 참조하는 유일한 대응표다.
+    private static let logicalCommandKeyCharacters: [CGKeyCode: Character] = [
+        CGKeyCode(kVK_ANSI_Z): "z", CGKeyCode(kVK_ANSI_X): "x",
+        CGKeyCode(kVK_ANSI_C): "c", CGKeyCode(kVK_ANSI_V): "v",
+    ]
+
     /// 액션 → 합성할 키스트로크.
     ///
     /// `VimAction`에 exhaustive switch를 걸지 않는 것이 계약이다 — 엔진에 케이스가 늘어도
@@ -377,7 +461,7 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 프리미티브라 `text`와 리더도 수명(execute당 1회)도 다르다.
     private func mapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
-        text: FocusedTextSnapshot, viewport: ViewportSnapshot
+        text: FocusedTextSnapshot, viewport: ViewportSnapshot, layout: LayoutSnapshot
     ) -> Mapping {
         // 새 Visual 세션의 시작은 옛 세션 wise를 **게이트보다 앞에서** 잊는다 — note는
         // 게시 확정에 게이팅되므로, 걸러진 begin(`.nonText`·`.unresolved`) 뒤의
@@ -402,12 +486,19 @@ nonisolated struct KeyboardAdapter: Sendable {
         //   ③ 아래 `.paste`는 매퍼 호출 전에 클립보드를 읽는다 — 순서가 반대면 걸러내기가
         //      "클립보드에 텍스트 없음"(`.skipped`)으로 잘못 집계돼 스킵 2종 구분이 무너진다.
         guard Self.survivesFilterGate(action, family: family) else { return .unsupported }
-        // 비-QWERTY 레이아웃 게이트 — ANSI **문자** 키코드를 합성하는 액션만 보류한다.
-        // 매퍼는 키코드를 고정 게시하고 대상 앱이 활성 레이아웃으로 재해석하므로, AZERTY에서
-        // `u`의 `Cmd-Z`는 `Cmd-W`(창 닫기 — 데이터 손실)가 된다. 화살표·Return만 쓰는
-        // 액션(모션·스크롤·openLine·선택)은 레이아웃 무관이라 통과한다. 걸러내기 게이트와
-        // 같은 이유로 부수효과(`recordEdit`·클립보드 읽기)보다 앞이다.
-        guard hasQwertyCommandKeys() || !Self.synthesizesAnsiLetterCommand(action) else {
+        // 비-QWERTY 레이아웃 게이트 — ANSI **문자** 키코드를 합성하는 액션만 본다. 매퍼는
+        // ANSI 상수를 논리 키코드로 내고 대상 앱은 활성 레이아웃으로 재해석하므로, 치환
+        // 없이는 AZERTY에서 `u`의 `Cmd-Z`가 `Cmd-W`(창 닫기 — 데이터 손실)가 된다.
+        // 비-QWERTY에서는 이 액션이 필요로 하는 문자가 역조회 표에 있으면 통과시키고
+        // (게시 직전 치환이 처리한다 — `execute`), 못 찾은 문자가 필요하면 종전대로
+        // 보류한다(최후 방어선). 화살표·Return만 쓰는 액션(모션·스크롤·openLine·선택)은
+        // 필요 문자가 없어 통과한다. 걸러내기 게이트와 같은 이유로 부수효과(`recordEdit`·
+        // 클립보드 읽기)보다 앞이다.
+        guard layout.isQwerty
+            || Self.requiredCommandCharacters(action).allSatisfy({
+                layout.commandKeyCodes[$0] != nil
+            })
+        else {
             return .layoutBlocked
         }
 
@@ -721,16 +812,21 @@ nonisolated struct KeyboardAdapter: Sendable {
         }
     }
 
-    /// ANSI 문자 키코드의 `Cmd-` 조합을 합성하는 액션인가 — 비-QWERTY 레이아웃 게이트 대상.
-    /// `.edit`은 오퍼레이터 스트로크(`Cmd-X`/`Cmd-C`), `.paste`는 `Cmd-V`,
-    /// `.undo`/`.redo`는 `Cmd-Z`다. `VimAction`에 exhaustive switch를 걸지 않는 것은
-    /// 매퍼와 같은 계약이다.
-    private static func synthesizesAnsiLetterCommand(_ action: VimAction) -> Bool {
+    /// 이 액션이 합성하는 ANSI 문자 명령 키의 문자 — 비-QWERTY 게이트의 판정 재료다.
+    /// 빈 집합 = 문자 명령 키를 합성하지 않는다(레이아웃 무관 통과). `.edit`은 오퍼레이터
+    /// 스트로크(yank = `Cmd-C`, delete·change = `Cmd-X`), `.paste`는 `Cmd-V`,
+    /// `.undo`/`.redo`는 `Cmd-Z`(redo는 같은 z에 Shift)다. `VimAction`에 exhaustive
+    /// switch를 걸지 않는 것은 매퍼와 같은 계약이다.
+    private static func requiredCommandCharacters(_ action: VimAction) -> Set<Character> {
         switch action {
-        case .edit, .paste, .undo, .redo:
-            return true
+        case .edit(let op, _):
+            return op == .yank ? ["c"] : ["x"]
+        case .paste:
+            return ["v"]
+        case .undo, .redo:
+            return ["z"]
         default:
-            return false
+            return []
         }
     }
 
