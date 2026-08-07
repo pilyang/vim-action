@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-08-02
-- **갱신일**: 2026-08-07 (PR #38 머지 확인·worktree 정리 완료 반영. 다음은 PR-D1 새 worktree 착수)
+- **갱신일**: 2026-08-07 (PR-D1 범위 점검 → 설계 세션 + 구현 PR 2개(D1a/D1b)로 분해. 다음은 D1 설계 세션)
 
 ## 목표
 
@@ -36,13 +36,15 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 - [x] **PR-B — 혼용 1: 편집·모션 정확화** — [PR #36](https://github.com/pilyang/vim-action/pull/36) **머지 완료** (main `69a81a6`, 3세션 + 도그푸딩). 상세는 위 "완료된 것".
 - [x] **PR-C1 — 혼용 2a: Visual 앵커 상태** — [PR #37](https://github.com/pilyang/vim-action/pull/37) **머지 완료** (main `f5a67c9`, 설계 + 구현 2세션 + 도그푸딩 2회). 상세는 위 "완료된 것".
 - [x] **PR-C2 — 혼용 2b: paste wise·스크롤·비-QWERTY 정확화** — [PR #38](https://github.com/pilyang/vim-action/pull/38) **머지 완료** (main `fc7fb72`, 2026-08-06, 3세션 + 도그푸딩 + 실 레이아웃 수동 테스트, worktree 정리됨). 상세는 위 "완료된 것".
-- [ ] **PR-D1 — 순수 AX 쓰기 어댑터**: `AXSelectedTextRange` 직접 조작으로 `VimAction` 실행. `AXError` 반환이 **실패 폭주 자동 비활성화(`reportExecutionFailure`)의 첫 실호출자**가 된다 — 실패 보고 배선 포함.
+- [ ] **D1-설계 세션 — 순수 AX 쓰기 어댑터 설계** (코드 무변경, PR-C1 전례): 확정할 결정 6개 — ① AX 쓰기의 `ActionExecutor` 단일 통로 태우기 + 테스트 주입 seam ② 위임 표(undo/redo·scroll은 keyboard 위임 유력, openLine 포함 여부) ③ `AXError`별 `reportExecutionFailure` 발동 기준 + 실패 시 keyboard 폴백 여부(안 하는 쪽 유력 — 거짓말 감지는 D2 몫) ④ 오프셋 산출 계층 모양(새 순수 함수 파일 — `FocusedTextAnalysis`는 의도적 무오프셋이라 별도, `AXLineForIndex`/`AXRangeForLine` 활용 여부) ⑤ 도그푸딩 경로(`strategy` 최소 파싱 선행 vs 임시 배선 — 파싱 본체는 PR-E) ⑥ 상태 협력자 상호작용(Visual 앵커는 AX가 정확히 알아 단순화 가능, `PasteWiseResolver` 기록 시점). 검증 항목 1개: AX 텍스트 변경의 앱 undo 스택 등록 여부 실측(미등록 앱은 D2 거짓말 감지 입력).
+- [ ] **PR-D1a — AX 쓰기 기반 + 모션**: 쓰기 seam·실행 통로 확장·**`reportExecutionFailure` 첫 실호출 배선**, 오프셋 산출 계층 기초, `.move` 전체(12모션+append 파생 2), 도그푸딩 경로. 모션이 첫 소비자인 이유는 PR-A→B와 같다 — 실패 방향이 "캐럿이 안 움직임"으로 가장 안전.
+- [ ] **PR-D1b — AX 편집 + Visual + paste + 위임 마감**: edit 오퍼레이터×범위(linewise 반올림·`iw`·`cw` 리타깃 — 오프셋 직접 계산) + **클립보드 명시 쓰기·`recordEdit`**(keyboard의 `Cmd-X/C`가 공짜로 주던 부수효과를 AX는 직접 해야 `p` 왕복이 유지된다), Visual 4종, paste, undo/redo/scroll 위임 배선. quote/pair 텍스트 오브젝트는 현행 미지원 그대로(범위 확장 아님 — 패리티만).
 - [ ] **PR-D2 — auto 프로브 + AX 거짓말 감지 + force-text**: 프로브 → key-mapping 폴백, 왕복 테스트 휴리스틱·번들 거부 목록, `key-mapping`→`force-text` 자동 폴백 존재 여부 결정. force-text 자체는 작다(걸러내기 우회 + 항상 TextArea 시퀀스). 라우팅할 AX 어댑터(D1)와 혼용 단계의 실기기 관측이 입력이라 뒤에 온다.
 - [ ] **PR-E — 스키마 확장 + 마감**: `strategy`·`per_element` 필드 additive 확장(M4 로더가 미지 키 warn+무시라 전방 호환은 열려 있다). **캐시 충분성 최종 확정** — `per_element` 스키마 시점에 재심사하기로 예약됨 ([1차 확정](../../decisions/references/20260801_cache-only-callback-confirmed-sufficient.md)). 도그푸딩 마감.
 
 ## 진행 중 컨텍스트
 
-- **다음 착수 지점 — PR-D1 (순수 AX 쓰기 어댑터)**: [PR #38](https://github.com/pilyang/vim-action/pull/38) 머지 확인 후 **새 worktree**에서 시작한다. `AXSelectedTextRange` 직접 조작으로 `VimAction` 실행, `AXError` 반환이 실패 폭주 자동 비활성화(`reportExecutionFailure`)의 첫 실호출자 — 실패 보고 배선 포함. C1·C2가 만든 아래 재료(읽기 프리미티브·상태 협력자·파생 질의)가 그대로 입력이다.
+- **다음 착수 지점 — D1-설계 세션**: 코드 무변경(문서만)이라 main에서 바로 시작해도 되고, 결정 6개+검증 1개(위 "남은 것"의 설계 세션 항목)를 확정해 decisions에 기록한 뒤 PR-D1a부터 **새 worktree**다. 범위 점검에서 확정된 사실: 대상 어휘는 현행 지원 어휘 패리티(quote/pair 제외), undo/redo는 AX API가 없어 순수 AX 불가, `strategy` 필드는 현재 파서가 전방 호환으로 무시 중(파싱 본체는 PR-E), `reportExecutionFailure`는 실호출자 0(보고 시맨틱은 기존 결정 그대로 — 키 입력당 1회·미지원≠실패). AX 경로는 읽기·쓰기가 같은 큐에서 동기라 keyboard의 "낡은 읽기" 문제가 구조적으로 없다. C1·C2가 만든 아래 재료(읽기 프리미티브·상태 협력자·파생 질의)가 그대로 입력이다.
   - **세션 2가 만든 재료**: `ViewportReader`/`ViewportSnapshot`(별개 읽기 프리미티브 선례 — 반환이 구조체가 아닌 `Int?`, 수명 execute당 1회), `provenViewport` 오보 가드(순수 함수 표 검증 선례), `scrollConsultsViewport`(extent별 읽기 생략 술어). Notion은 **visible 오보 앱**으로 확정 — D2 프로브 1순위라는 기존 메모에 "AX 거짓말 감지의 실측 사례 1호"로 추가 근거가 된다.
   - **PR-C1이 만든 재료**: `FocusedText` 파생 질의(캐럿·선택 기준 20여 종 — 소비자가 늘어나는 자리는 `FocusedTextAnalysis.swift`), 상태 협력자 선례 2개(`PasteWiseResolver`·`VisualAnchorTracker` — 게시 큐 단독 소유·주입 seam), 3-프로브 분류 패턴(`classifyEdit`/`classifyVisual`), refined 페이싱 배선(`Mapping.groups(paced:)`). 상속 계약(빈 시퀀스 금지·lazy 읽기·무상태 폴백·재조립 원칙·`.groups` 후 상태 갱신)은 변화 없음.
   - **⑦ 상한 32**(`reselectSpanClamp`)·**페이싱 5ms**(`pacedStrokeInterval`)·**뷰포트 클램프 200**(`viewportLineClamp`)은 도그푸딩 조절값으로 계속 열려 있다 — 실사용 문제 발견 시 그 자리에서 조정.
