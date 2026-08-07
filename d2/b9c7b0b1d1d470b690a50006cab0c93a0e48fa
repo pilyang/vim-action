@@ -1,0 +1,21 @@
+.claude/skills/decisions/references/20260730_native-command-non-text-ui-hazard.md
+  s_58861d8f8eaceb::t_d4a2c23226a3cd 3-4
+.claude/skills/decisions/references/20260807_decision-audit-keep-criteria.md
+  s_58861d8f8eaceb::t_399e1e001ad387 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "d2b9c7b0b1d1d470b690a50006cab0c93a0e48fa",
+  "prompts": {},
+  "sessions": {
+    "s_58861d8f8eaceb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0703d91e-fe0b-4a07-ad83-47e2ede57bb4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
