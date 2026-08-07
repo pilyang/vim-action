@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-08-02
-- **갱신일**: 2026-08-07 (PR-C2 세션 3/3 완료 — ③ 비-QWERTY 역조회 + PR #38 생성. 다음은 PR #38 머지 후 PR-D1)
+- **갱신일**: 2026-08-07 (PR #38 머지 확인·worktree 정리 완료 반영. 다음은 PR-D1 새 worktree 착수)
 
 ## 목표
 
@@ -35,7 +35,7 @@ M1~M4는 종료됐다(MVP 1단계 완료, 2026-08-02). 구조·계약의 최종 
 - [x] **PR-A — 읽기 기반 (리졸버 확장)** — [PR #35](https://github.com/pilyang/vim-action/pull/35) **머지 완료** (main `b206a87`). 상세는 위 "완료된 것".
 - [x] **PR-B — 혼용 1: 편집·모션 정확화** — [PR #36](https://github.com/pilyang/vim-action/pull/36) **머지 완료** (main `69a81a6`, 3세션 + 도그푸딩). 상세는 위 "완료된 것".
 - [x] **PR-C1 — 혼용 2a: Visual 앵커 상태** — [PR #37](https://github.com/pilyang/vim-action/pull/37) **머지 완료** (main `f5a67c9`, 설계 + 구현 2세션 + 도그푸딩 2회). 상세는 위 "완료된 것".
-- [ ] **PR-C2 — 혼용 2b: paste wise·스크롤·비-QWERTY 정확화** — [PR #38](https://github.com/pilyang/vim-action/pull/38) **생성 완료, 머지 대기** (worktree `feat/m5-pr-c2`, 3세션 + 도그푸딩 + 실 레이아웃 수동 테스트). 상세는 위 "완료된 것". 머지되면 체크하고 worktree 정리.
+- [x] **PR-C2 — 혼용 2b: paste wise·스크롤·비-QWERTY 정확화** — [PR #38](https://github.com/pilyang/vim-action/pull/38) **머지 완료** (main `fc7fb72`, 2026-08-06, 3세션 + 도그푸딩 + 실 레이아웃 수동 테스트, worktree 정리됨). 상세는 위 "완료된 것".
 - [ ] **PR-D1 — 순수 AX 쓰기 어댑터**: `AXSelectedTextRange` 직접 조작으로 `VimAction` 실행. `AXError` 반환이 **실패 폭주 자동 비활성화(`reportExecutionFailure`)의 첫 실호출자**가 된다 — 실패 보고 배선 포함.
 - [ ] **PR-D2 — auto 프로브 + AX 거짓말 감지 + force-text**: 프로브 → key-mapping 폴백, 왕복 테스트 휴리스틱·번들 거부 목록, `key-mapping`→`force-text` 자동 폴백 존재 여부 결정. force-text 자체는 작다(걸러내기 우회 + 항상 TextArea 시퀀스). 라우팅할 AX 어댑터(D1)와 혼용 단계의 실기기 관측이 입력이라 뒤에 온다.
 - [ ] **PR-E — 스키마 확장 + 마감**: `strategy`·`per_element` 필드 additive 확장(M4 로더가 미지 키 warn+무시라 전방 호환은 열려 있다). **캐시 충분성 최종 확정** — `per_element` 스키마 시점에 재심사하기로 예약됨 ([1차 확정](../../decisions/references/20260801_cache-only-callback-confirmed-sufficient.md)). 도그푸딩 마감.
