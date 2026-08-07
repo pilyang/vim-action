@@ -1,5 +1,7 @@
 # 명령 어휘는 비텍스트 UI에서도 발사된다 — 단계 3까지 수용
 
+> 이행 완료 — 비텍스트 걸러내기 게이트([20260801_non-text-filter-keeps-motion-and-scroll.md](20260801_non-text-filter-keeps-motion-and-scroll.md))가 구조적으로 해소해 수용 결정의 효력은 소진. Finder `p`/`u` 위험 분석은 재참조 가치로 파일 유지.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-07-30

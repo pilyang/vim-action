@@ -196,7 +196,6 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-27 | Notion Shift-Cmd-↑/↓ 충돌 수용 | 블록 이동 충돌로 6조합 파괴적 오동작 — M4 프로파일이 해소 | [20260727_notion-cmd-shift-vertical-conflict.md](references/20260727_notion-cmd-shift-vertical-conflict.md) |
 | 07-28 | linewise 시각 줄 엣지 | 소프트 랩에서 dd/cc가 화면 행 단위 — 창 읽기로는 해소 불가(20260803), 단락 바인딩 실측이 재개 조건 | [20260728_linewise-visual-line-wrap-accepted-edge.md](references/20260728_linewise-visual-line-wrap-accepted-edge.md) |
 | 07-28 | charwise Visual 후진 원점 이동 | 진입 Shift-→가 원점을 P+1로 — vb·vh 빈 선택 (수용 결정은 20260804 재앵커로 부분 supersede — 읽기 실패 폴백만 잔존) | [20260728_visual-charwise-backward-origin-shift.md](references/20260728_visual-charwise-backward-origin-shift.md) |
-| 07-30 | 명령 어휘 비텍스트 UI 발사 | Finder p=파일 붙여넣기 등 — 도그푸딩 규율 추가, 리졸버가 구조적 해소 | [20260730_native-command-non-text-ui-hazard.md](references/20260730_native-command-non-text-ui-hazard.md) |
 | 08-06 | Slack 스크롤 화살표 컴포저 이탈 수용 | `↑` 포화 후 메시지 선택 이동은 Slack 네이티브 동작 — 코드 특례 없음, 아프면 사용자 프로파일 몫 | [20260806_slack-scroll-arrow-composer-escape-accepted.md](references/20260806_slack-scroll-arrow-composer-escape-accepted.md) |
 
 ### 전략 디스패치·요소 리졸버
