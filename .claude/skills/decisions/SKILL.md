@@ -213,6 +213,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-28 | linewise 시각 줄 엣지 | 소프트 랩에서 dd/cc가 화면 행 단위 — keyboard 경로 한정으로 유효(AX 경로는 20260808 논리 줄로 부분 supersede) | [20260728_linewise-visual-line-wrap-accepted-edge.md](references/20260728_linewise-visual-line-wrap-accepted-edge.md) |
 | 07-28 | charwise Visual 후진 원점 이동 | 진입 Shift-→가 원점을 P+1로 — vb·vh 빈 선택 (수용 결정은 20260804 재앵커로 부분 supersede — 읽기 실패 폴백만 잔존) | [20260728_visual-charwise-backward-origin-shift.md](references/20260728_visual-charwise-backward-origin-shift.md) |
 | 08-06 | Slack 스크롤 화살표 컴포저 이탈 수용 | `↑` 포화 후 메시지 선택 이동은 Slack 네이티브 동작 — 코드 특례 없음, 아프면 사용자 프로파일 몫 | [20260806_slack-scroll-arrow-composer-escape-accepted.md](references/20260806_slack-scroll-arrow-composer-escape-accepted.md) |
+| 08-08 | 마지막 줄 linewise `p`는 `P`로 퇴행 | `→` 문서 끝 포화 + 멱등 보정자의 교환(훼손 대신 위치 오차) — `ddp`에서 재현, keyboard 경로에선 미해소·D1b `.paste` 하이브리드가 포화 자체를 없앤다 | [20260808_last-line-linewise-paste-degrades-to-P.md](references/20260808_last-line-linewise-paste-degrades-to-P.md) |
 
 ### 전략 디스패치·요소 리졸버
 
