@@ -1,6 +1,6 @@
 # 전략 디스패치
 
-- **Last updated**: 2026-08-08 (M5 D1 설계 세션 — Accessibility 어댑터 최종 상태 확정: 범위 쓰기 전용·위임 표·단일 드라이버·오프셋 계층·Visual 세션 경로 고정. 구현은 PR-D1a/D1b)
+- **Last updated**: 2026-08-08 (M5 PR-D1a 세션1 — AX 쓰기 통로·분류·효과 실행 지점 구현 반영. 드라이버 `.ax` 분기와 오프셋 계층은 세션 2/PR-D1b)
 
 ## 현재 구조
 
@@ -51,7 +51,7 @@ flowchart TD
 
 **오프셋 산출은 `FocusedTextOffsets`**(신규 순수 함수 계층 — `FocusedTextAnalysis` extension 확장 금지: `RunClass`가 갈린다 — Analysis는 비ASCII `other`(포기 방향), Offsets는 `keyword`(CJK `w`/`diw` 성립)). 입력은 `FocusedText` 창이되 **AX 쓰기 경로 전용 확대 반경**(잠정 4096 UTF-16 — 착수 시 실측 확정, keyboard 경로 256 불변)을 쓴다. 반환은 3상태(`.invalid` = Vim 무효 → 스킵 / 범위 → AX 쓰기 / `.unproven` → keyboard 위임). **linewise는 논리 줄**이다 — 소프트 랩 문단의 `dd`가 논리 줄 전체를 지운다(keyboard 수용 엣지의 AX 경로 해소, `dj` ≠ `d`+`j` 편차 명시 수용). `dgg`/`dG`는 끝점 두 개(상수 + 현재 줄 로컬)만 필요해 문서 규모 무관이고, 파라미터화 속성(`AXLineForIndex`/`AXRangeForLine`)은 표시 줄 시맨틱이라 미채택. 산출은 항상 grapheme cluster 경계 위, 줄 종결자는 `\r\n`·`\n`·`\r`·U+2028/2029, 경계 불변식(`location ≥ 0`, `upperBound ≤ characterCount`)은 순수 함수 테스트로 고정 ([20260808_ax-offset-layer-window-logical-lines.md](../../decisions/references/20260808_ax-offset-layer-window-logical-lines.md)).
 
-**실패 처리**: `AXError` 분류는 default-deny 화이트리스트 — D1 실보고는 `.failure`만, `.illegalArgument`(사전 경계 검증 통과 후 거부)는 관측 전용 요약 로그(번들 ID 포함, D1 종료 시 승격 재심사), `.attributeUnsupported`류 = 미지원 스킵, `.invalidUIElement`/`.cannotComplete` = 경합 스킵, 미지 코드 = 미보고 + error 로그. **쓰기 시도 후 실패의 keyboard 폴백은 없다**(이중 실행·어긋난 상태 위 상대 시퀀스 위험). 읽기 단계 실패는 스킵. 첫 미지원·첫 실패에서 그 execute의 잔여 액션을 통째로 스킵한다(보고 1회 구조 보장 + `100j` 동기 왕복 접기). AX 스킵은 전용 요약 버킷으로 집계 ([20260808_ax-write-failure-whitelist-no-fallback.md](../../decisions/references/20260808_ax-write-failure-whitelist-no-fallback.md)).
+**실패 처리**: `AXError` 분류는 default-deny 화이트리스트 — D1 실보고는 `.failure`만, `.illegalArgument`(사전 경계 검증 통과 후 거부)는 관측 전용 요약 로그(번들 ID 포함, D1 종료 시 승격 재심사), `.attributeUnsupported`류 = 미지원 스킵, `.invalidUIElement`/`.cannotComplete` = 경합 스킵, 미지 코드 = 미보고 + error 로그. **쓰기 시도 후 실패의 keyboard 폴백은 없다**(이중 실행·어긋난 상태 위 상대 시퀀스 위험). 읽기 단계 실패는 스킵. 첫 미지원·첫 실패에서 그 execute의 잔여 액션을 통째로 스킵한다(보고 1회 구조 보장 + `100j` 동기 왕복 접기). AX 스킵은 전용 요약 버킷으로 집계 ([20260808_ax-write-failure-whitelist-no-fallback.md](../../decisions/references/20260808_ax-write-failure-whitelist-no-fallback.md)). 분류(`AXWriteOutcome.classify` — 16 → 7클래스 순수 함수)와 **효과 실행**(`AXWriteEffects` — 보고·요약 로그·버킷, execute 1회 수명)은 갈려 있다: 분류가 로깅까지 하면 표를 테스트로 고정할 수 없고, `AXWriter`가 `AXError`를 raw로 내보내는 이유와 같은 규칙이다. 사전 경계 검증은 `AXWriteOutcome.provenWriteRange`이며 통과 실패는 보고가 아니라 스킵이다. 보고 seam은 어댑터 주입(`KeyboardAdapter(reportExecutionFailure:now:)` → `axWriteEffects(bundleID:)`)이고 시각은 게시 큐에서 캡처한다 — 자세한 배선·로그 레벨은 [reentrancy-and-safety.md](reentrancy-and-safety.md).
 
 **Visual은 세션 단위 경로 고정**: 진입(`beginSelection`) 증명 성공이면 세션 전체 AX, 실패면 세션 전체 keyboard(기존 재앵커 기계). 세션 중간 실패는 그 액션만 정직한 스킵 — **무상태 폴백 금지**(AX가 쓴 범위는 앱의 포커스 끝이 미정의라 무상태 `Shift-→`가 파괴 방향 불확정). `VisualAnchorTracker`는 두 경로가 공유하고 AX는 `side`·`pinnedEnd`까지 정확값으로 채운다(전략 인수인계 공짜). 자가 검증은 AX에서도 유지(단측 + 비어 있지 않음 — 포커스 끝 불일치는 DEBUG 로그만), 상태 갱신은 쓰기 `.success` 확인 시("게시 확정"의 AX 등가 — 더 강함) ([20260808_ax-visual-session-path-pinning.md](../../decisions/references/20260808_ax-visual-session-path-pinning.md)).
 

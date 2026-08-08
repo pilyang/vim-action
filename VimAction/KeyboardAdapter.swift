@@ -62,6 +62,19 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// (`CommandKeyMapper.scrollConsultsViewport`).
     private let viewportReader: ViewportReader
 
+    /// 실행 실패 보고 seam — 게시 직렬 큐에서 `EventTapController.reportExecutionFailure(at:)`
+    /// 로 가는 경로다. **시각을 인자로 싣는 것이 계약이다**: 카운터는 MainActor 격리 안에서만
+    /// 돌아 보고가 메인 홉을 타는데, 홉 착지 시각으로 세면 메인 스톨 뒤 뭉쳐 착지한 보고들이
+    /// 1초 창에 몰려 거짓 트립한다 (`AXWriteEffects.apply` 주석).
+    ///
+    /// 기본값 no-op은 다른 주입들과 같은 XCTest 무해화다 — 유일한 실배선은 컨트롤러의
+    /// `keyboardActionSink`이고, 그것만이 컨트롤러에 닿을 수 있다.
+    private let reportExecutionFailure: @Sendable (TimeInterval) -> Void
+
+    /// 실패 시각 캡처 seam. 주입 이유는 `pasteWise`와 같다 — 실시계를 읽으면 폭주 창(1초)
+    /// 판정을 테스트가 실제로 기다려야 한다.
+    private let now: @Sendable () -> TimeInterval
+
     init(
         executor: ActionExecutor = ActionExecutor(),
         pasteWise: PasteWiseResolver = PasteWiseResolver(),
@@ -73,7 +86,9 @@ nonisolated struct KeyboardAdapter: Sendable {
         },
         reader: FocusedTextReader = FocusedTextReader(),
         visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
-        viewportReader: ViewportReader = ViewportReader()
+        viewportReader: ViewportReader = ViewportReader(),
+        reportExecutionFailure: @escaping @Sendable (TimeInterval) -> Void = { _ in },
+        now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     ) {
         self.executor = executor
         self.pasteWise = pasteWise
@@ -82,6 +97,17 @@ nonisolated struct KeyboardAdapter: Sendable {
         self.reader = reader
         self.visualAnchor = visualAnchor
         self.viewportReader = viewportReader
+        self.reportExecutionFailure = reportExecutionFailure
+        self.now = now
+    }
+
+    /// AX 쓰기 결과의 효과 실행 지점 — **execute 1회당 하나** 만들어 쓰기마다 `apply`하고
+    /// 끝에서 `logSummary()`한다 (보고 접기·요약 버킷의 수명이 곧 execute다).
+    ///
+    /// 어댑터가 seam 둘을 들고 여기서 묶는 것이 요점이다: 효과 타입은 순수하게 유지되고
+    /// (주입만 받는다), 배선을 아는 자리는 여전히 어댑터 하나다.
+    func axWriteEffects(bundleID: String?) -> AXWriteEffects {
+        AXWriteEffects(bundleID: bundleID, report: reportExecutionFailure, now: now)
     }
 
     /// 키 입력 1건이 만든 액션 시퀀스를 실행한다.

@@ -196,6 +196,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-08 | AX 실패 보고 화이트리스트·폴백 없음 | D1 실보고는 `.failure`만(`.illegalArgument`는 관측 전용→승격 예약), `.cannotComplete`는 경합 스킵(이중 실행 위험) — 첫 실패 execute 중단, 시각은 게시 큐 캡처 | [20260808_ax-write-failure-whitelist-no-fallback.md](references/20260808_ax-write-failure-whitelist-no-fallback.md) |
 | 08-08 | AX 오프셋 계층 — 창+논리 줄 | `FocusedTextOffsets` 순수 함수·AX 전용 확대 반경(4096 잠정)·3상태 반환·unproven은 keyboard 위임 — 논리 줄 `dd` 채택(`dj`≠`d`+`j` 수용), 파라미터화 속성 기각 | [20260808_ax-offset-layer-window-logical-lines.md](references/20260808_ax-offset-layer-window-logical-lines.md) |
 | 08-08 | `strategy` 최소 파싱 선행 | D1a에서 accessibility/keyboard 두 값만 파싱(`auto`는 invalidValue warn+무시, PR-E에서 추가) — 임시 배선 기각, 기본값 keyboard | [20260808_strategy-field-minimal-parsing-d1.md](references/20260808_strategy-field-minimal-parsing-d1.md) |
+| 08-08 | `.illegalArgument` 관측 로그는 상시 `.info` | 요약 버킷 관례(`#if DEBUG`+`.debug`)에서 이탈 — 승격 재심사가 `log show --info`로 사후 회수해야 하는 판정 데이터라, 스킵 2종은 `.debug` 유지 | [20260808_ax-illegal-argument-observation-log-level.md](references/20260808_ax-illegal-argument-observation-log-level.md) |
 | 08-08 | AX Visual 세션 경로 고정 | 진입 시점에 세션 전체 AX/keyboard 고정, 중간 실패는 스킵(무상태 폴백 금지 — 쓰기 후 포커스 끝 미정의) — `VisualAnchorTracker` 공유, AX가 side·pinnedEnd까지 채움 | [20260808_ax-visual-session-path-pinning.md](references/20260808_ax-visual-session-path-pinning.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
