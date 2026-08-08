@@ -209,6 +209,13 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-08 | AX 모션은 캐럿 모델 유지 | 목표는 현행 keyboard가 겨냥하는 캐럿 자리 그대로(`e`=글자 뒤·`$`=줄 끝·`gg`=0), 정확해지는 것은 RunClass 단어 정의와 `^`뿐 — Vim no-op만 `.invalid`, 블록 커서 모델은 파급 때문에 기각 | [20260808_ax-motion-caret-model-vim-word-definition.md](references/20260808_ax-motion-caret-model-vim-word-definition.md) |
 | 08-08 | 프로파일 모션 재정의가 AX보다 우선 | `motions:` 항목이 있으면(strokes·disabled 불문) 그 모션은 keyboard 경로 — 스크롤 사다리와 같은 우선순위, disable의 `.disabledByProfile` 집계가 공짜로 유지된다 | [20260808_profile-motion-override-outranks-ax.md](references/20260808_profile-motion-override-outranks-ax.md) |
 | 08-08 | 쓰기 전 단계 실패도 execute 중단 | `.success` 외 **전부**에서 중단(문언 확장) + 요소·읽기 실패는 `.unproven`과 별개 축(`Mapping.axUnavailable`)으로 잔여를 접는다 — Slack류에서 `100j`가 100×50ms로 큐를 잡는 것을 막는다 | [20260808_ax-pre-write-failure-ends-execute.md](references/20260808_ax-pre-write-failure-ends-execute.md) |
+| 08-08 | AX collapse는 게시 `←` 유지 | 동기 AX 쓰기가 게시를 **상시 선착** 실측(TextEdit 0/30·Notion 1/30) — yank collapse·`.clearSelection`의 AX 캐럿 쓰기 기각, 정확 선택 위의 `←`가 정확화를 대체 | [20260808_ax-collapse-posted-arrow-not-caret-write.md](references/20260808_ax-collapse-posted-arrow-not-caret-write.md) |
+| 08-08 | 되읽어 검증은 수렴 폴링 | Notion은 쓰기 `.success` 후 ~10ms 적용 비동기(실측) — 신선 재읽기·2ms/40ms 폴링·불일치는 스킵+execute 중단·상시 `.info` 버킷, "동기 → 게시" 근거를 마진+검증으로 재문언 | [20260808_ax-readback-verify-convergence-poll.md](references/20260808_ax-readback-verify-convergence-poll.md) |
+| 08-08 | 마지막 줄 linewise `p`는 Return 합성 | naive 문서 끝 캐럿은 병합 훼손 실측 — 문서 끝 캐럿 + `[Return, Cmd-V]` 원자 그룹, 끝 개행 1개 편차 수용(P 퇴행 실해소) | [20260808_last-line-linewise-paste-return-synthesis.md](references/20260808_last-line-linewise-paste-return-synthesis.md) |
+| 08-08 | AX Visual 재정의 모션은 정직한 스킵 | 재정의 우선 결정 × 무상태 폴백 금지의 교차 — AX 세션에서 그 모션만 스킵(재정의 시퀀스도 무상태 시퀀스), 세션 통째 keyboard pin은 과잉 | [20260808_ax-visual-overridden-motion-honest-skip.md](references/20260808_ax-visual-overridden-motion-honest-skip.md) |
+| 08-08 | `unproven` 편집 위임은 AX 창 재사용 | 4096 창 `FocusedText`를 keyboard 정확화에 전달 — 재읽기 없음("한 액션은 한 번만 읽는다"), 술어는 창 상대라 의미 동일 | [20260808_ax-unproven-edit-delegation-reuses-ax-window.md](references/20260808_ax-unproven-edit-delegation-reuses-ax-window.md) |
+| 08-08 | 하이브리드 접두+첫 그룹은 원자 | 접두 쓰기(및 검증)와 첫 게시 그룹 사이 중단 질의 없음(전 하이브리드 공통) — 편집의 살아 있는 선택 잔류 창 봉쇄, 원자 그룹 규칙 ④ | [20260808_hybrid-prefix-atomic-with-first-group.md](references/20260808_hybrid-prefix-atomic-with-first-group.md) |
+| 08-08 | 접두 실패 문언은 `unproven` 축 전용 | "접두 실패 = keyboard 낙하"의 지시 대상 고정 — 요소·읽기 실패는 `.axUnavailable`, 쓰기 후 실패는 폴백 없음, 문장의 취지는 부분 실행 금지 | [20260808_hybrid-prefix-failure-axes-clarified.md](references/20260808_hybrid-prefix-failure-axes-clarified.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 

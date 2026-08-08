@@ -1,3 +1,6 @@
+> Superseded (부분) by [20260808_ax-collapse-posted-arrow-not-caret-write.md](20260808_ax-collapse-posted-arrow-not-caret-write.md) — `.clearSelection` 행(AX 캐럿 쓰기 → 게시 `←` 유지)·편집 행의 yank collapse 문언 / 표의 나머지·골격 규칙·단일 드라이버는 유효
+> Superseded (부분) by [20260808_hybrid-prefix-failure-axes-clarified.md](20260808_hybrid-prefix-failure-axes-clarified.md) — "접두 AX 실패 = 액션 통째 keyboard 낙하" 문언의 적용 범위를 `unproven` 축으로 한정 / 부분 실행 금지 취지는 유효
+
 # AX 위임 표는 "명령 매퍼 계열 = 위임" + 배선은 단일 실행 드라이버
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
