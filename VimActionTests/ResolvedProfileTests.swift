@@ -84,9 +84,10 @@ struct ResolvedProfileTests {
     func carriesScalarFields() {
         let profile = ResolvedProfile(
             AppProfile(
-                name: "Slack", halfPageLines: 12, fullPageLines: 24,
+                name: "Slack", strategy: .accessibility, halfPageLines: 12, fullPageLines: 24,
                 actions: [.openLine: .disabled]))
         #expect(profile.name == "Slack")
+        #expect(profile.strategy == .accessibility)
         #expect(profile.halfPageLines == 12)
         #expect(profile.fullPageLines == 24)
         #expect(profile.actionOverrides == [.openLine: .disabled])
@@ -115,5 +116,7 @@ struct ResolvedProfileTests {
         #expect(ResolvedProfile.empty.newLineStrokes == nil)
         #expect(ResolvedProfile.empty.halfPageLines == nil)
         #expect(ResolvedProfile.empty.fullPageLines == nil)
+        // 기본 전략이 keyboard인 것이 "프로파일 없는 앱은 동작 diff 0"의 지점이다.
+        #expect(ResolvedProfile.empty.strategy == .keyboard)
     }
 }

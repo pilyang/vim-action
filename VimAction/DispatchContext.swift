@@ -21,5 +21,14 @@ nonisolated struct DispatchContext: Equatable, Sendable {
     /// 출처가 `FocusedElementResolver`인 것도 계약이다: 리더가 겨냥하는 대상(포커스 요소)의
     /// 소유자와 같아야 `family`와 pid가 서로 다른 앱을 가리키는 일이 없다.
     var processID: pid_t?
+    /// AX 쓰기 관측 로그가 앱을 특정하는 수단 — `AXWriteEffects`의 요약 한 줄에 실린다.
+    /// `.illegalArgument` 빈도는 D1 종료 시 보고 승격 재심사의 판정 데이터인데, 어느 앱이
+    /// 거부했는지 모르면 아무 데도 쓸 수 없는 숫자가 된다
+    /// (`20260808_ax-write-failure-whitelist-no-fallback.md`).
+    ///
+    /// 출처는 `FrontmostAppGate`이며 **프로파일 조회와 같은 값**이다 — 콜백이 한 번 읽어
+    /// 둘에 함께 싣는다. `processID`(포커스 요소의 소유자)와 출처가 다른 것은 계약대로다:
+    /// 이 값은 읽기·쓰기의 대상이 아니라 로그의 라벨이다.
+    var bundleID: String?
     var profile: ResolvedProfile = .empty
 }

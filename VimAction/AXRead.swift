@@ -23,6 +23,9 @@ nonisolated enum AXRead {
     /// **pid만 받는 것이 규칙이다**: `AXUIElement`를 큐 경계로 넘기지 않으므로 비-`Sendable`
     /// 값이 격리를 건너는 일이 애초에 없다 (`ActionExecutor`의 CGEvent 계약과 같은 규칙).
     /// 요소는 호출한 큐 위에서 만들어져 그 큐 안에서만 쓰인다.
+    ///
+    /// **쓰기 경로(`AXWriter`)도 요소는 반드시 여기서 받는다** — 그래서 위 타임아웃이
+    /// 읽기·쓰기 양쪽에 같은 상수로 상속되고, 요소를 만드는 자리가 이 함수 하나로 남는다.
     static func focusedElement(ofProcess processID: pid_t) -> AXUIElement? {
         let application = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(application, messagingTimeout)

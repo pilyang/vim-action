@@ -157,8 +157,26 @@ final class EventTapController {
     /// 컨텍스트(계열·프로파일)가 인자로 실리는 것은 계약이다 — 콜백(메인)에서 읽은 **키 입력
     /// 시점의 값**이어야 하며, 게시 큐가 나중에 캐시를 읽으면 그 사이 옮겨간 포커스·앱을
     /// 기준으로 걸러진다.
-    @ObservationIgnored private let dispatchActions:
-        @Sendable ([VimAction], DispatchContext) -> Void
+    ///
+    /// **`lazy`인 것은 실패 보고 경로 때문이다** — 프로덕션 sink는 어댑터에 `self`(컨트롤러의
+    /// `reportExecutionFailure`)로 돌아오는 클로저를 넘겨야 하는데, 저장 프로퍼티의 초기화식은
+    /// 클래스 phase-1이 끝나기 전이라 `self`를 캡처할 수 없다. lazy는 첫 접근(= `handleKeyDown`,
+    /// 메인 격리)까지 미뤄 그 제약을 없앤다. 주입값은 `injectedDispatchActions`가 든다.
+    @ObservationIgnored private lazy var dispatchActions:
+        @Sendable ([VimAction], DispatchContext) -> Void = injectedDispatchActions
+        ?? Self.keyboardActionSink(
+            abort: executionAbort,
+            reportFailure: { [weak self] failedAt in
+                // 카운터는 컨트롤러의 MainActor 격리 안에서만 쓴다 — 홉을 유지하고 **시각만**
+                // 게시 큐에서 캡처해 실어 보낸다 (`AXWriteEffects.apply` 주석의 거짓 트립).
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { self?.reportExecutionFailure(at: failedAt) }
+                }
+            })
+
+    /// 주입된 sink — `nil`이면 위 lazy가 프로덕션 것을 만든다.
+    @ObservationIgnored private let injectedDispatchActions:
+        (@Sendable ([VimAction], DispatchContext) -> Void)?
 
     /// 최전면 앱 bundle id → 실행용 프로파일. `ConfigStore` 조회를 `AppState`가 주입한다 —
     /// 컨트롤러는 설정 계층을 모른다 (게이트·리졸버와 같은 단방향 의존).
@@ -182,12 +200,17 @@ final class EventTapController {
     ///
     /// 래치는 여기서 세대만 오가고 **`dispatchActions`의 시그니처는 그대로다** — 중단은 실행
     /// 계층의 관심사라 컨트롤러가 세대를 들고 다닐 이유가 없다.
+    ///
+    /// `reportFailure`는 어댑터가 AX 쓰기 실패를 돌려보내는 통로다 — **실패 시각을 인자로
+    /// 받는다**(게시 큐 캡처). 컨트롤러의 카운터는 MainActor 계약이라 클로저 쪽이 홉을 지고,
+    /// 이 sink는 그것을 어댑터에 꽂아 주기만 한다.
     private static func keyboardActionSink(
-        abort: ExecutionAbortLatch
+        abort: ExecutionAbortLatch,
+        reportFailure: @escaping @Sendable (TimeInterval) -> Void
     ) -> @Sendable ([VimAction], DispatchContext) -> Void {
         guard !isRunningUnderXCTest() else { return { _, _ in } }
         let queue = DispatchQueue(label: "dev.pilyang.VimAction.execution", qos: .userInitiated)
-        let adapter = KeyboardAdapter()
+        let adapter = KeyboardAdapter(reportExecutionFailure: reportFailure)
         return { actions, context in
             // `beginRun`은 **큐 밖**(탭 콜백 스레드)이어야 한다 — 큐 안이면 이미 도는 버스트가
             // 끝난 뒤에야 세대가 올라가 아무것도 끊지 못한다. 비용은 잠금 1회 + 증가 1회라
@@ -196,7 +219,8 @@ final class EventTapController {
             queue.async {
                 adapter.execute(
                     actions, family: context.family, profile: context.profile,
-                    processID: context.processID, isCurrent: { abort.isCurrent(run) })
+                    processID: context.processID, bundleID: context.bundleID,
+                    isCurrent: { abort.isCurrent(run) })
             }
         }
     }
@@ -283,11 +307,10 @@ final class EventTapController {
         self.frontmostAppGate = frontmostAppGate ?? .forCurrentEnvironment()
         self.focusedElement = focusedElement ?? .forCurrentEnvironment()
         self.profileProvider = profileProvider
-        // 기본값 대신 지역 변수를 거치는 이유: 프로덕션 sink가 **같은 인스턴스**를 캡처해야
-        // 하는데, 저장 프로퍼티가 다 채워지기 전에는 `self.executionAbort`를 읽을 수 없다.
-        let abort = ExecutionAbortLatch()
-        self.executionAbort = abort
-        self.dispatchActions = dispatchActions ?? Self.keyboardActionSink(abort: abort)
+        self.executionAbort = ExecutionAbortLatch()
+        // 프로덕션 sink 생성은 `dispatchActions`(lazy)로 미뤄져 있다 — 실패 보고 클로저가
+        // `self`를 캡처해야 하는데 여기서는 아직 phase-1 중이다.
+        self.injectedDispatchActions = dispatchActions
         self.isInterceptionEnabled = defaults.bool(
             forKey: PreferenceKeys.interceptionEnabled, default: true)
         let escapeEnabled = defaults.bool(
@@ -320,6 +343,10 @@ final class EventTapController {
         // off→on 토글 테스트가 didSet을 통해 여기 도달하므로 bootstrap과 같은 가드가 필요하다.
         guard !isRunningUnderXCTest() else { return }
         guard tapPort == nil else { return }
+        // 실행 sink의 lazy 초기화를 **여기서** 끝낸다 — 첫 접근이 `handleKeyDown`이면 게시 큐
+        // 생성과 어댑터 할당이 탭 콜백의 동기 구간에 들어간다(콜백 경량 불변식). 탭이 설치되기
+        // 전이라 그 사이에 키가 들어올 수도 없다.
+        _ = dispatchActions
         guard AXIsProcessTrusted() else {
             status = .waitingForPermission
             Logger.eventTap.info("Accessibility 미허용 — 탭 설치 보류")
@@ -771,12 +798,17 @@ final class EventTapController {
             // 계열·프로파일은 **여기서** 읽는다 — 콜백은 메인 격리라 캐시 읽기가 동기
             // 프로퍼티 접근·딕셔너리 조회뿐이고(콜백 경량 불변식), 그 값이 곧 키 입력
             // 시점의 스냅샷이다.
-            let profile = profileProvider?(frontmostAppGate.frontmostBundleID) ?? .empty
+            //
+            // bundleID는 지역에 묶어 프로파일 조회와 컨텍스트가 **같은 값**을 쓰게 한다 —
+            // 두 번 읽으면 그 사이 앱 전환이 로그 라벨과 프로파일을 어긋나게 할 수 있다.
+            let bundleID = frontmostAppGate.frontmostBundleID
+            let profile = profileProvider?(bundleID) ?? .empty
             dispatchActions(
                 output.actions,
                 DispatchContext(
                     family: focusedElement.family,
-                    processID: focusedElement.observedProcessID, profile: profile))
+                    processID: focusedElement.observedProcessID, bundleID: bundleID,
+                    profile: profile))
             return nil
         }
     }

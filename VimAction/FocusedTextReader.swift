@@ -32,10 +32,22 @@ nonisolated struct FocusedTextReader: Sendable {
     /// 충분하고, 창 읽기 비용은 실측상 크기와 무관해서(~0.2ms) 여유를 크게 잡아도 공짜다.
     static let windowRadius = 256
 
+    /// **AX 쓰기 경로 전용 반경.** keyboard 경로의 256과 갈린 이유는 소비자가 다르기 때문이다:
+    /// 정확화는 캐럿 ±몇 자의 술어만 물어 256이 남고, AX 오프셋 계층은 논리 줄 전체(소프트 랩
+    /// 문단 = Notion 블록)를 창 안에 들여야 `dd`·`0`·`$`가 증명된다.
+    ///
+    /// 확대가 keyboard에서 기각됐던 사유 셋 중 둘(원자 그룹 폭증·낡은 읽기의 오프셋 비례 파괴)이
+    /// AX에서 소멸하고, 비용은 실측상 창 크기와 무관하다 — 8192단위 웜 p50이 TextEdit 0.37ms·
+    /// Notion 0.26ms로 현행 512 창과 사실상 동일했다(세션 1 실측). 고정 상수라 "문서 크기 비례
+    /// 읽기 금지" 불변식과도 충돌하지 않는다
+    /// (`20260808_ax-offset-layer-window-logical-lines.md`).
+    static let axWindowRadius = 4096
+
     private let readFocusedText: @Sendable (pid_t) -> FocusedText?
 
-    init(read: @escaping @Sendable (pid_t) -> FocusedText? = FocusedTextReader.readViaAccessibility)
-    {
+    init(
+        read: @escaping @Sendable (pid_t) -> FocusedText? = { readViaAccessibility(processID: $0) }
+    ) {
         self.readFocusedText = read
     }
 
@@ -49,10 +61,21 @@ nonisolated struct FocusedTextReader: Sendable {
     /// 읽기는 정확화의 입력이지 실행이 아니다 (`20260802_dispatch-read-on-posting-queue.md` ④).
     @Sendable
     static func readViaAccessibility(processID: pid_t) -> FocusedText? {
-        guard let element = AXRead.focusedElement(ofProcess: processID),
-            let selection = copyRange(element, kAXSelectedTextRangeAttribute),
+        guard let element = AXRead.focusedElement(ofProcess: processID) else { return nil }
+        return read(element, radius: windowRadius)
+    }
+
+    /// 요소가 이미 있을 때의 본체 — 위에서 획득 단계만 뺀 것이다.
+    ///
+    /// **AX 쓰기 경로가 여기로 들어온다.** 오프셋을 계산한 읽기와 뒤따르는 쓰기가 **같은 요소
+    /// 핸들**을 써야 `AXWriter`의 요소 수신 계약(그 타입 doc)이 성립한다 — 리더가 pid로 요소를
+    /// 다시 획득하면 그 사이 포커스가 옮겨간 경우 한 요소로 계산한 범위를 다른 요소에 쓰는
+    /// 창이 열리고, 그것이 요소 획득 API를 `AXWriter`에 두지 않은 이유 그 자체다.
+    static func read(_ element: AXUIElement, radius: Int) -> FocusedText? {
+        guard let selection = copyRange(element, kAXSelectedTextRangeAttribute),
             let characterCount = AXRead.copyValue(element, kAXNumberOfCharactersAttribute) as? Int,
-            let windowRange = window(around: selection, characterCount: characterCount)
+            let windowRange = window(
+                around: selection, characterCount: characterCount, radius: radius)
         else {
             return nil
         }
@@ -62,14 +85,16 @@ nonisolated struct FocusedTextReader: Sendable {
             windowRange: windowRange)
     }
 
-    /// 캐럿(또는 선택) 양옆 `windowRadius`를 문서 경계로 clamp한 범위.
+    /// 캐럿(또는 선택) 양옆 `radius`를 문서 경계로 clamp한 범위.
     /// 범위가 문서와 아귀가 맞지 않으면(음수 위치, 문서 밖 선택) `nil` — 읽기 실패와 같은 편이다.
-    static func window(around selection: NSRange, characterCount: Int) -> NSRange? {
+    static func window(
+        around selection: NSRange, characterCount: Int, radius: Int = FocusedTextReader.windowRadius
+    ) -> NSRange? {
         guard selection.location >= 0, selection.length >= 0, characterCount >= 0 else {
             return nil
         }
-        let start = max(0, selection.location - windowRadius)
-        let end = min(characterCount, selection.location + selection.length + windowRadius)
+        let start = max(0, selection.location - radius)
+        let end = min(characterCount, selection.location + selection.length + radius)
         guard start <= end else { return nil }
         return NSRange(location: start, length: end - start)
     }
