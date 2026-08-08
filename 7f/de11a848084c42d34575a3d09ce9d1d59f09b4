@@ -1,0 +1,59 @@
+VimAction/KeyboardAdapter.swift
+  s_6e14b66e914d7c::t_124ed6e67c12bd 121
+  s_6e14b66e914d7c::t_0568d9466b1450 109-110
+  s_6e14b66e914d7c::t_32d51a4439881b 106-108
+  s_6e14b66e914d7c::t_d3704d8d5091ed 251
+  s_6e14b66e914d7c::t_32103220a67a94 261-271,283-296,300-318
+  s_6e14b66e914d7c::t_14b11b44d76258 503-516
+  s_6e14b66e914d7c::t_8b3d091ab5b3a7 297-299
+  s_6e14b66e914d7c::t_36302227477f5a 599
+  s_6e14b66e914d7c::t_a3712a061b8841 272-282
+  s_6e14b66e914d7c::t_ec364df0050b21 122-123
+  s_6e14b66e914d7c::t_a3f77091e1c78c 160-162,165,171-175
+  s_6e14b66e914d7c::t_b40c585207ae08 65-66,69-70
+  s_6e14b66e914d7c::t_9aa5a9de02e404 247-250,252
+  s_6e14b66e914d7c::t_53bc0eabbb5503 600
+  s_6e14b66e914d7c::t_67877c2dea0ba7 67-68,71-80
+  s_6e14b66e914d7c::t_2aca6f07e9d723 176
+VimAction/EventTapController.swift
+  s_6e14b66e914d7c::t_e13363b1fe3918 222-223
+  s_6e14b66e914d7c::t_5369dab86360af 801-805,810-811
+VimAction/FocusedTextReader.swift
+  s_6e14b66e914d7c::t_daa006e6099ab4 35-45
+  s_6e14b66e914d7c::t_d5f0c311f91fe0 48-50
+  s_6e14b66e914d7c::t_661eed2331f02e 77-78
+  s_6e14b66e914d7c::t_16508988710299 88,90-92,96-97
+  s_6e14b66e914d7c::t_54cc0e3133fe60 64-75
+VimAction/AXElementSnapshot.swift
+  s_6e14b66e914d7c::t_c7382dbce34b72 11,16,20,32,35,38,42,46,50-86
+  s_6e14b66e914d7c::t_2cdad25b39ce61 8-10
+  s_6e14b66e914d7c::t_b8d127d1a51765 12-15
+  s_6e14b66e914d7c::t_111905b1d6bd7b 17-19
+  s_6e14b66e914d7c::t_c66e2d28f84a47 21-23,29-31
+  s_6e14b66e914d7c::t_b03e11f8000c68 33-34
+  s_6e14b66e914d7c::t_4bd05336f60a7a 36-37
+  s_6e14b66e914d7c::t_adae8c4e7e9593 39-41
+  s_6e14b66e914d7c::t_9d2380b74e4710 43-45
+  s_6e14b66e914d7c::t_266322ec77f247 47-49
+  s_6e14b66e914d7c::t_318492c80799e9 1-7,24-28
+VimActionTests/ExecutionWiringTests.swift
+  s_6e14b66e914d7c::t_59615b36a900ed 196-222
+VimAction/DispatchContext.swift
+  s_6e14b66e914d7c::t_df7c6a3384fa59 24-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "7fde11a848084c42d34575a3d09ce9d1d59f09b4",
+  "prompts": {},
+  "sessions": {
+    "s_6e14b66e914d7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1653474-3483-4c0e-b05c-826310dd45a9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
