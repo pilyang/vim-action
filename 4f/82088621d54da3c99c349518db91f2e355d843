@@ -1,0 +1,45 @@
+VimAction/KeyboardAdapter.swift
+  s_baa2d5f7c2813d::t_31c3cb50cc429d 65-77,89-91,100-110
+VimActionTests/AXWriteEffectsTests.swift
+  s_baa2d5f7c2813d::t_513aa19c27e728 1-196
+.claude/skills/decisions/SKILL.md
+  s_baa2d5f7c2813d::t_67d9d686cf15be 199
+VimAction/AXWriteEffects.swift
+  s_baa2d5f7c2813d::t_56c80d3314e41e 1-124
+.claude/skills/decisions/references/20260808_ax-illegal-argument-observation-log-level.md
+  s_baa2d5f7c2813d::t_71a990947762f7 1-41
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_baa2d5f7c2813d::t_a59bcc9a6f3086 48-50
+  s_baa2d5f7c2813d::t_afa46ad4e07eeb 3
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_baa2d5f7c2813d::t_4ed54bc6887f16 3
+  s_baa2d5f7c2813d::t_2cd035a58c55d4 54
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_baa2d5f7c2813d::t_8bee731e566fba 6
+  s_baa2d5f7c2813d::t_abf7f21fded8dc 42
+  s_baa2d5f7c2813d::t_6c2189e5daeef4 50-62
+  s_baa2d5f7c2813d::t_e016fae657ce08 30
+VimAction/EventTapController.swift
+  s_baa2d5f7c2813d::t_b949d5ad07a650 309-312
+  s_baa2d5f7c2813d::t_012d8dc4b12efe 203-206,208-209,213
+  s_baa2d5f7c2813d::t_1eb449a48777f3 160-179
+  s_baa2d5f7c2813d::t_9236d44ab9c7ff 345-348
+.claude/skills/plans/SKILL.md
+  s_baa2d5f7c2813d::t_bc23cc381c439d 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "4f82088621d54da3c99c349518db91f2e355d843",
+  "prompts": {},
+  "sessions": {
+    "s_baa2d5f7c2813d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24311885-05d0-436a-8733-6eab3bebaae2",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
