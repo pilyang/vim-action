@@ -1,0 +1,29 @@
+.claude/skills/decisions/references/20260808_last-line-linewise-paste-degrades-to-P.md
+  s_6e14b66e914d7c::t_c0476b565cb2ca 1-27
+.claude/skills/decisions/SKILL.md
+  s_6e14b66e914d7c::t_e9db13f0aff8cb 216
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_6e14b66e914d7c::t_b8298e86dabf29 129
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_6e14b66e914d7c::t_5ec6144bda160c 60-61
+  s_6e14b66e914d7c::t_1ed2279a119c8b 6
+  s_6e14b66e914d7c::t_494dbdc485aba9 31
+  s_6e14b66e914d7c::t_381303ec7f392f 44
+  s_6e14b66e914d7c::t_d7e67db5278c29 82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "dd57293c33c90111f1dbd362dc38b65f40583313",
+  "prompts": {},
+  "sessions": {
+    "s_6e14b66e914d7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1653474-3483-4c0e-b05c-826310dd45a9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
