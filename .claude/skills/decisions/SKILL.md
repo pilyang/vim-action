@@ -198,6 +198,9 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-08 | `strategy` 최소 파싱 선행 | D1a에서 accessibility/keyboard 두 값만 파싱(`auto`는 invalidValue warn+무시, PR-E에서 추가) — 임시 배선 기각, 기본값 keyboard | [20260808_strategy-field-minimal-parsing-d1.md](references/20260808_strategy-field-minimal-parsing-d1.md) |
 | 08-08 | `.illegalArgument` 관측 로그는 상시 `.info` | 요약 버킷 관례(`#if DEBUG`+`.debug`)에서 이탈 — 승격 재심사가 `log show --info`로 사후 회수해야 하는 판정 데이터라, 스킵 2종은 `.debug` 유지 | [20260808_ax-illegal-argument-observation-log-level.md](references/20260808_ax-illegal-argument-observation-log-level.md) |
 | 08-08 | AX Visual 세션 경로 고정 | 진입 시점에 세션 전체 AX/keyboard 고정, 중간 실패는 스킵(무상태 폴백 금지 — 쓰기 후 포커스 끝 미정의) — `VisualAnchorTracker` 공유, AX가 side·pinnedEnd까지 채움 | [20260808_ax-visual-session-path-pinning.md](references/20260808_ax-visual-session-path-pinning.md) |
+| 08-08 | AX 모션은 캐럿 모델 유지 | 목표는 현행 keyboard가 겨냥하는 캐럿 자리 그대로(`e`=글자 뒤·`$`=줄 끝·`gg`=0), 정확해지는 것은 RunClass 단어 정의와 `^`뿐 — Vim no-op만 `.invalid`, 블록 커서 모델은 파급 때문에 기각 | [20260808_ax-motion-caret-model-vim-word-definition.md](references/20260808_ax-motion-caret-model-vim-word-definition.md) |
+| 08-08 | 프로파일 모션 재정의가 AX보다 우선 | `motions:` 항목이 있으면(strokes·disabled 불문) 그 모션은 keyboard 경로 — 스크롤 사다리와 같은 우선순위, disable의 `.disabledByProfile` 집계가 공짜로 유지된다 | [20260808_profile-motion-override-outranks-ax.md](references/20260808_profile-motion-override-outranks-ax.md) |
+| 08-08 | 쓰기 전 단계 실패도 execute 중단 | `.success` 외 **전부**에서 중단(문언 확장) + 요소·읽기 실패는 `.unproven`과 별개 축(`Mapping.axUnavailable`)으로 잔여를 접는다 — Slack류에서 `100j`가 100×50ms로 큐를 잡는 것을 막는다 | [20260808_ax-pre-write-failure-ends-execute.md](references/20260808_ax-pre-write-failure-ends-execute.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 

@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-08 (M5 D1 설계 세션 — `strategy` 필드 최소 파싱 확정: accessibility/keyboard 두 값, `auto`는 warn+무시로 PR-E 이연. 구현은 PR-D1a)
+- **Last updated**: 2026-08-08 (M5 PR-D1a 세션2 — `strategy` 필드 최소 파싱 구현 완료. `auto` 정식 파싱과 `per_element`는 PR-E)
 
 ## 현재 구조
 
@@ -37,8 +37,8 @@ apps:                              # bundle-id → bool 맵 (목록이 아니라
 
 ```yaml
 name: Notion                      # 선택 — 표시용
-strategy: accessibility           # 선택 — accessibility|keyboard (M5 D1 최소 파싱, 구현은 PR-D1a.
-                                  #   미지정 = keyboard. auto 등 그 외 값은 항목 warn+무시 — auto 정식 파싱은 PR-E)
+strategy: accessibility           # 선택 — accessibility|keyboard. 미지정 = keyboard.
+                                  #   auto 등 그 외 값은 항목 warn+무시 — auto 정식 파싱은 PR-E
 scroll:
   half_page_lines: 20             # 기본 15 — 앱 뷰포트에 맞춘 근사값 재정의 (유효 1...200)
   full_page_lines: 40             # 기본 30 (유효 1...200)
@@ -57,7 +57,7 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 
 **키워드 표기**: 전부 소문자 snake_case. 키 스트로크 토큰은 `[modifier-]key` — modifier는 `cmd`/`opt`/`ctrl`/`shift`(순서 무관), 키 이름 v1 11종: `left` `right` `up` `down` `return` `escape` `tab` `home` `end` `page_up` `page_down`. 문자 키(`cmd-z` 류)는 레이아웃 의존이라 v1 제외. 비소문자 토큰(`Cmd-Down`)은 미지 키워드와 같은 warn+무시(대소문자 관용 없음).
 
-**로더 강건성 규칙**: 미지 키·미지 모션명·미지 액션명·미지 키 토큰은 해당 항목만 warn+무시(전방 호환 — `strategy`·`per_element` 등 M5 필드는 M4에서 미지 키), scroll 값은 1...200 정수만 유효(벗어나면 항목 warn+무시), 파일 통째 파싱 실패는 그 파일만 부재 취급 + error 반환(리로드에선 직전 유효 설정 유지 + 사용자 가시 에러). 시퀀스 안의 토큰 하나가 깨지면 그 항목(모션이든 액션이든) 전체를 버린다 — 반쯤 맞는 시퀀스를 만들지 않는다.
+**로더 강건성 규칙**: 미지 키·미지 모션명·미지 액션명·미지 키 토큰은 해당 항목만 warn+무시(전방 호환 — `per_element` 등 남은 M5 필드가 여기로 접힌다), 어휘 밖 `strategy` 값(`auto` 포함)은 항목 `invalidValue` warn+무시(형제 필드와 파일이 생존한다 — 미리 써 둔 `strategy: auto`가 배포 순간 깨지지 않게), scroll 값은 1...200 정수만 유효(벗어나면 항목 warn+무시), 파일 통째 파싱 실패는 그 파일만 부재 취급 + error 반환(리로드에선 직전 유효 설정 유지 + 사용자 가시 에러). 시퀀스 안의 토큰 하나가 깨지면 그 항목(모션이든 액션이든) 전체를 버린다 — 반쯤 맞는 시퀀스를 만들지 않는다.
 
 **한 매핑 안의 키 중복은 항목 단위로 접히지 않고 파일 통째 실패다** — Yams `compose`가 관용 옵션 없이 던지기 때문이고, 우회하려면 이벤트 단위 파싱을 직접 짜야 해서 v1에서는 수용한다. 손편집에서 흔한 실수인데 그 파일이 통째로 없는 것이 되므로(예: `config.yaml`이 날아가면 off로 지정한 앱들이 전부 켜진 상태가 된다), **앱은 이 error를 로그에만 남기지 말고 사용자에게 보이게 해야 한다**.
 
