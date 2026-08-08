@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-06 (M5 PR-C2 세션 2 — scroll 프로파일 값의 의미 확장: AX 뷰포트 정확값보다 **우선하는 명시값** — 명시 extent는 AX 읽기 자체가 생략된다)
+- **Last updated**: 2026-08-08 (M5 D1 설계 세션 — `strategy` 필드 최소 파싱 확정: accessibility/keyboard 두 값, `auto`는 warn+무시로 PR-E 이연. 구현은 PR-D1a)
 
 ## 현재 구조
 
@@ -33,10 +33,12 @@ apps:                              # bundle-id → bool 맵 (목록이 아니라
   com.exafunction.windsurf: true   # 여기 없는 앱은 없는 것 — 기본값 판단은 앱 게이트 몫
 ```
 
-**profiles/\<bundle-id\>.yaml** — 필드 넷(`name`·`scroll`·`motions`·`actions`), `enabled` 없음:
+**profiles/\<bundle-id\>.yaml** — 필드 다섯(`name`·`strategy`·`scroll`·`motions`·`actions`), `enabled` 없음:
 
 ```yaml
 name: Notion                      # 선택 — 표시용
+strategy: accessibility           # 선택 — accessibility|keyboard (M5 D1 최소 파싱, 구현은 PR-D1a.
+                                  #   미지정 = keyboard. auto 등 그 외 값은 항목 warn+무시 — auto 정식 파싱은 PR-E)
 scroll:
   half_page_lines: 20             # 기본 15 — 앱 뷰포트에 맞춘 근사값 재정의 (유효 1...200)
   full_page_lines: 40             # 기본 30 (유효 1...200)
@@ -102,7 +104,7 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 
 ## 미결 질문 (결정 시 decisions에 기록 후 이 파일 갱신)
 
-- `strategy`/`per_element`/`keymap_overrides` 등 M5 필드의 정식 스키마 — M5 착수 시 additive로 확장.
+- M5 필드 잔여분의 정식 스키마 — `strategy`는 두 값 최소 파싱이 확정됐고([20260808_strategy-field-minimal-parsing-d1.md](../../decisions/references/20260808_strategy-field-minimal-parsing-d1.md)), `auto` 값 정식 파싱과 `per_element`가 PR-E 몫으로 남아 있다. 사용자 문서화도 PR-E 스키마 확정 시(그때까지 `strategy`는 미문서).
 - 시딩이 기존 파일 안의 항목을 갱신하지 못하는 것(수용한 대가)이 실제로 문제가 되면: "새 기본값이 생겼다" 알림이나 마이그레이션을 additive로 검토.
 - GUI에서 설정을 편집하려는 요구가 실증되면: 주석 보존 부분 편집 방식 검토 (UI 읽기 전용 결정의 재개 조건).
 - 수동 리로드가 실사용에서 번거롭다고 실증되면: 파일 감시 자동 리로드를 additive로 재도입 (수동 트리거는 유지 — 리로드 수동 트리거 결정의 재개 조건).

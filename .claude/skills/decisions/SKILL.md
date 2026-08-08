@@ -186,6 +186,18 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-05 | 정확화 그룹 한정 스트로크 페이싱 | refined 다타 그룹만 스트로크 사이 5ms(Notion 버스트 드롭 실측) — 스크롤·카운트·폴백은 타이밍까지 현행 (범위는 20260806 paste 추가로 부분 supersede) | [20260805_visual-refined-group-stroke-pacing.md](references/20260805_visual-refined-group-stroke-pacing.md) |
 | 08-05 | 재앵커 접두는 collapse 1타 | `←,→`·`←,↓` → `→`(선택 존재 시 동치, 코드 경로 보장) — 깨지는 앱 발견 시 2타 복귀 | [20260805_reanchor-prefix-collapse-shortcut.md](references/20260805_reanchor-prefix-collapse-shortcut.md) |
 
+### 실행 계층 — AX 어댑터 (M5 D1 설계)
+
+| Date | Title | 요약 | Reference |
+|---|---|---|---|
+| 08-08 | AX 쓰기 통로는 별도 `AXWriter` | 불변식을 "프리미티브당 단일 통로"로 재문언 — seam은 `AXUIElement` 수신·`AXError` raw 반환, 요소는 `AXRead` 경유(50ms 상속) | [20260808_ax-writer-per-primitive-channel.md](references/20260808_ax-writer-per-primitive-channel.md) |
+| 08-08 | AX 편집은 선택 + 오퍼레이터 위임 | 범위는 AX 선택(되읽어 검증), 오퍼레이터는 `Cmd-X/C` 1타 위임 — 리치 클립보드·undo 등록 보존, `AXSelectedText` 쓰기 미채택(탈출구만 기록) | [20260808_ax-edit-select-then-operator-delegate.md](references/20260808_ax-edit-select-then-operator-delegate.md) |
+| 08-08 | AX 위임 표 + 단일 드라이버 | 명령 매퍼 계열 = 위임(j/k 추가 — 희망 열), openLine·paste 하이브리드, 비텍스트 계열 통째 강등 — 배선은 `Mapping` `.ax`/`.hybrid` 케이스, 액션 all-or-nothing | [20260808_ax-delegation-table-single-driver.md](references/20260808_ax-delegation-table-single-driver.md) |
+| 08-08 | AX 실패 보고 화이트리스트·폴백 없음 | D1 실보고는 `.failure`만(`.illegalArgument`는 관측 전용→승격 예약), `.cannotComplete`는 경합 스킵(이중 실행 위험) — 첫 실패 execute 중단, 시각은 게시 큐 캡처 | [20260808_ax-write-failure-whitelist-no-fallback.md](references/20260808_ax-write-failure-whitelist-no-fallback.md) |
+| 08-08 | AX 오프셋 계층 — 창+논리 줄 | `FocusedTextOffsets` 순수 함수·AX 전용 확대 반경(4096 잠정)·3상태 반환·unproven은 keyboard 위임 — 논리 줄 `dd` 채택(`dj`≠`d`+`j` 수용), 파라미터화 속성 기각 | [20260808_ax-offset-layer-window-logical-lines.md](references/20260808_ax-offset-layer-window-logical-lines.md) |
+| 08-08 | `strategy` 최소 파싱 선행 | D1a에서 accessibility/keyboard 두 값만 파싱(`auto`는 invalidValue warn+무시, PR-E에서 추가) — 임시 배선 기각, 기본값 keyboard | [20260808_strategy-field-minimal-parsing-d1.md](references/20260808_strategy-field-minimal-parsing-d1.md) |
+| 08-08 | AX Visual 세션 경로 고정 | 진입 시점에 세션 전체 AX/keyboard 고정, 중간 실패는 스킵(무상태 폴백 금지 — 쓰기 후 포커스 끝 미정의) — `VisualAnchorTracker` 공유, AX가 side·pinnedEnd까지 채움 | [20260808_ax-visual-session-path-pinning.md](references/20260808_ax-visual-session-path-pinning.md) |
+
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 
 | Date | Title | 요약 | Reference |
@@ -194,7 +206,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-26 | 탭 들여쓰기 ^·I 엣지 | Chromium 계열 퇴행 수용 — 고정 시퀀스 부재, M5 AX 해소 | [20260726_tab-indent-first-nonblank-chromium-edge.md](references/20260726_tab-indent-first-nonblank-chromium-edge.md) |
 | 07-26 | undo 단위 실측 — u=Cmd-Z 유지 | 합성 시퀀스는 1 undo 단위 실증, change만 분리 수용 | [20260726_undo-unit-cmdz-policy.md](references/20260726_undo-unit-cmdz-policy.md) |
 | 07-27 | Notion Shift-Cmd-↑/↓ 충돌 수용 | 블록 이동 충돌로 6조합 파괴적 오동작 — M4 프로파일이 해소 | [20260727_notion-cmd-shift-vertical-conflict.md](references/20260727_notion-cmd-shift-vertical-conflict.md) |
-| 07-28 | linewise 시각 줄 엣지 | 소프트 랩에서 dd/cc가 화면 행 단위 — 창 읽기로는 해소 불가(20260803), 단락 바인딩 실측이 재개 조건 | [20260728_linewise-visual-line-wrap-accepted-edge.md](references/20260728_linewise-visual-line-wrap-accepted-edge.md) |
+| 07-28 | linewise 시각 줄 엣지 | 소프트 랩에서 dd/cc가 화면 행 단위 — keyboard 경로 한정으로 유효(AX 경로는 20260808 논리 줄로 부분 supersede) | [20260728_linewise-visual-line-wrap-accepted-edge.md](references/20260728_linewise-visual-line-wrap-accepted-edge.md) |
 | 07-28 | charwise Visual 후진 원점 이동 | 진입 Shift-→가 원점을 P+1로 — vb·vh 빈 선택 (수용 결정은 20260804 재앵커로 부분 supersede — 읽기 실패 폴백만 잔존) | [20260728_visual-charwise-backward-origin-shift.md](references/20260728_visual-charwise-backward-origin-shift.md) |
 | 08-06 | Slack 스크롤 화살표 컴포저 이탈 수용 | `↑` 포화 후 메시지 선택 이동은 Slack 네이티브 동작 — 코드 특례 없음, 아프면 사용자 프로파일 몫 | [20260806_slack-scroll-arrow-composer-escape-accepted.md](references/20260806_slack-scroll-arrow-composer-escape-accepted.md) |
 

@@ -1,6 +1,6 @@
 # 전략 디스패치
 
-- **Last updated**: 2026-08-06 (M5 PR-C2 세션 3 — 비-QWERTY 정식 해소: `KeyTranslator`가 z/x/c/v 키코드 역조회를 캐시하고 어댑터가 게시 직전 논리 ANSI 키코드 6/7/8/9를 치환, `layoutBlocked`는 역조회 실패 시 최후 방어선으로 축소)
+- **Last updated**: 2026-08-08 (M5 D1 설계 세션 — Accessibility 어댑터 최종 상태 확정: 범위 쓰기 전용·위임 표·단일 드라이버·오프셋 계층·Visual 세션 경로 고정. 구현은 PR-D1a/D1b)
 
 ## 현재 구조
 
@@ -29,9 +29,33 @@ flowchart TD
     Re --> Exec
 ```
 
-### Accessibility 어댑터
+### Accessibility 어댑터 (M5 D1 설계 확정 — 구현은 PR-D1a·D1b)
 
-`VimAction` → AX 호출 변환. 예: `move(.charLeft)` → `kAXSelectedTextRangeAttribute`를 `(location-1, 0)`으로 설정, `delete(.line)` → 줄 범위 얻어 `kAXSelectedText`를 `""`로 설정, `yank(.selection)` → `kAXSelectedText` 읽어 `NSPasteboard`에 쓰기.
+실행 수단은 **범위/캐럿 쓰기(`AXSelectedTextRange`) 하나뿐**이다 — 텍스트 쓰기(`AXSelectedText`)는 채택하지 않았다. 클립보드를 채우는 주체가 앱(`Cmd-X`/`Cmd-C`)이어야 리치 클립보드·앱 undo 스택 등록이 보존되고, 명시 클립보드 쓰기·2단계 쓰기 부분 실패가 통째로 소거된다 ([20260808_ax-edit-select-then-operator-delegate.md](../../decisions/references/20260808_ax-edit-select-then-operator-delegate.md)). 쓰기는 **`AXWriter`가 단독 소유**한다(프리미티브당 단일 통로 — [reentrancy-and-safety.md](reentrancy-and-safety.md)): seam은 `@Sendable (AXUIElement, String, CFTypeRef) -> AXError`, 요소는 반드시 `AXRead.focusedElement` 경유(50ms 상수 상속)로 액션당 1회 lazy·memo이며, 읽기·계산·쓰기가 **같은 요소 핸들·같은 게시 큐에서 동기**라 keyboard의 "낡은 읽기" 문제가 구조적으로 없다 ([20260808_ax-writer-per-primitive-channel.md](../../decisions/references/20260808_ax-writer-per-primitive-channel.md)).
+
+**위임 표** — 골격 규칙은 "명령 매퍼 계열 = 위임, 모션·편집·Visual 매퍼 계열 = AX" ([20260808_ax-delegation-table-single-driver.md](../../decisions/references/20260808_ax-delegation-table-single-driver.md)):
+
+| 액션 | 실행 |
+|---|---|
+| `.move` (j/k 제외 + append 2) | AX 캐럿 쓰기 |
+| `.move(.lineUp/.lineDown)` | 위임 — 오프셋 대입은 희망 열(desired column)을 잃는다 |
+| `.edit` 전 범위 | 하이브리드 — AX 범위 선택(**되읽어 검증** 후) + `Cmd-X`/`Cmd-C` 1타 위임. yank collapse는 AX 캐럿 쓰기(범위 시작) |
+| Visual 4종 · `.clearSelection` | AX 범위/캐럿 쓰기 (collapse는 현행 패리티 왼쪽 끝) |
+| `.openLine` | 하이브리드 — AX 위치 접두 + `Return` 위임 (자동 들여쓰기·리스트 연속은 Return만 태운다, `.textField` 게이트 유지) |
+| `.paste` | 하이브리드 — AX 위치 접두 + `Cmd-V`×count 위임 |
+| `.undo`/`.redo` (AX API 없음) · `.scroll` | 위임 |
+| quote/pair | 양쪽 미지원 유지 (패리티만) |
+| 계열 `.nonText`/`.unresolved` | **전 액션 keyboard 강등** — AX 대입은 텍스트 요소 전제(Finder 리스트에서 무동작) |
+
+하이브리드·위임은 **액션 단위 all-or-nothing**이다: 순서는 항상 "동기 AX 쓰기 → 게시"(대상 앱 메인 런루프가 직렬화 — 레이스 없음), 접두 AX 실패는 그 액션 통째 keyboard 낙하(맨 `Cmd-V`/`Return` 금지). **오프셋 증명 실패(`unproven`)도 keyboard 위임**이다 — 쓰기 시도 전이라 이중 실행이 불가하며, 쓰기 시도 후 실패의 폴백 금지(아래)와는 별개 축이다. AX 접두는 합성 이벤트가 아니라 드롭 모드가 없어 페이싱 비대상. 비-QWERTY 게이트·치환은 위임 행에만 적용된다(`requiredCommandCharacters`가 실행 계획 인지).
+
+**오프셋 산출은 `FocusedTextOffsets`**(신규 순수 함수 계층 — `FocusedTextAnalysis` extension 확장 금지: `RunClass`가 갈린다 — Analysis는 비ASCII `other`(포기 방향), Offsets는 `keyword`(CJK `w`/`diw` 성립)). 입력은 `FocusedText` 창이되 **AX 쓰기 경로 전용 확대 반경**(잠정 4096 UTF-16 — 착수 시 실측 확정, keyboard 경로 256 불변)을 쓴다. 반환은 3상태(`.invalid` = Vim 무효 → 스킵 / 범위 → AX 쓰기 / `.unproven` → keyboard 위임). **linewise는 논리 줄**이다 — 소프트 랩 문단의 `dd`가 논리 줄 전체를 지운다(keyboard 수용 엣지의 AX 경로 해소, `dj` ≠ `d`+`j` 편차 명시 수용). `dgg`/`dG`는 끝점 두 개(상수 + 현재 줄 로컬)만 필요해 문서 규모 무관이고, 파라미터화 속성(`AXLineForIndex`/`AXRangeForLine`)은 표시 줄 시맨틱이라 미채택. 산출은 항상 grapheme cluster 경계 위, 줄 종결자는 `\r\n`·`\n`·`\r`·U+2028/2029, 경계 불변식(`location ≥ 0`, `upperBound ≤ characterCount`)은 순수 함수 테스트로 고정 ([20260808_ax-offset-layer-window-logical-lines.md](../../decisions/references/20260808_ax-offset-layer-window-logical-lines.md)).
+
+**실패 처리**: `AXError` 분류는 default-deny 화이트리스트 — D1 실보고는 `.failure`만, `.illegalArgument`(사전 경계 검증 통과 후 거부)는 관측 전용 요약 로그(번들 ID 포함, D1 종료 시 승격 재심사), `.attributeUnsupported`류 = 미지원 스킵, `.invalidUIElement`/`.cannotComplete` = 경합 스킵, 미지 코드 = 미보고 + error 로그. **쓰기 시도 후 실패의 keyboard 폴백은 없다**(이중 실행·어긋난 상태 위 상대 시퀀스 위험). 읽기 단계 실패는 스킵. 첫 미지원·첫 실패에서 그 execute의 잔여 액션을 통째로 스킵한다(보고 1회 구조 보장 + `100j` 동기 왕복 접기). AX 스킵은 전용 요약 버킷으로 집계 ([20260808_ax-write-failure-whitelist-no-fallback.md](../../decisions/references/20260808_ax-write-failure-whitelist-no-fallback.md)).
+
+**Visual은 세션 단위 경로 고정**: 진입(`beginSelection`) 증명 성공이면 세션 전체 AX, 실패면 세션 전체 keyboard(기존 재앵커 기계). 세션 중간 실패는 그 액션만 정직한 스킵 — **무상태 폴백 금지**(AX가 쓴 범위는 앱의 포커스 끝이 미정의라 무상태 `Shift-→`가 파괴 방향 불확정). `VisualAnchorTracker`는 두 경로가 공유하고 AX는 `side`·`pinnedEnd`까지 정확값으로 채운다(전략 인수인계 공짜). 자가 검증은 AX에서도 유지(단측 + 비어 있지 않음 — 포커스 끝 불일치는 DEBUG 로그만), 상태 갱신은 쓰기 `.success` 확인 시("게시 확정"의 AX 등가 — 더 강함) ([20260808_ax-visual-session-path-pinning.md](../../decisions/references/20260808_ax-visual-session-path-pinning.md)).
+
+**배선은 단일 실행 드라이버**: execute 루프(중단 래치·스냅샷·요약 로그)와 게이트 3종·부수효과(`recordEdit` 등)를 keyboard와 공유하고, `Mapping`에 `.ax`(쓰기 계획)·`.hybrid`(접두 쓰기 + 그룹) 형제 케이스를 얹는다. "AX 어댑터가 keyboard 어댑터를 부른다"(감사 안 되는 둘째 진입점)와 "디스패처가 액션 단위로 어댑터를 가른다"(execute당 계약 분열·하이브리드 표현 불가)는 기각. `PasteWiseResolver`는 현행 계약 그대로다 — 클립보드 주체가 앱이라 델타-1·`recordEdit`(게시 확정 시)이 무변경으로 성립한다. 중단 래치 질의는 액션 사이 + 파괴적 게시 직전(AX 경로에 청크 없음 — keyboard보다 촘촘).
 
 ### Keyboard 어댑터 — 요소 계열(element family)
 
@@ -129,7 +153,7 @@ flowchart TD
 
 - **AX 호출은 콜백·메인 스레드에 들어오지 않는다** — 리졸버는 전용 큐, 디스패치 경로 읽기는 게시 큐. 탭 생존을 지키는 것은 타임아웃 값이 아니라 이 배치다. 메시징 타임아웃은 **경로 불문 50ms 단일 상수**이며 병적 정지가 큐를 잡아두는 것을 자르는 차단기다 — 실패 반환은 캡+2ms로 바운드됨이 실측됐고, 유일한 예외는 프로세스 생애 최초 AX 호출 1회(~23ms, 리졸버가 앱 시작 직후 흡수) ([20260802_ax-read-timeout-50ms-supersedes-3ms.md](../../decisions/references/20260802_ax-read-timeout-50ms-supersedes-3ms.md)).
 - `AXValue` 전체 읽기는 키당 경로에 넣지 않는다 — 비용이 문서 크기에 비례한다.
-- **읽기는 분기의 근거이지 스트로크 수의 근거가 아니다** — 절대 오프셋에 비례하는 스트로크를 내지 않는다. `execute` **사이**에는 낡은 값을 읽을 수 있고(`CGEvent.post`는 배달만 걸고 돌아온다), 오프셋 비례 스트로크는 그때 "엉뚱한 범위를 정확하게" 자른다. 재조립은 위치 상대적이거나, 현행 시퀀스의 부분집합이거나, 상수 1타여야 하며, 예외는 명시적으로 수용된 것 하나뿐이다(엣지 1의 방향 반전) ([20260803_refinement-branches-not-stroke-counts.md](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md)).
+- **읽기는 분기의 근거이지 스트로크 수의 근거가 아니다 — 단 keyboard 경로 전용 불변식이다.** 절대 오프셋에 비례하는 스트로크를 내지 않는다. `execute` **사이**에는 낡은 값을 읽을 수 있고(`CGEvent.post`는 배달만 걸고 돌아온다), 오프셋 비례 스트로크는 그때 "엉뚱한 범위를 정확하게" 자른다. 재조립은 위치 상대적이거나, 현행 시퀀스의 부분집합이거나, 상수 1타여야 하며, 예외는 명시적으로 수용된 것 하나뿐이다(엣지 1의 방향 반전) ([20260803_refinement-branches-not-stroke-counts.md](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md)). **AX 경로에는 적용되지 않는다** — 읽기·쓰기가 같은 큐에서 동기라 낡은 읽기 창이 없고, 오프셋이 실행 수단 그 자체다 ([20260808_ax-offset-layer-window-logical-lines.md](../../decisions/references/20260808_ax-offset-layer-window-logical-lines.md)).
 - `force-text`는 프로파일에서 명시적으로만 선택하며, 자동 감지가 선택하는 일은 없다.
 
 ## 근거 요약

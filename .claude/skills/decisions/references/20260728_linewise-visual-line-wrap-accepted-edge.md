@@ -1,5 +1,7 @@
 # linewise는 시각 줄 단위 — 소프트 랩 문단 수용 엣지
 
+> Superseded (부분) by [20260808_ax-offset-layer-window-logical-lines.md](20260808_ax-offset-layer-window-logical-lines.md) — AX 전략 경로에서는 논리 줄로 해소(D1b 구현 시 발효) / keyboard 경로의 시각 줄 수용은 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-07-28

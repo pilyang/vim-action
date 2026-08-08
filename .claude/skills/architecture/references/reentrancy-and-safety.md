@@ -1,10 +1,10 @@
 # 재진입과 안전장치
 
-- **Last updated**: 2026-08-02 (M5 PR-A 결정 반영 — 완화책 ③ AX 배치·타임아웃 재정의)
+- **Last updated**: 2026-08-08 (M5 D1 설계 세션 — 출력 통로 불변식을 "프리미티브당 단일 통로"로 재문언: 합성 이벤트는 `ActionExecutor`, AX 속성 쓰기는 `AXWriter`)
 
 ## 현재 구조
 
-1. 모든 출력(AX 쓰기, 합성 이벤트 게시)은 **단일 `ActionExecutor`** 를 거친다.
+1. 모든 출력은 **프리미티브마다 단일 통로**를 거친다 — 합성 이벤트 게시는 `ActionExecutor`, AX 속성 쓰기는 `AXWriter`(M5 D1, 구현은 PR-D1a). 우회 경로가 생기면 감사할 수 없다는 규칙은 통로마다 동일하다. **마커는 `ActionExecutor`만의 책임이다** — AX 쓰기는 탭으로 되돌아오지 않아 마커 개념 자체가 없다. 실패 보고의 수렴 지점은 통로가 아니라 어댑터다("키 입력 1건당 최대 1회" 접기는 액션 시퀀스 전체를 보는 층만 가능) ([20260808_ax-writer-per-primitive-channel.md](../../decisions/references/20260808_ax-writer-per-primitive-channel.md)).
 2. 합성한 모든 `CGEvent`에는 게시 전에 비공개 `userData` 마커(`CGEvent.setIntegerValueField(.eventSourceUserData, …)`)를 찍고, 이벤트 탭은 마킹된 이벤트를 재해석 없이 통과시킨다.
 3. 안전장치 단축키(고정 `Ctrl-Option-Cmd-Esc`)는 메인 탭과 **별도의 `CGEventTap`** 으로 `kCGHIDEventTap`에 최고 우선순위로, **전용 스레드의 자체 런루프**에 설치한다.
 
@@ -45,12 +45,12 @@ sequenceDiagram
 
 실행 범위는 **v1 어휘 전체**다: 어댑터는 액션을 네 매퍼(`MotionKeyMapper`/`EditKeyMapper`/`VisualKeyMapper`/`CommandKeyMapper`) 중 하나로 보내고, 매퍼가 `nil`을 내는 것(aw·따옴표·괄호쌍 오브젝트, `V`→`v` wise 전환)만 미지원 스킵+DEBUG 로그다(미지원≠실패). 게시 전 게이트는 두 축이다 — 요소 걸러내기(비텍스트·미확정에서 편집·Visual·명령 위임 보류)와 **비-QWERTY 레이아웃 가드**(문자 명령 키 `Cmd-Z/X/C/V`를 합성하는 `.edit`·`.paste`·`.undo`·`.redo` 보류 — AZERTY에서 `u`의 `Cmd-Z`가 `Cmd-W`(창 닫기)로 나가는 데이터 손실 축, [20260801_non-qwerty-command-key-layout-guard.md](../../decisions/references/20260801_non-qwerty-command-key-layout-guard.md)). 스크롤 반복은 엔진이 33으로 클램프한다 — 액션당 수십 타로 증폭되는 유일한 어휘라 1,000 클램프를 우회하기 때문 ([20260801_scroll-count-clamp-33.md](../../decisions/references/20260801_scroll-count-clamp-33.md)).
 
-**Visual 배선이 만든 위험 하나**: 엔진은 Visual에서 탈출 콤보를 받으면 `clearSelection` 없이 passthrough+Insert로 빠진다(결정이 배타적이라 함께 실을 수 없음 — "남는 화면 선택은 수용"). 지금까지는 어댑터가 선택을 만들지 않아 이론상 조항이었지만, 이제 **살아 있는 선택이 Normal로 넘어올 수 있다**. Normal `x`는 `Shift-→, Cmd-X`라 그 stale 선택을 확장해 통째로 잘라낸다(사용자의 마우스 선택도 같은 경로). 래치의 원자 그룹 규칙이 여기서 나왔다 — 청크 경계는 `.edit(_, .selection)`과 뒤따르는 `clearSelection` **사이에 올 수 없다**(#7). **릴리스 배포 금지 게이트는 해제됐다** — 무로그 삼킴 0건 전수 확인 + 안전망 회귀 + 위험 심사 4건 종결로 M3가 닫혔다 ([20260801_release-block-gate-lifted.md](../../decisions/references/20260801_release-block-gate-lifted.md)). 실패 보고는 아직 호출자가 없다: Keyboard 게시 경로는 오류를 돌려주지 않아 접을 실패 자체가 없고, 신호는 `AXError`를 돌려주는 M5 AX 어댑터가 만든다.
+**Visual 배선이 만든 위험 하나**: 엔진은 Visual에서 탈출 콤보를 받으면 `clearSelection` 없이 passthrough+Insert로 빠진다(결정이 배타적이라 함께 실을 수 없음 — "남는 화면 선택은 수용"). 지금까지는 어댑터가 선택을 만들지 않아 이론상 조항이었지만, 이제 **살아 있는 선택이 Normal로 넘어올 수 있다**. Normal `x`는 `Shift-→, Cmd-X`라 그 stale 선택을 확장해 통째로 잘라낸다(사용자의 마우스 선택도 같은 경로). 래치의 원자 그룹 규칙이 여기서 나왔다 — 청크 경계는 `.edit(_, .selection)`과 뒤따르는 `clearSelection` **사이에 올 수 없다**(#7). **릴리스 배포 금지 게이트는 해제됐다** — 무로그 삼킴 0건 전수 확인 + 안전망 회귀 + 위험 심사 4건 종결로 M3가 닫혔다 ([20260801_release-block-gate-lifted.md](../../decisions/references/20260801_release-block-gate-lifted.md)). 실패 보고는 아직 실호출자가 없다(Keyboard 게시 경로는 오류를 돌려주지 않는다): **첫 실호출자는 M5 D1의 `AXWriter` 경로로 확정됐다** — 분류는 default-deny 화이트리스트(D1 실보고는 `.failure`만, `.illegalArgument`는 관측 전용 → D1 종료 시 승격 재심사, `.cannotComplete`·`.invalidUIElement`는 경합 스킵), 실패 시 keyboard 폴백 없음, 첫 실패에서 execute 잔여 통째 스킵(보고 1회 구조 보장), 실패 시각은 게시 큐에서 캡처해 `at:`으로 전달(메인 스톨 후 뭉침 착지의 거짓 트립 방지 — 카운터 MainActor 계약은 홉으로 유지) ([20260808_ax-write-failure-whitelist-no-fallback.md](../../decisions/references/20260808_ax-write-failure-whitelist-no-fallback.md)).
 
 ## 불변식·계약
 
 - **탭 콜백의 동기 구간은 "번역 + 순수 엔진 step + 캐시된 컨텍스트 읽기"까지만** — AX 등 블로킹 가능 호출은 콜백에 들어오지 않는다(프로브는 포커스 변경 시 캐시 갱신, 실행은 콜백 밖 직렬 큐). OS 탭 타임아웃은 콜백 스레드와 무관하므로 탭 생존은 스레드 배치가 아니라 이 불변식이 지킨다. 탭 소스는 메인 런루프 유지 확정 ([20260725_callback-light-invariant.md](../../decisions/references/20260725_callback-light-invariant.md), [20260725_tap-main-runloop-retention.md](../../decisions/references/20260725_tap-main-runloop-retention.md)).
-- 이벤트 게시는 반드시 `ActionExecutor`를 거친다 — 우회 경로가 생기면 마커 불변식을 감사할 수 없다.
+- 이벤트 게시는 반드시 `ActionExecutor`를 거친다 — 우회 경로가 생기면 마커 불변식을 감사할 수 없다. AX 속성 쓰기는 같은 규칙으로 `AXWriter`를 거치며(요소 획득은 반드시 `AXRead.focusedElement` — 50ms 단일 상수가 이 고리로 쓰기에도 상속된다), `NSPasteboard` 쓰기는 `PasteWiseResolver`/`Clipboard` seam이 담당한다 — "프리미티브당 통로 하나"가 공통 규칙이다.
 - **`ActionExecutor`와 `SyntheticEventMarker`는 스레드 자유 타입이다** — 둘 다 타입 단위 `nonisolated`이고(멤버별이 아니라 타입에 붙여 `magic`·`postEvent`까지 기본 MainActor 격리에서 벗어난다) `ActionExecutor`는 `Sendable`을 명시한다. 게시는 콜백 밖 직렬 큐에서, 마커 판독은 메인 탭 콜백과 킬 탭 전용 스레드 양쪽에서 일어나므로 어느 격리도 가정할 수 없다. 게시 클로저 계약은 **`@Sendable (CGEvent) -> Void`** — 이것이 있어야 `ActionExecutor`가 `Sendable`이 되어 큐로 넘어간다.
 - **합성 `CGEvent`는 `post`를 호출하는 그 컨텍스트(직렬 큐)에서 만든다** — `CGEvent`는 `Sendable`이 아니라 격리를 건너면 안 된다. 어댑터가 큐 위에서 시퀀스를 생성하면 건너갈 값이 애초에 없다. 콜백에서 만들어 큐로 넘기는 형태는 `nonisolated(unsafe)` 없이는 성립하지 않으며, 그 우회가 필요해졌다는 것은 곧 이 계약을 재검토할 시점이라는 뜻이다 ([20260726_action-executor-nonisolated-sendable.md](../../decisions/references/20260726_action-executor-nonisolated-sendable.md)).
 - 마커 없는 합성 이벤트는 존재하지 않는다. **마커를 빠뜨리면 탭이 자기 출력을 재해석해 무한 루프** — 이벤트 탭 기반 도구의 병적 루프의 가장 흔한 원인.
