@@ -30,9 +30,10 @@ private func fixture(
 
 let appProfileFixtures: [AppProfileFixture] = [
     fixture(
-        "정상 — 필드 넷 전부",
+        "정상 — 필드 다섯 전부",
         """
         name: Notion
+        strategy: accessibility
         scroll:
           half_page_lines: 20
           full_page_lines: 40
@@ -44,6 +45,7 @@ let appProfileFixtures: [AppProfileFixture] = [
         """,
         AppProfile(
             name: "Notion",
+            strategy: .accessibility,
             halfPageLines: 20,
             fullPageLines: 40,
             motions: [
@@ -72,6 +74,29 @@ let appProfileFixtures: [AppProfileFixture] = [
         "name이 맵이면 무시",
         "name: { first: Slack }",
         warnings: [w("name", .invalidValue("mapping"))]
+    ),
+
+    // strategy — accessibility/keyboard 둘만. 그 외는 항목 warn+무시라 형제 필드가 산다.
+    fixture("strategy 미지정은 keyboard", "name: Slack", AppProfile(name: "Slack")),
+    fixture("strategy: keyboard 명시", "strategy: keyboard", AppProfile(strategy: .keyboard)),
+    fixture(
+        "strategy: auto는 아직 미지 값 — PR-E에서 정식 파싱으로 바뀐다",
+        """
+        strategy: auto
+        name: Slack
+        """,
+        AppProfile(name: "Slack"),
+        warnings: [w("strategy", .invalidValue("auto"))]
+    ),
+    fixture(
+        "strategy는 소문자만",
+        "strategy: Accessibility",
+        warnings: [w("strategy", .invalidValue("Accessibility"))]
+    ),
+    fixture(
+        "strategy가 맵이면 무시",
+        "strategy: { mode: accessibility }",
+        warnings: [w("strategy", .invalidValue("mapping"))]
     ),
 
     // scroll — 1...200 정수만. 스크롤은 카운트와 곱해지는 증폭 축이라 상한이 있다.

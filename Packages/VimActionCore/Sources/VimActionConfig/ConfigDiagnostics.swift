@@ -4,7 +4,7 @@
 public struct ConfigWarning: Hashable, Sendable {
     public enum Kind: Hashable, Sendable {
         /// 스키마에 없는 키. 미지 모션명·액션명도 여기다 — 어느 쪽인지는 `path`가 말한다.
-        /// M5 필드(`strategy`·`per_element`)가 미리 적혀 있어도 이 경로로 접힌다(전방 호환).
+        /// 남은 M5 필드(`per_element`)가 미리 적혀 있어도 이 경로로 접힌다(전방 호환).
         case unknownKey
         /// 타입 불일치·범위 밖·빈 시퀀스. 연관값은 문제가 된 원문.
         case invalidValue(String)

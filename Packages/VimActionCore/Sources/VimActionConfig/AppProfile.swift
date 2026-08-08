@@ -1,13 +1,16 @@
 import VimEngine
 
-/// `profiles/<bundle-id>.yaml` — 특수 앱의 동작 고도화 전용. 필드 넷, `enabled` 없음
+/// `profiles/<bundle-id>.yaml` — 특수 앱의 동작 고도화 전용. 필드 다섯, `enabled` 없음
 /// (앱별 on/off는 `config.yaml`이 단일 소유한다).
 ///
-/// **모든 필드가 옵셔널이거나 빈 컬렉션이다** — 스크롤 기본값 15/30 같은 코드 상수는 앱이 갖고,
-/// 이 계층은 "값 없음"만 표현한다.
+/// **`strategy`를 뺀 모든 필드가 옵셔널이거나 빈 컬렉션이다** — 스크롤 기본값 15/30 같은 코드
+/// 상수는 앱이 갖고, 이 계층은 "값 없음"만 표현한다. `strategy`만 기본값을 드는 것은 "미지정 =
+/// keyboard"가 값 없음이 아니라 **결정된 기본 전략**이기 때문이다(keyboard-first 관례).
 public struct AppProfile: Hashable, Sendable {
     /// 표시용 이름.
     public let name: String?
+    /// 이 앱의 실행 전략. 미지정이면 `.keyboard`라 동작 diff가 0이다.
+    public let strategy: ProfileStrategy
     /// 뷰포트에 맞춘 스크롤 줄 수 재정의 (유효 1...200).
     public let halfPageLines: Int?
     public let fullPageLines: Int?
@@ -19,12 +22,14 @@ public struct AppProfile: Hashable, Sendable {
 
     public init(
         name: String? = nil,
+        strategy: ProfileStrategy = .keyboard,
         halfPageLines: Int? = nil,
         fullPageLines: Int? = nil,
         motions: [Motion: ConfigOverride] = [:],
         actions: [ConfigAction: ConfigOverride] = [:]
     ) {
         self.name = name
+        self.strategy = strategy
         self.halfPageLines = halfPageLines
         self.fullPageLines = fullPageLines
         self.motions = motions
@@ -50,6 +55,19 @@ public enum ConfigOverride: Hashable, Sendable {
     /// 이 항목을 쓰는 어휘 전부(모션이면 `G`·`dG`·`vG`)가 정직한 스킵이 된다 —
     /// 매퍼 `nil` 경로와 같다.
     case disabled
+}
+
+/// `strategy:` 값 — 이 앱의 액션을 무엇으로 실행하는가.
+///
+/// **`auto`는 아직 없다** — PR-E에서 추가 예정이며, 그때까지 `auto`는 미지 값으로 취급돼 항목
+/// 단위 warn+무시된다(파일은 생존한다). 어휘 자체는 `20260712_ax-keyboard-strategy-dispatch.md`
+/// 에서 이미 정해졌고 이것은 그 부분 구현이다
+/// (`20260808_strategy-field-minimal-parsing-d1.md`).
+public enum ProfileStrategy: String, Hashable, Sendable, CaseIterable {
+    /// AX 범위/캐럿 쓰기로 실행한다. 지원하지 않는 액션은 keyboard로 위임된다(위임 표).
+    case accessibility
+    /// 합성 키 이벤트로 실행한다 — **기본값**이다.
+    case keyboard
 }
 
 /// `actions:` 어휘 v1 5종 — `VimAction` 케이스 파생.

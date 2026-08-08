@@ -30,6 +30,12 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
     }
 
     let name: String?
+    /// 이 앱의 실행 전략 — 어댑터의 AX 실행 계획 판정이 유일한 소비자다.
+    ///
+    /// **`ProfileStrategy`를 앱측 타입으로 다시 선언하지 않는다.** `Override`가 다시 선언된
+    /// 것은 `ConfigKeyStroke`를 `KeyStroke`로 번역해야 해서였는데, 전략은 번역할 것이 없는
+    /// 순수 열거값이고 `ConfigAction`이 이미 그대로 통과한다.
+    let strategy: ProfileStrategy
     /// 스크롤 줄 수 재정의 — 명시값은 AX 뷰포트 정확값보다 **우선**하며 그 extent는 읽기
     /// 자체가 생략된다. `nil`이면 AX 뷰포트를 시도하고, 그것도 실패하면 `CommandKeyMapper`의
     /// 코드 상수(15/30)다 (`20260806_scroll-line-count-priority-ladder.md`).
@@ -43,6 +49,8 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
 
     private init() {
         name = nil
+        // 미지정 = keyboard — 프로파일 없는 앱이 기존과 동작 diff 0인 지점이다.
+        strategy = .keyboard
         halfPageLines = nil
         fullPageLines = nil
         motionOverrides = [:]
@@ -51,6 +59,7 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
 
     init(_ profile: AppProfile) {
         name = profile.name
+        strategy = profile.strategy
         halfPageLines = profile.halfPageLines
         fullPageLines = profile.fullPageLines
         // append 전용 모션(a/A)의 base 상속은 `motionOverride(for:)` 안에 있다 — 패키지

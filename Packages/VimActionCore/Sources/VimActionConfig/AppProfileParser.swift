@@ -20,6 +20,7 @@ enum AppProfileParser {
         guard let root else { return .parsed(AppProfile(), []) }
 
         var name: String?
+        var strategy: ProfileStrategy = .keyboard
         var halfPageLines: Int?
         var fullPageLines: Int?
         var motions: [Motion: ConfigOverride] = [:]
@@ -29,6 +30,19 @@ enum AppProfileParser {
             switch key {
             case "name":
                 name = stringValue(of: value, at: path, collector)
+            case "strategy":
+                // 어휘 밖 값은 **항목 단위 warn+무시**다 — 형제 필드와 파일이 생존한다.
+                // 미리 `strategy: auto`를 써 둔 파일이 이 배포 순간 통째로 깨지지 않게 하는 것이
+                // 요점이고, `auto`의 정식 파싱은 **PR-E에서 추가 예정**이다. 그때 이 값은
+                // invalidValue에서 정상 파싱으로 바뀐다(계획된 변경 —
+                // `20260808_strategy-field-minimal-parsing-d1.md`).
+                if let raw = stringValue(of: value, at: path, collector) {
+                    if let parsed = ProfileStrategy(rawValue: raw) {
+                        strategy = parsed
+                    } else {
+                        collector.warn(path, .invalidValue(raw))
+                    }
+                }
             case "scroll":
                 forEachEntry(of: value, at: path, collector) { key, value, path in
                     switch key {
@@ -68,13 +82,14 @@ enum AppProfileParser {
                     return true
                 }
             default:
-                return false  // strategy·per_element 등 M5 필드가 여기로 접힌다
+                return false  // per_element 등 남은 M5 필드가 여기로 접힌다 (PR-E)
             }
             return true
         }
 
         let profile = AppProfile(
             name: name,
+            strategy: strategy,
             halfPageLines: halfPageLines,
             fullPageLines: fullPageLines,
             motions: motions,

@@ -300,7 +300,11 @@ nonisolated extension FocusedText {
 
     /// 절대 오프셋 → 창 안 상대 오프셋. 창 텍스트의 길이가 `windowRange`와 어긋나면 그 창을
     /// 근거로 쓸 수 없으므로 `nil`이다 — 어긋난 채로 인덱싱하면 개행 위치가 통째로 밀린다.
-    private func offsetInWindow(_ location: Int) -> Int? {
+    ///
+    /// `internal`인 것은 **AX 오프셋 계층(`FocusedTextOffsets`)과 공유**하기 때문이다 — 특히
+    /// 위의 길이 일치 가드는 두 계층이 같은 것을 써야 한다. 런 클래스만은 공유하지 않는다
+    /// (그쪽 doc 참조 — 비ASCII 취급이 정반대다).
+    func offsetInWindow(_ location: Int) -> Int? {
         guard window.utf16.count == windowRange.length else { return nil }
         let offset = location - windowRange.location
         // 상한이 `length`인 것은 오프셋이 문자가 아니라 **문자 사이 위치**이기 때문이다.
