@@ -62,6 +62,22 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// (`CommandKeyMapper.scrollConsultsViewport`).
     private let viewportReader: ViewportReader
 
+    /// **AX 쓰기 경로 전용 창 읽기 seam** — 같은 프리미티브(`FocusedText`)를 읽지만 둘이 다르다:
+    /// pid가 아니라 **요소**를 받고(쓰기와 같은 핸들 — `AXWindowSnapshot` doc), 반경이 4096이다.
+    ///
+    /// 소비자는 `mapping`의 AX 실행 계획 분기 한 곳이고, 전략이 accessibility가 아니면 아예
+    /// 묻지 않는다 — keyboard 전략 앱은 이 경로로 인한 AX 왕복이 0건이다.
+    private let axWindow: @Sendable (AXUIElement) -> FocusedText?
+
+    /// AX 쓰기 단일 통로. 주입 이유는 리더들과 같고 하나 더 있다 — 실제로 쓰면 테스트가
+    /// **개발자의 실제 문서를 편집한다** (`AXWriter` doc).
+    private let writer: AXWriter
+
+    /// 쓰기 대상 요소 획득 seam. 실구현은 `AXRead.focusedElement`이며 그것이 50ms 메시징
+    /// 타임아웃이 쓰기 경로에 상속되는 고리다. 주입은 테스트가 실기기 AX 없이 요소를
+    /// 만들어 내기 위한 것이다 (`AXElementSnapshot` doc).
+    private let axElement: @Sendable (pid_t) -> AXUIElement?
+
     /// 실행 실패 보고 seam — 게시 직렬 큐에서 `EventTapController.reportExecutionFailure(at:)`
     /// 로 가는 경로다. **시각을 인자로 싣는 것이 계약이다**: 카운터는 MainActor 격리 안에서만
     /// 돌아 보고가 메인 홉을 타는데, 홉 착지 시각으로 세면 메인 스톨 뒤 뭉쳐 착지한 보고들이
@@ -87,6 +103,11 @@ nonisolated struct KeyboardAdapter: Sendable {
         reader: FocusedTextReader = FocusedTextReader(),
         visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
         viewportReader: ViewportReader = ViewportReader(),
+        axWindow: @escaping @Sendable (AXUIElement) -> FocusedText? = {
+            FocusedTextReader.read($0, radius: FocusedTextReader.axWindowRadius)
+        },
+        writer: AXWriter = AXWriter(),
+        axElement: @escaping @Sendable (pid_t) -> AXUIElement? = AXRead.focusedElement(ofProcess:),
         reportExecutionFailure: @escaping @Sendable (TimeInterval) -> Void = { _ in },
         now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     ) {
@@ -97,6 +118,9 @@ nonisolated struct KeyboardAdapter: Sendable {
         self.reader = reader
         self.visualAnchor = visualAnchor
         self.viewportReader = viewportReader
+        self.axWindow = axWindow
+        self.writer = writer
+        self.axElement = axElement
         self.reportExecutionFailure = reportExecutionFailure
         self.now = now
     }
@@ -133,13 +157,22 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 같은 버스트의 앞 액션이 캐럿을 옮기므로 선택 범위는 실행 직전 값만 정확하다.
     /// 기본값 `nil`은 읽기가 관심사가 아닌 호출자(대부분의 테스트)를 위한 것이며,
     /// 그때 리더는 아예 불리지 않는다.
+    /// `bundleID`는 **값도 대상도 아닌 라벨**이다 — AX 쓰기 요약 로그가 앱을 특정하는 데만
+    /// 쓴다. 출처가 `FrontmostAppGate`라 `processID`(포커스 요소 소유자)와 다르지만, 로그
+    /// 라벨이라 그 차이가 계약을 깨지 않는다 (`DispatchContext.bundleID`).
     func execute(
         _ actions: [VimAction], family: ElementFamily = .textArea,
-        profile: ResolvedProfile = .empty, processID: pid_t? = nil,
+        profile: ResolvedProfile = .empty, processID: pid_t? = nil, bundleID: String? = nil,
         isCurrent: () -> Bool = { true }
     ) {
         // dispatch 직후 곧바로 다음 키에 밀려난 경우 — 한 이벤트도 내보내지 않는다.
         guard isCurrent() else { return }
+
+        // AX 쓰기 효과(보고 1회 접기·요약 버킷)의 수명은 **execute 1회**다. `defer`인 이유는
+        // 아래 중단 경로의 이른 `return`들이 요약을 건너뛰면 안 되기 때문이고, 쓰기가 한 건도
+        // 없으면 버킷이 비어 아무것도 남기지 않으므로 keyboard 경로에는 공짜다.
+        var effects = axWriteEffects(bundleID: bundleID)
+        defer { effects.logSummary() }
 
         #if DEBUG
         var skippedCount = 0
@@ -211,6 +244,12 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 액션마다 새 스냅샷 — 앞 액션이 캐럿을 옮겼으므로 이전 액션의 읽기를 물려받으면
             // 낡은 오프셋으로 계산한다. 만드는 것만으로는 AX를 부르지 않는다 (lazy).
             let text = FocusedTextSnapshot(processID: processID, reader: reader)
+            // AX 경로의 요소·읽기도 액션당 1회 lazy·memo다. 요소는 반드시
+            // `AXRead.focusedElement` 경유라 50ms 캡을 상속하고, 창 읽기가 그 **같은 핸들**을
+            // 받아 뒤따르는 쓰기와 요소가 갈리지 않는다. 만드는 것만으로는 AX를 부르지 않으므로
+            // keyboard 전략 앱은 왕복 0건이다.
+            let axTarget = AXElementSnapshot(processID: processID, acquire: axElement)
+            let axText = AXWindowSnapshot(element: axTarget, read: axWindow)
             // 레이아웃도 액션당 1회 스냅샷 — 게이트(mapping)와 치환(게시 직전)이 같은 값을
             // 읽어야, 그 사이 레이아웃 전환으로 "게이트는 통과했는데 표에는 없는" 창이
             // 생기지 않는다. QWERTY면 표는 읽지 않는다 (치환 자체가 생략된다).
@@ -219,8 +258,64 @@ nonisolated struct KeyboardAdapter: Sendable {
             let groups: [[KeyStroke]]
             let paced: Bool
             switch mapping(
-                for: action, family: family, profile: profile, text: text, viewport: viewport,
-                layout: layout) {
+                for: action, family: family, profile: profile, text: text, axText: axText,
+                viewport: viewport, layout: layout) {
+            case .ax(let range):
+                // ① **순서 보존**: 같은 execute에 아직 게시되지 않은 keyboard 이벤트가 pending에
+                //    남아 있는데 동기 AX 쓰기가 먼저 나가면 순서가 뒤집힌다(게시는 배달만 걸고
+                //    돌아오고, AX 쓰기는 동기다). "동기 AX 쓰기 → 게시"만 레이스가 없다는
+                //    계약의 코드 측 대응이다.
+                guard flush() else {
+                    visualAnchor.apply(.discard)
+                    return
+                }
+                #if DEBUG
+                // `flush`는 **미게시분**만 해결한다 — 이미 게시된 이벤트를 대상 앱이 소비하는
+                // 순서 대 동기 AX 쓰기는 미확정 방향이다(계약이 보증하는 것은 "AX 쓰기 → 게시"
+                // 하나뿐). D1a에서는 한 execute가 전부 `.ax`이거나 전부 위임이라 도달 불가여야
+                // 하므로, 뜨면 그 전제가 깨진 것이다.
+                if postedChunks > 0 {
+                    Logger.eventTap.debug(
+                        "AX 쓰기가 위임 게시 뒤에 온다 — 소비 순서 미보장: \(String(describing: action), privacy: .public)"
+                    )
+                }
+                #endif
+                // ② 중단 래치는 **파괴적 쓰기 직전**에 한 번 더 — AX 경로에는 청크가 없으므로
+                //    질의 지점이 "액션 사이 + 쓰기 직전"이 되어 keyboard 8타 청크보다 촘촘하다.
+                guard isCurrent() else {
+                    #if DEBUG
+                    Logger.eventTap.debug(
+                        "실행 중단 — AX 쓰기 폐기: \(String(describing: action), privacy: .public)")
+                    #endif
+                    return
+                }
+                // ③ 쓰기 **전** 단계의 실패(요소 없음·읽기 실패·사전 경계 검증 탈락)는 보고도
+                //    폴백도 아닌 **스킵**이다 — 실행을 시도하지 않았기 때문이다. 그 execute의
+                //    잔여까지 함께 접는 것은 "첫 미지원·첫 실패" 구조 규칙과 같은 근거다:
+                //    한 키 입력 안에서 이 실패는 일시적이지 않고, 접지 않으면 `100j`가
+                //    100×50ms로 게시 큐를 잡는다.
+                //    `axText`는 memo라 여기서 다시 물어도 **범위를 계산한 바로 그 읽기**다 —
+                //    따로 읽으면 사전 검증이 범위와 다른 문서 상태를 기준으로 서서 방어가
+                //    아니라 장식이 된다.
+                guard let element = axTarget.value(), let focused = axText.value(),
+                    let proven = AXWriteOutcome.provenWriteRange(
+                        range, characterCount: focused.characterCount)
+                else {
+                    #if DEBUG
+                    Logger.eventTap.debug(
+                        "AX 쓰기 스킵 — 요소·읽기·경계 증명 실패: \(String(describing: action), privacy: .public)"
+                    )
+                    #endif
+                    return
+                }
+                let outcome = AXWriteOutcome.classify(
+                    writer.writeSelectedTextRange(element, proven))
+                effects.apply(outcome, action: action)
+                // ④ `apply`는 흐름을 정하지 않는다 — 호출자가 outcome을 보고 끊는다. `.success`
+                //    외 전부에서 끊는 것이 "실행 실패 보고는 키 입력 1건당 최대 1회"를 구조로
+                //    보장하고, 미지원·경합 앱에서 동기 왕복이 곱해지는 것을 함께 막는다.
+                guard outcome == .success else { return }
+                continue
             case .groups(let mapped, let pacedGroups):
                 // 게시 직전의 단일 치환 단계 — 비-QWERTY에서만 논리 ANSI 명령 키코드
                 // (6/7/8/9)를 현재 레이아웃의 역조회 키코드로 바꾼다. QWERTY 생략이
@@ -405,6 +500,20 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// 최대 200타)·폴백 카운트 반복(`500x`)·카운트 버스트가 타이밍까지 현행 그대로다.
         /// 스크롤이 계속 무페이싱인 것은 드롭의 실패 방향이 "덜 스크롤"이라 무해해서다.
         case groups([[KeyStroke]], paced: Bool)
+        /// **AX 쓰기 계획** — `AXSelectedTextRange`에 쓸 범위다(길이 0이면 캐럿).
+        ///
+        /// `.groups`(위임)와 형제 케이스인 것이 "단일 실행 드라이버"의 코드 측 모양이다:
+        /// execute 루프(중단 래치·스냅샷·요약 로그)와 게이트 3종·부수효과를 그대로 공유하고
+        /// **액션 분기 안쪽만** 갈린다. "AX 어댑터가 keyboard 어댑터를 부른다"(감사 안 되는
+        /// 둘째 진입점)와 "디스패처가 액션 단위로 어댑터를 가른다"(execute당 계약 분열)는
+        /// 둘 다 기각됐다 (`20260808_ax-delegation-table-single-driver.md`).
+        ///
+        /// `paced:`가 없는 것도 계약이다 — AX 쓰기는 합성 이벤트가 아니라 드롭 모드가 없어
+        /// 페이싱 대상이 아니고, `paced`는 위임 전용 속성으로 남는다.
+        ///
+        /// 하이브리드(`.openLine`·`.paste`·편집의 "접두 쓰기 + 그룹")는 아직 없다 — PR-D1b
+        /// 몫이며, 빈 분기를 강요하는 케이스를 미리 두지 않는다.
+        case ax(NSRange)
         /// 매퍼가 `nil` — 이 어휘가 아직 구현되지 않았다. 요약 로그에 집계된다.
         case unsupported
         /// 지원하지만 이번엔 게시할 것이 없다. 사유를 아는 자리에서 **자체 로그를 이미 남겼다**.
@@ -487,7 +596,8 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 프리미티브라 `text`와 리더도 수명(execute당 1회)도 다르다.
     private func mapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
-        text: FocusedTextSnapshot, viewport: ViewportSnapshot, layout: LayoutSnapshot
+        text: FocusedTextSnapshot, axText: AXWindowSnapshot, viewport: ViewportSnapshot,
+        layout: LayoutSnapshot
     ) -> Mapping {
         // 새 Visual 세션의 시작은 옛 세션 wise를 **게이트보다 앞에서** 잊는다 — note는
         // 게시 확정에 게이팅되므로, 걸러진 begin(`.nonText`·`.unresolved`) 뒤의

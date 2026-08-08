@@ -193,6 +193,33 @@ struct ExecutionWiringTests {
         }
     }
 
+    /// bundle id도 같은 자리에서 **프로파일 조회와 같은 값**으로 실린다 — AX 쓰기 요약 로그가
+    /// 앱을 특정하는 유일한 수단이라, 배선이 끊기면 `.illegalArgument` 관측 로그가 "앱 미상"만
+    /// 쌓아 D1 종료 시 보고 승격 재심사가 판정 데이터를 잃는다(조용한 고장).
+    @Test(
+        "디스패치 페이로드에 최전면 앱 bundle id가 실린다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func replaceCarriesFrontmostBundleID() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var bundleIDs: [String?] = []
+            let gate = Self.gate(frontmost: "com.apple.TextEdit")
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: gate,
+                dispatchActions: { _, context in bundleIDs.append(context.bundleID) })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(bundleIDs == ["com.apple.TextEdit"])
+
+            gate.update(bundleID: nil)
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(bundleIDs == ["com.apple.TextEdit", nil], "최전면 앱이 없으면 라벨도 없다")
+        }
+    }
+
     /// 게이트가 걸린 앱에서는 모션 키도 실행되지 않는다 — 삼킨 뒤 실행만 막는 "죽은 키"가
     /// 아니라, 애초에 엔진에 닿지 않아 원본 h가 그대로 앱에 전달된다.
     @Test(

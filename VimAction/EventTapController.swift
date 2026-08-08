@@ -219,7 +219,8 @@ final class EventTapController {
             queue.async {
                 adapter.execute(
                     actions, family: context.family, profile: context.profile,
-                    processID: context.processID, isCurrent: { abort.isCurrent(run) })
+                    processID: context.processID, bundleID: context.bundleID,
+                    isCurrent: { abort.isCurrent(run) })
             }
         }
     }
@@ -797,12 +798,17 @@ final class EventTapController {
             // 계열·프로파일은 **여기서** 읽는다 — 콜백은 메인 격리라 캐시 읽기가 동기
             // 프로퍼티 접근·딕셔너리 조회뿐이고(콜백 경량 불변식), 그 값이 곧 키 입력
             // 시점의 스냅샷이다.
-            let profile = profileProvider?(frontmostAppGate.frontmostBundleID) ?? .empty
+            //
+            // bundleID는 지역에 묶어 프로파일 조회와 컨텍스트가 **같은 값**을 쓰게 한다 —
+            // 두 번 읽으면 그 사이 앱 전환이 로그 라벨과 프로파일을 어긋나게 할 수 있다.
+            let bundleID = frontmostAppGate.frontmostBundleID
+            let profile = profileProvider?(bundleID) ?? .empty
             dispatchActions(
                 output.actions,
                 DispatchContext(
                     family: focusedElement.family,
-                    processID: focusedElement.observedProcessID, profile: profile))
+                    processID: focusedElement.observedProcessID, bundleID: bundleID,
+                    profile: profile))
             return nil
         }
     }
