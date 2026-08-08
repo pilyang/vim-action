@@ -296,16 +296,17 @@ nonisolated struct KeyboardAdapter: Sendable {
                 //    100×50ms로 게시 큐를 잡는다.
                 //    `axText`는 memo라 여기서 다시 물어도 **범위를 계산한 바로 그 읽기**다 —
                 //    따로 읽으면 사전 검증이 범위와 다른 문서 상태를 기준으로 서서 방어가
-                //    아니라 장식이 된다.
+                //    아니라 장식이 된다. 요소·읽기가 여기서 `nil`인 것은 정상 경로에서는
+                //    불가능하다(계획이 그 둘을 이미 통과했고 둘 다 memo다) — 옵셔널은 타입이
+                //    요구하는 형식이지 분기가 아니다. 남는 실질 분기는 경계 증명 하나다.
                 guard let element = axTarget.value(), let focused = axText.value(),
                     let proven = AXWriteOutcome.provenWriteRange(
                         range, characterCount: focused.characterCount)
                 else {
-                    #if DEBUG
-                    Logger.eventTap.debug(
-                        "AX 쓰기 스킵 — 요소·읽기·경계 증명 실패: \(String(describing: action), privacy: .public)"
+                    // 미지원 스킵(DEBUG)과 달리 우리 계산이 어긋났다는 신호라 항상 남긴다.
+                    Logger.eventTap.error(
+                        "AX 쓰기 범위 증명 실패 — 스킵 [\(range.location, privacy: .public), \(range.upperBound, privacy: .public)): \(String(describing: action), privacy: .public)"
                     )
-                    #endif
                     return
                 }
                 let outcome = AXWriteOutcome.classify(
@@ -316,6 +317,13 @@ nonisolated struct KeyboardAdapter: Sendable {
                 //    보장하고, 미지원·경합 앱에서 동기 왕복이 곱해지는 것을 함께 막는다.
                 guard outcome == .success else { return }
                 continue
+            case .axUnavailable:
+                #if DEBUG
+                Logger.eventTap.debug(
+                    "AX 경로 스킵 — 포커스 요소·읽기 없음, execute 잔여도 접는다: \(String(describing: action), privacy: .public)"
+                )
+                #endif
+                return
             case .groups(let mapped, let pacedGroups):
                 // 게시 직전의 단일 치환 단계 — 비-QWERTY에서만 논리 ANSI 명령 키코드
                 // (6/7/8/9)를 현재 레이아웃의 역조회 키코드로 바꾼다. QWERTY 생략이
@@ -514,6 +522,14 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// 하이브리드(`.openLine`·`.paste`·편집의 "접두 쓰기 + 그룹")는 아직 없다 — PR-D1b
         /// 몫이며, 빈 분기를 강요하는 케이스를 미리 두지 않는다.
         case ax(NSRange)
+        /// AX 경로인데 **쓰기 시도 전 단계**가 실패했다 — 포커스 요소 미노출, 읽기 타임아웃.
+        ///
+        /// 보고도 폴백도 아닌 스킵이다(실행을 시도하지 않았다). `.skipped`와 갈라 두는 것은
+        /// 흐름이 다르기 때문이다: 이쪽은 **execute 잔여까지 함께 접는다** — 한 키 입력 안에서
+        /// 이 실패는 일시적이지 않고(Slack처럼 요소를 아예 안 여는 앱이 전형), 접지 않으면
+        /// `100j`가 100×50ms로 게시 큐를 잡는다. "첫 미지원·첫 실패에서 잔여 스킵" 구조 규칙의
+        /// 쓰기 전 단계 대응이다.
+        case axUnavailable
         /// 매퍼가 `nil` — 이 어휘가 아직 구현되지 않았다. 요약 로그에 집계된다.
         case unsupported
         /// 지원하지만 이번엔 게시할 것이 없다. 사유를 아는 자리에서 **자체 로그를 이미 남겼다**.
@@ -640,6 +656,32 @@ nonisolated struct KeyboardAdapter: Sendable {
 
         switch action {
         case .move(let motion):
+            // **AX 실행 계획의 갈림길은 여기 한 곳이다.** 게이트 3종 뒤라 위임 경로와 전제가
+            // 같고, 확대 창 읽기는 그 뒤에 온다 — 게이트에 걸린 액션은 AX 왕복도 0건이다.
+            if Self.usesAXCaretWrite(motion, family: family, profile: profile) {
+                // 읽기 실패(포커스 요소 미노출·타임아웃)는 **`unproven`과 다른 축**이다 —
+                // 창이 답을 못 한 것이 아니라 물어볼 창이 없는 것이라, 위임이 아니라 스킵이며
+                // execute 잔여까지 함께 접는다 (`Mapping.axUnavailable`).
+                guard let focused = axText.value() else { return .axUnavailable }
+                switch FocusedTextOffsets.caretTarget(for: motion, in: focused) {
+                case .caret(let offset):
+                    return .ax(NSRange(location: offset, length: 0))
+                case .invalid:
+                    // 미지원이 아니라 "지원하지만 Vim에서 무효" — 편집의 증명된 무게시와 같은
+                    // 편이다(첫 줄 `k`류가 위임되면 실제로 캐럿이 움직인다).
+                    #if DEBUG
+                    Logger.eventTap.debug(
+                        "AX 모션 스킵 — 오프셋이 Vim 무효를 증명했다: \(String(describing: action), privacy: .public)"
+                    )
+                    #endif
+                    return .skipped
+                case .unproven:
+                    // 창이 답하지 못했다 → 아래 위임으로 낙하한다. 쓰기 시도 **전**이라
+                    // 이중 실행이 원리적으로 불가하며, 쓰기 시도 **후** 실패의 폴백 금지와는
+                    // 별개 축이다 (`20260808_ax-delegation-table-single-driver.md`).
+                    break
+                }
+            }
             return Self.classify(MotionKeyMapper.keyStrokes(for: motion, profile: profile)) {
                 MotionKeyMapper.keyStrokes(for: motion, profile: .empty)
             }
@@ -906,6 +948,38 @@ nonisolated struct KeyboardAdapter: Sendable {
                 ? .disabledByProfile : .unsupported,
             .unchanged
         )
+    }
+
+    /// 이 모션을 AX 캐럿 쓰기로 실행하는가 — **위임 표의 단일 판정 지점**이다.
+    ///
+    /// 표가 코드에서 한 곳에 있어야 어휘가 늘어도 골격 규칙("명령 매퍼 계열 = 위임, 모션·편집·
+    /// Visual 매퍼 계열 = AX")이 규칙으로 유지된다. D1a는 `.move`만 AX이므로 판정도 모션 하나만
+    /// 받는다 — 편집·Visual·하이브리드가 들어오는 D1b에서 액션 단위로 넓어진다.
+    ///
+    /// 셋 중 하나라도 걸리면 현행 keyboard 경로 그대로다:
+    /// ① 전략이 accessibility가 아니다 — **기본값 keyboard**라 미지정 앱은 동작 diff 0이다.
+    /// ② 계열이 `.nonText`/`.unresolved` — **전 액션 keyboard 강등**이다. AX 대입은 텍스트 요소
+    ///    전제라 Finder 리스트에서 무동작이 되고, 그러면 "모션·스크롤은 게시"라는 걸러내기
+    ///    결정이 조용히 죽는다. `.unresolved`는 "모르는 동안은 보수적으로"의 연장이며 AX 쓰기는
+    ///    더 위험한 방향이라 같은 규칙이 더 강하게 적용된다.
+    /// ③ `j`/`k`는 위임 유지 — 오프셋 대입이 **희망 열(desired column)** 을 잃는다. 짧은 줄을
+    ///    지나면 열이 영구히 깎여 현행보다 나쁜 회귀다.
+    /// ④ 프로파일에 그 모션 항목이 있으면(strokes 재정의든 disable이든) 위임한다. 재정의는
+    ///    "이 앱에서 이 모션을 달성하는 방법"이라는 사용자 지시라 AX가 덮어쓰지 않고, disable은
+    ///    기존 경로가 `.disabledByProfile`로 정직하게 집계한다. 스크롤 사다리("프로파일 명시값
+    ///    > AX 정확값 > 상수")와 같은 우선순위다.
+    ///
+    /// `ElementFamily`에 exhaustive switch를 거는 것은 `survivesFilterGate`와 같은 규칙이다.
+    private static func usesAXCaretWrite(
+        _ motion: Motion, family: ElementFamily, profile: ResolvedProfile
+    ) -> Bool {
+        guard profile.strategy == .accessibility else { return false }
+        switch family {
+        case .textArea, .textField: break
+        case .nonText, .unresolved: return false
+        }
+        guard motion != .lineUp, motion != .lineDown else { return false }
+        return profile.motionOverrides[motion] == nil
     }
 
     /// 이 계열에서 이 액션을 게시하는가 — 걸러내기 게이트 본체다.
