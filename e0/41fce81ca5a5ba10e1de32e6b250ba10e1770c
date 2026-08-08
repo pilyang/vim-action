@@ -1,0 +1,29 @@
+VimActionTests/FocusedTextOffsetsTests.swift
+  s_6e14b66e914d7c::t_b5f7b66173ca80 1-80,83-239
+  s_6e14b66e914d7c::t_8af7bfb871fedb 81-82
+VimActionTests/KeyboardAdapterAXWriteTests.swift
+  s_6e14b66e914d7c::t_1aee9222cae6ea 1-258
+VimAction/KeyboardAdapter.swift
+  s_6e14b66e914d7c::t_939aea147b42c5 662-666
+  s_6e14b66e914d7c::t_419eeaafe5b729 953-984
+  s_6e14b66e914d7c::t_b05522a819c9cc 299-301,306-308
+  s_6e14b66e914d7c::t_655ed1d0e014b0 525-532
+  s_6e14b66e914d7c::t_a9bfaf5019f52d 320-326
+  s_6e14b66e914d7c::t_3351d64f85b2a8 659-661,667-684
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "e041fce81ca5a5ba10e1de32e6b250ba10e1770c",
+  "prompts": {},
+  "sessions": {
+    "s_6e14b66e914d7c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1653474-3483-4c0e-b05c-826310dd45a9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
