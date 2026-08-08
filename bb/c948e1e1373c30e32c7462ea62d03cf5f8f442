@@ -1,0 +1,37 @@
+VimActionTests/AXWriterTests.swift
+  s_8e5191ed9d4d8b::t_c4458460a4ab8a 1-160
+VimAction/AXRead.swift
+  s_8e5191ed9d4d8b::t_e2d4c70a79d890 26-28
+VimAction/AXWriter.swift
+  s_8e5191ed9d4d8b::t_e15ab61570a7c4 1-84
+VimAction/ActionExecutor.swift
+  s_8e5191ed9d4d8b::t_79ab5bb25ed31d 34-36
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_5e2d2e4c7ced5d::t_aa28b2c175508b 48
+  s_8e5191ed9d4d8b::t_5137a4c63005d6 49-51
+  s_8e5191ed9d4d8b::t_843cb971db9a81 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "bbc948e1e1373c30e32c7462ea62d03cf5f8f442",
+  "prompts": {},
+  "sessions": {
+    "s_5e2d2e4c7ced5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ff6b443-bbb0-485b-b5f9-52976827d713",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_8e5191ed9d4d8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f4a37eed-ba06-420a-9675-05c6fec60dc3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
