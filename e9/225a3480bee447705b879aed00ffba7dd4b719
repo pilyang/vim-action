@@ -1,0 +1,55 @@
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_4600436dd0636f::t_6cdb7e164fadd7 53
+  s_4600436dd0636f::t_776c13eebcc775 3,7
+  s_4600436dd0636f::t_6d62d2d860c2c3 48
+.claude/skills/plans/SKILL.md
+  s_4600436dd0636f::t_6ef650aab1fc31 52
+.claude/skills/decisions/references/20260808_ax-offset-layer-window-logical-lines.md
+  s_4600436dd0636f::t_c30f3a091cad66 1-41
+.claude/skills/decisions/references/20260808_ax-edit-select-then-operator-delegate.md
+  s_4600436dd0636f::t_7fd0c4b4cfdf88 1-30
+.claude/skills/decisions/references/20260808_strategy-field-minimal-parsing-d1.md
+  s_4600436dd0636f::t_6ae00ea5b43626 1-34
+.claude/skills/architecture/references/profiles-and-config.md
+  s_4600436dd0636f::t_2f90e3fc193bdd 36,40-41
+  s_4600436dd0636f::t_14ce2cbc13bb4c 107
+  s_4600436dd0636f::t_f6f0db3799c755 3
+.claude/skills/decisions/references/20260808_ax-write-failure-whitelist-no-fallback.md
+  s_4600436dd0636f::t_bab043406626ad 1-42
+.claude/skills/decisions/references/20260808_ax-writer-per-primitive-channel.md
+  s_4600436dd0636f::t_34fea1be4e9f51 1-34
+.claude/skills/decisions/references/20260728_linewise-visual-line-wrap-accepted-edge.md
+  s_4600436dd0636f::t_00078667a33ba1 3-4
+.claude/skills/decisions/SKILL.md
+  s_4600436dd0636f::t_d7272f332cd20f 189-200
+  s_4600436dd0636f::t_00122546815c29 209
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_4600436dd0636f::t_0de89a02b1704d 32,34-58
+  s_4600436dd0636f::t_97be41257bb482 3
+  s_4600436dd0636f::t_546abc41c4d935 156
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_4600436dd0636f::t_f9515a5ac08775 29
+  s_4600436dd0636f::t_45bed552bd2cf7 48
+  s_4600436dd0636f::t_abc56c7e8b3d8a 6
+  s_4600436dd0636f::t_2e0b0ae761164c 40-42
+.claude/skills/decisions/references/20260808_ax-visual-session-path-pinning.md
+  s_4600436dd0636f::t_b6605d8ff410c5 1-33
+.claude/skills/decisions/references/20260808_ax-delegation-table-single-driver.md
+  s_4600436dd0636f::t_c696e0c7b680d1 1-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "e9225a3480bee447705b879aed00ffba7dd4b719",
+  "prompts": {},
+  "sessions": {
+    "s_4600436dd0636f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5397eb8b-cc42-4575-9a20-0646b2d5422c",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
