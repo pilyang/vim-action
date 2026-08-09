@@ -28,6 +28,11 @@ final class AppState {
     /// 생성 시점이 배선의 전부다.
     let dockIcon = DockIconController.forCurrentEnvironment()
 
+    /// 런치 시 설정 창을 한 번 밀어 올려야 하는가 — 메뉴바 라벨(`MenuBarLabel`)이 소비한다.
+    /// `openSettings`는 SwiftUI 환경 액션이라 뷰 밖에서 호출할 수 없어서, `bootstrap()`은
+    /// 신호만 세우고 실제 오픈은 렌더된 뷰가 맡는다.
+    private(set) var needsOnboardingPresentation = false
+
     init() {
         let gate = FrontmostAppGate.forCurrentEnvironment()
         let store = ConfigStore()
@@ -78,6 +83,21 @@ final class AppState {
         if !permissionMonitor.isTrusted {
             permissionMonitor.startPollingUntilGranted()
         }
+        needsOnboardingPresentation = shouldPresentOnboarding(
+            isTrusted: permissionMonitor.isTrusted, defaults: .standard)
+    }
+
+    /// 설정 창이 화면에 올라왔다 — 그것이 온보딩이었다면 여기서 마무리한다. 값이 아니라 키의
+    /// **존재**가 판정 기준이므로(`shouldPresentOnboarding`) 여기서 반드시 써야 한다.
+    ///
+    /// 오픈을 지시한 자리가 아니라 **창이 실제로 뜬 자리**에서 내린다 — 그 사이에
+    /// `SettingsView`가 플래그를 읽어 열릴 탭을 고르고, 오픈이 조용히 실패하면 플래그가 남아
+    /// 다음 실행에 다시 시도한다. 설정 창을 여는 모든 경로가 부르므로 멱등이어야 한다.
+    func settingsWindowDidAppear() {
+        dockIcon.settingsWindowDidAppear()
+        guard needsOnboardingPresentation else { return }
+        needsOnboardingPresentation = false
+        UserDefaults.standard.set(true, forKey: PreferenceKeys.didShowOnboarding)
     }
 
     /// 메뉴 'Reload Config' 진입점 — 로드 결과를 게이트에 반영까지 해야 한 번의 리로드다.
@@ -101,21 +121,51 @@ final class AppState {
     /// 두 실패 모두 폴백이 있다: 클릭이 조용한 무동작이 되면 안 된다.
     func openProfile(for bundleID: String) {
         guard let path = configStore.prepareProfileFile(for: bundleID) else {
-            // 생성 실패는 사용자가 알아야 한다 — 'Reload Config' 실패와 같은 형태로 알린다
-            // (LSUIElement라 activate 없이는 알림이 다른 창 뒤로 깔린다).
-            NSApp.activate(ignoringOtherApps: true)
-            let alert = NSAlert()
-            alert.alertStyle = .warning
-            alert.messageText = "Couldn't create the profile file"
-            alert.informativeText =
+            // 생성 실패는 사용자가 알아야 한다 — 'Reload Config' 실패와 같은 형태로 알린다.
+            warn(
+                "Couldn't create the profile file",
                 "VimAction could not write \(configStore.profilePath(for: bundleID)).\n\nCheck the folder's permissions — details are in the log (category \"config\")."
-            alert.runModal()
+            )
             return
         }
-        // .yaml에 기본 앱이 없으면 open이 조용히 실패한다 — 그때는 Finder로 짚어 준다.
+        openFile(at: path)
+    }
+
+    /// 메뉴 'Enable for This App' — `config.yaml`의 그 앱 항목만 고치고 바로 반영한다.
+    ///
+    /// 쓸 수 없는 상황(에러 상태·안전하게 편집할 수 없는 파일·권한)에서는 **알림 + 파일 열기**로
+    /// 폴백한다. 토글 클릭이 조용한 무동작이 되면 사용자는 앱이 고장 났다고 읽는다.
+    func setAppEnabled(_ bundleID: String, enabled: Bool) {
+        // 쓰기와 반영이 **둘 다** 성공해야 한 번의 변경이다 — 쓰고 나서 리로드가 실패하면
+        // 체크마크는 그대로인데 파일만 바뀐 상태라, 그것도 사용자가 파일을 봐야 하는 경우다.
+        if configStore.setAppEnabled(bundleID, enabled: enabled), reloadConfig() { return }
+        warn(
+            "Couldn't update config.yaml",
+            "VimAction did not apply \"\(bundleID): \(enabled)\" — details are in the log (category \"config\").\n\nOpening \(ConfigPaths.configPath) so you can set it under \"apps:\" yourself, then use \"Reload Config\"."
+        )
+        openConfigFile()
+    }
+
+    /// 메뉴·Settings 공용 'config.yaml 열기'.
+    func openConfigFile() {
+        openFile(at: ConfigPaths.configPath)
+    }
+
+    /// .yaml에 기본 앱이 없으면 `open`이 조용히 실패한다 — 그때는 Finder로 짚어 준다.
+    private func openFile(at path: String) {
         if !NSWorkspace.shared.open(URL(fileURLWithPath: path)) {
             NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: ConfigPaths.directory)
         }
+    }
+
+    /// 사용자에게 보여야 하는 실패. LSUIElement라 `activate` 없이는 알림이 다른 창 뒤로 깔린다.
+    private func warn(_ message: String, _ detail: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = message
+        alert.informativeText = detail
+        alert.runModal()
     }
 
     /// 메뉴바 글리프 — 탭이 안 돌면 비활성(square.dashed), 토글 off면 square.slash,

@@ -26,8 +26,12 @@ final class ConfigStore {
     /// 프로파일 경로 조합의 앱측 출처. **주입된 값이어야 한다** — `ConfigPaths`를 직접
     /// 참조하면 유닛 테스트가 실제 `~/.config/vim-action/profiles`에 파일을 만든다.
     private let profilesDirectory: String
-    /// scaffold 생성 전 존재 확인용 — 쓰기와 같은 seam을 쓴다(판정과 쓰기가 어긋나지 않는다).
+    /// `setAppEnabled`가 편집 대상 텍스트를 읽는 경로 — 위와 같은 이유로 주입된 값이다.
+    private let configPath: String
+    /// scaffold 생성 전 존재 확인용 + `setAppEnabled`의 쓰기 seam.
     private let seederFileSystem: ConfigSeeder.FileSystem
+    /// `setAppEnabled`가 편집 전 원문을 읽는 seam — 로더와 같은 눈으로 파일을 본다.
+    private let loaderFileSystem: ConfigLoader.FileSystem
     private let bundledConfig: () -> String?
     private let bundledProfiles: () -> [String: String]
 
@@ -58,7 +62,9 @@ final class ConfigStore {
             fileSystem: loaderFileSystem
         )
         self.profilesDirectory = profilesDirectory
+        self.configPath = configPath
         self.seederFileSystem = seederFileSystem
+        self.loaderFileSystem = loaderFileSystem
         self.bundledConfig = bundledConfig
         self.bundledProfiles = bundledProfiles
     }
@@ -114,6 +120,40 @@ final class ConfigStore {
             break  // 정상 — 이미 있는 파일을 그대로 연다
         }
         return path
+    }
+
+    /// 메뉴 'Enable for This App' 진입점 — `config.yaml`의 그 앱 항목만 라인 편집으로 바꾼다.
+    /// 반영은 하지 않는다: 호출자가 리로드까지 이어야 한 번의 변경이다.
+    ///
+    /// 쓰기는 **시더를 타지 않는다**. `ConfigSeeder`는 "기존 파일 절대 무수정" 경로라 목적이
+    /// 정반대다 — 여기는 있는 파일을 고치는 유일한 경로이고, 대신 세 겹으로 방어한다:
+    /// 에러 상태면 쓰지 않고, 편집이 애매하면 순수 함수가 `nil`을 주고, 실패는 전부 `false`로
+    /// 호출자에게 올라가 파일 열기 폴백이 된다.
+    ///
+    /// - Returns: 파일이 실제로 바뀌었는지. `false`면 파일은 손대지 않은 상태다.
+    func setAppEnabled(_ bundleID: String, enabled: Bool) -> Bool {
+        // 직전 유효 설정으로 돌고 있는 상태에서 파일을 건드리면, 사용자가 고치려던 원본이
+        // 우리 편집과 섞인다. 열어서 직접 고치게 하는 것이 맞다.
+        guard errors.isEmpty else {
+            Logger.config.notice("설정 에러 상태 — 앱 on/off 쓰기 거부 (\(bundleID, privacy: .public))")
+            return false
+        }
+        guard let yaml = loaderFileSystem.readFile(configPath) else {
+            Logger.config.error("config.yaml을 읽을 수 없어 앱 on/off 쓰기 중단 — \(self.configPath, privacy: .public)")
+            return false
+        }
+        guard let edited = settingAppEnabled(in: yaml, bundleID: bundleID, enabled: enabled) else {
+            // nil은 실패가 아니라 "안전하게 손대지 않음"이다 — 중복 키 등 애매한 파일.
+            Logger.config.notice("config.yaml을 안전하게 편집할 수 없음 — \(bundleID, privacy: .public)")
+            return false
+        }
+        guard seederFileSystem.writeFile(configPath, edited) else {
+            Logger.config.error("config.yaml 쓰기 실패 — \(self.configPath, privacy: .public)")
+            return false
+        }
+        Logger.config.notice(
+            "앱 on/off 기록 — \(bundleID, privacy: .public) = \(enabled, privacy: .public)")
+        return true
     }
 
     /// bootstrap 1회: 번들 기본 파일 시딩(없는 파일만 — 기존 파일은 내용을 보지 않고
