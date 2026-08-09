@@ -1,6 +1,6 @@
 # 전략 디스패치
 
-- **Last updated**: 2026-08-08 (M5 PR-D1b 세션0 — 실측 2건(소비 순서·문서 끝 paste) + 결정 7건 반영: collapse 게시 `←` 환원·되읽어 검증 수렴 폴링·마지막 줄 paste Return 합성·하이브리드 원자성·실패 축 문언. 구현은 D1b 세션 1~4)
+- **Last updated**: 2026-08-09 (M5 PR-D1b 세션1 — `FocusedTextOffsets` 범위 산출 5종 구현: `Span`/`Insertion` 타입 분리, 표 침묵 자리의 Vim 정확 편차. 소비자 배선은 D1b 세션 2~4)
 
 ## 현재 구조
 
@@ -55,6 +55,21 @@ flowchart TD
 **오프셋 산출은 `FocusedTextOffsets`**(순수 함수 계층 — `FocusedTextAnalysis` extension 확장 금지: `RunClass`가 갈린다 — Analysis는 비ASCII `other`(포기 방향), Offsets는 `keyword`(CJK `w`/`diw` 성립). UTF-16 배관은 `offsetInWindow` internal 승격으로 공유하되 **스캔 단위는 `Character`(grapheme cluster)** 다 — 산출이 항상 클러스터 경계 위여야 하고 `\r\n`이 한 `Character`라 떠돌이 `\r`가 원천 소거된다. **캐럿 자체가 경계 위가 아니면 아무것도 증명하지 않는다**). 입력은 `FocusedText` 창이되 **AX 쓰기 경로 전용 확대 반경**(`FocusedTextReader.axWindowRadius` = 4096 UTF-16 — 실측 확정, keyboard 경로 256 불변)을 쓴다. 창 읽기는 `AXWindowSnapshot`이 담당하며 **pid가 아니라 `AXElementSnapshot`의 요소를 받는다** — 오프셋을 계산한 읽기와 뒤따르는 쓰기가 같은 핸들을 써야 `AXWriter`의 요소 수신 계약이 성립한다(덤으로 액션당 `focusedElement` 왕복이 1회다). 반환은 3상태(`.invalid` = Vim 무효 → 스킵 / 범위 → AX 쓰기 / `.unproven` → keyboard 위임).
 
 **커서 모델은 캐럿 그대로다** — 목표 오프셋은 지금 keyboard가 겨냥하는 자리이고(`e` = 단어 마지막 글자 **뒤**, `$`·`A` = 줄 끝 캐럿, `gg` = 오프셋 0, `G` = `characterCount`), 캐럿 모델에서 `l`/`a`와 `$`/`A`는 각각 같은 목표다. AX가 정확하게 만드는 것은 **단어 경계 정의**(`RunClass` 기반 Vim 시맨틱 — `foo.bar`의 `w`가 `.`에 선다)와 `^`(탭 들여쓰기 퇴행 소멸)뿐이며, Vim 자체가 no-op인 자리(줄 시작 `h`·줄 끝 `l`·문서 시작 `b`·문서 끝 `w`/`e`, 그리고 일반 규칙 "목표 == 현재 캐럿")만 `.invalid`다. 블록 커서 모델 전면 채택은 `.edit` 범위·정확화 표·D1b 편집 배선까지 재조정을 요구해 기각됐다 ([20260808_ax-motion-caret-model-vim-word-definition.md](../../decisions/references/20260808_ax-motion-caret-model-vim-word-definition.md)). 살아 있는 선택 위에서는 캐럿이 애매하므로 증명하지 않는다.
+
+산출 함수는 **캐럿 1종 + 구간 5종**이며 반환 타입이 둘로 갈린다. `Target`(캐럿)·`Span`(구간)은 동형 3상태(`.invalid`/값/`.unproven`)이고 "목표 == 현재"를 `.invalid`로 접지만, **`Insertion`(삽입 위치)에는 `.invalid`가 없다** — `o`·`O`·`p`·`P`는 Vim에서 무효인 자리가 없고, 줄 끝의 `o`는 목표 == 캐럿이면서 유효하기 때문이다(같은 타입을 쓰면 접는 헬퍼를 재사용하는 순간 `o`가 조용히 죽는다). `Insertion`의 셋째 케이스 `.appendingLine`이 마지막 줄 linewise `p`의 `Return` 합성 지시를 타입으로 실어 나른다.
+
+| 함수 | 담당 | 반환 |
+|---|---|---|
+| `caretTarget(for:in:)` | `.move` 모션 목표 | `Target` |
+| `editSpan(for:range:in:)` | `.edit` 전 범위 — `.motion`·`.line`·`.linewiseMotion`·`iw`, `cw` 리타깃 포함 | `Span` |
+| `openLineInsertion(above:in:)` | `o`(줄 끝) / `O`(줄 시작) | `Insertion` |
+| `pasteInsertion(before:wise:in:)` | `p`/`P` 삽입점 + 마지막 줄 분기 | `Insertion` |
+| `visualEntrySpan(linewise:in:)` | `v`(캐럿 글자 1개) / `V`(논리 줄 + 종결자) | `Span` |
+| `visualExtendSpan(for:anchor:in:)` | `extendSelection` — 앵커 + 포커스 끝 | `Span` |
+
+`editSpan`이 `(op, range)` 단일 진입점인 것은 `cw` 리타깃이 `EditKeyMapper.retargeted`와 같은 자리에서 한 번만 일어나야 판정과 실행이 갈라지지 않기 때문이고, `visualExtendSpan`이 `VisualAnchorState`를 통째로 받는 것은 포커스 끝 도출(`side`)이 범위 산술의 일부라서다. `.selection`·`aw`·quote/pair는 `.unproven`(위임 = 현행 keyboard와 바이트 동일)이며, `.selection`의 위임 결과가 정확히 `Cmd-X`/`Cmd-C` 1타라 의미까지 맞는다. 살아 있는 선택 위의 편집·삽입은 전부 `.unproven`(출발점 미증명 — 정확화 표의 공통 조건)이고, Visual 확장만 그 선택을 입력으로 쓴다.
+
+**답은 정확화 표와 같되, 표가 침묵하는 자리는 Vim 정확값이다** ([20260809_ax-span-vim-exact-where-table-is-silent.md](../../decisions/references/20260809_ax-span-vim-exact-where-table-is-silent.md) — Vim 실측 14건): 마지막 줄 linewise(delete/yank)는 **앞 개행을 흡수**해 빈 줄을 남기지 않고(창이 문서 끝에 닿아 증명될 때만 — 못 닿으면 흡수하지 않아 keyboard와 같다), 줄 마지막 단어의 `dw`는 **개행을 넘지 않으며**(뒤 공백은 줄 끝까지 포함, 카운트가 있으면 클램프는 마지막 스텝에만), linewise 카운트는 **클램프**하고 **모션 성분이 0줄일 때만 무효**다(마지막 줄 `dj`·`2dd`, 첫 줄 `dk`). 마지막 항목은 엣지 2 문언(`위 줄 수 < count → 무효`)이 count 1에서만 참이었다는 실측의 부산물이라, count 2 이상에서 keyboard와 갈린다. `iw`는 2자 이상의 공백·구두점 런까지 정확해져 무상태 시퀀스의 마지막 잔여 엣지가 닫힌다. **Visual 진입에도 무효가 없다** — 빈 줄처럼 잡을 글자가 없으면 `.invalid`가 아니라 `.unproven`으로 강등한다(진입을 스킵하면 엔진은 이미 Visual로 전이한 뒤라 모드와 화면이 어긋난다). charwise 확장은 포커스 **글자**(전진형은 선택 끝 −1자) 위에서 모션을 적용하고 `[min, max+1)`로 합치되, `e`·`$`는 캐럿 모델에서 이미 "글자 뒤"라 inclusive를 더하지 않는다. `V` 세션의 `j`/`k`는 **위임이 아니다** — 위임 사유가 희망 열 소실인데 그 세션에는 열이 없어 사유가 성립하지 않는다(charwise 세션의 `j`/`k`는 그대로 위임).
 
 **linewise는 논리 줄**이다 — 소프트 랩 문단의 `dd`가 논리 줄 전체를 지운다(keyboard 수용 엣지의 AX 경로 해소, `dj` ≠ `d`+`j` 편차 명시 수용). `dgg`/`dG`는 끝점 두 개(상수 + 현재 줄 로컬)만 필요해 문서 규모 무관이고, 파라미터화 속성(`AXLineForIndex`/`AXRangeForLine`)은 표시 줄 시맨틱이라 미채택. 산출은 항상 grapheme cluster 경계 위, 줄 종결자는 `\r\n`·`\n`·`\r`·U+2028/2029, 경계 불변식(`location ≥ 0`, `upperBound ≤ characterCount`)은 순수 함수 테스트로 고정 ([20260808_ax-offset-layer-window-logical-lines.md](../../decisions/references/20260808_ax-offset-layer-window-logical-lines.md)).
 

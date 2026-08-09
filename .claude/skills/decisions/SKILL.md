@@ -216,6 +216,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-08 | `unproven` 편집 위임은 AX 창 재사용 | 4096 창 `FocusedText`를 keyboard 정확화에 전달 — 재읽기 없음("한 액션은 한 번만 읽는다"), 술어는 창 상대라 의미 동일 | [20260808_ax-unproven-edit-delegation-reuses-ax-window.md](references/20260808_ax-unproven-edit-delegation-reuses-ax-window.md) |
 | 08-08 | 하이브리드 접두+첫 그룹은 원자 | 접두 쓰기(및 검증)와 첫 게시 그룹 사이 중단 질의 없음(전 하이브리드 공통) — 편집의 살아 있는 선택 잔류 창 봉쇄, 원자 그룹 규칙 ④ | [20260808_hybrid-prefix-atomic-with-first-group.md](references/20260808_hybrid-prefix-atomic-with-first-group.md) |
 | 08-08 | 접두 실패 문언은 `unproven` 축 전용 | "접두 실패 = keyboard 낙하"의 지시 대상 고정 — 요소·읽기 실패는 `.axUnavailable`, 쓰기 후 실패는 폴백 없음, 문장의 취지는 부분 실행 금지 | [20260808_hybrid-prefix-failure-axes-clarified.md](references/20260808_hybrid-prefix-failure-axes-clarified.md) |
+| 08-09 | AX 범위는 표 침묵 자리에서 Vim 정확 | 마지막 줄 linewise 앞 개행 흡수·줄 끝 `dw`·0 이동만 무효(카운트는 클램프) — Vim 실측 14건, 증명 못 하면 `.unproven`. `Insertion`은 `.invalid` 없음 | [20260809_ax-span-vim-exact-where-table-is-silent.md](references/20260809_ax-span-vim-exact-where-table-is-silent.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 
