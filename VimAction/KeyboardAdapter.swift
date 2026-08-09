@@ -301,7 +301,7 @@ nonisolated struct KeyboardAdapter: Sendable {
             switch mapping(
                 for: action, family: family, profile: profile, text: text, axText: axText,
                 viewport: viewport, layout: layout) {
-            case .ax(let range):
+            case .ax(let range, let visual):
                 // ① 순서 봉인 (위 `sealOrder` 주석).
                 guard sealOrder(before: action) else { return }
                 // ② 중단 래치는 **파괴적 쓰기 직전**에 한 번 더 — AX 경로에는 청크가 없으므로
@@ -328,6 +328,10 @@ nonisolated struct KeyboardAdapter: Sendable {
                 guard written(target, action: action, effects: &effects) == .success else {
                     return
                 }
+                // ⑤ 확정 부수효과는 **쓰기 성공 뒤**다. Visual 아닌 액션은 `.unchanged`라 무동작
+                //    이고, 되읽어 검증이 없는 것은 이 케이스가 뒤에 아무것도 게시하지 않기
+                //    때문이다 — 실질 방어선은 다음 액션 읽기의 자가 검증이다.
+                confirmVisual(action, update: visual, path: .accessibility)
                 continue
             case .axUnavailable:
                 #if DEBUG
@@ -691,7 +695,11 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// `paced:`가 없는 것도 계약이다 — AX 쓰기는 합성 이벤트가 아니라 드롭 모드가 없어
         /// 페이싱 대상이 아니고, `paced`는 위임 전용 속성으로 남는다.
         ///
-        case ax(NSRange)
+        /// `visual`은 Visual 세션의 상태 변화다(그 외 액션은 `.unchanged`). 매핑 시점에 적용할
+        /// 수 없어 여기 실린다 — **쓰기 `.success` 뒤**에야 확정이고, 그 사이에 설계된 실패
+        /// 단계(요소·경계 증명·쓰기 자체)가 여럿이라 매핑 시점 적용이면 나가지도 않은 액션의
+        /// side가 남는다 (`recordEditWise`가 하이브리드에서 게시 뒤로 간 것과 같은 함정).
+        case ax(NSRange, visual: VisualAnchorUpdate)
         /// **하이브리드** — AX 범위/캐럿 접두 쓰기 + 위임 게시 그룹. 편집(delete·change·yank)·
         /// `.openLine`·`.paste`가 이 케이스를 공유한다.
         ///
@@ -807,7 +815,15 @@ nonisolated struct KeyboardAdapter: Sendable {
         // `.selection` 편집이 이전 세션의 wise로 기록되는 구멍을 여기서 막는다. 망각은
         // 기록이 아니라서 "게이트가 부수효과보다 앞" 계약을 깨지 않는다(보수 방향 —
         // 틀려봐야 휴리스틱 폴백이다).
-        if case .beginSelection = action { pasteWise.forgetSelectionWise() }
+        if case .beginSelection = action {
+            pasteWise.forgetSelectionWise()
+            // **새 세션의 경로도 여기서 잊는다.** 고정은 확정 뒤(`confirmVisual`)인데, AX 분기를
+            // 골라 놓고 그 앞에서 실패하는 경로(요소·읽기 실패·경계 증명 실패·쓰기 실패)는
+            // 확정에 도달하지 않는다 — 잊지 않으면 **AX가 된 적 없는 세션이 옛 pin을 상속해**
+            // 남은 확장이 전부 스킵된다(쓴 것이 없으니 keyboard 폴백이 안전한 자리다).
+            // 망각은 기록이 아니라서 위 `forgetSelectionWise`와 같은 이유로 게이트보다 앞이다.
+            visualAnchor.pin(.keyboard)
+        }
         // `actions:` disable 판정은 **모든 게이트·부수효과보다 앞**이다 — 사용자가 끈
         // 액션은 `recordEdit`·클립보드 읽기 같은 부수효과도 남기면 안 되고
         // (걸러내기 게이트가 부수효과보다 앞인 것과 같은 규칙), 분류도 미지원이 아니라
@@ -852,7 +868,7 @@ nonisolated struct KeyboardAdapter: Sendable {
                 guard let focused = axText.value() else { return .axUnavailable }
                 switch FocusedTextOffsets.caretTarget(for: motion, in: focused) {
                 case .caret(let offset):
-                    return .ax(NSRange(location: offset, length: 0))
+                    return .ax(NSRange(location: offset, length: 0), visual: .unchanged)
                 case .invalid:
                     // 미지원이 아니라 "지원하지만 Vim에서 무효" — 편집의 증명된 무게시와 같은
                     // 편이다(첫 줄 `k`류가 위임되면 실제로 캐럿이 움직인다).
@@ -954,6 +970,14 @@ nonisolated struct KeyboardAdapter: Sendable {
             // **읽기의 두 번째 소비 지점**이다 (M5 PR-C1). 편집의 범위 술어와 달리 Visual은
             // **세션 술어**다 — 앵커 상태의 수립(진입)과 자가 검증(세션 중)이 읽기의
             // 소비자라, 어떤 액션이 읽는지는 범위가 아니라 세션 상태가 정한다.
+            //
+            // AX 경로가 **먼저**다 — 진입이 세션 경로를 정하고, AX로 고정된 세션은 아래
+            // keyboard 재앵커 기계로 낙하하지 않는다(무상태·재정의 시퀀스 금지). `nil`은
+            // "이 세션은 keyboard다"이며 그때 아래가 현행 그대로 돈다.
+            if let ax = axVisualMapping(
+                for: action, family: family, profile: profile, text: text, axText: axText) {
+                return ax
+            }
             let context = anchorContext(for: action, text: text)
             let (result, update) = Self.classifyVisual(
                 action: action, family: family, profile: profile, anchor: context)
@@ -969,33 +993,9 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
             // 게시가 확정된 뒤에만 상태를 남긴다 — `recordEdit`과 같은 규칙이다.
             // 걸러진 액션이 side를 뒤집으면 다음 액션이 있지도 않은 재앵커를 전제로 계산한다.
+            // 위임은 매핑 확정이 곧 게시 확정에 가깝다(AX는 쓰기 성공 뒤 — `confirmVisual`).
             if case .groups = result {
-                visualAnchor.apply(update)
-                // 게시가 확정된 진입·전환의 wise를 세션 wise로 note한다 — `.selection`
-                // 편집의 내용 wise는 세션이 정하는데, 스킵된 전환(`V`→`v` 폴백 `nil`)은
-                // 화면 선택이 그대로라 **확정 스트림만** 따라가야 기억이 내용과 일치한다.
-                switch action {
-                case .beginSelection(let linewise), .switchSelectionWise(let linewise):
-                    pasteWise.noteSelectionWise(linewise ? .linewise : .charwise)
-                default:
-                    break
-                }
-                #if DEBUG
-                // 상태 전이 관측 — 도그푸딩에서 각 액션이 어느 경로(수립·재앵커·폐기·무상태)를
-                // 탔는지 화면과 대조하는 유일한 수단이다.
-                switch update {
-                case .set(let state):
-                    Logger.eventTap.debug(
-                        "Visual 앵커 갱신 [\(String(describing: state.side), privacy: .public), pinned \(state.pinnedEnd, privacy: .public)]: \(String(describing: action), privacy: .public)"
-                    )
-                case .discard:
-                    Logger.eventTap.debug(
-                        "Visual 앵커 폐기 (게시 경로): \(String(describing: action), privacy: .public)"
-                    )
-                case .unchanged:
-                    break
-                }
-                #endif
+                confirmVisual(action, update: update, path: .keyboard)
             }
             return result
 
@@ -1159,6 +1159,173 @@ nonisolated struct KeyboardAdapter: Sendable {
             != nil ? .disabledByProfile : .unsupported
     }
 
+    /// Visual 액션의 **확정 부수효과** — 상태 적용·세션 경로 고정·세션 wise note가 한 몸이다.
+    ///
+    /// **호출 시점이 계약이다**: 위임(`.groups`)은 매핑 확정이 곧 게시 확정이라 그 자리에서,
+    /// AX(`.ax`)는 쓰기 `.success`를 확인한 뒤에 부른다. 두 경로가 같은 함수를 지나야 한쪽만
+    /// note를 빠뜨리거나 경로를 잘못 고정하는 일이 없다 (`EditKeyMapper.operatorStrokes`·
+    /// `CommandKeyMapper`의 위임분 진입점과 같은 선례).
+    ///
+    /// Visual 아닌 액션(`.move` 등)은 `.unchanged`를 싣고 오며 아래 어느 분기도 타지 않는다.
+    private func confirmVisual(
+        _ action: VimAction, update: VisualAnchorUpdate, path: VisualAnchorTracker.Path
+    ) {
+        visualAnchor.apply(update)
+        switch action {
+        case .beginSelection(let linewise):
+            // **경로는 진입에서만 정해진다** — 세션 도중 전환 금지가 pin의 존재 이유이고,
+            // 폐기가 경로를 되돌리지 않는 것이 그 계약의 나머지 절반이다(`sessionPath` doc).
+            visualAnchor.pin(path)
+            pasteWise.noteSelectionWise(linewise ? .linewise : .charwise)
+        case .switchSelectionWise(let linewise):
+            // 확정된 전환의 wise만 세션 wise로 note한다 — 스킵된 전환은 화면 선택이 그대로라
+            // 기억도 그대로여야 내용과 일치한다.
+            pasteWise.noteSelectionWise(linewise ? .linewise : .charwise)
+        default:
+            break
+        }
+        #if DEBUG
+        // 상태 전이 관측 — 도그푸딩에서 각 액션이 어느 경로(수립·재앵커·폐기·무상태)를
+        // 탔는지 화면과 대조하는 유일한 수단이다.
+        switch update {
+        case .set(let state):
+            Logger.eventTap.debug(
+                "Visual 앵커 갱신 [\(String(describing: path), privacy: .public), \(String(describing: state.side), privacy: .public), pinned \(state.pinnedEnd, privacy: .public)]: \(String(describing: action), privacy: .public)"
+            )
+        case .discard:
+            Logger.eventTap.debug(
+                "Visual 앵커 폐기 (게시 경로): \(String(describing: action), privacy: .public)")
+        case .unchanged:
+            break
+        }
+        #endif
+    }
+
+    /// **AX로 고정된 Visual 세션의 매핑** — `nil`이면 이 세션은 keyboard이므로 호출자가 현행
+    /// 재앵커 경로로 낙하한다.
+    ///
+    /// 진입만이 경로를 정한다: 증명되면 세션 전체가 AX이고, 못 하면 세션 전체가 keyboard다.
+    /// 세션 중간에는 **위임으로 낙하하지 않는다** — AX가 써 넣은 범위 위에서는 앱이 어느 끝을
+    /// 포커스로 보는지 미정의라 무상태 `Shift-→`가 앵커 반대쪽으로 자랄 수 있고, 뒤따르는 `d`가
+    /// 엉뚱한 텍스트를 지운다(강등이 아니라 파괴 방향 동전 던지기)
+    /// (`20260808_ax-visual-session-path-pinning.md`). 그래서 중간의 모든 실패는 스킵이다.
+    ///
+    /// `.clearSelection`이 여기 오지 않는 것도 결정이다 — collapse는 게시 `←` 유지다(동기 AX
+    /// 쓰기가 `Cmd-C` 게시를 상시 이겨 빈 복사가 됨이 실측
+    /// `20260808_ax-collapse-posted-arrow-not-caret-write.md`).
+    private func axVisualMapping(
+        for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
+        text: FocusedTextSnapshot, axText: AXWindowSnapshot
+    ) -> Mapping? {
+        switch action {
+        case .beginSelection(let linewise):
+            guard Self.usesAXWrite(action, family: family, profile: profile),
+                let processID = text.processID
+            else { return nil }
+            guard let focused = axText.value() else { return .axUnavailable }
+            // 진입에는 Vim 무효가 없다 — `.unproven`만 오고, 그것이 곧 keyboard 세션 고정이다.
+            guard
+                case .range(let range, let anchor, let column) =
+                    FocusedTextOffsets.visualEntrySelection(linewise: linewise, in: focused)
+            else { return nil }
+            // 진입 선택은 언제나 전진형이다(범위 시작 == 앵커). `V`의 원래 캐럿은 **정확값**이라
+            // keyboard ⑦의 열 근사 없이 `V`→`v`가 선다.
+            let state = VisualAnchorState(
+                anchor: anchor, wise: linewise ? .linewise : .charwise, side: .left,
+                pinnedEnd: anchor, processID: processID,
+                originalCaret: linewise ? focused.selection.location : nil,
+                focusLineDistance: nil, desiredColumn: column)
+            return .ax(range, visual: .set(state))
+
+        case .extendSelection(let motion):
+            guard visualAnchor.sessionPath == .accessibility else { return nil }
+            // 프로파일이 이름한 모션은 **정직한 스킵**이다 — 재정의 시퀀스도 무상태 시퀀스라
+            // 위임 금지의 뿌리가 그대로 적용되고, 사용자 지시("이 앱에서 이 키를 쓰지 마라")를
+            // 위반하지도 않는다 (`20260808_ax-visual-overridden-motion-honest-skip.md`).
+            // disable은 기존 분류 그대로 집계한다.
+            if profile.motionOverrides[motion] != nil {
+                guard MotionKeyMapper.selectionStrokes(for: motion, profile: profile) != nil else {
+                    return .disabledByProfile
+                }
+                return skippedAXVisual(action, "프로파일이 재정의한 모션")
+            }
+            return axVisualSession(action, family: family, profile: profile, text: text, axText: axText) {
+                state, focused in
+                FocusedTextOffsets.visualExtendSelection(for: motion, anchor: state, in: focused)
+            } state: { state, range, anchor, column in
+                state.moved(to: range, anchor: anchor, column: column)
+            }
+
+        case .switchSelectionWise(let linewise):
+            guard visualAnchor.sessionPath == .accessibility else { return nil }
+            return axVisualSession(action, family: family, profile: profile, text: text, axText: axText) {
+                state, focused in
+                FocusedTextOffsets.visualSwitchSelection(
+                    toLinewise: linewise, anchor: state, in: focused)
+            } state: { state, range, anchor, column in
+                var next = state.moved(to: range, anchor: anchor, column: column)
+                next.wise = linewise ? .linewise : .charwise
+                // `v`→`V`는 charwise 앵커를 보관한다 — 그것이 `V`→`v` 복원의 유일한 원천이고,
+                // AX는 그 값을 추정이 아니라 그대로 들고 있다(keyboard ⑥이 회수한 것과 갈린다).
+                next.originalCaret = linewise ? state.anchor : nil
+                return next
+            }
+
+        default:
+            // `.clearSelection` — 위 doc.
+            return nil
+        }
+    }
+
+    /// AX 고정 세션의 공통 배선: 게이트 → 창 읽기 → 자가 검증 → 산출 → 상태.
+    /// 실패는 전부 스킵이며(위임 금지), 요소·읽기 실패만 `.axUnavailable`(execute 잔여 접기)다.
+    private func axVisualSession(
+        _ action: VimAction, family: ElementFamily, profile: ResolvedProfile,
+        text: FocusedTextSnapshot, axText: AXWindowSnapshot,
+        selection: (VisualAnchorState, FocusedText) -> FocusedTextOffsets.Selection,
+        state next: (VisualAnchorState, NSRange, Int, Int?) -> VisualAnchorState
+    ) -> Mapping {
+        // 세션은 AX인데 전략·계열이 더 이상 AX가 아니다(포커스가 비텍스트로 옮겨간 자리 등) —
+        // 쓸 수도 위임할 수도 없으므로 스킵이다.
+        guard Self.usesAXWrite(action, family: family, profile: profile) else {
+            return skippedAXVisual(action, "전략·계열이 더 이상 AX가 아니다")
+        }
+        guard let focused = axText.value() else { return .axUnavailable }
+        // 자가 검증은 AX에서도 유지한다 — 세션 중 위임 액션(`p`·`u`)이 선택을 파괴할 수 있고,
+        // 매 액션 어차피 읽으므로 비용이 0이다. 실패는 상태 폐기 + 스킵이며, **경로 pin은
+        // 살아 있어** 이후 액션도 스킵이다(무상태 폴백 금지 — `sessionPath` doc).
+        guard let state = visualAnchor.validated(against: focused, processID: text.processID)
+        else {
+            #if DEBUG
+            Logger.eventTap.debug(
+                "AX Visual 스킵 — 자가 검증 불일치(상태 폐기, 세션은 AX 유지): 읽은 선택 [\(focused.selection.location, privacy: .public), \(focused.selection.upperBound, privacy: .public))"
+            )
+            #endif
+            return .skipped
+        }
+        switch selection(state, focused) {
+        case .range(let range, let anchor, let column):
+            return .ax(range, visual: .set(next(state, range, anchor, column)))
+        case .invalid:
+            return skippedAXVisual(action, "범위 무변화가 정확 동작이다")
+        case .unproven:
+            // Normal 경로와 갈리는 유일한 지점이다 — 거기서는 위임 낙하지만 AX 세션에서는
+            // 무상태 시퀀스가 곧 파괴 위험이라 스킵이다.
+            return skippedAXVisual(action, "창이 답하지 못했다 (세션이 AX라 위임 금지)")
+        }
+    }
+
+    /// AX Visual 스킵 1건 — 사유를 아는 자리에서 자체 로그를 남긴다(`.skipped` 계약).
+    /// 도그푸딩에서 이 빈도가 "세션이 죽은 채 남는가"의 판정 데이터다.
+    private func skippedAXVisual(_ action: VimAction, _ reason: String) -> Mapping {
+        #if DEBUG
+        Logger.eventTap.debug(
+            "AX Visual 스킵 — \(reason, privacy: .public): \(String(describing: action), privacy: .public)"
+        )
+        #endif
+        return .skipped
+    }
+
     /// Visual 액션 1건의 정확화 입력 — 세션 술어의 본체다.
     ///
     /// 읽기 실패·pid 없음·상태 부재는 전부 `.none`으로 접힌다: 매퍼가 무상태 시퀀스를 내고
@@ -1259,7 +1426,11 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 등)은 사용자가 그 액션에 대해 지시한 모션이 아니고, 여기서 보려면 `EditKeyMapper`의
     /// 시퀀스 조립표가 어댑터로 복사돼 두 곳이 갈라진다.
     ///
-    /// Visual이 아직 false인 것은 PR-D1b 세션 4 몫이기 때문이다.
+    /// **Visual에는 ④를 적용하지 않는다.** 재정의 시퀀스도 무상태 시퀀스라 AX로 고정된 세션에서
+    /// 위임하면 무상태 폴백 금지의 뿌리를 정면으로 어긴다 — 답은 위임이 아니라 정직한 스킵이고,
+    /// 그 판정은 세션 경로를 아는 `axVisualMapping`이 한다
+    /// (`20260808_ax-visual-overridden-motion-honest-skip.md`). 여기서는 전략·계열만 본다.
+    /// `.clearSelection`이 빠진 것도 결정이다 — collapse는 게시 `←` 유지다.
     ///
     /// `ElementFamily`에 exhaustive switch를 거는 것은 `survivesFilterGate`와 같은 규칙이다.
     /// `VimAction`에 걸지 않는 것은 매퍼와 같은 계약이다.
@@ -1279,6 +1450,9 @@ nonisolated struct KeyboardAdapter: Sendable {
             return namedMotions(of: range, for: op).allSatisfy {
                 profile.motionOverrides[$0] == nil
             }
+        case .beginSelection, .extendSelection, .switchSelectionWise:
+            // ④는 위 doc대로 Visual 분기가 스킵으로 처리한다.
+            return true
         case .openLine, .paste:
             // ④의 대상이 없다 — `o`의 줄 끝·`p`의 한 칸 오른쪽은 사용자가 그 액션에 대해
             // 지시한 모션이 아니라 **접두의 내부 분해**다(`dd`가 쓰는 `lineStart`와 같은 편).

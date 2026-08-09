@@ -44,6 +44,7 @@ private func makeAXAdapter(
     axText: FocusedText?,
     element: AXUIElement? = AXUIElementCreateApplication(99_999),
     clipboard: PasteWise? = .charwise,
+    visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
     writeError: @escaping @Sendable () -> AXError = { .success },
     readback: (@Sendable () -> NSRange?)? = nil,
     now: @escaping @Sendable () -> TimeInterval = { 0 },
@@ -56,6 +57,7 @@ private func makeAXAdapter(
         executor: ActionExecutor(postEvent: posted),
         pasteWise: PasteWiseResolver(readClipboard: { clipboard }, readChangeCount: { 0 }),
         reader: FocusedTextReader { _ in nil },
+        visualAnchor: visualAnchor,
         viewportReader: ViewportReader { _ in nil },
         axWindow: { _ in axText },
         axSelection: { _ in readback?() ?? landed.value },
@@ -78,6 +80,21 @@ private let axText = focusedText("foo.bar  baz", caret: 0)
 
 /// 존재하는 pid여야 스냅샷이 seam을 부른다 (`processID`가 `nil`이면 읽기 자체가 생략된다).
 private let anyPID: pid_t = 99_999
+
+/// **AX로 고정된 세션** — 진입이 만들어 두는 상태와 경로를 그대로 주입한다.
+/// `desiredColumn`을 비워 두면 `j`/`k`가 스킵되는 것이 계약이라, 열은 명시 인자다.
+private func axSession(
+    anchor: Int, wise: VisualAnchorState.Wise = .charwise,
+    side: VisualAnchorState.Side = .left, pinnedEnd: Int? = nil, column: Int? = nil,
+    originalCaret: Int? = nil
+) -> VisualAnchorTracker {
+    VisualAnchorTracker(
+        state: VisualAnchorState(
+            anchor: anchor, wise: wise, side: side, pinnedEnd: pinnedEnd ?? anchor,
+            processID: anyPID, originalCaret: originalCaret, focusLineDistance: nil,
+            desiredColumn: column),
+        sessionPath: .accessibility)
+}
 
 struct KeyboardAdapterAXWriteTests {
     /// 증명된 모션은 **AX 캐럿 쓰기 1건**이고 합성 이벤트는 하나도 나가지 않는다.
@@ -1098,5 +1115,308 @@ struct KeyboardAdapterHybridInsertionTests {
 
         #expect(writes == 0)
         #expect(posted.isEmpty)
+    }
+
+}
+
+// MARK: - Visual 세션 경로 고정 (PR-D1b 세션 4)
+
+/// Visual은 하이브리드가 아니라 **순수 `.ax`**(선택 자체가 출력)라 삽입 하이브리드와 struct를
+/// 가른다 — 이 파일의 struct 경계는 `Mapping` 케이스를 따른다.
+struct KeyboardAdapterVisualAXTests {
+    /// 진입은 **범위 쓰기 1건**이고 합성 이벤트가 하나도 안 나간다 — Visual은 접두+위임이
+    /// 아니라 선택 자체가 출력이다. 세션 경로가 여기서 고정되고, keyboard가 추정으로 두던
+    /// `side`·`pinnedEnd`·희망 열이 읽기 기반 정확값으로 채워진다.
+    @Test("v 진입은 캐럿 글자를 AX 범위로 쓴다")
+    func charwiseEntryWritesRange() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker()
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), visualAnchor: tracker,
+            onWrite: { calls.append($0) }, collecting: { posted.append($0) })
+
+        adapter.execute([.beginSelection(linewise: false)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 0, length: 1)])
+        #expect(posted.isEmpty, "게시 seam 무호출이 위임 없음의 증거다")
+        #expect(tracker.sessionPath == .accessibility)
+        #expect(
+            tracker.current
+                == VisualAnchorState(
+                    anchor: 0, wise: .charwise, side: .left, pinnedEnd: 0, processID: anyPID,
+                    originalCaret: nil, focusLineDistance: nil, desiredColumn: 0))
+    }
+
+    /// `V` 진입은 논리 줄 전체이고 **원래 캐럿을 정확값으로** 보관한다 — keyboard ⑦이 열
+    /// 근사로만 쓰던 값이라, 이 정확값이 `V`→`v`를 조건 없이 세운다.
+    @Test("V 진입은 논리 줄을 쓰고 원래 캐럿을 정확히 보관한다")
+    func linewiseEntryKeepsOriginalCaret() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        let tracker = VisualAnchorTracker()
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 1), visualAnchor: tracker,
+            onWrite: { calls.append($0) })
+
+        adapter.execute([.beginSelection(linewise: true)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 0, length: 3)])
+        #expect(tracker.current?.originalCaret == 1)
+        #expect(tracker.current?.desiredColumn == 1)
+        #expect(tracker.current?.wise == .linewise)
+    }
+
+    /// **진입 증명 실패가 세션을 keyboard로 고정한다** — 빈 줄처럼 잡을 글자가 없는 자리다.
+    /// 이후 세션은 검증된 재앵커 기계가 그대로 돈다.
+    @Test("증명되지 않은 진입은 세션을 keyboard로 고정한다")
+    func unprovenEntryPinsKeyboard() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker()
+        let adapter = makeAXAdapter(
+            axText: focusedText("a\n\nb", caret: 2), visualAnchor: tracker,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.beginSelection(linewise: false), .extendSelection(.charRight)], profile: axProfile,
+            processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(!posted.isEmpty, "폴백 세션은 현행 무상태 시퀀스 그대로다")
+        #expect(tracker.sessionPath == .keyboard)
+    }
+
+    /// 세션 확장도 범위 쓰기 1건이고, 상태는 산출이 낸 앵커·열로 갱신된다.
+    @Test("AX 세션의 확장은 범위 쓰기다")
+    func sessionExtensionWritesRange() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = axSession(anchor: 0, column: 0)
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 1), visualAnchor: tracker,
+            onWrite: { calls.append($0) }, collecting: { posted.append($0) })
+
+        adapter.execute([.extendSelection(.charRight)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 0, length: 2)])
+        #expect(posted.isEmpty)
+        #expect(tracker.current?.side == .left)
+        #expect(tracker.current?.pinnedEnd == 0)
+    }
+
+    /// **charwise `j`/`k`가 AX 세션에서는 위임이 아니다** — 위임 사유(희망 열 소실)를 상태가
+    /// 열을 들어 없앤다. 열을 모르면 근사하지 않고 스킵이다(아래 두 번째 단언).
+    @Test("charwise 세션의 j는 희망 열을 알 때만 범위를 쓴다")
+    func charwiseVerticalMotionUsesDesiredColumn() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let known = axSession(anchor: 0, column: 0)
+        makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 1), visualAnchor: known,
+            onWrite: { calls.append($0) }, collecting: { posted.append($0) }
+        ).execute([.extendSelection(.lineDown)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 0, length: 4)])
+        #expect(posted.isEmpty)
+
+        nonisolated(unsafe) var unknownWrites = 0
+        nonisolated(unsafe) var unknownPosted: [CGEvent] = []
+        makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 1), visualAnchor: axSession(anchor: 0),
+            onWrite: { _ in unknownWrites += 1 }, collecting: { unknownPosted.append($0) }
+        ).execute([.extendSelection(.lineDown)], profile: axProfile, processID: anyPID)
+
+        #expect(unknownWrites == 0)
+        #expect(unknownPosted.isEmpty, "AX 세션의 미증명은 위임이 아니라 스킵이다")
+    }
+
+    /// `V` 세션의 charwise 모션은 Vim에서 범위가 안 바뀐다 — 쓰기도 게시도 없다.
+    @Test("V 세션의 charwise 모션은 쓰지도 게시하지도 않는다", arguments: [Motion.charRight, .wordForward, .lineEnd])
+    func linewiseSessionSkipsCharwiseMotions(_ motion: Motion) {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 3),
+            visualAnchor: axSession(anchor: 0, wise: .linewise, column: 0),
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute([.extendSelection(motion)], profile: axProfile, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty)
+    }
+
+    /// **프로파일이 이름한 모션은 정직한 스킵**이다 — 재정의 시퀀스도 무상태 시퀀스라 AX가 쓴
+    /// 범위 위에서는 파괴 방향이 불확정이고, 그 키를 쓰지 않는 것이 곧 사용자 지시다.
+    @Test("AX 세션의 재정의 모션은 쓰지도 게시하지도 않는다")
+    func overriddenMotionSkipsInAXSession() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let profile = ResolvedProfile(
+            AppProfile(
+                strategy: .accessibility,
+                motions: [.charRight: .strokes([ConfigKeyStroke(.end)])]))
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 1),
+            visualAnchor: axSession(anchor: 0, column: 0), onWrite: { _ in writes += 1 },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.extendSelection(.charRight)], profile: profile, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty, "재정의 시퀀스도 나가지 않는다")
+    }
+
+    /// 자가 검증이 깨지면 상태는 폐기되지만 **세션 경로는 남는다** — 그 뒤 액션도 전부 스킵이다.
+    /// 화면에 남은 선택이 AX가 쓴 범위일 수 있어(앱의 정규화·클램프), 무상태 폴백은 파괴 방향
+    /// 동전 던지기이기 때문이다.
+    @Test("검증 불일치 뒤에도 AX 세션은 폴백하지 않는다")
+    func validationFailureKeepsSessionPinned() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // 상태는 앵커 0을 기대하는데 화면 선택은 [4,5)다 — pinnedEnd 불일치.
+        let tracker = axSession(anchor: 0, column: 0)
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 4, length: 1), visualAnchor: tracker,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.extendSelection(.charRight), .extendSelection(.charRight)], profile: axProfile,
+            processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty)
+        #expect(tracker.current == nil, "검증 실패는 상태를 폐기한다")
+        #expect(tracker.sessionPath == .accessibility, "경로는 폐기로 지워지지 않는다")
+    }
+
+    /// 요소·읽기 실패는 `unproven`과 다른 축이다 — 스킵이되 **execute 잔여까지 접는다**.
+    @Test("Visual도 읽기 실패면 execute 잔여를 접는다")
+    func visualReadFailureEndsExecute() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: nil, visualAnchor: axSession(anchor: 0, column: 0),
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.extendSelection(.charRight), .move(.wordForward)], profile: axProfile,
+            processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty)
+    }
+
+    /// 확정 부수효과는 **쓰기 성공 뒤**다 — 실패한 진입이 상태·경로를 남기면 다음 액션이
+    /// 있지도 않은 선택을 전제로 계산한다.
+    ///
+    /// **옛 세션의 pin을 주입하는 것이 이 테스트의 요점**이다: 기본값(`.keyboard`)으로 두면
+    /// 진입 초입의 망각을 통째로 지워도 통과한다(`defaults.bool` 함정과 같은 형태).
+    @Test("쓰기가 실패한 진입은 상태도 경로도 남기지 않는다")
+    func failedEntryLeavesNoState() {
+        let tracker = VisualAnchorTracker(sessionPath: .accessibility)
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), visualAnchor: tracker,
+            writeError: { .failure })
+
+        adapter.execute([.beginSelection(linewise: false)], profile: axProfile, processID: anyPID)
+
+        #expect(tracker.current == nil)
+        #expect(tracker.sessionPath == .keyboard)
+    }
+
+    /// **AX가 된 적 없는 세션은 옛 pin을 상속하지 않는다.** 진입이 요소·읽기 실패로 접히면
+    /// 화면에 AX가 쓴 것이 없으므로 keyboard 폴백이 안전하고, 상속하면 그 세션이 통째로
+    /// 무반응이 된다(확정 뒤에만 고정하면 이 자리를 놓친다).
+    @Test("읽기 실패로 접힌 진입 뒤에는 keyboard 폴백이 돈다")
+    func failedEntryFallsBackToKeyboardSession() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker(sessionPath: .accessibility)
+        let adapter = makeAXAdapter(
+            axText: nil, visualAnchor: tracker, collecting: { posted.append($0) })
+
+        adapter.execute([.beginSelection(linewise: false)], profile: axProfile, processID: anyPID)
+        #expect(posted.isEmpty, "요소·읽기 실패는 execute 잔여를 접는다")
+        #expect(tracker.sessionPath == .keyboard)
+
+        adapter.execute([.extendSelection(.charRight)], profile: axProfile, processID: anyPID)
+        #expect(!posted.isEmpty, "AX가 된 적 없는 세션은 무상태 시퀀스로 이어간다")
+    }
+
+    /// collapse는 AX 세션에서도 **게시 `←`** 다 — 동기 AX 쓰기가 `Cmd-C` 게시를 상시 이겨
+    /// 빈 복사가 됨이 실측됐다.
+    @Test("AX 세션의 clearSelection은 게시 ←를 유지한다")
+    func clearSelectionStaysPosted() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = axSession(anchor: 0, column: 0)
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 1), visualAnchor: tracker,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute([.clearSelection], profile: axProfile, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(
+            posted.map { $0.getIntegerValueField(.keyboardEventKeycode) }
+                == [Int64(kVK_LeftArrow), Int64(kVK_LeftArrow)])
+        #expect(tracker.current == nil)
+    }
+
+    /// keyboard로 고정된 세션은 **현행 그대로**다 — 전략이 accessibility여도 재앵커 기계가 돈다.
+    @Test("keyboard 고정 세션은 AX 앱에서도 게시 경로다")
+    func keyboardPinnedSessionStaysDelegated() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = VisualAnchorTracker(
+            state: VisualAnchorState(
+                anchor: 0, wise: .charwise, side: .left, pinnedEnd: 0, processID: anyPID,
+                originalCaret: nil, focusLineDistance: nil),
+            sessionPath: .keyboard)
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 1), visualAnchor: tracker,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute([.extendSelection(.charRight)], profile: axProfile, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(!posted.isEmpty)
+    }
+
+    /// `v`→`V`는 앵커까지 줄 반올림하고 charwise 앵커를 보관한다 — 그 보관값이 `V`→`v`를
+    /// 조건 없이 세운다(keyboard ⑥이 열 근사 때문에 회수했던 값이다).
+    @Test("v→V는 논리 줄로 반올림하고 원래 앵커를 보관한다")
+    func switchToLinewiseKeepsCharwiseAnchor() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        let tracker = axSession(anchor: 0, column: 1)
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 2), visualAnchor: tracker,
+            onWrite: { calls.append($0) })
+
+        adapter.execute([.switchSelectionWise(linewise: true)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 0, length: 3)])
+        #expect(tracker.current?.wise == .linewise)
+        #expect(tracker.current?.originalCaret == 0)
+    }
+
+    /// `V`→`v`는 원래 캐럿과 포커스 줄의 희망 열을 잇는다 — AX는 둘 다 정확값이라 keyboard의
+    /// 조건부 지원(줄 거리 추적·상한 32)이 필요 없다.
+    @Test("V→v는 원래 캐럿과 포커스 열을 잇는다")
+    func switchToCharwiseRestoresSelection() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        let tracker = axSession(
+            anchor: 0, wise: .linewise, pinnedEnd: 0, column: 1, originalCaret: 1)
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0, length: 6), visualAnchor: tracker,
+            onWrite: { calls.append($0) })
+
+        adapter.execute(
+            [.switchSelectionWise(linewise: false)], profile: axProfile, processID: anyPID)
+
+        // `[P, 포커스 줄의 열 위치 +1)` — P=1(`1`)에서 둘째 줄 열 1(`2`)까지 inclusive다.
+        #expect(calls.map(\.range) == [NSRange(location: 1, length: 4)])
+        #expect(tracker.current?.wise == .charwise)
+        #expect(tracker.current?.anchor == 1)
     }
 }

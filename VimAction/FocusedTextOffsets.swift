@@ -52,6 +52,27 @@ nonisolated enum FocusedTextOffsets {
         case unproven
     }
 
+    /// Visual 산출 1건 — 범위와 **상태 재수립 재료**를 함께 낸다.
+    ///
+    /// `Span`을 쓰지 않는 것이 계약이다: Visual은 매 액션이 세션 상태를 갱신하는 유일한 어휘라
+    /// 범위만으로는 다음 상태를 세울 수 없다. 전환은 **논리 앵커 자체가 이동하고**(`v`→`V`의 새
+    /// 앵커는 앵커 줄 시작이라 후진형에서는 범위 한가운데다), charwise `j`/`k`는 **희망 열**을
+    /// 물려받는다. `side`·`pinnedEnd`는 범위와 앵커에서 도출되므로 여기 싣지 않는다
+    /// (`VisualAnchorState.moved(to:anchor:column:)`).
+    enum Selection: Equatable, Sendable {
+        /// Vim 자체가 무효(범위 무변화 포함) — 그 액션만 정직한 스킵이다.
+        case invalid
+        /// 증명된 **절대 UTF-16 범위** + 새 논리 앵커 + 새 희망 열(`nil` = 모름).
+        case range(NSRange, anchor: Int, column: Int?)
+        /// 창이 답하지 못했다. Normal 경로와 달리 **AX Visual 세션에서는 위임이 아니라 스킵**
+        /// 이다 — AX가 쓴 범위 위의 무상태 시퀀스는 파괴 방향 동전 던지기다.
+        case unproven
+    }
+
+    /// 희망 열의 **줄 끝 고정** — Vim curswant MAXCOL의 대응이다. `$` 뒤의 `j`/`k`는 줄 길이와
+    /// 무관하게 줄 끝(종결자)에 붙는 것이 실측이고, 산술이 항상 `min` 우선이라 오버플로가 없다.
+    static let lineEndColumn = Int.max
+
     /// 삽입 위치 1건의 산출. **`.invalid`가 없다** — `o`·`O`·`p`·`P`는 Vim에서 무효인 자리가
     /// 없기 때문이다. 이것이 `Span`과 타입을 가른 이유이기도 하다: `Target`/`Span`은 "목표 ==
     /// 현재 캐럿"을 `.invalid`로 접는데, 줄 끝에서 `o`는 목표 == 캐럿이면서 유효하다. 같은
@@ -219,37 +240,53 @@ nonisolated enum FocusedTextOffsets {
     /// **진입에는 Vim 무효가 없다** — 빈 줄처럼 잡을 글자가 없는 자리는 `.invalid`가 아니라
     /// `.unproven`(keyboard 폴백)으로 강등한다. 진입을 스킵하면 엔진은 이미 Visual로 전이한
     /// 뒤라 화면과 모드가 어긋난다.
-    static func visualEntrySpan(linewise: Bool, in text: FocusedText) -> Span {
+    static func visualEntrySelection(linewise: Bool, in text: FocusedText) -> Selection {
         guard text.selection.length == 0, let window = Window(text) else { return .unproven }
-        let span = linewise ? window.currentLineSpan() : window.characterUnderCaretSpan()
-        if case .invalid = span { return .unproven }
-        return span
+        let selection = linewise ? window.linewiseEntry() : window.charwiseEntry()
+        if case .invalid = selection { return .unproven }
+        return selection
     }
 
     /// `extendSelection(motion)`의 새 선택 범위 — 논리 앵커 A와 포커스 끝에서 계산한다.
     ///
     /// 포커스 끝 도출(`side`)이 범위 산술의 일부라 상태를 통째로 받는다 — 어댑터가 도출하면
     /// 그 규칙이 두 곳에 생긴다. `pinnedEnd`·pid 검증은 호출자(`VisualAnchorTracker`) 몫이다.
-    static func visualExtendSpan(
+    static func visualExtendSelection(
         for motion: Motion, anchor: VisualAnchorState, in text: FocusedText
-    ) -> Span {
+    ) -> Selection {
         guard text.selection.length > 0, let window = Window(text) else { return .unproven }
-        let span: Span
+        let selection: Selection
         switch anchor.wise {
         case .linewise:
             // `V` 세션의 charwise 모션 8종은 Vim에서 범위가 안 바뀐다 — 무게시가 정확 동작이다
-            // (`20260804_visual-linewise-motion-range-noop.md`).
+            // (`20260804_visual-linewise-motion-range-noop.md`). 희망 열도 그대로 남아
+            // `V`→`v` 복원의 열이 실제 Vim 커서 열과 일치한다.
             guard !isCharwiseMotion(motion) else { return .invalid }
-            span = window.linewiseExtendSpan(motion, anchor: anchor, in: text)
+            selection = window.linewiseExtension(motion, anchor: anchor, in: text)
         case .charwise:
-            // `j`/`k`는 희망 열을 잃어 위임 확정이다 — charwise 세션에서는 열이 살아 있다.
-            guard motion != .lineUp, motion != .lineDown else { return .unproven }
-            span = window.charwiseExtendSpan(motion, anchor: anchor, in: text)
+            selection = window.charwiseExtension(motion, anchor: anchor, in: text)
         }
         // 계산 결과가 지금 선택 그대로면 Vim에서도 범위 무변화다 — 무게시가 정확 동작이고,
         // 굳이 같은 범위를 AX로 다시 쓸 이유가 없다 (줄 끝 `vl`·문서 끝 `Vj`가 여기로 온다).
-        if case .range(let range) = span, range == text.selection { return .invalid }
-        return span
+        // 그 액션의 희망 열 갱신도 함께 버려진다 — 이미 줄 끝인 캐럿의 `v$`가 그 자리이며,
+        // 무게시 자리에 상태만 남기려면 케이스가 하나 더 필요해 수용한다.
+        if case .range(let range, _, _) = selection, range == text.selection { return .invalid }
+        return selection
+    }
+
+    /// `switchSelectionWise(linewise:)`의 새 선택 범위 — `v`↔`V` 양방향이다.
+    ///
+    /// keyboard 경로가 `V`→`v`를 조건부로만 지원하는 이유(포커스 열이 창으로 증명되지 않는다)는
+    /// AX에 없다: `V` 진입이 원래 캐럿 P를 **정확히** 읽어 두고 포커스 줄 시작도 창이 답하므로
+    /// 열이 추정이 아니라 뺄셈이다. 남는 증명 실패(P 미상 — ⑥으로 만들어진 세션은 아니다,
+    /// 창이 줄 경계에 못 닿음)만 `.unproven`이며 AX 세션에서는 정직한 스킵이 된다.
+    static func visualSwitchSelection(
+        toLinewise: Bool, anchor: VisualAnchorState, in text: FocusedText
+    ) -> Selection {
+        guard text.selection.length > 0, let window = Window(text) else { return .unproven }
+        return toLinewise
+            ? window.roundedToLines(anchor: anchor, in: text)
+            : window.restoredToCharacters(anchor: anchor, in: text)
     }
 
     /// `V` 세션에서 범위를 바꾸지 못하는 모션들.
@@ -744,65 +781,193 @@ nonisolated enum FocusedTextOffsets {
 
         /// `v` 진입 — 캐럿이 놓인 글자 하나(inclusive). 줄 끝이면 Vim 커서는 마지막 글자 위라
         /// 그 글자이고, 빈 줄은 잡을 글자가 없어 무효(호출자가 `.unproven`으로 강등)다.
-        func characterUnderCaretSpan() -> Span {
+        func charwiseEntry() -> Selection {
+            let focus: Int
             if caret < count, !isTerminator(at: caret) {
-                return Self.span(from: offsets[caret], to: offsets[caret + 1])
+                focus = caret
+            } else if caret == count, !reachesDocumentEnd {
+                return .unproven
+            } else {
+                guard caret > 0, !isTerminator(at: caret - 1) else { return .invalid }
+                focus = caret - 1
             }
-            if caret == count, !reachesDocumentEnd { return .unproven }
-            guard caret > 0, !isTerminator(at: caret - 1) else { return .invalid }
-            return Self.span(from: offsets[caret - 1], to: offsets[caret])
+            return selection(
+                Self.span(from: offsets[focus], to: offsets[inclusiveEnd(focus)]),
+                anchor: offsets[focus], column: focusColumn(at: focus))
         }
 
         /// `V` 진입 — 캐럿 논리 줄 전체(종결자 포함, 마지막 줄이면 문서 끝까지).
-        func currentLineSpan() -> Span { lineSpan(from: caret, to: caret) }
+        ///
+        /// 열은 `charwiseEntry`와 **같은 함수**로 센다 — 절대 오프셋 뺄셈은 UTF-16 델타라
+        /// 이모지 앞의 캐럿에서 열이 부풀고(그 값이 `V`→`v` 복원의 포커스가 된다), grapheme
+        /// 경계 불변식은 결과가 `offsets` 원소이기만 하면 통과시켜 못 잡는다. 이 값이 `V`→`v`
+        /// 복원의 포커스 열이고, ⑤가 `V` 세션의 열 이동을 전부 스킵하므로 Vim 커서 열과
+        /// 실제로 일치한다(실측 `llVjv`).
+        func linewiseEntry() -> Selection {
+            guard case .range(let range) = lineSpan(from: caret, to: caret) else {
+                return .unproven
+            }
+            return .range(range, anchor: range.location, column: focusColumn(at: caret))
+        }
 
         /// charwise 확장 — 포커스 **글자** 위에서 모션을 적용하고 앵커와 합친다.
         ///
         /// 포커스가 선택 끝이 아니라 그 한 글자 왼쪽인 것이 요점이다: Vim 커서는 선택된
         /// 마지막 글자 **위**에 있고, `l`이 선택을 한 글자 넓히려면 거기서 출발해야 한다.
-        func charwiseExtendSpan(_ motion: Motion, anchor: VisualAnchorState, in text: FocusedText)
-            -> Span
-        {
+        func charwiseExtension(
+            _ motion: Motion, anchor: VisualAnchorState, in text: FocusedText
+        ) -> Selection {
             guard let anchorIndex = index(of: anchor.anchor) else { return .unproven }
             // 절대 모션은 끝점이 상수라 포커스도 창도 필요 없다.
             switch motion {
             case .documentStart:
-                return Self.span(from: 0, to: offsets[inclusiveEnd(anchorIndex)])
+                return selection(
+                    Self.span(from: 0, to: offsets[inclusiveEnd(anchorIndex)]),
+                    anchor: anchor.anchor, column: 0)
             case .documentEnd:
-                return Self.span(from: offsets[anchorIndex], to: characterCount)
+                // 착지가 문서 끝이라 열을 세려면 마지막 줄 시작이 필요한데 창이 거기 못 닿는다 —
+                // 모르는 것은 모른다고 남긴다(이어지는 `j`/`k`가 정직하게 스킵된다).
+                return selection(
+                    Self.span(from: offsets[anchorIndex], to: characterCount),
+                    anchor: anchor.anchor, column: nil)
             default:
                 break
             }
             guard let focus = focusIndex(anchor: anchor, in: text) else { return .unproven }
-            switch step(motion, from: focus) {
+            let moved: Step
+            /// `j`/`k`만 값이 있다 — 물려받는 희망 열이다.
+            let inherited: Int?
+            switch motion {
+            case .lineUp, .lineDown:
+                // **`j`/`k`가 위임이 아닌 것이 AX charwise 세션의 차이다.** 위임 사유(희망 열
+                // 소실)를 상태가 열을 들어 없앤다. 모르면 근사하지 않고 정직하게 스킵한다.
+                guard let desired = anchor.desiredColumn else { return .unproven }
+                moved = movedFocus(from: focus, down: motion == .lineDown, column: desired)
+                inherited = desired
+            default:
+                moved = step(motion, from: focus)
+                inherited = nil
+            }
+            switch moved {
             case .unproven: return .unproven
             case .invalid: return .invalid
             case .index(let target):
-                // `e`·`$`는 캐럿 모델에서 이미 "마지막 글자 **뒤**"를 가리키므로 그대로 배타
-                // 끝이다. 나머지 모션의 목표는 커서가 **놓이는** 글자라 한 글자 더 문다.
-                // 이 갈림이 없으면 `ve`가 뒤 공백까지 잡는다(현행 keyboard와도 어긋난다).
-                let end = Self.landsPastCharacter(motion) ? target : inclusiveEnd(target)
-                return target >= anchorIndex
-                    ? Self.span(from: offsets[anchorIndex], to: offsets[end])
-                    : Self.span(from: offsets[target], to: offsets[inclusiveEnd(anchorIndex)])
+                // **커서 자리로 정규화하는 것이 먼저다.** `e`의 목표는 캐럿 모델에서 "마지막
+                // 글자 **뒤**"라 커서는 그 한 칸 왼쪽이고, 방향 판정과 후진 하한이 그것을
+                // 되돌리지 않으면 후진형 `ve`가 커서 글자를 선택에서 빠뜨린다(전진형만 `end`
+                // 보정으로 우연히 맞았다).
+                let focusTarget = Self.landsPastCharacter(motion) ? target - 1 : target
+                let column: Int?
+                if let inherited {
+                    column = inherited
+                } else if Self.sticksToLineEnd(motion) {
+                    column = FocusedTextOffsets.lineEndColumn
+                } else {
+                    column = focusColumn(at: focusTarget)
+                }
+                return selection(
+                    spanBetween(anchorIndex, focusTarget), anchor: anchor.anchor, column: column)
             }
         }
 
-        /// 캐럿 모델에서 목표가 "글자 위"가 아니라 "글자 뒤"인 모션.
+        /// 캐럿 모델에서 목표가 커서 자리가 아니라 **그 다음**인 모션 — `e` 하나다.
+        ///
+        /// `$`가 여기 없는 것이 Vim 실측이다: 비-마지막 줄의 `v$`는 레지스터가 `"abcdef\n"`
+        /// (개행 포함)이라 커서가 종결자 **위**이고, 그래서 아래 `inclusiveEnd`를 지난다.
         private static func landsPastCharacter(_ motion: Motion) -> Bool {
-            switch motion {
-            case .wordEndForward, .lineEnd, .lineEndForAppend: return true
-            default: return false
-            }
+            motion == .wordEndForward
         }
 
-        /// linewise 확장 — 포커스 **줄**을 옮기고 앵커 줄과 합친다.
+        /// 앵커와 포커스를 잇는 inclusive 범위 — **큰 쪽 끝을 한 글자 더 문다.**
+        ///
+        /// 확장과 `V`→`v` 복원이 같은 함수를 지나는 것이 계약이다: 방향 판정과 끝 보정이
+        /// 한 몸이라 갈라 두면 한쪽만 고쳐지는 자리다(후진형 `ve`가 정확히 그랬다).
+        private func spanBetween(_ anchor: Int, _ focus: Int) -> Span {
+            anchor <= focus
+                ? Self.span(from: offsets[anchor], to: offsets[inclusiveEnd(focus)])
+                : Self.span(from: offsets[focus], to: offsets[inclusiveEnd(anchor)])
+        }
+
+        /// 이후 `j`/`k`가 줄 길이와 무관하게 줄 끝에 붙는 모션 — Vim curswant MAXCOL이다
+        /// (실측 `v$j`가 다음 줄의 개행까지 문다).
+        private static func sticksToLineEnd(_ motion: Motion) -> Bool {
+            motion == .lineEnd || motion == .lineEndForAppend
+        }
+
+        /// linewise 확장 — 포커스 **줄**을 옮기고 앵커 줄과 합친다. 희망 열은 그대로 물려
+        /// `V`→`v` 복원의 원천으로 남는다.
         ///
         /// `j`/`k`가 여기서는 위임이 아니다: 위임 사유가 희망 열 소실인데 `V` 세션에는 열이
         /// 없어 사유 자체가 성립하지 않는다.
-        func linewiseExtendSpan(_ motion: Motion, anchor: VisualAnchorState, in text: FocusedText)
-            -> Span
-        {
+        func linewiseExtension(
+            _ motion: Motion, anchor: VisualAnchorState, in text: FocusedText
+        ) -> Selection {
+            selection(
+                linewiseExtendSpan(motion, anchor: anchor, in: text), anchor: anchor.anchor,
+                column: anchor.desiredColumn)
+        }
+
+        /// ⑥ `v`→`V` — 선택이 걸친 논리 줄 전체. 새 논리 앵커는 **앵커 줄 시작**이라 범위의
+        /// 끝점이 아니다(후진형에서는 범위 한가운데다) — `Selection`이 앵커를 함께 내는 이유다.
+        func roundedToLines(anchor: VisualAnchorState, in text: FocusedText) -> Selection {
+            guard anchor.wise == .charwise, let anchorIndex = index(of: anchor.anchor),
+                let focus = focusIndex(anchor: anchor, in: text),
+                case .index(let anchorLine) = lineStartIndex(from: anchorIndex)
+            else { return .unproven }
+            return selection(
+                lineSpan(from: anchorIndex, to: focus), anchor: offsets[anchorLine],
+                column: anchor.desiredColumn)
+        }
+
+        /// ⑦ `V`→`v` — 원래 캐럿 P와 포커스 줄의 희망 열을 잇는다. Vim은 `V` 세션에서도 커서
+        /// 열을 보존하므로 열이 곧 포커스이고(실측 `llVjv`·`llvjVv`), keyboard ⑦의 열 근사·
+        /// 상한 32·페이싱이 전부 필요 없다(범위 1회 쓰기).
+        func restoredToCharacters(anchor: VisualAnchorState, in text: FocusedText) -> Selection {
+            guard anchor.wise == .linewise, let caret = anchor.originalCaret,
+                let column = anchor.desiredColumn, let caretIndex = index(of: caret),
+                let focusLine = focusIndex(anchor: anchor, in: text),
+                case .index(let lineStart) = lineStartIndex(from: focusLine),
+                case .index(let focus) = focusOnLine(start: lineStart, column: column)
+            else { return .unproven }
+            return selection(spanBetween(caretIndex, focus), anchor: caret, column: column)
+        }
+
+        /// `Span` + 상태 재료 → `Selection`. 범위가 아닌 결과는 그대로 옮긴다.
+        private func selection(_ span: Span, anchor: Int, column: Int?) -> Selection {
+            switch span {
+            case .invalid: return .invalid
+            case .unproven: return .unproven
+            case .range(let range): return .range(range, anchor: anchor, column: column)
+            }
+        }
+
+        /// 포커스의 **열**(줄 시작으로부터의 문자 수) — 희망 열의 원천이다. 줄 시작이 창 밖이면
+        /// `nil`(모름)이고, 그때 이어지는 `j`/`k`는 정직한 스킵이 된다.
+        private func focusColumn(at index: Int) -> Int? {
+            guard case .index(let start) = lineStartIndex(from: index) else { return nil }
+            return index - start
+        }
+
+        /// charwise `j`/`k` — 희망 열을 물려 한 줄 위/아래로. Vim은 짧은 줄을 지나도 열을
+        /// 복원하므로(실측 `4lvjj`) 이 이동은 열을 바꾸지 않는다.
+        private func movedFocus(from origin: Int, down: Bool, column: Int) -> Step {
+            switch movedLine(from: origin, down: down) {
+            case .invalid: return .invalid
+            case .unproven: return .unproven
+            case .index(let start): return focusOnLine(start: start, column: column)
+            }
+        }
+
+        /// 줄 시작 + 희망 열. 열이 줄을 넘으면 **종결자 위**에 선다 — 짧은 줄로 내려온 `vj`가
+        /// 그 줄의 개행까지 물어 `d`가 줄을 병합하는 것이 Vim 실측이다(`llvjd` → `abghi`).
+        private func focusOnLine(start: Int, column: Int) -> Step {
+            guard case .index(let end) = lineEndIndex(from: start) else { return .unproven }
+            return .index(start + min(column, end - start))
+        }
+
+        private func linewiseExtendSpan(
+            _ motion: Motion, anchor: VisualAnchorState, in text: FocusedText
+        ) -> Span {
             guard let anchorIndex = index(of: anchor.anchor) else { return .unproven }
             switch motion {
             case .documentStart:
@@ -840,11 +1005,12 @@ nonisolated enum FocusedTextOffsets {
             }
         }
 
-        /// 포커스 **글자 다음** — 줄 끝(종결자 앞)이면 그 자리 그대로다. `v$`가 개행을 물지
-        /// 않는 지점이고(Vim 실측), 캐럿 모델과 블록 커서 모델이 만나는 유일한 자리다.
-        private func inclusiveEnd(_ index: Int) -> Int {
-            index < count && !isTerminator(at: index) ? index + 1 : index
-        }
+        /// 포커스 **글자 다음** — **종결자 위의 포커스도 문다.**
+        ///
+        /// Vim 실측이 근거다: 비-마지막 줄의 `v$`는 레지스터가 `"abcdef\n"`(len 7)이고, 열보다
+        /// 짧은 줄로 내려온 `vj`도 그 줄의 개행까지 물어 `d`가 줄을 병합한다. 커서가 줄 끝에
+        /// 가상으로 서는 자리이며(curswant ≥ 줄 길이), 문서 끝에는 물 것이 없어 그대로다.
+        private func inclusiveEnd(_ index: Int) -> Int { min(index + 1, count) }
 
         /// 한 줄 위/아래의 줄 시작. 못 가면 `.invalid`(Vim no-op), 창 밖이면 `.unproven`.
         private func movedLine(from origin: Int, down: Bool) -> Step {

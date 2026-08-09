@@ -173,6 +173,11 @@ private let trailingNewline = "l1\nl2\n"
 /// `"a\n\nb"` — 빈 줄을 낀 최소 형태. a0 \n1 \n2 b3, 문서 끝 4. 오프셋 2가 빈 줄이다.
 private let blankLine = "a\n\nb"
 
+/// `"abcdef\nxy\nghijkl"` — 줄 길이 6/2/6. 짧은 가운데 줄이 희망 열(curswant)의 시험대다:
+/// 열 2에서 `j`는 `xy`의 종결자 위에 서고, 한 번 더 `j`하면 열 2가 **복원**된다.
+/// 오프셋: a0…f5 ⏎6 x7 y8 ⏎9 g10…l15, 문서 끝 16.
+private let ragged = "abcdef\nxy\nghijkl"
+
 let spanFixtures: [SpanFixture] = [
     // MARK: .motion — charRight (`x`·`dl`)
     span("x — 줄 한가운데", focusedText(words, caret: 4), .delete, .motion(.charRight, count: 1), range(4, 1)),
@@ -354,18 +359,34 @@ private func entry(
 private func extend(
     _ name: String, _ document: String, selection: NSRange, anchor: Int,
     _ wise: VisualAnchorState.Wise, _ side: VisualAnchorState.Side, _ motion: Motion,
-    _ span: FocusedTextOffsets.Span
+    _ span: FocusedTextOffsets.Span, column: Int? = nil, originalCaret: Int? = nil
 ) -> VisualSpanFixture {
+    VisualSpanFixture(
+        name: name, text: liveText(document, selection: selection),
+        anchor: sessionState(
+            anchor: anchor, wise: wise, side: side, selection: selection, column: column,
+            originalCaret: originalCaret),
+        linewise: false, motion: motion, span: span)
+}
+
+/// 살아 있는 선택 위의 읽기 — 확장·전환의 공통 입력이다.
+private func liveText(_ document: String, selection: NSRange) -> FocusedText {
     let count = document.utf16.count
-    let text = FocusedText(
+    return FocusedText(
         selection: selection, characterCount: count, window: document,
         windowRange: NSRange(location: 0, length: count))
-    let state = VisualAnchorState(
+}
+
+/// 세션 중간 상태 — `pinnedEnd`는 side에서 도출된다(어댑터가 `moved(to:...)`로 세우는 값과
+/// 같은 규칙이라, 픽스처가 그 규칙을 두 번 적지 않는다).
+private func sessionState(
+    anchor: Int, wise: VisualAnchorState.Wise, side: VisualAnchorState.Side, selection: NSRange,
+    column: Int? = nil, originalCaret: Int? = nil
+) -> VisualAnchorState {
+    VisualAnchorState(
         anchor: anchor, wise: wise, side: side,
         pinnedEnd: side == .left ? selection.location : selection.upperBound, processID: 0,
-        originalCaret: nil, focusLineDistance: nil)
-    return VisualSpanFixture(
-        name: name, text: text, anchor: state, linewise: false, motion: motion, span: span)
+        originalCaret: originalCaret, focusLineDistance: nil, desiredColumn: column)
 }
 
 let visualSpanFixtures: [VisualSpanFixture] = [
@@ -397,10 +418,36 @@ let visualSpanFixtures: [VisualSpanFixture] = [
     extend("vhh — 연속 후진", words, selection: NSRange(location: 3, length: 2), anchor: 4, .charwise, .right, .charLeft, range(2, 3)),
     // 후진 선택에서 `l`은 커서를 앵커 글자로 되돌린다 — 선택이 1자로 줄지 무효가 아니다.
     extend("vhl — 앵커 글자로 되돌아옴", words, selection: NSRange(location: 3, length: 2), anchor: 4, .charwise, .right, .charRight, range(4, 1)),
-    // 줄 끝 `l`은 Vim no-op — 범위가 그대로라 무게시다.
-    extend("vl — 줄 끝은 무변화", twoLines, selection: NSRange(location: 1, length: 1), anchor: 1, .charwise, .left, .charRight, .invalid),
-    // charwise 세션의 `j`/`k`는 희망 열이 살아 있어 위임이다.
-    extend("vj — 위임", words, selection: NSRange(location: 4, length: 1), anchor: 4, .charwise, .left, .lineDown, .unproven),
+    // **후진형의 `e`** — 목표가 커서 **다음**이라 방향 판정·후진 하한을 커서 자리로 되돌리지
+    // 않으면 커서 글자가 선택에서 빠진다(Vim 실측 `9lvbe` = `"r  b"`).
+    extend("ve — 후진형도 커서 글자를 잡는다", words, selection: NSRange(location: 4, length: 6), anchor: 9, .charwise, .right, .wordEndForward, range(6, 4)),
+    // 목표가 앵커와 만나는 경계 — 되돌리지 않으면 0폭이 되어 무효로 오분류된다(실측 `"r "`).
+    extend("ve — 목표가 앵커와 만나도 무효가 아니다", words, selection: NSRange(location: 4, length: 4), anchor: 7, .charwise, .right, .wordEndForward, range(6, 2)),
+    // 줄 마지막 글자 위의 `l`은 **개행을 문다** — Vim 실측(`lvl`의 레지스터가 `"b\n"`)이다.
+    // Normal `l`이 줄을 안 넘는 것과 갈리는 자리이고(그쪽은 다음 줄로 가지 않는다), 여기서
+    // 멈추는 것은 포커스가 이미 종결자 위일 때다(아래).
+    extend("vl — 줄 마지막 글자에서는 개행까지", twoLines, selection: NSRange(location: 1, length: 1), anchor: 1, .charwise, .left, .charRight, range(1, 2)),
+    extend("vll — 종결자 위에서는 무변화", twoLines, selection: NSRange(location: 1, length: 2), anchor: 1, .charwise, .left, .charRight, .invalid),
+    // charwise 세션의 `j`/`k`는 **희망 열을 알 때만** 선다 — 모르면 근사하지 않고 스킵이다.
+    extend("vj — 희망 열 미상이면 위임", words, selection: NSRange(location: 4, length: 1), anchor: 4, .charwise, .left, .lineDown, .unproven),
+    // `v$`는 개행을 문다 — Vim 실측(비-마지막 줄 레지스터가 `"ab\n"`)이며, 세션 1의 반대
+    // 문언(마지막 줄에서만 재어 일반화한 것)을 이 픽스처가 고정한다.
+    extend("v$ — 개행까지 문다", twoLines, selection: NSRange(location: 0, length: 1), anchor: 0, .charwise, .left, .lineEnd, range(0, 3)),
+
+    // MARK: charwise `j`/`k` — 희망 열(curswant) 추적. `ragged`는 줄 길이가 6/2/6이다.
+    // 열 2에서 내려가면 짧은 줄 `xy`의 **종결자 위**에 서고 그 개행까지 문다 (Vim 실측
+    // `llvjd` → `abghi`, 줄 병합).
+    extend("vj — 짧은 줄은 종결자까지", ragged, selection: NSRange(location: 2, length: 1), anchor: 2, .charwise, .left, .lineDown, range(2, 8), column: 2),
+    // 다시 내려가면 열이 **복원**된다 — 짧은 줄이 열을 깎지 않는 것이 curswant다 (실측 `4lvjj`).
+    extend("vjj — 짧은 줄을 지나도 열 복원", ragged, selection: NSRange(location: 2, length: 8), anchor: 2, .charwise, .left, .lineDown, range(2, 11), column: 2),
+    extend("vk — 후진도 같은 열", ragged, selection: NSRange(location: 12, length: 1), anchor: 12, .charwise, .left, .lineUp, range(9, 4), column: 2),
+    // 문서 끝/시작에서는 갈 줄이 없다 — Vim no-op이라 무게시다.
+    extend("vj — 마지막 줄은 무효", ragged, selection: NSRange(location: 12, length: 1), anchor: 12, .charwise, .left, .lineDown, .invalid, column: 2),
+    extend("vk — 첫 줄은 무효", ragged, selection: NSRange(location: 2, length: 1), anchor: 2, .charwise, .left, .lineUp, .invalid, column: 2),
+    // `$` 뒤의 열은 **줄 끝 고정**이라 다음 줄의 길이와 무관하게 종결자에 붙는다 (실측 `v$j`).
+    extend("v$j — 줄 끝 고정", ragged, selection: NSRange(location: 0, length: 7), anchor: 0, .charwise, .left, .lineDown, range(0, 10), column: FocusedTextOffsets.lineEndColumn),
+    // 빈 줄에 착지하면 그 줄의 개행을 문다 (실측 `vjd` → `def`).
+    extend("vj — 빈 줄은 그 개행까지", blankLine, selection: NSRange(location: 0, length: 1), anchor: 0, .charwise, .left, .lineDown, range(0, 3), column: 0),
 
     // MARK: linewise 확장 — 앵커 줄은 첫 줄, 진입 선택 [0,3)
     extend("Vj — 아래 줄까지", threeLines, selection: NSRange(location: 0, length: 3), anchor: 0, .linewise, .left, .lineDown, range(0, 6)),
@@ -414,6 +461,71 @@ let visualSpanFixtures: [VisualSpanFixture] = [
     extend("V 세션의 l은 무게시", threeLines, selection: NSRange(location: 0, length: 3), anchor: 0, .linewise, .left, .charRight, .invalid),
     extend("V 세션의 w는 무게시", threeLines, selection: NSRange(location: 0, length: 3), anchor: 0, .linewise, .left, .wordForward, .invalid),
     extend("V 세션의 $는 무게시", threeLines, selection: NSRange(location: 0, length: 3), anchor: 0, .linewise, .left, .lineEnd, .invalid),
+]
+
+// MARK: - wise 전환 픽스처
+
+/// 전환 1건의 계약. 확장과 달리 **앵커까지** 단언한다 — 전환은 논리 앵커 자체가 이동하는
+/// 유일한 자리라, 범위만 맞고 앵커가 어긋나면 다음 액션이 조용히 죽는다.
+struct VisualSwitchFixture: Sendable, CustomTestStringConvertible {
+    let name: String
+    let text: FocusedText
+    let state: VisualAnchorState
+    let toLinewise: Bool
+    let selection: FocusedTextOffsets.Selection
+
+    var testDescription: String { name }
+}
+
+private func switchFixture(
+    _ name: String, _ document: String, selection: NSRange, anchor: Int,
+    _ wise: VisualAnchorState.Wise, _ side: VisualAnchorState.Side, toLinewise: Bool,
+    column: Int? = nil, originalCaret: Int? = nil, _ expected: FocusedTextOffsets.Selection
+) -> VisualSwitchFixture {
+    VisualSwitchFixture(
+        name: name, text: liveText(document, selection: selection),
+        state: sessionState(
+            anchor: anchor, wise: wise, side: side, selection: selection, column: column,
+            originalCaret: originalCaret),
+        toLinewise: toLinewise, selection: expected)
+}
+
+let visualSwitchFixtures: [VisualSwitchFixture] = [
+    // MARK: ⑥ `v`→`V` — 선택이 걸친 논리 줄 전체, 새 앵커는 **앵커 줄 시작**
+    switchFixture(
+        "v→V 전진형 — 앵커도 줄 시작으로", ragged, selection: NSRange(location: 2, length: 8),
+        anchor: 2, .charwise, .left, toLinewise: true, column: 2,
+        .range(NSRange(location: 0, length: 10), anchor: 0, column: 2)),
+    // 후진형의 새 앵커는 범위의 끝점이 **아니다**(범위 한가운데다) — `Span`으로는 못 나르는 값.
+    switchFixture(
+        "v→V 후진형 — 새 앵커가 범위 한가운데", ragged, selection: NSRange(location: 9, length: 4),
+        anchor: 12, .charwise, .right, toLinewise: true, column: 2,
+        .range(NSRange(location: 7, length: 9), anchor: 10, column: 2)),
+    switchFixture(
+        "v→V — 이미 linewise면 증명하지 않는다", ragged, selection: NSRange(location: 0, length: 7),
+        anchor: 0, .linewise, .left, toLinewise: true, column: 0, .unproven),
+
+    // MARK: ⑦ `V`→`v` — 원래 캐럿 P와 포커스 줄의 희망 열
+    switchFixture(
+        "V→v — P와 포커스 줄 열을 잇는다", threeLines, selection: NSRange(location: 0, length: 6),
+        anchor: 0, .linewise, .left, toLinewise: false, column: 1, originalCaret: 1,
+        .range(NSRange(location: 1, length: 4), anchor: 1, column: 1)),
+    // 포커스 줄이 열보다 짧으면 **종결자 위**다 — keyboard ⑦이 초집합 봉쇄로 스킵하던 자리를
+    // AX는 Vim 그대로 클램프한다(범위 1회 쓰기라 스트로크 초과가 없다).
+    switchFixture(
+        "V→v — 짧은 포커스 줄은 종결자까지", ragged, selection: NSRange(location: 0, length: 10),
+        anchor: 0, .linewise, .left, toLinewise: false, column: 4, originalCaret: 4,
+        .range(NSRange(location: 4, length: 6), anchor: 4, column: 4)),
+    // ⑥으로 만들어진 세션은 P를 모른다 — 근사하지 않고 정직하게 스킵한다.
+    switchFixture(
+        "V→v — 원래 캐럿 미상이면 스킵", threeLines, selection: NSRange(location: 0, length: 6),
+        anchor: 0, .linewise, .left, toLinewise: false, column: 1, .unproven),
+    switchFixture(
+        "V→v — 희망 열 미상이면 스킵", threeLines, selection: NSRange(location: 0, length: 6),
+        anchor: 0, .linewise, .left, toLinewise: false, originalCaret: 1, .unproven),
+    switchFixture(
+        "V→v — 이미 charwise면 증명하지 않는다", threeLines, selection: NSRange(location: 0, length: 2),
+        anchor: 0, .charwise, .left, toLinewise: false, column: 0, originalCaret: 0, .unproven),
 ]
 
 // MARK: - 스윕 헬퍼
@@ -453,6 +565,30 @@ func expectBoundedSpan(
     #expect(range.length > 0, sourceLocation: sourceLocation)
 }
 
+/// Visual 산출의 **범위만** 본다 — 앵커·희망 열은 아래 전용 표가 따로 고정한다.
+func span(of selection: FocusedTextOffsets.Selection) -> FocusedTextOffsets.Span {
+    switch selection {
+    case .invalid: return .invalid
+    case .unproven: return .unproven
+    case .range(let range, _, _): return .range(range)
+    }
+}
+
+func expectBoundedSelection(
+    _ selection: FocusedTextOffsets.Selection, in text: FocusedText,
+    sourceLocation: SourceLocation = #_sourceLocation
+) {
+    expectBoundedSpan(span(of: selection), in: text, sourceLocation: sourceLocation)
+    // 새 앵커도 산출이다 — 경계 밖 앵커는 다음 액션의 `index(of:)`를 조용히 `.unproven`으로
+    // 만들어 세션이 죽는다.
+    guard case .range(_, let anchor, let column) = selection else { return }
+    #expect(anchor >= 0, sourceLocation: sourceLocation)
+    #expect(anchor <= text.characterCount, sourceLocation: sourceLocation)
+    #expect(graphemeBoundaries(of: text).contains(anchor), sourceLocation: sourceLocation)
+    // 열은 음수가 될 수 없다 — 줄 끝 고정 sentinel만 예외적으로 크다.
+    if let column { #expect(column >= 0, sourceLocation: sourceLocation) }
+}
+
 func expectBoundedInsertion(
     _ insertion: FocusedTextOffsets.Insertion, in text: FocusedText,
     sourceLocation: SourceLocation = #_sourceLocation
@@ -467,17 +603,53 @@ func expectBoundedInsertion(
     }
 }
 
+/// AX 진입이 세우는 세션 — 어댑터의 `beginSelection` 분기와 같은 재료를 만든다.
+func beginSession(
+    _ document: String, caret: Int, linewise: Bool
+) -> (text: FocusedText, state: VisualAnchorState) {
+    let text = focusedText(document, caret: caret)
+    guard case .range(let range, let anchor, let column) =
+        FocusedTextOffsets.visualEntrySelection(linewise: linewise, in: text)
+    else { fatalError("진입이 증명되지 않는 픽스처") }
+    var live = text
+    live.selection = range
+    return (
+        live,
+        VisualAnchorState(
+            anchor: anchor, wise: linewise ? .linewise : .charwise, side: .left, pinnedEnd: anchor,
+            processID: 0, originalCaret: linewise ? caret : nil, focusLineDistance: nil,
+            desiredColumn: column)
+    )
+}
+
+/// 산출 → 상태 → 다음 산출로 이어 붙인다 — 어댑터가 도는 모양 그대로다.
+@discardableResult
+func advance(
+    _ session: inout (text: FocusedText, state: VisualAnchorState), _ motion: Motion
+) -> FocusedTextOffsets.Selection {
+    let selection = FocusedTextOffsets.visualExtendSelection(
+        for: motion, anchor: session.state, in: session.text)
+    if case .range(let range, let anchor, let column) = selection {
+        session.state = session.state.moved(to: range, anchor: anchor, column: column)
+        session.text.selection = range
+    }
+    return selection
+}
+
 /// 진입 범위로 살아 있는 선택을 만들어 확장 스윕의 입력을 얻는다. 진입이 증명되지 않으면
 /// 캐럿 그대로이고, 그때 확장은 `.unproven`이다.
 func sweepSession(_ text: FocusedText, linewise: Bool) -> (FocusedText, VisualAnchorState)? {
-    guard case .range(let selection) = FocusedTextOffsets.visualEntrySpan(
-        linewise: linewise, in: text)
+    guard case .range(let selection, let anchor, let column) =
+        FocusedTextOffsets.visualEntrySelection(linewise: linewise, in: text)
     else { return nil }
     var live = text
     live.selection = selection
+    // `originalCaret`·`desiredColumn`은 AX 진입이 채우는 값이라 스윕도 채운 채 돌린다 —
+    // 비워 두면 `j`/`k`와 `V`→`v`가 전부 `.unproven`으로 빠져 스윕이 그 경로를 못 밟는다.
     let state = VisualAnchorState(
-        anchor: selection.location, wise: linewise ? .linewise : .charwise, side: .left,
-        pinnedEnd: selection.location, processID: 0, originalCaret: nil, focusLineDistance: nil)
+        anchor: anchor, wise: linewise ? .linewise : .charwise, side: .left,
+        pinnedEnd: anchor, processID: 0, originalCaret: text.selection.location,
+        focusLineDistance: nil, desiredColumn: column)
     return (live, state)
 }
 
@@ -593,12 +765,112 @@ struct FocusedTextOffsetsTests {
     func visualSpans(_ fixture: VisualSpanFixture) {
         let actual =
             if let anchor = fixture.anchor {
-                FocusedTextOffsets.visualExtendSpan(
+                FocusedTextOffsets.visualExtendSelection(
                     for: fixture.motion, anchor: anchor, in: fixture.text)
             } else {
-                FocusedTextOffsets.visualEntrySpan(linewise: fixture.linewise, in: fixture.text)
+                FocusedTextOffsets.visualEntrySelection(
+                    linewise: fixture.linewise, in: fixture.text)
             }
-        #expect(actual == fixture.span)
+        #expect(span(of: actual) == fixture.span)
+    }
+
+    @Test("wise 전환 표", arguments: visualSwitchFixtures)
+    func visualSwitches(_ fixture: VisualSwitchFixture) {
+        #expect(
+            FocusedTextOffsets.visualSwitchSelection(
+                toLinewise: fixture.toLinewise, anchor: fixture.state, in: fixture.text)
+                == fixture.selection)
+    }
+
+    /// **세션을 이어 붙인 관통 테스트** — 한 액션짜리 표가 못 잡는 것이 여기 있다: 희망 열은
+    /// 액션 사이를 건너야 의미가 있고(`vjj`의 열 복원), 전환은 앞선 확장이 만든 상태를 입력으로
+    /// 받는다. 어댑터가 도는 모양 그대로(`산출 → moved(to:) → 다음 산출`)라 상태 도출 규칙도
+    /// 함께 고정된다.
+    @Test("vjj — 짧은 줄을 지나도 열이 복원된다")
+    func desiredColumnSurvivesShortLine() {
+        var session = beginSession(ragged, caret: 2, linewise: false)
+        // `abcdef`의 `c`(열 2)에서 `j` — 짧은 줄 `xy`의 종결자 위에 서고 그 개행까지 문다.
+        #expect(advance(&session, .lineDown) == .range(NSRange(location: 2, length: 8), anchor: 2, column: 2))
+        // 한 번 더 `j` — 열 2가 복원되어 `ghijkl`의 `i`까지다(짧은 줄이 열을 깎지 않는다).
+        #expect(advance(&session, .lineDown) == .range(NSRange(location: 2, length: 11), anchor: 2, column: 2))
+        #expect(session.state.side == .left)
+        #expect(session.state.pinnedEnd == 2)
+    }
+
+    /// `e` 뒤의 희망 열은 **커서 자리**(목표 −1)로 세야 한다 — 목표로 세면 이어지는 `j`가
+    /// 한 열 더 문다. 1자 차이라 `j`/`k`가 안 섞이면 드러나지 않고 조용히 누적된다.
+    /// Vim 실측: `vej`가 `"foo.bar\nabc"`(둘째 줄 열 2까지)를 낸다.
+    @Test("vej — e의 커서 열이 다음 줄로 이어진다")
+    func wordEndColumnIsCursorColumn() {
+        var session = beginSession("foo.bar\nabcdefg", caret: 0, linewise: false)
+        #expect(advance(&session, .wordEndForward) == .range(NSRange(location: 0, length: 3), anchor: 0, column: 2))
+        #expect(advance(&session, .lineDown) == .range(NSRange(location: 0, length: 11), anchor: 0, column: 2))
+    }
+
+    /// **열은 Character 델타여야 한다** — 절대 오프셋 뺄셈은 UTF-16 델타라 이모지 앞의 캐럿에서
+    /// 부풀고, 그 값이 `V`→`v`의 포커스가 되어 선택이 한 글자 넓어진다. grapheme 경계
+    /// 불변식은 결과가 `offsets` 원소이기만 하면 통과시켜 이 오류를 못 잡는다.
+    @Test("V 진입의 열은 UTF-16이 아니라 문자 단위다")
+    func linewiseEntryColumnIsCharacterDelta() {
+        // "a👍bc\ndef" — a0 👍1(2단위) b3 c4 ⏎5 d6…, `b`(오프셋 3)가 문자 인덱스 2다.
+        let text = focusedText("a👍bc\ndef", caret: 3)
+        #expect(
+            FocusedTextOffsets.visualEntrySelection(linewise: true, in: text)
+                == .range(NSRange(location: 0, length: 6), anchor: 0, column: 2))
+
+        var live = text
+        live.selection = NSRange(location: 0, length: 6)
+        let state = sessionState(
+            anchor: 0, wise: .linewise, side: .left, selection: live.selection, column: 2,
+            originalCaret: 3)
+        // 열이 3(UTF-16 델타)이면 `c`까지 잡아 `"bc"`가 된다.
+        #expect(
+            FocusedTextOffsets.visualSwitchSelection(toLinewise: false, anchor: state, in: live)
+                == .range(NSRange(location: 3, length: 1), anchor: 3, column: 2))
+    }
+
+    /// `$` 뒤의 열은 줄 끝 고정이다 — Vim curswant MAXCOL(실측 `v$j`가 다음 줄의 개행까지 문다).
+    @Test("v$j — 줄 끝에 붙는다")
+    func lineEndColumnSticks() {
+        var session = beginSession(ragged, caret: 0, linewise: false)
+        #expect(advance(&session, .lineEnd) == .range(NSRange(location: 0, length: 7), anchor: 0, column: FocusedTextOffsets.lineEndColumn))
+        #expect(advance(&session, .lineDown) == .range(NSRange(location: 0, length: 10), anchor: 0, column: FocusedTextOffsets.lineEndColumn))
+    }
+
+    /// `G`는 열을 세려면 마지막 줄 시작이 필요한데 창이 거기 못 닿는다 — 모른다고 남기면
+    /// 이어지는 `j`/`k`가 근사 대신 정직하게 스킵한다.
+    @Test("vG 뒤의 j는 열을 몰라 스킵한다")
+    func unknownColumnSkipsVerticalMotion() {
+        var session = beginSession(ragged, caret: 2, linewise: false)
+        #expect(advance(&session, .documentEnd) == .range(NSRange(location: 2, length: 14), anchor: 2, column: nil))
+        #expect(advance(&session, .lineUp) == .unproven)
+    }
+
+    /// `v`→`V`→`v`가 **원래 선택을 복원**한다 — Vim 실측(`llvjVv`가 `llvj`와 같은 선택)이고,
+    /// keyboard ⑥이 열 근사 때문에 포기했던 자리를 AX는 정확값으로 되돌린다.
+    @Test("vjVv — 원래 charwise 선택으로 되돌아온다")
+    func switchRoundTripRestoresSelection() {
+        var session = beginSession(ragged, caret: 2, linewise: false)
+        let extended = advance(&session, .lineDown)
+        #expect(extended == .range(NSRange(location: 2, length: 8), anchor: 2, column: 2))
+
+        // `V` — 논리 줄로 반올림하고, charwise 앵커를 `originalCaret`으로 보관한다(어댑터 규칙).
+        guard case .range(let rounded, let roundedAnchor, let roundedColumn) =
+            FocusedTextOffsets.visualSwitchSelection(
+                toLinewise: true, anchor: session.state, in: session.text)
+        else { return #expect(Bool(false), "v→V가 증명되지 않았다") }
+        let charwiseAnchor = session.state.anchor
+        session.state = session.state.moved(
+            to: rounded, anchor: roundedAnchor, column: roundedColumn)
+        session.state.wise = .linewise
+        session.state.originalCaret = charwiseAnchor
+        session.text.selection = rounded
+        #expect(rounded == NSRange(location: 0, length: 10))
+
+        // `v` — 되돌아온 선택이 `vj`의 것과 같다.
+        #expect(
+            FocusedTextOffsets.visualSwitchSelection(
+                toLinewise: false, anchor: session.state, in: session.text) == extended)
     }
 
     // MARK: 전수 스윕
@@ -719,8 +991,8 @@ struct FocusedTextOffsetsTests {
                             in: text)
                     }
                     for case .some(let (live, anchor)) in sessions {
-                        expectBoundedSpan(
-                            FocusedTextOffsets.visualExtendSpan(
+                        expectBoundedSelection(
+                            FocusedTextOffsets.visualExtendSelection(
                                 for: motion, anchor: anchor, in: live), in: live)
                     }
                 }
@@ -733,8 +1005,14 @@ struct FocusedTextOffsetsTests {
                             for: op, range: .textObject(.word(.inner)), in: text), in: text)
                 }
                 for linewise in [false, true] {
-                    expectBoundedSpan(
-                        FocusedTextOffsets.visualEntrySpan(linewise: linewise, in: text), in: text)
+                    expectBoundedSelection(
+                        FocusedTextOffsets.visualEntrySelection(linewise: linewise, in: text),
+                        in: text)
+                    for case .some(let (live, anchor)) in sessions {
+                        expectBoundedSelection(
+                            FocusedTextOffsets.visualSwitchSelection(
+                                toLinewise: linewise, anchor: anchor, in: live), in: live)
+                    }
                 }
                 expectBoundedInsertion(
                     FocusedTextOffsets.openLineInsertion(above: caret.isMultiple(of: 2), in: text),
@@ -764,7 +1042,9 @@ struct FocusedTextOffsetsTests {
         #expect(
             FocusedTextOffsets.editSpan(for: .delete, range: .textObject(.word(.inner)), in: text)
                 == .range(NSRange(location: 0, length: 2)))
-        #expect(FocusedTextOffsets.visualEntrySpan(linewise: false, in: text) == .range(NSRange(location: 0, length: 2)))
+        #expect(
+            FocusedTextOffsets.visualEntrySelection(linewise: false, in: text)
+                == .range(NSRange(location: 0, length: 2), anchor: 0, column: 0))
         #expect(FocusedTextOffsets.pasteInsertion(before: false, wise: .charwise, in: text) == .at(2))
         // 되돌아오는 `dh`도 같은 경계다.
         #expect(
@@ -778,7 +1058,7 @@ struct FocusedTextOffsetsTests {
     func midCombiningCaretIsUnproven() {
         let text = focusedText(combining, caret: 1)
         #expect(FocusedTextOffsets.editSpan(for: .delete, range: .line(count: 1), in: text) == .unproven)
-        #expect(FocusedTextOffsets.visualEntrySpan(linewise: false, in: text) == .unproven)
+        #expect(FocusedTextOffsets.visualEntrySelection(linewise: false, in: text) == .unproven)
         #expect(FocusedTextOffsets.openLineInsertion(above: false, in: text) == .unproven)
     }
 
@@ -822,10 +1102,10 @@ struct FocusedTextOffsetsTests {
         #expect(
             FocusedTextOffsets.editSpan(for: .delete, range: .line(count: 1), in: last)
                 == .range(NSRange(location: secondLine, length: 2)))
-        // `V` 진입도 종결자를 문다.
+        // `V` 진입도 종결자를 문다 — 열은 캐럿에서 줄 시작까지의 거리(0)다.
         #expect(
-            FocusedTextOffsets.visualEntrySpan(linewise: true, in: first)
-                == .range(NSRange(location: 0, length: secondLine)))
+            FocusedTextOffsets.visualEntrySelection(linewise: true, in: first)
+                == .range(NSRange(location: 0, length: secondLine), anchor: 0, column: 0))
         // 줄 끝 `diw`는 직전 글자의 런이다(종결자를 넘지 않는다).
         #expect(
             FocusedTextOffsets.editSpan(

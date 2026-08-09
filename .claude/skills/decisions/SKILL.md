@@ -222,6 +222,10 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-09 | 삽입 하이브리드도 되읽어 검증 | 접두가 캐럿 이동뿐이어도 위임 그룹이 뒤따르므로 비파괴가 아니다(낡은 캐럿의 `Return`은 줄을 쪼갠다) — 액션별로 가르지 않는다(원자 그룹 ④와 같은 논거) | [20260809_hybrid-insertion-readback-verify-kept.md](references/20260809_hybrid-insertion-readback-verify-kept.md) |
 | 08-09 | `pasteWise.resolve()`는 순수 조회 | 기억을 소비하지 않음이 감사로 확정 — 매퍼 앞 위치 유지, 게시 확정 부수효과 호출은 액션 무관 단일 지점(`recordEditWise`가 자체 가드) | [20260809_paste-resolve-is-pure-lookup.md](references/20260809_paste-resolve-is-pure-lookup.md) |
 | 08-09 | 개행 합성은 `o`/`O`와 같은 두 게이트 | 마지막 줄 `p`의 `Return` 합성은 `.textField`(submit)·`open_line: disabled`(사용자 지시)에서 위임 강등 — `newLineStrokes`의 `nil`이 fail-open 하던 버그 포함, 강등 결과는 현행 `P` 퇴행 | [20260809_newline-synthesis-gates.md](references/20260809_newline-synthesis-gates.md) |
+| 08-10 | Visual inclusive 끝은 종결자도 문다 | 세션 1의 "`v$`는 개행을 안 문다"는 마지막 줄 한정 실측이었다 — 비-마지막 줄 레지스터가 `"ab\n"`, `lvl`도 같다. `landsPastCharacter`에 남는 것은 `e` 하나 | [20260810_visual-inclusive-end-bites-terminator.md](references/20260810_visual-inclusive-end-bites-terminator.md) |
+| 08-10 | charwise Visual `j`/`k`는 희망 열 추적 | 위임 문언 × 무상태 폴백 금지의 교차 — 포커스 = 줄 시작 + `min(열, 줄 길이)`, `$`는 줄 끝 고정 sentinel, 열 미상은 정직한 스킵 | [20260810_ax-visual-desired-column-tracked.md](references/20260810_ax-visual-desired-column-tracked.md) |
+| 08-10 | AX `v`↔`V`는 양방향 정확 지원 | 세션 1이 비워 둔 자리 — 진입이 원래 캐럿을 정확히 읽어 두므로 열이 뺄셈이다. 산출이 범위 + 새 논리 앵커 + 열을 함께 낸다(`Selection`), 상한 32·페이싱 불필요 | [20260810_ax-visual-switch-both-directions-exact.md](references/20260810_ax-visual-switch-both-directions-exact.md) |
+| 08-10 | AX Visual 세션 경로는 폐기보다 오래 산다 | pin은 트래커 프로퍼티·진입에서만 쓴다 — 자가 검증 실패 뒤에도 남아 확장·전환이 정직한 스킵(앱 클램프 시 화면에 남은 것이 AX가 쓴 범위라 무상태 폴백은 파괴 방향) | [20260810_ax-visual-session-path-outlives-state-discard.md](references/20260810_ax-visual-session-path-outlives-state-discard.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 
