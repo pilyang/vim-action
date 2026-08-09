@@ -57,12 +57,15 @@ nonisolated enum CommandKeyMapper {
     ) -> [KeyStroke]? {
         switch action {
         case .openLine(let above):
-            // **여기가 계열이 실제로 시퀀스를 가르는 유일한 자리다.** 단일행 필드에서 `Return`은
-            // 줄을 만드는 대신 대개 **submit**이라(폼 전송·주소창 이동) 되돌릴 수 없다.
-            // 엔진은 이미 Insert로 전이한 뒤라 "줄 없이 Insert"라는 불일치가 남지만, 그 실패
-            // 모드는 Esc 한 번으로 끝나 무해하다 (`20260801_textfield-edit-sequences-scrapped.md`).
-            guard family != .textField else { return nil }
-            return above ? openAbove(profile) : openBelow(profile)
+            // 계열 게이트(`.textField` = `Return`이 submit)는 위임분 안에 있다 — 하이브리드가
+            // 접두만 갈아끼우고 같은 게이트를 지나야 한다.
+            guard let delegated = openLineDelegatedStrokes(
+                above: above, family: family, profile: profile)
+            else { return nil }
+            // 접두는 줄 시작/끝 모션이고, 개행과 `O`의 복귀는 위임분이 낸다 — 하이브리드는
+            // 접두만 AX 캐럿 쓰기로 갈아끼운다.
+            guard let prefix = move(above ? .lineStart : .lineEnd, profile) else { return nil }
+            return prefix + delegated
 
         case .undo:
             return profile.undoStrokes ?? [undoKey]
@@ -106,13 +109,40 @@ nonisolated enum CommandKeyMapper {
         before: Bool, count: Int, wise: PasteWise, family: ElementFamily,
         profile: ResolvedProfile = .empty, text: FocusedText? = nil
     ) -> [[KeyStroke]]? {
+        guard
+            let prefix = prefix(before: before, wise: wise, profile: profile, text: text),
+            let groups = pasteDelegatedGroups(
+                count: count, appendsLine: false, family: family, profile: profile)
+        else { return nil }
+        // 접두는 첫 그룹의 맨 앞에 붙는다 — 원자 그룹 ③(`접두 + 첫 Cmd-V`).
+        return [prefix + groups[0]] + groups.dropFirst()
+    }
+
+    /// `p`/`P`의 **위치 접두를 뺀 위임분** — `Cmd-V`를 count만큼 낸 그룹들이다. 하이브리드(AX
+    /// 캐럿 접두)와 keyboard 경로가 같은 함수를 쓰는 것이 `openLineDelegatedStrokes`와 같은
+    /// 계약이다(`paste` 재정의·`new_line` 재정의가 두 경로에서 갈리지 않는다).
+    ///
+    /// `appendsLine`은 **마지막 줄(뒤 개행 없음)의 linewise `p`** 다 — 문서 끝 캐럿만으로는
+    /// 구분 개행을 만들 수 없어 첫 그룹이 `[Return, Cmd-V]`가 된다
+    /// (`20260808_last-line-linewise-paste-return-synthesis.md`). 개행이 `newLine(profile)`을
+    /// 타는 것은 `o`/`O`와 같은 이유다 — 줄을 만드는 키는 앱마다 다르다.
+    ///
+    /// **`appendsLine`은 `.textField`·`open_line` disable에서 `nil`이다** — 단일행 필드는 항상
+    /// "종결자 없는 마지막 줄"이라 linewise `p`가 상시 이 경로로 떨어지는데, 거기서 `Return`은
+    /// 대개 submit이다(`.openLine` 게이트와 같은 축·같은 근거). 호출측이 위임으로 낙하하면
+    /// 현행 동작(`P` 퇴행)이라 새 위험이 없다.
+    static func pasteDelegatedGroups(
+        count: Int, appendsLine: Bool, family: ElementFamily, profile: ResolvedProfile = .empty
+    ) -> [[KeyStroke]]? {
         // 엔진은 count 1 이상만 낸다(0은 `0` 모션 규칙이 선점한다). 그래도 가드가 있는 이유는
         // 접두만 남은 시퀀스가 "붙여넣기 없이 캐럿만 움직인다"는 조용한 오동작이기 때문이다.
-        guard count >= 1, let prefix = prefix(before: before, wise: wise, profile: profile, text: text)
-        else { return nil }
+        guard count >= 1 else { return nil }
         let paste = profile.pasteStrokes ?? [pasteKey]
-        return [prefix + paste]
-            + Array(repeating: paste, count: count - 1)
+        guard appendsLine else { return [paste] + Array(repeating: paste, count: count - 1) }
+        // 개행 합성은 `o`/`O`와 **같은 두 게이트**를 지난다 — 단일행 필드(`Return` = submit)와
+        // `open_line` disable. 어느 쪽이든 호출측이 위임으로 낙하해 현행 `P` 퇴행이 된다.
+        guard family != .textField, let newLine = newLine(profile) else { return nil }
+        return [newLine + paste] + Array(repeating: paste, count: count - 1)
     }
 
     /// 붙여넣기 지점으로 캐럿을 옮기는 접두. `P`(before)는 Vim에서 캐럿 위치가 곧 삽입점이라
@@ -151,27 +181,41 @@ nonisolated enum CommandKeyMapper {
         }
     }
 
-    /// `o` — 줄 끝으로 간 뒤 개행. 엔진이 이미 Insert로 전이했으므로 뒤에 붙일 키가 없다.
-    private static func openBelow(_ profile: ResolvedProfile) -> [KeyStroke]? {
-        guard let lineEnd = move(.lineEnd, profile) else { return nil }
-        return lineEnd + newLine(profile)
-    }
-
-    /// `O` — 줄 시작에서 개행해 현재 줄을 아래로 밀고, 새로 생긴 빈 줄로 올라간다.
+    /// `o`/`O`의 **위치 접두를 뺀 위임분** — 개행과, `O`의 "새로 생긴 빈 줄로 복귀"다.
+    /// 하이브리드(AX 캐럿 접두)와 keyboard 경로가 **같은 함수**를 쓰는 것이 계약이다
+    /// (`EditKeyMapper.operatorStrokes`와 같은 자리): `.textField` 게이트와 `new_line` 재정의가
+    /// 두 경로에서 갈리면 한쪽만 조용히 submit을 낸다.
     ///
-    /// `↑, Cmd-→, Return`이 아닌 이유는 **첫 줄**이다 — 거기서는 `↑`가 no-op이라 조용히
-    /// `o`로 퇴행한다(`O`를 가장 많이 쓰는 자리에서 틀린다). 이 순서는 첫 줄에서도 맞는다
-    /// (`20260730_openline-return-sequence.md`).
-    private static func openAbove(_ profile: ResolvedProfile) -> [KeyStroke]? {
-        guard let lineStart = move(.lineStart, profile), let lineUp = move(.lineUp, profile)
-        else { return nil }
-        return lineStart + newLine(profile) + lineUp
+    /// `O`가 `↑, Cmd-→, Return`이 아니라 "줄 시작에서 개행 → `↑`"인 이유는 **첫 줄**이다 —
+    /// 거기서는 선행 `↑`가 no-op이라 조용히 `o`로 퇴행한다(`O`를 가장 많이 쓰는 자리에서
+    /// 틀린다). 이 순서는 첫 줄에서도 맞는다 (`20260730_openline-return-sequence.md`).
+    ///
+    /// `nil`은 셋이다 — `.textField` 게이트, `open_line` disable(`newLine`), `O`의 복귀 모션
+    /// disable. 전부 호출측이 위임 경로로 낙하시키면 기존 분류가 `.unsupported`/
+    /// `.disabledByProfile`로 정직하게 집계한다.
+    static func openLineDelegatedStrokes(
+        above: Bool, family: ElementFamily, profile: ResolvedProfile = .empty
+    ) -> [KeyStroke]? {
+        // **여기가 계열이 실제로 시퀀스를 가르는 유일한 자리다.** 단일행 필드에서 `Return`은
+        // 줄을 만드는 대신 대개 **submit**이라(폼 전송·주소창 이동) 되돌릴 수 없다.
+        // 엔진은 이미 Insert로 전이한 뒤라 "줄 없이 Insert"라는 불일치가 남지만, 그 실패
+        // 모드는 Esc 한 번으로 끝나 무해하다 (`20260801_textfield-edit-sequences-scrapped.md`).
+        guard family != .textField, let newLine = newLine(profile) else { return nil }
+        guard above else { return newLine }
+        guard let lineUp = move(.lineUp, profile) else { return nil }
+        return newLine + lineUp
     }
 
     /// 줄을 만드는 키 — 앱마다 다르다. Slack처럼 `Return`이 전송인 앱은 `Shift-Return`이
     /// 줄바꿈이므로 프로파일이 이 키만 갈아끼운다(위치 접두는 그대로 모션을 탄다).
-    private static func newLine(_ profile: ResolvedProfile) -> [KeyStroke] {
-        profile.newLineStrokes ?? [returnKey]
+    ///
+    /// **`nil`은 사용자가 `open_line`을 disable한 경우다.** 기본 `Return`으로 fail-open 하면
+    /// 안 된다 — `Return`이 전송인 앱에서 disable을 택한 사용자에게 개행 합성이 메시지를
+    /// 보낸다. `o`/`O`는 어댑터의 `actions:` 게이트가 앞서지만 마지막 줄 linewise `p`의 개행
+    /// 합성은 `.paste` 액션이라 그 게이트를 지나지 않으므로, 방어선이 여기 있어야 한다.
+    private static func newLine(_ profile: ResolvedProfile) -> [KeyStroke]? {
+        guard !profile.newLineDisabled else { return nil }
+        return profile.newLineStrokes ?? [returnKey]
     }
 
     /// 뷰포트를 읽지 못했을 때 스크롤 1회가 옮길 줄 수 — 폴백 사다리의 마지막 칸이다.

@@ -217,6 +217,10 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-08 | 하이브리드 접두+첫 그룹은 원자 | 접두 쓰기(및 검증)와 첫 게시 그룹 사이 중단 질의 없음(전 하이브리드 공통) — 편집의 살아 있는 선택 잔류 창 봉쇄, 원자 그룹 규칙 ④ | [20260808_hybrid-prefix-atomic-with-first-group.md](references/20260808_hybrid-prefix-atomic-with-first-group.md) |
 | 08-08 | 접두 실패 문언은 `unproven` 축 전용 | "접두 실패 = keyboard 낙하"의 지시 대상 고정 — 요소·읽기 실패는 `.axUnavailable`, 쓰기 후 실패는 폴백 없음, 문장의 취지는 부분 실행 금지 | [20260808_hybrid-prefix-failure-axes-clarified.md](references/20260808_hybrid-prefix-failure-axes-clarified.md) |
 | 08-09 | AX 범위는 표 침묵 자리에서 Vim 정확 | 마지막 줄 linewise 앞 개행 흡수·줄 끝 `dw`·0 이동만 무효(카운트는 클램프) — Vim 실측 14건, 증명 못 하면 `.unproven`. `Insertion`은 `.invalid` 없음 | [20260809_ax-span-vim-exact-where-table-is-silent.md](references/20260809_ax-span-vim-exact-where-table-is-silent.md) |
+| 08-09 | `Mapping.hybrid`는 다중 그룹 + `paced:` | `.paste`가 카운트만큼 갈리므로 `.groups`와 같은 모양으로 확장 — **원자는 첫 그룹뿐**이고 둘째부터는 공유 청크 루프로 낙하, `paced`는 `.paste`만 참 | [20260809_hybrid-mapping-multi-group-paced.md](references/20260809_hybrid-mapping-multi-group-paced.md) |
+| 08-09 | 삽입 하이브리드도 되읽어 검증 | 접두가 캐럿 이동뿐이어도 위임 그룹이 뒤따르므로 비파괴가 아니다(낡은 캐럿의 `Return`은 줄을 쪼갠다) — 액션별로 가르지 않는다(원자 그룹 ④와 같은 논거) | [20260809_hybrid-insertion-readback-verify-kept.md](references/20260809_hybrid-insertion-readback-verify-kept.md) |
+| 08-09 | `pasteWise.resolve()`는 순수 조회 | 기억을 소비하지 않음이 감사로 확정 — 매퍼 앞 위치 유지, 게시 확정 부수효과 호출은 액션 무관 단일 지점(`recordEditWise`가 자체 가드) | [20260809_paste-resolve-is-pure-lookup.md](references/20260809_paste-resolve-is-pure-lookup.md) |
+| 08-09 | 개행 합성은 `o`/`O`와 같은 두 게이트 | 마지막 줄 `p`의 `Return` 합성은 `.textField`(submit)·`open_line: disabled`(사용자 지시)에서 위임 강등 — `newLineStrokes`의 `nil`이 fail-open 하던 버그 포함, 강등 결과는 현행 `P` 퇴행 | [20260809_newline-synthesis-gates.md](references/20260809_newline-synthesis-gates.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 

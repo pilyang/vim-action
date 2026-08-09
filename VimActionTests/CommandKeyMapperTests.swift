@@ -6,6 +6,7 @@
 import Carbon.HIToolbox
 import CoreGraphics
 import Testing
+import VimActionConfig
 import VimEngine
 
 @testable import VimAction
@@ -356,5 +357,74 @@ struct CommandKeyMapperTests {
     @Test("wise 휴리스틱 — 끝 개행이 linewise를 가른다", arguments: pasteWiseFixtures)
     func classifiesPasteWise(_ fixture: PasteWiseFixture) {
         #expect(PasteWise(clipboardText: fixture.text) == fixture.expected, "\(fixture.label)")
+    }
+
+    /// **하이브리드가 갈아끼우는 것은 접두뿐**이라는 계약 — keyboard 시퀀스가 그대로
+    /// `접두 + 위임분`이어야 한다. 갈라지면 `new_line` 재정의·계열 게이트가 한쪽에만 걸린다.
+    @Test("openLine의 keyboard 시퀀스는 접두 + 위임분이다", arguments: [false, true])
+    func openLineSplitsIntoPrefixAndDelegated(_ above: Bool) {
+        let full = CommandKeyMapper.keyStrokes(for: .openLine(above: above), family: .textArea)
+        let delegated = CommandKeyMapper.openLineDelegatedStrokes(above: above, family: .textArea)
+
+        #expect(delegated?.isEmpty == false)
+        #expect(full?.suffix(delegated?.count ?? 0) == delegated?[...])
+        // 앞에 남는 것이 위치 접두 — 하이브리드는 이 자리만 AX 캐럿 쓰기로 바꾼다.
+        #expect(full?.count == (delegated?.count ?? 0) + 1)
+    }
+
+    /// 같은 계약의 붙여넣기 쪽 — 첫 그룹만 접두를 이고, 나머지 그룹은 위임분과 동일하다.
+    @Test("paste의 keyboard 그룹은 접두 + 위임분이다")
+    func pasteSplitsIntoPrefixAndDelegated() {
+        let full = CommandKeyMapper.pasteStrokeGroups(
+            before: false, count: 3, wise: .linewise, family: .textArea)
+        let delegated = CommandKeyMapper.pasteDelegatedGroups(
+            count: 3, appendsLine: false, family: .textArea)
+
+        #expect(delegated == [[pasteKey], [pasteKey], [pasteKey]])
+        #expect(full?.first?.suffix(1) == [pasteKey])
+        #expect(full?.dropFirst().map { $0 } == delegated?.dropFirst().map { $0 })
+    }
+
+    /// `.appendingLine`(마지막 줄 linewise `p`)은 첫 그룹에만 개행을 얹는다 — 뒤의 `Cmd-V`는
+    /// 붙여넣은 내용 끝(개행 뒤)에서 이어지므로 개행을 다시 만들 이유가 없다.
+    @Test("appendingLine은 첫 그룹에만 Return을 얹는다")
+    func appendingLinePrependsReturnOnce() {
+        let groups = CommandKeyMapper.pasteDelegatedGroups(
+            count: 2, appendsLine: true, family: .textArea)
+
+        #expect(groups == [[KeyStroke(kVK_Return), pasteKey], [pasteKey]])
+    }
+
+    /// 단일행 필드는 항상 "종결자 없는 마지막 줄"이라 이 경로가 상시 발동하는데, 거기서
+    /// `Return`은 대개 submit이다 — `o`/`O` 게이트와 같은 축이다.
+    @Test("textField에서 appendingLine은 nil이고 일반 paste는 그대로다")
+    func appendingLineIsGatedInTextField() {
+        #expect(
+            CommandKeyMapper.pasteDelegatedGroups(
+                count: 1, appendsLine: true, family: .textField) == nil)
+        #expect(
+            CommandKeyMapper.pasteDelegatedGroups(
+                count: 1, appendsLine: false, family: .textField) == [[pasteKey]])
+    }
+
+    /// **`open_line` disable도 개행 합성을 막는다.** `newLineStrokes`의 `nil`이 "재정의 없음"과
+    /// "disable"을 뭉치므로 기본 `Return`으로 fail-open 하면, `Return`이 전송인 앱에서 disable을
+    /// 택한 사용자에게 `p` 한 번이 메시지를 보낸다. `o`/`O`는 어댑터의 `actions:` 게이트가
+    /// 앞서지만 `.paste`는 그 게이트를 지나지 않는다.
+    @Test("open_line disable이면 appendingLine도 nil이다")
+    func appendingLineIsGatedByOpenLineDisable() {
+        let profile = ResolvedProfile(AppProfile(actions: [.openLine: .disabled]))
+
+        #expect(
+            CommandKeyMapper.pasteDelegatedGroups(
+                count: 1, appendsLine: true, family: .textArea, profile: profile) == nil)
+        // 개행을 만들지 않는 붙여넣기는 그대로다 — 게이트의 축은 "줄을 만드는가"다.
+        #expect(
+            CommandKeyMapper.pasteDelegatedGroups(
+                count: 1, appendsLine: false, family: .textArea, profile: profile) == [[pasteKey]])
+        // `o`/`O`도 같은 게이트를 지난다(어댑터가 앞서 걸러도 매퍼가 fail-open 하지 않는다).
+        #expect(
+            CommandKeyMapper.openLineDelegatedStrokes(
+                above: false, family: .textArea, profile: profile) == nil)
     }
 }

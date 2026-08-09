@@ -43,6 +43,7 @@ private final class LandedRange: @unchecked Sendable {
 private func makeAXAdapter(
     axText: FocusedText?,
     element: AXUIElement? = AXUIElementCreateApplication(99_999),
+    clipboard: PasteWise? = .charwise,
     writeError: @escaping @Sendable () -> AXError = { .success },
     readback: (@Sendable () -> NSRange?)? = nil,
     now: @escaping @Sendable () -> TimeInterval = { 0 },
@@ -53,7 +54,7 @@ private func makeAXAdapter(
     let landed = LandedRange()
     return KeyboardAdapter(
         executor: ActionExecutor(postEvent: posted),
-        pasteWise: PasteWiseResolver(readClipboard: { .charwise }, readChangeCount: { 0 }),
+        pasteWise: PasteWiseResolver(readClipboard: { clipboard }, readChangeCount: { 0 }),
         reader: FocusedTextReader { _ in nil },
         viewportReader: ViewportReader { _ in nil },
         axWindow: { _ in axText },
@@ -678,5 +679,424 @@ struct KeyboardAdapterHybridEditTests {
         changeCount += 1
 
         #expect(pasteWise.resolve() == .charwise, "기억이 없어 휴리스틱으로 간다")
+    }
+}
+
+// MARK: - 삽입 하이브리드 (PR-D1b 세션 3)
+
+private let returnCode = Int64(kVK_Return)
+private let pasteCode = Int64(kVK_ANSI_V)
+private let upCode = Int64(kVK_UpArrow)
+
+struct KeyboardAdapterHybridInsertionTests {
+    /// `o`/`O`의 접두는 **논리** 줄 끝/줄 시작이고, 위임분은 `Return`(+`O`의 복귀)뿐이다.
+    /// `Cmd-→`/`Cmd-←`가 시각 줄이라 소프트 랩 문단에서 서지 못하던 자리가 여기서 풀린다.
+    @Test(
+        "openLine은 논리 줄 끝·줄 시작에 캐럿을 쓰고 Return만 위임한다",
+        arguments: [
+            (caret: 0, above: false, written: 2, delegated: [returnCode]),  // 첫 줄 o
+            (caret: 3, above: false, written: 5, delegated: [returnCode]),  // 가운데 줄 o
+            (caret: 6, above: false, written: 8, delegated: [returnCode]),  // 마지막 줄 o (문서 끝)
+            (caret: 0, above: true, written: 0, delegated: [returnCode, upCode]),  // 첫 줄 O
+            (caret: 4, above: true, written: 3, delegated: [returnCode, upCode]),
+        ])
+    func openLineWritesCaret(
+        _ fixture: (caret: Int, above: Bool, written: Int, delegated: [Int64])
+    ) {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: fixture.caret), onWrite: { calls.append($0) },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.openLine(above: fixture.above)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: fixture.written, length: 0)])
+        #expect(downStrokes(posted).map(\.code) == fixture.delegated)
+    }
+
+    /// 계열 게이트는 하이브리드가 우회하지 못한다 — 단일행 필드에서 `Return`은 submit이다.
+    @Test("textField의 openLine은 AX로도 나가지 않는다")
+    func openLineTextFieldStaysBlocked() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), onWrite: { _ in writes += 1 },
+            collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.openLine(above: false)], family: .textField, profile: axProfile, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty)
+    }
+
+    /// `new_line` 재정의는 위임분에 남아 있어야 한다 — 접두만 AX로 갈아끼운다.
+    @Test("openLine 하이브리드도 new_line 재정의를 탄다")
+    func openLineHonorsNewLineOverride() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let profile = ResolvedProfile(
+            AppProfile(
+                strategy: .accessibility,
+                actions: [.openLine: .strokes([ConfigKeyStroke(.return, [.shift])])]))
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), onWrite: { calls.append($0) },
+            collecting: { posted.append($0) })
+
+        adapter.execute([.openLine(above: false)], profile: profile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 2, length: 0)])
+        #expect(downStrokes(posted).map(\.code) == [returnCode])
+        #expect(downStrokes(posted).allSatisfy { $0.flags.contains(.maskShift) })
+    }
+
+    /// 붙여넣기 삽입점 — 세션 1의 순수 함수 표와 같은 답이어야 한다. 접두가 캐럿 쓰기라
+    /// **화살표 우회 장치가 전부 사라진다**: 줄 끝 `→` 포화도, linewise의 꼬리 `Cmd-←`도 없다.
+    @Test(
+        "paste는 계산된 삽입점에 캐럿을 쓰고 Cmd-V만 위임한다",
+        arguments: [
+            (caret: 0, before: false, wise: PasteWise.charwise, written: 1),  // p — 한 칸 오른쪽
+            (caret: 1, before: false, wise: .charwise, written: 2),
+            (caret: 2, before: false, wise: .charwise, written: 2),  // 줄 끝 xp — 접두 없음
+            (caret: 8, before: false, wise: .charwise, written: 8),  // 문서 끝
+            (caret: 1, before: true, wise: .charwise, written: 1),  // P — 캐럿 그대로
+            (caret: 4, before: true, wise: .linewise, written: 3),  // 줄 시작
+            (caret: 0, before: false, wise: .linewise, written: 3),  // 다음 줄 시작
+            (caret: 4, before: false, wise: .linewise, written: 6),
+        ])
+    func pasteWritesInsertion(
+        _ fixture: (caret: Int, before: Bool, wise: PasteWise, written: Int)
+    ) {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: fixture.caret), clipboard: fixture.wise,
+            onWrite: { calls.append($0) }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.paste(before: fixture.before, count: 1)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: fixture.written, length: 0)])
+        #expect(downStrokes(posted).map(\.code) == [pasteCode], "접두 화살표가 하나도 없다")
+        #expect(downStrokes(posted).allSatisfy { $0.flags == .maskCommand })
+    }
+
+    /// **이 세션의 수용 기준.** 마지막 줄(뒤 개행 없음)의 linewise `p`는 문서 끝 캐럿 +
+    /// `[Return, Cmd-V]`다 — `ddp`의 `P` 퇴행이 여기서 실해소된다. naive 문서 끝 캐럿은
+    /// 병합 훼손이 실측됐고, 캐럿 쓰기만으로는 구분 개행을 만들 수 없다.
+    @Test("마지막 줄 linewise p는 문서 끝 캐럿 + [Return, Cmd-V]다")
+    func lastLineLinewisePasteSynthesizesReturn() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 6), clipboard: .linewise,
+            onWrite: { calls.append($0) }, collecting: { posted.append($0) })
+
+        adapter.execute([.paste(before: false, count: 1)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 8, length: 0)])
+        #expect(downStrokes(posted).map(\.code) == [returnCode, pasteCode])
+    }
+
+    /// **끝 개행이 있는 문서의 빈 마지막 줄에서는 개행을 합성하지 않는다.** 구분 개행이 이미
+    /// 있어 그 자리가 곧 삽입점이고, `Return`을 내면 빈 줄이 하나 더 생겨 현행 keyboard보다
+    /// 나빠진다 — `"l1\nl2\n"`의 마지막 줄 `dd` 뒤 `p`가 정확히 이 자리다.
+    @Test("끝 개행 뒤 빈 줄의 linewise p는 Return 없이 붙인다")
+    func trailingNewlineLastLinePasteDoesNotSynthesize() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText("l1\nl2\n", caret: 6), clipboard: .linewise,
+            onWrite: { calls.append($0) }, collecting: { posted.append($0) })
+
+        adapter.execute([.paste(before: false, count: 1)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 6, length: 0)])
+        #expect(downStrokes(posted).map(\.code) == [pasteCode])
+    }
+
+    /// `open_line: disabled`는 `.paste`의 개행 합성도 막는다 — `.paste` 액션이라 어댑터의
+    /// `actions:` 게이트를 지나지 않으므로, 매퍼가 fail-open 하면 `Return`이 전송인 앱에서
+    /// `p` 한 번이 메시지를 보낸다. 강등 결과는 현행 위임(`P` 퇴행)이다.
+    @Test("open_line disable이면 마지막 줄 p도 위임으로 강등한다")
+    func openLineDisableDemotesAppendingLine() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let profile = ResolvedProfile(
+            AppProfile(strategy: .accessibility, actions: [.openLine: .disabled]))
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 6), clipboard: .linewise,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute([.paste(before: false, count: 1)], profile: profile, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(
+            !downStrokes(posted).map(\.code).contains(returnCode), "개행 합성이 나가면 안 된다")
+        #expect(!posted.isEmpty, "강등이지 스킵이 아니다")
+    }
+
+    /// `.appendingLine`의 개행도 `new_line` 훅을 탄다 — 줄을 만드는 키라는 점이 `o`와 같다.
+    @Test("appendingLine의 개행도 new_line 재정의를 탄다")
+    func appendingLineHonorsNewLineOverride() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let profile = ResolvedProfile(
+            AppProfile(
+                strategy: .accessibility,
+                actions: [.openLine: .strokes([ConfigKeyStroke(.return, [.shift])])]))
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 6), clipboard: .linewise,
+            collecting: { posted.append($0) })
+
+        adapter.execute([.paste(before: false, count: 1)], profile: profile, processID: anyPID)
+
+        #expect(downStrokes(posted).map(\.code) == [returnCode, pasteCode])
+        #expect(downStrokes(posted).first?.flags.contains(.maskShift) == true)
+    }
+
+    /// 단일행 필드는 **항상** "종결자 없는 마지막 줄"이라 linewise `p`가 상시 이 경로로
+    /// 떨어진다 — 거기서 `Return`은 대개 submit이므로 위임(현행 `P` 퇴행)으로 강등한다.
+    @Test("textField의 마지막 줄 linewise p는 위임으로 강등한다")
+    func appendingLineInTextFieldDelegates() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var hybrid: [CGEvent] = []
+        nonisolated(unsafe) var keyboard: [CGEvent] = []
+        let text = focusedText(axLines, caret: 6)
+        let axAdapter = makeAXAdapter(
+            axText: text, clipboard: .linewise, onWrite: { _ in writes += 1 },
+            collecting: { hybrid.append($0) })
+        let keyboardAdapter = KeyboardAdapter(
+            executor: ActionExecutor(postEvent: { keyboard.append($0) }),
+            pasteWise: PasteWiseResolver(readClipboard: { .linewise }, readChangeCount: { 0 }),
+            reader: FocusedTextReader { _ in text },
+            viewportReader: ViewportReader { _ in nil })
+
+        axAdapter.execute(
+            [.paste(before: false, count: 1)], family: .textField, profile: axProfile,
+            processID: anyPID)
+        keyboardAdapter.execute(
+            [.paste(before: false, count: 1)], family: .textField, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(downStrokes(hybrid).map(\.code) == downStrokes(keyboard).map(\.code))
+        #expect(!hybrid.isEmpty, "강등이지 스킵이 아니다")
+    }
+
+    /// 카운트는 **접두 1회 + `Cmd-V`×count**다. 첫 그룹만 원자이고 나머지는 일반 청크 경로라
+    /// 게시 순서·개수가 keyboard와 같은 모양을 유지한다.
+    @Test("3p는 쓰기 1건 + Cmd-V 3타다")
+    func countedPasteWritesOnce() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), clipboard: .charwise,
+            onWrite: { calls.append($0) }, collecting: { posted.append($0) })
+
+        adapter.execute([.paste(before: false, count: 3)], profile: axProfile, processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 1, length: 0)])
+        #expect(downStrokes(posted).map(\.code) == [pasteCode, pasteCode, pasteCode])
+    }
+
+    /// 마지막 줄 `3p`도 `Return`은 **첫 그룹에만** 붙는다 — 뒤의 `Cmd-V`는 붙여넣은 내용
+    /// 끝(개행 뒤)에서 이어지므로 개행을 다시 만들 이유가 없다.
+    @Test("마지막 줄 3p의 Return은 첫 그룹에만 붙는다")
+    func countedAppendingLinePasteSynthesizesOneReturn() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 6), clipboard: .linewise,
+            collecting: { posted.append($0) })
+
+        adapter.execute([.paste(before: false, count: 3)], profile: axProfile, processID: anyPID)
+
+        #expect(
+            downStrokes(posted).map(\.code) == [returnCode, pasteCode, pasteCode, pasteCode])
+    }
+
+    /// 증명 실패는 **위임**이고 그 시퀀스가 keyboard 경로와 바이트 동일해야 한다 —
+    /// 살아 있는 선택 위에서는 출발점을 증명할 수 없다(정확화 표의 공통 조건).
+    @Test(
+        "unproven 낙하는 현행 keyboard 시퀀스와 바이트 동일하다",
+        arguments: [
+            VimAction.paste(before: false, count: 1), .paste(before: true, count: 1),
+            .openLine(above: false), .openLine(above: true),
+        ])
+    func unprovenInsertionDelegatesLikeKeyboard(_ action: VimAction) {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var hybrid: [CGEvent] = []
+        nonisolated(unsafe) var keyboard: [CGEvent] = []
+        // 살아 있는 선택 — 삽입 산출도 캐럿(길이 0)만 증명한다.
+        let text = focusedText(axLines, caret: 3, length: 2)
+        let axAdapter = makeAXAdapter(
+            axText: text, onWrite: { _ in writes += 1 }, collecting: { hybrid.append($0) })
+        let keyboardAdapter = KeyboardAdapter(
+            executor: ActionExecutor(postEvent: { keyboard.append($0) }),
+            pasteWise: PasteWiseResolver(readClipboard: { .charwise }, readChangeCount: { 0 }),
+            reader: FocusedTextReader { _ in text },
+            viewportReader: ViewportReader { _ in nil })
+
+        axAdapter.execute([action], profile: axProfile, processID: anyPID)
+        keyboardAdapter.execute([action], processID: anyPID)
+
+        #expect(writes == 0, "쓰기 시도 전이라 이중 실행이 불가능하다")
+        #expect(downStrokes(hybrid).map(\.code) == downStrokes(keyboard).map(\.code))
+        #expect(downStrokes(hybrid).map(\.flags) == downStrokes(keyboard).map(\.flags))
+    }
+
+    /// 요소·읽기 실패는 `unproven`과 **다른 축**이다 — 위임이 아니라 스킵이고 잔여도 접는다.
+    @Test("요소가 없으면 삽입도 execute 잔여를 접는다")
+    func missingElementEndsInsertionExecute() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: nil, element: nil, onWrite: { _ in writes += 1 },
+            collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.paste(before: false, count: 1), .openLine(above: false)], profile: axProfile,
+            processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty)
+    }
+
+    /// **되읽어 검증은 삽입 하이브리드에도 걸린다** — 접두가 캐럿 이동뿐이라 파괴 등급은
+    /// 낮지만, 검증을 빼면 낡은 캐럿 위에서 `Cmd-V`·`Return`이 터진다(`.appendingLine`에서는
+    /// 줄 분리). 상한 도달 = 무동작 + execute 잔여 중단이다.
+    @Test("접두가 착지하지 않으면 붙여넣기도 나가지 않는다")
+    func insertionReadbackTimeoutSkips() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var reports = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var clock: TimeInterval = 0
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0),
+            readback: { NSRange(location: 99, length: 0) },  // 영영 착지하지 않는다
+            now: {
+                clock += 0.01
+                return clock
+            },
+            reportFailure: { _ in reports += 1 },
+            onWrite: { _ in writes += 1 },
+            collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.paste(before: false, count: 1), .paste(before: false, count: 1)], profile: axProfile,
+            processID: anyPID)
+
+        #expect(writes == 1, "첫 액션에서 끊긴다")
+        #expect(posted.isEmpty)
+        #expect(reports == 0, "검증 실패는 실행 실패 보고가 아니다")
+    }
+
+    /// 중단 래치는 접두 쓰기 직전까지만이다 — 삽입도 같은 규칙이다.
+    @Test("쓰기 직전에 밀려나면 삽입 접두도 쓰지 않는다")
+    func abortBeforeInsertionPrefixSkipsWrite() {
+        nonisolated(unsafe) var writes = 0
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), onWrite: { _ in writes += 1 })
+
+        adapter.execute(
+            [.paste(before: false, count: 1)], profile: axProfile, processID: anyPID,
+            isCurrent: { false })
+
+        #expect(writes == 0)
+    }
+
+    /// 비-QWERTY 치환은 하이브리드 `Cmd-V`에도 걸린다 — 빠지면 AZERTY에서 엉뚱한 명령이 나간다.
+    @Test("하이브리드 Cmd-V도 역조회 키코드로 치환된다")
+    func hybridPasteIsSubstituted() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let landed = LandedRange()
+        let adapter = KeyboardAdapter(
+            executor: ActionExecutor(postEvent: { posted.append($0) }),
+            pasteWise: PasteWiseResolver(readClipboard: { .charwise }, readChangeCount: { 0 }),
+            hasQwertyCommandKeys: { false },
+            commandKeyCodes: { ["z": 44, "x": 11, "c": 34, "v": 47] },  // Dvorak 실측 표
+            reader: FocusedTextReader { _ in nil },
+            viewportReader: ViewportReader { _ in nil },
+            axWindow: { _ in focusedText(axLines, caret: 0) },
+            axSelection: { _ in landed.value },
+            writer: AXWriter { _, _, value in
+                landed.value = range(from: value)
+                return .success
+            },
+            axElement: { _ in AXUIElementCreateApplication(99_999) })
+
+        adapter.execute([.paste(before: false, count: 1)], profile: axProfile, processID: anyPID)
+
+        #expect(downStrokes(posted).map(\.code) == [47], "v의 Dvorak 키코드")
+    }
+
+    /// `actions:` disable은 모든 게이트·부수효과보다 앞이다 — AX 왕복도 0건이어야 한다.
+    @Test("프로파일이 끈 paste·openLine은 AX로도 나가지 않는다")
+    func disabledActionsSkipAX() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let profile = ResolvedProfile(
+            AppProfile(strategy: .accessibility, actions: [.paste: .disabled, .openLine: .disabled])
+        )
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), onWrite: { _ in writes += 1 },
+            collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.paste(before: false, count: 1), .openLine(above: false)], profile: profile,
+            processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty)
+    }
+
+    /// 비텍스트·미상 계열은 걸러내기 게이트가 먼저다 — AX도 위임도 아니다.
+    @Test(
+        "nonText·unresolved 계열의 삽입은 AX로 가지 않는다",
+        arguments: [ElementFamily.nonText, .unresolved])
+    func nonTextFamilyDoesNotWriteInsertions(_ family: ElementFamily) {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), onWrite: { _ in writes += 1 },
+            collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.paste(before: false, count: 1), .openLine(above: false)], family: family,
+            profile: axProfile, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty)
+    }
+
+    /// **기본 전략은 keyboard** — 미지정 프로파일의 삽입은 동작 diff 0이다.
+    @Test("strategy 미지정이면 삽입도 쓰기 seam을 부르지 않는다")
+    func defaultStrategyDelegatesInsertion() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), onWrite: { _ in writes += 1 },
+            collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.paste(before: false, count: 1), .openLine(above: false)], processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(!posted.isEmpty)
+    }
+
+    /// 텍스트 없는 클립보드는 AX 경로에서도 정직한 스킵이다 — 접두만 쓰면 "붙여넣기 없이
+    /// 캐럿만 움직이는" 조용한 오동작이 된다.
+    @Test("빈 클립보드는 AX 경로에서도 스킵이다")
+    func emptyClipboardSkipsBeforeWrite() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText(axLines, caret: 0), clipboard: nil,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute([.paste(before: false, count: 1)], profile: axProfile, processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(posted.isEmpty)
     }
 }

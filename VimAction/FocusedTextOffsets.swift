@@ -725,9 +725,15 @@ nonisolated enum FocusedTextOffsets {
 
         /// linewise `p` — 다음 줄 시작. 마지막 줄(뒤 개행 없음)이면 구분 개행이 없어
         /// `.appendingLine`이다(문서 끝 캐럿 + 게시 `Return`).
+        ///
+        /// **종결자를 못 찾은 채 문서 끝에 닿은 것은 두 모양을 뭉친다** — 문서가 종결자로
+        /// 끝나면 캐럿은 마지막 종결자 **뒤**(빈 마지막 줄)이고 구분 개행이 이미 있으므로 그
+        /// 자리가 곧 삽입점이다. 거기서 `Return`을 합성하면 빈 줄이 하나 더 생겨 keyboard
+        /// 경로보다 나빠진다(`"l1\nl2\n"`의 마지막 줄 `dd` 뒤 `p`가 정확히 이 자리다).
         func linewisePasteAfter() -> Insertion {
             guard case .index(let end) = lineEndIndex(from: caret) else { return .unproven }
-            return end < count ? .at(offsets[end + 1]) : .appendingLine(characterCount)
+            if end < count { return .at(offsets[end + 1]) }
+            return endsWithoutTerminator ? .appendingLine(characterCount) : .at(characterCount)
         }
 
         // MARK: Visual 범위

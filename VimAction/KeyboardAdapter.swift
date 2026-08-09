@@ -221,12 +221,22 @@ nonisolated struct KeyboardAdapter: Sendable {
             return true
         }
 
-        /// 페이싱 다타 그룹(Visual 정확화·paste 접두)을 **스트로크(다운·업 쌍) 사이 고정
-        /// 간격**으로 게시한다 —
-        /// Notion 실측에서 0간격 버스트는 재앵커의 Shift 확장을 소화하지 못했다(이벤트당
-        /// 5ms 프로브는 완전 정상 — 간격 문제로 확정). 그룹은 원자라 내부 중단 확인은 없다
-        /// (최대 수 타 × 5ms라 무해). 최신 여부 확인·중단 계약은 `flush`와 같다.
-        /// 반환 false = 이 실행이 밀려남 — 호출자는 즉시 그만둔다.
+        /// 한 그룹을 **스트로크(다운·업 쌍) 사이 고정 간격**으로 게시한다 — 래치 질의도 청크
+        /// 간격도 없는 순수 게시다. Notion 실측에서 0간격 버스트는 재앵커의 Shift 확장도
+        /// 붙여넣기 접두의 화살표도 소화하지 못했다(이벤트당 5ms 프로브는 완전 정상 — 간격
+        /// 문제로 확정). 그룹은 원자라 내부 중단 확인이 없다(최대 수 타 × 5ms라 무해).
+        ///
+        /// 하이브리드의 첫 그룹은 이것을 **직접** 부른다 — 원자 그룹 ④는 그 앞에 래치 질의를
+        /// 두지 못하기 때문이다. 간격 규칙이 두 경로에서 갈리지 않도록 함수를 공유한다.
+        func postSpaced(_ events: [CGEvent]) {
+            for index in stride(from: 0, to: events.count, by: 2) {
+                if index > 0 { Thread.sleep(forTimeInterval: Self.pacedStrokeInterval) }
+                executor.post(Array(events[index..<min(index + 2, events.count)]))
+            }
+        }
+
+        /// 페이싱 그룹을 청크 경계 규칙 아래 게시한다 — 최신 여부 확인·중단 계약은 `flush`와
+        /// 같다. 반환 false = 이 실행이 밀려남 — 호출자는 즉시 그만둔다.
         func postPaced(_ events: [CGEvent]) -> Bool {
             if postedChunks > 0 { Thread.sleep(forTimeInterval: Self.chunkInterval) }
             guard isCurrent() else {
@@ -236,10 +246,7 @@ nonisolated struct KeyboardAdapter: Sendable {
                 #endif
                 return false
             }
-            for index in stride(from: 0, to: events.count, by: 2) {
-                if index > 0 { Thread.sleep(forTimeInterval: Self.pacedStrokeInterval) }
-                executor.post(Array(events[index..<min(index + 2, events.count)]))
-            }
+            postSpaced(events)
             postedChunks += 1
             return true
         }
@@ -329,11 +336,11 @@ nonisolated struct KeyboardAdapter: Sendable {
                 )
                 #endif
                 return
-            case .hybrid(let range, let mapped):
+            case .hybrid(let range, let mapped, let pacedGroups):
                 // 하이브리드도 위임 그룹을 게시하므로 치환은 `.groups`와 같은 자리·같은
                 // `LayoutSnapshot`을 쓴다 (게이트와 치환의 TOCTOU 봉쇄가 그대로 상속된다).
-                guard let delegated = Self.substituted([mapped], layout: layout, action: action)?
-                    .first
+                guard let substituted = Self.substituted(mapped, layout: layout, action: action),
+                    let delegated = substituted.first
                 else {
                     visualAnchor.apply(.discard)
                     continue
@@ -372,15 +379,26 @@ nonisolated struct KeyboardAdapter: Sendable {
                     effects.noteVerifyMismatch(action: action)
                     return
                 }
-                // ⑥ 게시는 래치 질의도 페이싱도 거치지 않고 곧장 — 원자 그룹 ④다.
-                executor.post(delegatedEvents)
+                // ⑥ 게시는 **래치 질의를 거치지 않고** 곧장 — 원자 그룹 ④다. 스트로크 간격만은
+                //    `.groups`와 같은 규칙으로 둔다(2타 이상 페이싱 그룹 = `.paste`의
+                //    `[Return, Cmd-V]` — 0간격 버스트에서 앞 키를 잃는 앱이 실측됐다).
+                if pacedGroups, delegated.count >= 2 {
+                    postSpaced(delegatedEvents)
+                } else {
+                    executor.post(delegatedEvents)
+                }
                 postedChunks += 1
                 // **게시가 실제로 나간 뒤에** wise를 기억한다. `.groups`에서는 매핑 확정이 곧
                 // 게시 확정에 가까웠지만, 하이브리드는 그 사이에 설계된 실패 단계(검증 불일치
                 // 등)가 여럿 있어 매핑 시점 기록이면 나가지도 않은 편집의 wise가 남는다 —
                 // 그 뒤 외부 복사 1회가 델타를 정확히 1로 만들면 `p`가 그 기억으로 오판된다.
+                // 편집이 아닌 하이브리드(`.openLine`·`.paste`)에는 부수효과가 없어 no-op이다.
                 recordEditWise(for: action)
-                continue
+                // 둘째 그룹부터는 원자가 아니다 — `.groups`와 **같은 청크·페이싱 루프**로
+                // 낙하한다(`.paste`의 나머지 `Cmd-V`들). 그룹이 하나뿐이면 빈 배열이라 루프가
+                // 그냥 지나간다.
+                groups = Array(substituted.dropFirst())
+                paced = pacedGroups
 
             case .groups(let mapped, let pacedGroups):
                 guard let substituted = Self.substituted(mapped, layout: layout, action: action)
@@ -674,19 +692,23 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// 페이싱 대상이 아니고, `paced`는 위임 전용 속성으로 남는다.
         ///
         case ax(NSRange)
-        /// **하이브리드** — AX 범위/캐럿 접두 쓰기 + 위임 게시 그룹. 편집(delete·change·yank)이
-        /// 첫 소비자이고, `.openLine`·`.paste`는 PR-D1b 세션 3에서 같은 케이스를 쓴다.
+        /// **하이브리드** — AX 범위/캐럿 접두 쓰기 + 위임 게시 그룹. 편집(delete·change·yank)·
+        /// `.openLine`·`.paste`가 이 케이스를 공유한다.
         ///
         /// 접두 쓰기(및 되읽어 검증)와 **첫 게시 그룹 사이에는 중단 질의가 없다** — 원자 그룹
         /// ④다. 사이에서 끊기면 편집의 AX 선택이 화면에 잔류하고, 다음 Normal `x`
         /// (`Shift-→, Cmd-X`)가 그것을 통째로 잘라낸다
         /// (`20260808_hybrid-prefix-atomic-with-first-group.md`).
         ///
-        /// 그룹이 **하나**이고 `paced:`가 없는 것은 `.ax`와 같은 규칙이다 — 편집의 위임분은
-        /// `[Cmd-X]` 1타 또는 `[Cmd-C, ←]` 2타 한 그룹이고 현행 keyboard 편집도 무페이싱이라,
-        /// 지금 여러 그룹·페이싱 축을 두면 항상 도달 불가·항상 false인 빈 자리가 된다.
-        /// 카운트만큼 그룹이 갈리는 `.paste` 하이브리드가 필요로 하면 세션 3에서 넓힌다.
-        case hybrid(NSRange, [KeyStroke])
+        /// **원자인 것은 첫 그룹뿐이다** — 둘째 그룹부터는 `.groups`와 **같은 청크·페이싱
+        /// 경로**를 탄다. 그룹이 여럿인 액션은 `.paste` 하나이고(`1000p` = `Cmd-V` 1,000타),
+        /// 통짜로 내면 중단 래치가 파고들 틈이 없다는 것이 `.groups`에서와 같은 이유다.
+        ///
+        /// `paced`의 의미도 `.groups`와 같다(2타 이상 그룹의 스트로크 사이 간격). 실효 지점은
+        /// `.paste`의 `[Return, Cmd-V]` 한 그룹뿐이지만 — 나머지 paste 그룹은 1타라 페이싱
+        /// 규칙 밖이다 — 그 자리가 정확히 Notion 0간격 버스트 약점의 재현 지점이고, 편집·
+        /// openLine은 `false`라 세션 2가 확인한 타이밍이 그대로 유지된다.
+        case hybrid(NSRange, [[KeyStroke]], paced: Bool)
         /// AX 경로인데 **쓰기 시도 전 단계**가 실패했다 — 포커스 요소 미노출, 읽기 타임아웃.
         ///
         /// 보고도 폴백도 아닌 스킵이다(실행을 시도하지 않았다). `.skipped`와 갈라 두는 것은
@@ -876,7 +898,9 @@ nonisolated struct KeyboardAdapter: Sendable {
                     // `nil`(= `char_left` disable)이면 아래 위임으로 낙하해 기존 경로가
                     // `.disabledByProfile`로 정직하게 집계한다.
                     if let operatorKeys = EditKeyMapper.operatorStrokes(for: op, profile: profile) {
-                        hybrid = .hybrid(span, operatorKeys)
+                        // 위임분은 `[Cmd-X]` 또는 `[Cmd-C, ←]` 한 그룹이고, 현행 keyboard 편집이
+                        // 무페이싱이라 그대로 둔다 (`.paste`만 `paced: true`다).
+                        hybrid = .hybrid(span, [operatorKeys], paced: false)
                     }
                 case .invalid:
                     // 미지원이 아니라 "지원하지만 Vim에서 무효" — 모션의 증명된 무게시와 같은
@@ -975,7 +999,31 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
             return result
 
-        case .openLine, .undo, .redo:
+        case .openLine(let above):
+            // AX 접두는 **논리** 줄 시작/끝이라 `Cmd-←`/`Cmd-→`(시각 줄)가 못 서던 자리가
+            // 함께 풀린다 — 소프트 랩 문단에서 `O`가 빈 줄을 못 만들던 수용 엣지가 그것이다.
+            // 위임분(`Return`·`O`의 복귀)은 매퍼가 내므로 `.textField` 게이트와 `new_line`
+            // 재정의가 keyboard 경로와 같은 함수를 지난다.
+            if Self.usesAXWrite(action, family: family, profile: profile) {
+                guard let focused = axText.value() else { return .axUnavailable }
+                if case .at(let offset) = FocusedTextOffsets.openLineInsertion(
+                    above: above, in: focused),
+                    let delegated = CommandKeyMapper.openLineDelegatedStrokes(
+                        above: above, family: family, profile: profile) {
+                    return .hybrid(
+                        NSRange(location: offset, length: 0), [delegated], paced: false)
+                }
+                // `.unproven`(창이 답 못 함)·위임분 `nil`(계열 게이트·모션 disable)은 아래
+                // 위임으로 낙하한다. `Insertion`의 `.appendingLine`은 openLine이 내지 않지만,
+                // 오면 같은 보수 방향(위임)으로 흡수된다.
+            }
+            return Self.classify(
+                CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
+            ) {
+                CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+            }
+
+        case .undo, .redo:
             return Self.classify(
                 CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
             ) {
@@ -1010,12 +1058,48 @@ nonisolated struct KeyboardAdapter: Sendable {
                 Logger.eventTap.debug("paste 스킵 — 클립보드에 텍스트가 없다")
                 return .skipped
             }
+            // **AX 실행 계획이 먼저다** — 접두가 화살표 조합이 아니게 되면서 keyboard가 우회
+            // 장치로 덮던 자리들이 사라진다: 줄 끝 접두 생략(`pasteConsultsFocusedText`)과
+            // linewise after의 꼬리 `Cmd-←` 멱등 보정자는 **폴백 경로 전담**으로 남는다.
+            var axFocused: FocusedText?
+            if Self.usesAXWrite(action, family: family, profile: profile) {
+                // 읽기 실패는 `unproven`과 **다른 축**이다 (`.edit`·`.move`와 같은 규칙).
+                guard let focused = axText.value() else { return .axUnavailable }
+                axFocused = focused
+                switch FocusedTextOffsets.pasteInsertion(before: before, wise: wise, in: focused) {
+                case .at(let offset):
+                    if let groups = CommandKeyMapper.pasteDelegatedGroups(
+                        count: count, appendsLine: false, family: family, profile: profile) {
+                        return .hybrid(
+                            NSRange(location: offset, length: 0), groups, paced: true)
+                    }
+                case .appendingLine(let offset):
+                    // 마지막 줄(뒤 개행 없음)의 linewise `p` — 문서 끝 캐럿 + `[Return, Cmd-V]`
+                    // 원자 그룹이다. naive 문서 끝 캐럿은 병합 훼손이 실측됐고, 캐럿 쓰기만으로는
+                    // 구분 개행을 만들 수 없다 (`20260808_last-line-linewise-paste-return-synthesis.md`).
+                    // 위임분이 `nil`이면(단일행 필드 — `Return`이 submit) 아래 위임으로 낙하해
+                    // 현행 동작(`P` 퇴행) 그대로다.
+                    if let groups = CommandKeyMapper.pasteDelegatedGroups(
+                        count: count, appendsLine: true, family: family, profile: profile) {
+                        return .hybrid(
+                            NSRange(location: offset, length: 0), groups, paced: true)
+                    }
+                case .unproven:
+                    // 창이 답하지 못했다 → 아래 위임으로 낙하한다. 쓰기 시도 **전**이라 이중
+                    // 실행이 원리적으로 불가하다 (`20260808_hybrid-prefix-failure-axes-clarified.md`).
+                    break
+                }
+            }
             // **읽기의 세 번째 소비 지점** — charwise `p`만 줄 끝 증명을 위해 묻는다
             // (`P`·linewise는 왕복 0건 유지). 읽기 실패·pid 없음은 `nil`이라 현행 접두
             // 그대로다. 정확화가 접두를 비울 뿐 `nil`을 새로 만들지 않으므로 편집·Visual과
-            // 달리 프로브는 그대로 둘이다.
-            let focused = CommandKeyMapper.pasteConsultsFocusedText(before: before, wise: wise)
-                ? text.value() : nil
+            // 달리 프로브는 그대로 둘이다. 위임 낙하는 **이미 읽은 AX 창을 그대로** 먹인다 —
+            // 한 액션은 창을 한 번만 읽는다
+            // (`20260808_ax-unproven-edit-delegation-reuses-ax-window.md`).
+            let focused =
+                axFocused
+                ?? (CommandKeyMapper.pasteConsultsFocusedText(before: before, wise: wise)
+                    ? text.value() : nil)
             // 유일하게 그룹이 여럿인 액션 — 액션 1개 안에서 카운트가 곱해지므로 래치가
             // 파고들 틈을 매퍼가 직접 낸다. 분류 규칙은 `classify`와 같고 그룹 모양만 다르다.
             // `paced`인 것은 접두 다타 그룹(linewise 4타 등)이 Notion 0간격 버스트에서
@@ -1175,7 +1259,7 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 등)은 사용자가 그 액션에 대해 지시한 모션이 아니고, 여기서 보려면 `EditKeyMapper`의
     /// 시퀀스 조립표가 어댑터로 복사돼 두 곳이 갈라진다.
     ///
-    /// `.openLine`·`.paste`·Visual이 아직 false인 것은 PR-D1b 세션 3·4 몫이기 때문이다.
+    /// Visual이 아직 false인 것은 PR-D1b 세션 4 몫이기 때문이다.
     ///
     /// `ElementFamily`에 exhaustive switch를 거는 것은 `survivesFilterGate`와 같은 규칙이다.
     /// `VimAction`에 걸지 않는 것은 매퍼와 같은 계약이다.
@@ -1195,6 +1279,12 @@ nonisolated struct KeyboardAdapter: Sendable {
             return namedMotions(of: range, for: op).allSatisfy {
                 profile.motionOverrides[$0] == nil
             }
+        case .openLine, .paste:
+            // ④의 대상이 없다 — `o`의 줄 끝·`p`의 한 칸 오른쪽은 사용자가 그 액션에 대해
+            // 지시한 모션이 아니라 **접두의 내부 분해**다(`dd`가 쓰는 `lineStart`와 같은 편).
+            // 사용자가 지시할 수 있는 것은 `new_line`·`paste` 스트로크이고, 그 둘은 위임분에
+            // 그대로 남아 매퍼를 지난다. `actions:` disable은 `mapping` 최상단이 이미 앞선다.
+            return true
         default:
             return false
         }

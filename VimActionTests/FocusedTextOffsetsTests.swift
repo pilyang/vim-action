@@ -320,6 +320,9 @@ let insertionFixtures: [InsertionFixture] = [
     paste("p — 다음 줄 시작", focusedText(threeLines, caret: 0), before: false, wise: .linewise, .at(3)),
     paste("p — 마지막 줄은 Return 합성", focusedText(threeLines, caret: 6), before: false, wise: .linewise, .appendingLine(8)),
     paste("p — 끝 개행이 있으면 빈 마지막 줄로", focusedText(trailingNewline, caret: 3), before: false, wise: .linewise, .at(6)),
+    // 캐럿이 **끝 개행 뒤**(빈 마지막 줄)면 구분 개행이 이미 있다 — 여기서 `Return`을 합성하면
+    // 빈 줄이 하나 더 생겨 keyboard 경로보다 나빠진다(`"l1\nl2\n"`의 마지막 줄 `dd` 뒤 `p`).
+    paste("p — 끝 개행 뒤 빈 줄에서는 합성하지 않는다", focusedText(trailingNewline, caret: 6), before: false, wise: .linewise, .at(6)),
     paste("p — 창이 잘리면 위임", windowed("cdef", at: 100, characterCount: 999, caret: 102), before: false, wise: .linewise, .unproven),
 
     // MARK: 살아 있는 선택
