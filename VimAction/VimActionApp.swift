@@ -49,12 +49,28 @@ struct VimActionApp: App {
                     + "\n\nThe previous valid configuration is still in effect."
                 alert.runModal()
             }
+            Button("Open config.yaml") { appState.openConfigFile() }
             Divider()
             // 최전면 앱 편의 기능 — 설정의 모든 진입점이 bundle id인데 그것을 조회하기가
             // 어렵다는 마찰을 없앤다 (20260802_menubar-frontmost-app-conveniences).
             // 대상은 비자신 캐시라 메뉴를 여는 행위가 자기 자신을 최전면으로 만들어도 유지된다.
             if let bundleID = appState.frontmostTargetBundleID {
                 Text("Frontmost: \(bundleID)")
+                // 실사용의 주력 플로우 — 이것 없이는 "이 앱에서 Vim 끄기"가 에디터 왕복
+                // 7단계다. 상태의 출처는 계속 config.yaml 하나이고(체크마크는 로드된
+                // 스냅샷의 파생), 클릭은 그 파일의 그 줄만 고친다.
+                //
+                // **끄는 쪽이 체크된다** — 기본이 on이고 사용자가 하는 일은 쓰지 않을 앱을
+                // 골라 끄는 것이라, 체크마크가 "이 앱은 내가 손대 둔 앱"을 뜻해야 목록을
+                // 훑을 때 읽힌다. config.yaml의 `apps:`도 같은 방향이다(적힌 앱 = 예외).
+                Toggle(
+                    "Disable for This App",
+                    isOn: Binding(
+                        get: { appState.configStore.disabledBundleIDs.contains(bundleID) },
+                        set: { appState.setAppEnabled(bundleID, enabled: !$0) })
+                )
+                // 에러 상태에서는 스토어가 쓰기를 거부한다 — 클릭 전에 그것을 보여준다.
+                .disabled(!appState.configStore.errors.isEmpty)
                 Button("Copy Bundle ID") { Clipboard.write(bundleID) }
                 // 제목이 사실과 일치하도록 파일 존재를 매번 묻는다 — 메뉴 본문 평가마다
                 // fileExists 1회이고, 그 평가는 앱 전환 등 관찰 무효화 때만 돈다.

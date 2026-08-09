@@ -101,21 +101,51 @@ final class AppState {
     /// 두 실패 모두 폴백이 있다: 클릭이 조용한 무동작이 되면 안 된다.
     func openProfile(for bundleID: String) {
         guard let path = configStore.prepareProfileFile(for: bundleID) else {
-            // 생성 실패는 사용자가 알아야 한다 — 'Reload Config' 실패와 같은 형태로 알린다
-            // (LSUIElement라 activate 없이는 알림이 다른 창 뒤로 깔린다).
-            NSApp.activate(ignoringOtherApps: true)
-            let alert = NSAlert()
-            alert.alertStyle = .warning
-            alert.messageText = "Couldn't create the profile file"
-            alert.informativeText =
+            // 생성 실패는 사용자가 알아야 한다 — 'Reload Config' 실패와 같은 형태로 알린다.
+            warn(
+                "Couldn't create the profile file",
                 "VimAction could not write \(configStore.profilePath(for: bundleID)).\n\nCheck the folder's permissions — details are in the log (category \"config\")."
-            alert.runModal()
+            )
             return
         }
-        // .yaml에 기본 앱이 없으면 open이 조용히 실패한다 — 그때는 Finder로 짚어 준다.
+        openFile(at: path)
+    }
+
+    /// 메뉴 'Enable for This App' — `config.yaml`의 그 앱 항목만 고치고 바로 반영한다.
+    ///
+    /// 쓸 수 없는 상황(에러 상태·안전하게 편집할 수 없는 파일·권한)에서는 **알림 + 파일 열기**로
+    /// 폴백한다. 토글 클릭이 조용한 무동작이 되면 사용자는 앱이 고장 났다고 읽는다.
+    func setAppEnabled(_ bundleID: String, enabled: Bool) {
+        // 쓰기와 반영이 **둘 다** 성공해야 한 번의 변경이다 — 쓰고 나서 리로드가 실패하면
+        // 체크마크는 그대로인데 파일만 바뀐 상태라, 그것도 사용자가 파일을 봐야 하는 경우다.
+        if configStore.setAppEnabled(bundleID, enabled: enabled), reloadConfig() { return }
+        warn(
+            "Couldn't update config.yaml",
+            "VimAction did not apply \"\(bundleID): \(enabled)\" — details are in the log (category \"config\").\n\nOpening \(ConfigPaths.configPath) so you can set it under \"apps:\" yourself, then use \"Reload Config\"."
+        )
+        openConfigFile()
+    }
+
+    /// 메뉴·Settings 공용 'config.yaml 열기'.
+    func openConfigFile() {
+        openFile(at: ConfigPaths.configPath)
+    }
+
+    /// .yaml에 기본 앱이 없으면 `open`이 조용히 실패한다 — 그때는 Finder로 짚어 준다.
+    private func openFile(at path: String) {
         if !NSWorkspace.shared.open(URL(fileURLWithPath: path)) {
             NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: ConfigPaths.directory)
         }
+    }
+
+    /// 사용자에게 보여야 하는 실패. LSUIElement라 `activate` 없이는 알림이 다른 창 뒤로 깔린다.
+    private func warn(_ message: String, _ detail: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = message
+        alert.informativeText = detail
+        alert.runModal()
     }
 
     /// 메뉴바 글리프 — 탭이 안 돌면 비활성(square.dashed), 토글 off면 square.slash,

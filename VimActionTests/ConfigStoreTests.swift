@@ -187,8 +187,92 @@ struct ConfigStoreTests {
     }
 }
 
-/// 메뉴 'Create/Open Profile'의 scaffold 경로. 이 기능은 UI 읽기 전용 결정의 유일한
-/// 예외(없는 파일 신규 생성)라, "기존 파일을 건드리지 않는다"가 계약의 전부다.
+/// 메뉴 'Enable for This App'의 쓰기 경로. 있는 파일을 고치는 유일한 경로라, **언제 쓰지
+/// 않는지**가 계약의 대부분이다 — 쓰지 않았음은 내용 비교가 아니라 `writtenPaths`로 단언한다
+/// (같은 바이트로 덮어쓰는 회귀는 내용 비교로 잡히지 않는다).
+@MainActor
+struct AppEnableStoreTests {
+    @Test("항목을 쓰고 리로드하면 disable 집합에 반영된다")
+    func writesAndAppliesOnReload() {
+        let fileSystem = InMemoryFileSystem(files: [configPath: "apps:\n  com.a: false\n"])
+        let store = makeStore(fileSystem)
+        store.seedAndLoad()
+
+        #expect(store.setAppEnabled("com.b", enabled: false))
+
+        #expect(fileSystem.files[configPath] == "apps:\n  com.a: false\n  com.b: false\n")
+        #expect(store.disabledBundleIDs == ["com.a"], "쓰기만으로는 반영되지 않는다 — 리로드가 반영 단위")
+        #expect(store.reload())
+        #expect(store.disabledBundleIDs == ["com.a", "com.b"])
+    }
+
+    @Test("재활성화는 줄 삭제가 아니라 값 교체다 — 후행 주석이 살아남는다")
+    func reenablingReplacesTheValue() {
+        let fileSystem = InMemoryFileSystem(files: [configPath: "apps:\n  com.a: false # 내 메모\n"])
+        let store = makeStore(fileSystem)
+        store.seedAndLoad()
+
+        #expect(store.setAppEnabled("com.a", enabled: true))
+
+        #expect(fileSystem.files[configPath] == "apps:\n  com.a: true # 내 메모\n")
+        #expect(store.reload())
+        #expect(store.disabledBundleIDs.isEmpty)
+    }
+
+    /// 직전 유효 설정으로 돌고 있는 상태에서 파일을 건드리면 사용자가 고치려던 원본과 섞인다.
+    @Test("설정 에러 상태면 쓰기 seam을 아예 타지 않는다")
+    func refusesWhileConfigIsInError() {
+        let fileSystem = InMemoryFileSystem(files: [configPath: "apps:\n  com.a: false\n"])
+        let store = makeStore(fileSystem)
+        store.seedAndLoad()
+        fileSystem.files[configPath] = "apps:\n  com.a: false\n  com.a: true\n"
+        #expect(!store.reload())
+
+        #expect(!store.setAppEnabled("com.b", enabled: false))
+
+        #expect(fileSystem.writtenPaths.isEmpty, "쓰기 seam을 타지 않는 것이 계약이다")
+    }
+
+    /// 순수 함수의 `nil`은 실패가 아니라 "안전하게 손대지 않음"이다 — 호출자가 파일 열기로 폴백한다.
+    @Test("안전하게 편집할 수 없는 파일은 쓰기 seam을 타지 않는다")
+    func refusesWhenTheEditIsUnsafe() {
+        // flow 형태 — 파싱은 되지만(에러 없음) 줄을 끼워 넣을 수 없다.
+        let fileSystem = InMemoryFileSystem(files: [configPath: "apps: {}\n"])
+        let store = makeStore(fileSystem)
+        store.seedAndLoad()
+        #expect(store.errors.isEmpty)
+
+        #expect(!store.setAppEnabled("com.a", enabled: false))
+
+        #expect(fileSystem.writtenPaths.isEmpty)
+    }
+
+    @Test("config.yaml이 없으면 만들지 않고 거부한다")
+    func refusesWhenConfigIsMissing() {
+        let fileSystem = InMemoryFileSystem()
+        let store = makeStore(fileSystem)
+        store.seedAndLoad()
+
+        #expect(!store.setAppEnabled("com.a", enabled: false))
+
+        #expect(fileSystem.writtenPaths.isEmpty)
+    }
+
+    @Test("쓰기 실패는 false — 호출자가 폴백할 근거가 된다")
+    func reportsWriteFailure() {
+        let fileSystem = InMemoryFileSystem(files: [configPath: "apps:\n  com.a: false\n"])
+        fileSystem.unwritablePaths = [configPath]
+        let store = makeStore(fileSystem)
+        store.seedAndLoad()
+
+        #expect(!store.setAppEnabled("com.b", enabled: false))
+
+        #expect(fileSystem.files[configPath] == "apps:\n  com.a: false\n", "원본이 남는다")
+    }
+}
+
+/// 메뉴 'Create/Open Profile'의 scaffold 경로. 이 기능은 있는 파일을 절대 건드리지 않는
+/// 시딩 경로를 타므로, "기존 파일을 건드리지 않는다"가 계약의 전부다.
 @MainActor
 struct ProfileScaffoldStoreTests {
     private let slack = "com.tinyspeck.slackmacgap"

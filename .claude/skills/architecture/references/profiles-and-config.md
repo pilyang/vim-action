@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-08 (M5 PR-D1a 세션2 — `strategy` 필드 최소 파싱 구현 완료. `auto` 정식 파싱과 `per_element`는 PR-E)
+- **Last updated**: 2026-08-09 (메뉴바 앱별 on/off 토글 — UI 쓰기가 라인 편집으로 열림)
 
 ## 현재 구조
 
@@ -74,8 +74,14 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 - **재정의·disable 전파**: 단일 조회 지점은 `MotionKeyMapper.keyStrokes(for:profile:)`(옵셔널 반환) — 편집·Visual은 물론 **명령 접두(paste 위치·o/O·scroll 반복)와 yank collapse까지** 전파되고, disabled는 nil 상향 전파로 복합 액션 통째 스킵. 어댑터 `Mapping.disabledByProfile`이 미지원과 별도 집계(분류는 `.empty` 재조회). `.edit`의 paste-wise 기억은 **게시 확정 뒤에만** 남는다. Visual 세션 메커니즘(진입·wise 전환·collapse)은 리터럴 유지. ([결정](../../decisions/references/20260802_profile-override-propagation-full-lookup.md))
 - **앱별 on/off** → `FrontmostAppGate`의 인스턴스 `disabledBundleIDs`(config `apps` 맵의 false 항목, `AppState`가 로드·리로드 때 푸시). 순수 판정은 `isDisabled(_:disabledBundleIDs:)`. **bootstrap에서 설정 로드가 탭 설치보다 먼저다** — 빈 게이트로 탭이 서는 창을 닫는다.
 - `scroll` 재정의 → `CommandKeyMapper.lineCount(for:profile:)` — 기본 15/30은 코드 상수 유지.
-- 설정 UI는 **읽기 전용**: Settings `Configuration` 섹션(상태·에러 목록·경고 수·off 앱·프로파일 목록 + config.yaml/폴더 열기 버튼) — UI는 YAML을 쓰지 않는다 (Yams가 주석을 보존하지 못해, UI 쓰기는 사용자의 주석·서식을 파괴한다).
-- 메뉴바 메뉴: **설정 상태 라인 상시**(`configStatusText`) + **'Reload Config'**(실패 시에만 NSAlert — `NSApp.activate` 선행, 시작 시 에러는 팝업 없음) + **최전면 앱 편의 기능 2종** — `Frontmost: <bundle-id>` 표시 줄 + 'Copy Bundle ID'(`Clipboard.write`) + 'Open/Create Profile'(파일 유무에 따라 제목이 바뀐다).
+- **Settings 창은 읽기 전용**: `Configuration` 섹션(상태·에러 목록·경고 수·off 앱·프로파일 목록 + config.yaml/폴더 열기 버튼)은 표시와 파일 열기만 한다.
+- **UI가 파일을 쓰는 경로는 메뉴바 토글 하나뿐이다**(`ConfigStore.setAppEnabled`). **재직렬화는 여전히 금지**(Yams dump가 주석·서식을 파괴한다)이고, 허용된 것은 **라인 단위 편집**뿐이다 — 순수 함수 `settingAppEnabled(in:bundleID:enabled:)`(`AppEnableEditor.swift`)가 값 토큰 교체 / 한 줄 삽입 / 파일 끝 `apps:` 블록 추가만 하고, 들여쓰기·후행 주석·후행 개행 유무를 보존한다. 안전 계약 3종이 이 경로의 전제다 ([결정](../../decisions/references/20260809_config-yaml-line-edit-writes.md)):
+  - **에러 상태에서는 쓰지 않는다** — 마지막 로드에 `ConfigError`가 있으면(직전 유효 설정으로 도는 중) 스토어가 거부하고, 메뉴 토글은 그 상태에서 `.disabled`다.
+  - **애매하면 `nil` = 손대지 않음** — 최상위 `apps:` 중복, 항목 중복, `apps: {}` flow 형태, 인용이 필요한 bundle id(`[A-Za-z0-9._-]` 화이트리스트), 원본이 이미 파싱 불가. **그리고 반환 직전에 결과를 `GlobalConfigParser`로 파싱해 "에러 없음 + apps 맵 == 원본 + 이 항목"을 증명한 뒤에만 돌려준다** — 중복 키가 생기면 config.yaml이 통째로 무효가 되어 off 해둔 앱이 전부 켜지기 때문이다.
+  - **실패는 파일 열기로 폴백** — 어느 단계에서 막히든 NSAlert(`NSApp.activate` 선행) + `openConfigFile()`. 토글 클릭이 조용한 무동작이 되지 않는다.
+  - 재활성화는 줄 삭제가 아니라 **값 교체**(`false`→`true`)다 — 그 줄의 후행 주석이 살아남는다. 쓰기는 `ConfigSeeder.FileSystem.writeFile` seam만 쓰고 **`seeder.seed()`는 거치지 않는다**(그건 "기존 파일 절대 무수정" 경로라 목적이 정반대).
+- 메뉴바 메뉴: **설정 상태 라인 상시**(`configStatusText`) + **'Reload Config'**(실패 시에만 NSAlert — `NSApp.activate` 선행, 시작 시 에러는 팝업 없음) + **'Open config.yaml'** + **최전면 앱 항목 3종** — `Frontmost: <bundle-id>` 표시 줄 + **'Disable for This App' 토글** + 'Copy Bundle ID'(`Clipboard.write`) + 'Open/Create Profile'(파일 유무에 따라 제목이 바뀐다).
+  - 토글은 **끄는 쪽이 체크된다** — 기본이 on이고 사용자가 하는 일은 쓰지 않을 앱을 골라 끄는 것이라, 체크마크가 "내가 손대 둔 앱"을 뜻해야 읽힌다(`apps:` 맵과 같은 방향). `isOn`은 `disabledBundleIDs` 파생 + `AppState.setAppEnabled` 커스텀 `Binding`이고, 성공하면 기존 `reloadConfig()`가 게이트 푸시까지 잇는다 — 쓰기만으로는 반영되지 않는다.
   - **대상은 `FrontmostAppGate.lastNonSelfBundleID`(비자신 캐시)다** — 메뉴 조작·`NSApp.activate`·Preferences 창이 VimAction 자신을 최전면으로 만들어도 대상 앱이 유지된다. 순수 파생은 `nonSelfBundleID(_:selfBundleID:previous:)`이고 nil·자기 자신은 직전 값을 유지한다("대상 없음"이 아니라 "지금은 알 수 없다"). **게이트 판정은 이 캐시를 보지 않는다** — 판정은 계속 `frontmostBundleID`다.
   - 메뉴가 캐시 변화를 그리려면 관찰이 필요해 **`FrontmostAppGate`가 `@Observable`이다**. 핫 패스가 무거워지지는 않는다(읽기는 추적 스코프 없을 때 즉시 반환하는 `access`뿐, 발화는 두 `update`의 동등성 가드로 실제 전이에만). `deinit`이 만지는 `observerToken`에는 `@ObservationIgnored`가 필수다.
   - scaffold 쓰기는 `ConfigStore.prepareProfileFile(for:)` 하나이고 **시딩과 같은 `ConfigSeeder.seed` 경로를 탄다** — 기존 파일은 시더가 `.skippedExisting`으로 지키므로 "절대 무수정"이 재구현되지 않는다. 템플릿(`profileScaffoldYAML`)은 **전부 주석이라 생성만으로는 동작이 바뀌지 않고**, 생성 후 자동 리로드도 하지 않는다. bundle id가 파일 경로가 되는 유일한 지점이라 `/`·선행 `.`·빈 문자열은 거부한다.
@@ -91,22 +97,23 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 
 - 설정 파서는 Yams 단일 의존 — 다른 포맷/파서를 섞지 않으며, Yams 의존은 `VimActionConfig` 타깃 밖으로 나가지 않는다.
 - 병합은 없다 — 사용자 파일이 곧 최종값이고, 번들 기본값은 시딩된 초기 내용일 뿐 런타임에 얹히지 않는다.
-- 시딩은 파일 단위이며 **기존 파일을 절대 덮어쓰지 않는다**.
+- **시딩 경로**는 파일 단위이며 기존 파일을 절대 덮어쓰지 않는다 — 이 진술은 `ConfigSeeder.seed()`에 한정된다. 앱별 on/off 쓰기는 있는 파일을 고치는 유일한 경로이고 시더를 타지 않는다(대신 위 안전 계약 3종을 갖는다). 시더를 타는 것은 번들 기본값 시딩과 프로파일 scaffold 생성 둘뿐이다.
+- **UI는 사용자 파일을 재직렬화하지 않는다** — 쓰기는 라인 편집뿐이고, 주석·키 순서·서식은 어떤 경로에서도 보존된다.
 - 앱별 on/off는 config.yaml에만 존재한다 — 같은 값이 두 곳에 살지 않는다.
 - 설정 오류는 절대 Vim 레이어를 통째로 죽이지 않는다 — 항목 단위 무시 또는 직전 유효 설정 유지.
 - 설정이 만드는 "동작 없음"은 항상 정직한 스킵(매퍼 `nil` 경로)이다 — 무로그 삼킴을 만들지 않는다.
 
 ## 근거 요약
 
-번들 기본값으로 바로 동작하되 사용자가 그것을 온전히 소유해야 하고(지우는 것까지), 파일을 직접 편집하는 사용자가 재시작 없이 반영을 봐야 한다. 루트가 `~/.config`인 것도, UI가 읽기 전용인 것도, 번들 기본값이 병합이 아니라 시딩인 것도 같은 전제(파일이 SSOT, 사용자가 편집자)에서 나온다 — 사용자가 여는 파일에 실제로 적용 중인 값이 전부 적혀 있다.
+번들 기본값으로 바로 동작하되 사용자가 그것을 온전히 소유해야 하고(지우는 것까지), 파일을 직접 편집하는 사용자가 재시작 없이 반영을 봐야 한다. 루트가 `~/.config`인 것도, 번들 기본값이 병합이 아니라 시딩인 것도 같은 전제(파일이 SSOT, 사용자가 편집자)에서 나온다 — 사용자가 여는 파일에 실제로 적용 중인 값이 전부 적혀 있다. UI 쓰기가 라인 편집으로만 열린 것도 같은 전제의 연장이다: UI는 편집자를 대체하지 않고 가장 잦은 한 줄만 대신 쳐 준다.
 
-- 관련 결정: [번들 기본값 시딩](../../decisions/references/20260802_bundled-defaults-seeded-not-merged.md), [Yams·핫 리로드](../../decisions/references/20260712_yaml-three-layer-config.md), [설정 루트](../../decisions/references/20260801_config-root-dot-config.md), [on/off 단일 소유](../../decisions/references/20260801_app-enable-config-yaml-only.md), [config.yaml 스키마 v1](../../decisions/references/20260801_config-yaml-schema-v1.md), [모션 단위 재정의](../../decisions/references/20260801_profile-motion-override-unit.md), [프로파일 v1 필드](../../decisions/references/20260801_profile-schema-v1-fields.md), [UI 읽기 전용](../../decisions/references/20260801_settings-ui-read-only-yaml.md), [UserDefaults 경계](../../decisions/references/20260801_userdefaults-yaml-ownership.md), [코드 위치 VimActionConfig](../../decisions/references/20260802_config-layer-vimactionconfig-target.md), [disable은 매핑 값](../../decisions/references/20260802_profile-disable-via-mapping-keyword.md), [키워드 소문자](../../decisions/references/20260802_config-keyword-notation-lowercase.md), [번들 프로파일 동봉](../../decisions/references/20260802_bundled-default-profiles-slack-notion.md), [scroll 상한](../../decisions/references/20260802_scroll-override-bounds.md), [append 모션 base 상속](../../decisions/references/20260802_append-motions-follow-base-override.md), [Package.resolved 커밋](../../decisions/references/20260802_package-resolved-committed.md), [리로드 수동 트리거](../../decisions/references/20260802_config-reload-manual-menubar-trigger.md), [메뉴바 편의 기능 2종](../../decisions/references/20260802_menubar-frontmost-app-conveniences.md), [재정의 전파 조회 전면](../../decisions/references/20260802_profile-override-propagation-full-lookup.md), [에러 가시화·적용 의미론](../../decisions/references/20260802_config-error-visibility-and-apply-semantics.md), [액션 자신의 키 재정의](../../decisions/references/20260802_action-own-key-override.md)
+- 관련 결정: [번들 기본값 시딩](../../decisions/references/20260802_bundled-defaults-seeded-not-merged.md), [Yams·핫 리로드](../../decisions/references/20260712_yaml-three-layer-config.md), [설정 루트](../../decisions/references/20260801_config-root-dot-config.md), [on/off 단일 소유](../../decisions/references/20260801_app-enable-config-yaml-only.md), [config.yaml 스키마 v1](../../decisions/references/20260801_config-yaml-schema-v1.md), [모션 단위 재정의](../../decisions/references/20260801_profile-motion-override-unit.md), [프로파일 v1 필드](../../decisions/references/20260801_profile-schema-v1-fields.md), [UI 읽기 전용](../../decisions/references/20260801_settings-ui-read-only-yaml.md), [UserDefaults 경계](../../decisions/references/20260801_userdefaults-yaml-ownership.md), [코드 위치 VimActionConfig](../../decisions/references/20260802_config-layer-vimactionconfig-target.md), [disable은 매핑 값](../../decisions/references/20260802_profile-disable-via-mapping-keyword.md), [키워드 소문자](../../decisions/references/20260802_config-keyword-notation-lowercase.md), [번들 프로파일 동봉](../../decisions/references/20260802_bundled-default-profiles-slack-notion.md), [scroll 상한](../../decisions/references/20260802_scroll-override-bounds.md), [append 모션 base 상속](../../decisions/references/20260802_append-motions-follow-base-override.md), [Package.resolved 커밋](../../decisions/references/20260802_package-resolved-committed.md), [리로드 수동 트리거](../../decisions/references/20260802_config-reload-manual-menubar-trigger.md), [메뉴바 편의 기능 2종](../../decisions/references/20260802_menubar-frontmost-app-conveniences.md), [재정의 전파 조회 전면](../../decisions/references/20260802_profile-override-propagation-full-lookup.md), [에러 가시화·적용 의미론](../../decisions/references/20260802_config-error-visibility-and-apply-semantics.md), [액션 자신의 키 재정의](../../decisions/references/20260802_action-own-key-override.md), [UI 쓰기는 라인 편집만](../../decisions/references/20260809_config-yaml-line-edit-writes.md)
 
 ## 미결 질문 (결정 시 decisions에 기록 후 이 파일 갱신)
 
 - M5 필드 잔여분의 정식 스키마 — `strategy`는 두 값 최소 파싱이 확정됐고([20260808_strategy-field-minimal-parsing-d1.md](../../decisions/references/20260808_strategy-field-minimal-parsing-d1.md)), `auto` 값 정식 파싱과 `per_element`가 PR-E 몫으로 남아 있다. 사용자 문서화도 PR-E 스키마 확정 시(그때까지 `strategy`는 미문서).
 - 시딩이 기존 파일 안의 항목을 갱신하지 못하는 것(수용한 대가)이 실제로 문제가 되면: "새 기본값이 생겼다" 알림이나 마이그레이션을 additive로 검토.
-- GUI에서 설정을 편집하려는 요구가 실증되면: 주석 보존 부분 편집 방식 검토 (UI 읽기 전용 결정의 재개 조건).
+- 라인 편집 쓰기를 앱별 on/off 밖으로(프로파일 항목 등) 넓히려는 요구가 실증되면: 같은 안전 계약을 유지할 수 있는지부터 확인 — `apps:`는 값이 bool 하나라 편집 단위가 한 줄로 닫히지만, 시퀀스 값(`motions:`)은 그렇지 않다.
 - 수동 리로드가 실사용에서 번거롭다고 실증되면: 파일 감시 자동 리로드를 additive로 재도입 (수동 트리거는 유지 — 리로드 수동 트리거 결정의 재개 조건).
 
 ## 관련

@@ -28,8 +28,9 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            // 읽기 전용이 계약이다 — UI는 YAML을 쓰지 않는다 (Yams가 주석을 보존하지 못해
-            // UI 쓰기는 사용자의 주석·서식을 파괴한다, 20260801_settings-ui-read-only-yaml).
+            // 이 화면은 읽기 전용이다 — 설정 편집은 파일이 소유한다. UI가 쓰는 것은
+            // 메뉴바의 앱별 토글 하나뿐이고, 그마저도 재직렬화가 아니라 그 앱의 줄만
+            // 고치는 라인 편집이다 (20260809_config-yaml-line-edit-writes).
             Section("Configuration") {
                 LabeledContent(
                     "Status",
@@ -56,9 +57,7 @@ struct SettingsView: View {
                     ScrollingValueList(
                         text: profilesText(appState.configStore.appliedSnapshot.profiles))
                 }
-                Button("Open config.yaml") {
-                    NSWorkspace.shared.open(URL(fileURLWithPath: ConfigPaths.configPath))
-                }
+                Button("Open config.yaml") { appState.openConfigFile() }
                 Button("Open Config Folder") {
                     NSWorkspace.shared.selectFile(
                         nil, inFileViewerRootedAtPath: ConfigPaths.directory)

@@ -49,7 +49,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-01 | config.yaml 스키마 v1 | apps는 bundle-id→bool 맵, 미지 키 warn+무시, 리로드 실패 시 직전 유지 (병합 규칙은 20260802 부분 supersede) | [20260801_config-yaml-schema-v1.md](references/20260801_config-yaml-schema-v1.md) |
 | 08-01 | 프로파일 재정의는 모션 단위 | motions가 매핑 테이블 원소 교체 — 편집·Visual 자동 전파, 액션 단위 기각 | [20260801_profile-motion-override-unit.md](references/20260801_profile-motion-override-unit.md) |
 | 08-01 | 프로파일 스키마 v1 필드 | name·scroll·motions 구성, 문자 키 v1 제외, M4 전부 구현 (disabled_actions·표기는 08-02 부분 supersede) | [20260801_profile-schema-v1-fields.md](references/20260801_profile-schema-v1-fields.md) |
-| 08-01 | 설정 UI는 YAML 읽기 전용 | Yams 주석 미보존 — UI는 표시+파일 열기만, 쓰기는 사용자 몫 (표시 대상은 20260802 부분 supersede) | [20260801_settings-ui-read-only-yaml.md](references/20260801_settings-ui-read-only-yaml.md) |
+| 08-01 | 설정 UI는 YAML 읽기 전용 | Yams 주석 미보존 — UI는 표시+파일 열기만 (표시 대상은 20260802, 쓰기 금지 범위는 20260809 부분 supersede) | [20260801_settings-ui-read-only-yaml.md](references/20260801_settings-ui-read-only-yaml.md) |
 | 08-01 | UserDefaults↔YAML 소유권 경계 | defaults=런타임·안전 상태(마스터 토글·탈출 옵션), YAML=사용자 편집 설정 | [20260801_userdefaults-yaml-ownership.md](references/20260801_userdefaults-yaml-ownership.md) |
 | 08-02 | 설정 계층은 VimActionConfig 타깃 | VimActionCore 새 타깃(VimEngine+Yams, Yams는 그 타깃에만) — headless 테스트·의존 격리 | [20260802_config-layer-vimactionconfig-target.md](references/20260802_config-layer-vimactionconfig-target.md) |
 | 08-02 | disable은 매핑 값 `disabled` | disabled_actions 폐기 — motions/actions 매핑 값으로 통일, 빈 배열은 warn+무시 (actions 값 어휘는 20260802 자기 키 재정의로 부분 supersede) | [20260802_profile-disable-via-mapping-keyword.md](references/20260802_profile-disable-via-mapping-keyword.md) |
@@ -66,6 +66,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-02 | ConfigError 가시화·적용 의미론 | 메뉴 상태 라인 상시 + 리로드 실패만 NSAlert, 최초 로드는 부분 적용·이후 실패는 직전 유지 | [20260802_config-error-visibility-and-apply-semantics.md](references/20260802_config-error-visibility-and-apply-semantics.md) |
 | 08-02 | App Icon은 Icon Composer `.icon` | legacy는 macOS 26이 회색 컨테이너에 강제 합성(실측) — appiconset 제거, 소스 벡터는 stroke가 아닌 외곽선 fill이어야 함 | [20260802_app-icon-icon-composer.md](references/20260802_app-icon-icon-composer.md) |
 | 08-02 | 설정 창 열린 동안만 Dock 아이콘 | `.regular` 승격(앱 메뉴 동반 수용) — 열림=`onAppear`(창이 key가 안 됨, 실측)·닫힘=`willClose`(visible+titled+비-`NSPanel`) | [20260802_dock-icon-while-settings-open.md](references/20260802_dock-icon-while-settings-open.md) |
+| 08-09 | UI 쓰기는 라인 편집만 | 재직렬화 금지는 유지, 값 토큰 교체·한 줄 삽입은 허용 — 안전 계약 3종(에러 상태 거부/애매하면 nil+결과 자가검증/파일 열기 폴백) | [20260809_config-yaml-line-edit-writes.md](references/20260809_config-yaml-line-edit-writes.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
