@@ -1,5 +1,7 @@
 # AX 범위 산출은 정확화 표가 침묵하는 자리에서 Vim 정확값 (실측 4건)
 
+> Superseded (부분) by [20260809_no-leading-newline-absorb-clipboard-is-the-register.md](20260809_no-leading-newline-absorb-clipboard-is-the-register.md) — 뒤집힘: "마지막 줄 linewise는 앞 개행을 흡수한다"(클립보드가 곧 레지스터라 잘라낸 내용이 `"\n마지막줄"`이 된다) / 유효: 나머지 Vim 실측 전부(줄 끝 `dw`·linewise 클램프·0 이동만 무효·`Insertion`에 `.invalid` 없음·증명 못 하면 `.unproven`).
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-09 (M5 PR-D1b 세션 1, 착수 전 사용자 확인 + Vim 실측)

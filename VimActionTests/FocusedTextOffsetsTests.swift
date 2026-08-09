@@ -140,7 +140,7 @@ let lineTerminators = ["\n", "\r\n", "\r", "\u{2028}", "\u{2029}"]
 // MARK: - 범위 픽스처
 
 /// AX 편집 범위 1건의 계약. 답은 `EditKeyMapper` 정확화 표와 같아야 하고, 표가 침묵하는
-/// 자리(마지막 줄 흡수·줄 끝 `dw`·linewise 클램프)는 Vim 실측을 따른다.
+/// 자리(줄 끝 `dw`·linewise 클램프)는 Vim 실측을 따른다.
 struct SpanFixture: Sendable, CustomTestStringConvertible {
     let name: String
     let text: FocusedText
@@ -164,7 +164,7 @@ private func range(_ location: Int, _ length: Int) -> FocusedTextOffsets.Span {
 }
 
 /// `"l1\nl2\nl3"` — **끝 개행 없음**. l0 1(1) \n2 l3 2(4) \n5 l6 3(7), 문서 끝 8.
-/// 마지막 줄 흡수·클램프가 전부 여기서 갈린다.
+/// 마지막 줄 반올림·클램프가 전부 여기서 갈린다.
 private let threeLines = "l1\nl2\nl3"
 
 /// `"l1\nl2\n"` — 끝 개행 있음. 오프셋 6이 빈 마지막 줄이다.
@@ -224,16 +224,16 @@ let spanFixtures: [SpanFixture] = [
     // 카운트 2 이상은 표 그대로 `e` 반복이다(리타깃 특례는 count 1 전용).
     span("c2w — e 반복", focusedText(words, caret: 0), .change, .motion(.wordForward, count: 2), range(0, 7)),
 
-    // MARK: .line (`dd`) — 마지막 줄은 앞 개행을 흡수한다
+    // MARK: .line (`dd`) — 마지막 줄은 문서 끝까지 (앞 개행을 흡수하지 않는다)
     span("dd — 내부 줄", focusedText(threeLines, caret: 0), .delete, .line(count: 1), range(0, 3)),
-    span("dd — 마지막 줄은 앞 개행 흡수", focusedText(threeLines, caret: 6), .delete, .line(count: 1), range(5, 3)),
-    span("dd — 끝 개행 있으면 흡수 없음", focusedText(trailingNewline, caret: 3), .delete, .line(count: 1), range(3, 3)),
+    span("dd — 마지막 줄은 문서 끝까지", focusedText(threeLines, caret: 6), .delete, .line(count: 1), range(6, 2)),
+    span("dd — 끝 개행이 있으면 종결자까지", focusedText(trailingNewline, caret: 3), .delete, .line(count: 1), range(3, 3)),
     span("yy — delete와 같은 반올림", focusedText(threeLines, caret: 0), .yank, .line(count: 1), range(0, 3)),
     span("cc — 줄을 남긴다", focusedText(threeLines, caret: 0), .change, .line(count: 1), range(0, 2)),
     span("2dd — 두 줄", focusedText(threeLines, caret: 0), .delete, .line(count: 2), range(0, 6)),
     span("2cc — 마지막 줄 끝까지", focusedText(threeLines, caret: 0), .change, .line(count: 2), range(0, 5)),
     // 클램프 — 남은 줄이 카운트보다 적으면 있는 만큼(실측). 아래가 아예 없으면 무효.
-    span("3dd — 남은 줄로 클램프", focusedText(threeLines, caret: 3), .delete, .line(count: 3), range(2, 6)),
+    span("3dd — 남은 줄로 클램프", focusedText(threeLines, caret: 3), .delete, .line(count: 3), range(3, 5)),
     span("2dd — 마지막 줄은 무효", focusedText(threeLines, caret: 6), .delete, .line(count: 2), .invalid),
 
     // MARK: .linewiseMotion
@@ -245,9 +245,9 @@ let spanFixtures: [SpanFixture] = [
     span("dgg — 문서 시작부터 현재 줄", focusedText(threeLines, caret: 3), .delete, .linewiseMotion(.documentStart, count: 1), range(0, 6)),
     span("cgg — 줄을 남긴다", focusedText(threeLines, caret: 3), .change, .linewiseMotion(.documentStart, count: 1), range(0, 5)),
     span("dgg — 마지막 줄이면 문서 통째", focusedText(threeLines, caret: 6), .delete, .linewiseMotion(.documentStart, count: 1), range(0, 8)),
-    span("dG — 앞 개행 흡수", focusedText(threeLines, caret: 3), .delete, .linewiseMotion(.documentEnd, count: 1), range(2, 6)),
-    span("dG — 끝 개행 있으면 흡수 없음", focusedText(trailingNewline, caret: 3), .delete, .linewiseMotion(.documentEnd, count: 1), range(3, 3)),
-    span("cG — change는 흡수하지 않는다", focusedText(threeLines, caret: 3), .change, .linewiseMotion(.documentEnd, count: 1), range(3, 5)),
+    span("dG — 현재 줄 시작부터 문서 끝", focusedText(threeLines, caret: 3), .delete, .linewiseMotion(.documentEnd, count: 1), range(3, 5)),
+    span("dG — 끝 개행이 있어도 같다", focusedText(trailingNewline, caret: 3), .delete, .linewiseMotion(.documentEnd, count: 1), range(3, 3)),
+    span("cG — delete와 같다 (반올림할 종결자가 없다)", focusedText(threeLines, caret: 3), .change, .linewiseMotion(.documentEnd, count: 1), range(3, 5)),
 
     // MARK: iw — 캐럿 런 전체 (2자 이상 런까지 정확)
     span("diw — keyword 런", focusedText(words, caret: 1), .delete, .textObject(.word(.inner)), range(0, 3)),
@@ -783,7 +783,26 @@ struct FocusedTextOffsetsTests {
     }
 
     /// 줄 종결자 5형태에서 **범위**도 같은 답을 낸다 — `\r\n`이 한 `Character`라 종결자
-    /// 길이가 2인 문서에서도 반올림·흡수가 어긋나지 않는다.
+    /// **`ddp` 관통** — 두 함수를 이어 붙여 idiom 전체를 고정한다. 어느 한쪽만 보면 잡히지
+    /// 않는 회귀가 여기 있다: 마지막 줄 `dd`가 앞 개행을 흡수하면 클립보드가 `"\nl3"`가 되어
+    /// 이어지는 `p`가 빈 줄을 만든다(도그푸딩 실측). 클립보드가 곧 레지스터라 잘라내는 범위가
+    /// 레지스터의 모양을 정한다 (`20260809_no-leading-newline-absorb-clipboard-is-the-register.md`).
+    @Test("ddp — 마지막 줄에서 두 줄이 교환된다")
+    func lastLineDeleteThenPasteSwapsLines() {
+        // ① `dd`는 줄 시작부터 문서 끝까지 — 앞 개행을 남긴다(빈 줄 1개 잔류).
+        #expect(
+            FocusedTextOffsets.editSpan(
+                for: .delete, range: .line(count: 1), in: focusedText(threeLines, caret: 6))
+                == .range(NSRange(location: 6, length: 2)))
+        // ② 잘라낸 뒤 문서는 `"l1\nl2\n"`이고 캐럿은 빈 마지막 줄(6)이다. 구분 개행이 이미
+        //    있으므로 `p`는 개행을 합성하지 않고 그 자리에 붙인다 → `l1\nl2\nl3`.
+        #expect(
+            FocusedTextOffsets.pasteInsertion(
+                before: false, wise: .linewise, in: focusedText(trailingNewline, caret: 6))
+                == .at(6))
+    }
+
+    /// 길이가 2인 문서에서도 반올림이 어긋나지 않는다.
     @Test("줄 종결자 5형태에서 범위가 같다", arguments: lineTerminators)
     func lineTerminatorsAgreeForSpans(_ terminator: String) {
         let document = "ab\(terminator)cd"
@@ -799,10 +818,10 @@ struct FocusedTextOffsetsTests {
         #expect(
             FocusedTextOffsets.editSpan(for: .change, range: .line(count: 1), in: first)
                 == .range(NSRange(location: 0, length: 2)))
-        // 마지막 줄은 앞 개행(종결자 전체)을 흡수한다.
+        // 마지막 줄은 문서 끝까지다 — 앞 종결자는 흡수하지 않는다(빈 줄 1개가 남는다).
         #expect(
             FocusedTextOffsets.editSpan(for: .delete, range: .line(count: 1), in: last)
-                == .range(NSRange(location: 2, length: width + 2)))
+                == .range(NSRange(location: secondLine, length: 2)))
         // `V` 진입도 종결자를 문다.
         #expect(
             FocusedTextOffsets.visualEntrySpan(linewise: true, in: first)

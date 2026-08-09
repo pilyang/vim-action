@@ -687,16 +687,20 @@ nonisolated enum FocusedTextOffsets {
         /// delete와 change가 같은 답인 것은 문서 끝에 반올림할 종결자가 없어서다.
         func spanToDocumentEnd(op: VimAction.Operator) -> Span {
             guard case .index(let start) = lineStartIndex(from: caret) else { return .unproven }
-            let absorbs = op != .change && start > 0 && endsWithoutTerminator
-            return Self.span(from: offsets[absorbs ? start - 1 : start], to: characterCount)
+            return Self.span(from: offsets[start], to: characterCount)
         }
 
         /// 줄 시작 ~ 마지막 줄 끝을 오퍼레이터 반올림으로 구간화한다.
         ///
-        /// delete·yank는 마지막 줄의 종결자를 포함하고, 종결자 없이 문서가 끝나면 대신
-        /// **앞 개행을 흡수**해 빈 줄을 남기지 않는다 — Vim의 버퍼는 줄의 목록이라 마지막
-        /// 줄을 지워도 빈 줄이 생기지 않는다(keyboard가 수용한 편차의 AX 해소). change는
-        /// 줄을 남긴다(`cc`).
+        /// delete·yank는 마지막 줄의 종결자를 포함하고, change는 줄을 남긴다(`cc`).
+        ///
+        /// **종결자 없이 문서가 끝나면 앞 개행을 흡수하지 않는다** — 그러면 빈 줄이 안 남아
+        /// Vim의 버퍼 시맨틱과 같아지지만, 우리 레지스터는 OS 클립보드의 **생 텍스트**라
+        /// 잘라낸 내용이 `"\n마지막줄"`이 된다(구분자가 앞에 붙는다). Vim의 레지스터는
+        /// 구조체(linewise 플래그 + 줄 텍스트)라 이 문제가 없지만 우리는 그 모양을 표현할 수
+        /// 없고, 그 클립보드는 이어지는 `p`(빈 줄 하나 추가)·외부 앱 붙여넣기·wise 휴리스틱
+        /// (끝 글자만 보므로 charwise로 오판) 전부에서 틀린다. 빈 줄 1개가 남는 편차를 택한다
+        /// (keyboard와 같은 답, `20260809_no-leading-newline-absorb-clipboard-is-the-register.md`).
         private func spanOverLines(
             from first: Int, lastLineEnd last: Int, op: VimAction.Operator
         ) -> Span {
@@ -704,11 +708,11 @@ nonisolated enum FocusedTextOffsets {
                 return Self.span(from: offsets[first], to: offsets[last])
             }
             if last < count { return Self.span(from: offsets[first], to: offsets[last + 1]) }
-            return Self.span(from: offsets[first > 0 ? first - 1 : first], to: characterCount)
+            return Self.span(from: offsets[first], to: characterCount)
         }
 
-        /// 문서가 줄 종결자 없이 끝나는가 — **증명 못 하면 `false`** 다(흡수하지 않음 =
-        /// keyboard 패리티). 창이 문서 끝에 닿지 않으면 알 수 없는 사실이다.
+        /// 문서가 줄 종결자 없이 끝나는가 — **증명 못 하면 `false`** 다(= 개행을 합성하지 않음
+        /// = keyboard 패리티). 창이 문서 끝에 닿지 않으면 알 수 없는 사실이다.
         private var endsWithoutTerminator: Bool {
             reachesDocumentEnd && count > 0 && !isTerminator(at: count - 1)
         }

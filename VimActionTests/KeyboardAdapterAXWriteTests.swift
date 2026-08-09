@@ -305,7 +305,7 @@ struct KeyboardAdapterHybridEditTests {
             (caret: 3, action: .edit(.delete, .line(count: 1)),
                 written: NSRange(location: 3, length: 3)),  // dd — 종결자 포함
             (caret: 6, action: .edit(.delete, .line(count: 1)),
-                written: NSRange(location: 5, length: 3)),  // 마지막 줄 dd — 앞 개행 흡수
+                written: NSRange(location: 6, length: 2)),  // 마지막 줄 dd — 문서 끝까지
             (caret: 3, action: .edit(.change, .line(count: 1)),
                 written: NSRange(location: 3, length: 2)),  // cc — 줄 유지
         ])
