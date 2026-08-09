@@ -28,6 +28,11 @@ final class AppState {
     /// 생성 시점이 배선의 전부다.
     let dockIcon = DockIconController.forCurrentEnvironment()
 
+    /// 런치 시 설정 창을 한 번 밀어 올려야 하는가 — 메뉴바 라벨(`MenuBarLabel`)이 소비한다.
+    /// `openSettings`는 SwiftUI 환경 액션이라 뷰 밖에서 호출할 수 없어서, `bootstrap()`은
+    /// 신호만 세우고 실제 오픈은 렌더된 뷰가 맡는다.
+    private(set) var needsOnboardingPresentation = false
+
     init() {
         let gate = FrontmostAppGate.forCurrentEnvironment()
         let store = ConfigStore()
@@ -78,6 +83,21 @@ final class AppState {
         if !permissionMonitor.isTrusted {
             permissionMonitor.startPollingUntilGranted()
         }
+        needsOnboardingPresentation = shouldPresentOnboarding(
+            isTrusted: permissionMonitor.isTrusted, defaults: .standard)
+    }
+
+    /// 설정 창이 화면에 올라왔다 — 그것이 온보딩이었다면 여기서 마무리한다. 값이 아니라 키의
+    /// **존재**가 판정 기준이므로(`shouldPresentOnboarding`) 여기서 반드시 써야 한다.
+    ///
+    /// 오픈을 지시한 자리가 아니라 **창이 실제로 뜬 자리**에서 내린다 — 그 사이에
+    /// `SettingsView`가 플래그를 읽어 열릴 탭을 고르고, 오픈이 조용히 실패하면 플래그가 남아
+    /// 다음 실행에 다시 시도한다. 설정 창을 여는 모든 경로가 부르므로 멱등이어야 한다.
+    func settingsWindowDidAppear() {
+        dockIcon.settingsWindowDidAppear()
+        guard needsOnboardingPresentation else { return }
+        needsOnboardingPresentation = false
+        UserDefaults.standard.set(true, forKey: PreferenceKeys.didShowOnboarding)
     }
 
     /// 메뉴 'Reload Config' 진입점 — 로드 결과를 게이트에 반영까지 해야 한 번의 리로드다.

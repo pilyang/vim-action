@@ -24,6 +24,16 @@ struct VimActionApp: App {
     var body: some Scene {
         MenuBarExtra {
             @Bindable var eventTap = appState.eventTap
+            // 미허용은 **가장 위**에 온다 — 권한이 없으면 아래 마스터 토글부터 무의미하다.
+            // `isTrusted`가 @Observable이라 부여 순간(1초 폴링) 이 블록이 사라진다.
+            if !appState.permissionMonitor.isTrusted {
+                Text("⚠ Accessibility permission required")
+                Button("Grant Permission…") { appState.permissionMonitor.requestWithPrompt() }
+                // 프롬프트는 TCC 상태당 1회만 뜬다 — 두 번째 클릭이 조용한 무동작이 되지
+                // 않도록 항상 열리는 경로를 나란히 둔다 (설정 창 Permissions와 같은 짝).
+                Button("Open System Settings") { appState.permissionMonitor.openSystemSettings() }
+                Divider()
+            }
             Toggle("Enable Vim Keybindings", isOn: $eventTap.isInterceptionEnabled)
             Divider()
             // 설정 상태 상시 노출 — 시작 시 로드 에러도 여기서 보인다 (`ConfigError`는
@@ -89,19 +99,48 @@ struct VimActionApp: App {
                 NSApp.terminate(nil)
             }
         } label: {
-            // 시각적으로는 아이콘만, VoiceOver에는 안정적인 앱 이름 + 현재 상태를 남긴다.
-            // 글리프는 전부 NSImage 경로(menuBarImage)로 렌더한다 — Visual-line의
-            // 커스텀 "Vl" 글리프와 SF Symbol들이 같은 심볼 설정을 공유해 크기가 통일된다.
-            Label {
-                Text(appState.menuBarAccessibilityLabel)
-            } icon: {
-                Image(nsImage: appState.menuBarImage)
-            }
-            .labelStyle(.iconOnly)
+            MenuBarLabel(appState: appState)
         }
 
         Settings {
             SettingsView(appState: appState)
+        }
+    }
+}
+
+/// 메뉴바 라벨 — 아이콘 렌더 + **런치 시 온보딩 오픈의 유일한 호출 지점**.
+///
+/// `openSettings`는 SwiftUI 환경 액션이라 실제로 렌더된 뷰 안에서만 동작한다(`App`이나
+/// `AppState`에서는 부를 수 없다). `MenuBarExtra`의 **메뉴 콘텐츠**는 사용자가 메뉴를 열기
+/// 전까지 생성조차 되지 않아 훅이 뜨지 않지만, **라벨은 글리프를 그려야 하므로 런치 때
+/// 렌더된다** — 그래서 이 자리가 유일하게 쓸 수 있는 뷰 컨텍스트다.
+///
+/// (macOS 13까지 쓰이던 `NSApp.sendAction(Selector(("showSettingsWindow:")))`는 macOS 14부터
+/// 무동작이라 대안이 아니다.)
+private struct MenuBarLabel: View {
+    let appState: AppState
+
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        // 시각적으로는 아이콘만, VoiceOver에는 안정적인 앱 이름 + 현재 상태를 남긴다.
+        // 글리프는 전부 NSImage 경로(menuBarImage)로 렌더한다 — Visual-line의
+        // 커스텀 "Vl" 글리프와 SF Symbol들이 같은 심볼 설정을 공유해 크기가 통일된다.
+        Label {
+            Text(appState.menuBarAccessibilityLabel)
+        } icon: {
+            Image(nsImage: appState.menuBarImage)
+        }
+        .labelStyle(.iconOnly)
+        .task {
+            guard appState.needsOnboardingPresentation else { return }
+            // 뷰가 트리에 붙은 **다음 틱**이어야 한다. 같은 틱에 부르면 아직 연결된 씬이
+            // 없어 조용한 무동작이 된다.
+            await Task.yield()
+            // 플래그는 여기서 내리지 않는다 — `SettingsView`가 이 값을 읽어 열릴 탭을
+            // 고르고, 창이 실제로 뜬 뒤(`onAppear`)에야 내려간다. 오픈이 조용히 실패하면
+            // 플래그가 남아 다음 실행에 다시 시도한다(성공한 적이 없으므로 그게 맞다).
+            openSettings()
         }
     }
 }

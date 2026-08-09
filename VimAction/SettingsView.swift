@@ -6,21 +6,63 @@
 import SwiftUI
 import VimActionConfig
 
-/// 설정 창. 권한 온보딩 섹션 + 앱 정보. 키맵 설정은 다음 마일스톤에서 채운다.
+/// 설정 창 탭. 성격이 다른 세 가지를 분리한다 — 자주 보는 것(앱별 설정 접근), 한 번 보고 마는
+/// 것(권한), 참조용(버전·링크).
+private enum SettingsTab: Hashable {
+    case general, apps, about
+}
+
+/// 설정 창. 탭 전환만 하고 내용은 각 탭이 소유한다.
 struct SettingsView: View {
     let appState: AppState
 
-    /// 번들 Info.plist의 실제 버전(`CFBundleShortVersionString` = MARKETING_VERSION). 하드코딩 드리프트 방지.
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    /// 기본은 Apps — 실사용에서 다시 여는 이유가 거의 항상 설정 파일 상태 확인이다.
+    /// 탭 **순서**는 macOS 관례대로 General이 먼저다.
+    @State private var selection: SettingsTab
+
+    /// 런치 온보딩으로 열리는 첫 창만은 General이어야 한다 — 그 창을 띄운 목적이 권한 블록을
+    /// 보여주는 것이기 때문이다. 플래그는 `onAppear`에서야 내려가므로 여기서 아직 참이다.
+    init(appState: AppState) {
+        self.appState = appState
+        _selection = State(initialValue: appState.needsOnboardingPresentation ? .general : .apps)
     }
+
+    var body: some View {
+        TabView(selection: $selection) {
+            GeneralTab(appState: appState)
+                .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsTab.general)
+            AppsTab(appState: appState)
+                .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
+                .tag(SettingsTab.apps)
+            AboutTab()
+                .tabItem { Label("About", systemImage: "info.circle") }
+                .tag(SettingsTab.about)
+        }
+        // 탭마다 내용 높이가 다르지만 창은 한 크기로 고정한다 — 탭을 옮길 때마다 창이
+        // 리사이즈되는 편보다 자리가 안 움직이는 편이 낫다. 넘치는 내용(Diagnostics를
+        // 펼친 General)은 그룹 Form 자체가 스크롤한다.
+        .frame(width: 460, height: 560)
+        // 설정 창이 열려 있는 동안만 Dock 아이콘을 노출한다. `onAppear`가 유일하게
+        // 신뢰할 수 있는 열림 신호인 이유(창이 key가 되지 않는다)와 닫힘을 창 알림이
+        // 맡는 이유는 `DockIconController`에 있다. 닫힘 쪽 짝은 `onDisappear`가 아니다.
+        //
+        // **TabView 루트여야 한다** — 탭 하나 안에 두면 다른 탭이 기본으로 열릴 때 훅이
+        // 뜨지 않아 창이 열려도 Dock 아이콘이 안 나온다. 재호출은 무해하다(`apply` 동등성 가드).
+        .onAppear { appState.settingsWindowDidAppear() }
+    }
+}
+
+/// 권한 상태 + 동작 옵션 + (접힌) 진단.
+private struct GeneralTab: View {
+    let appState: AppState
 
     var body: some View {
         @Bindable var eventTap = appState.eventTap
         Form {
-            Section("VimAction") {
-                LabeledContent("Version", value: appVersion)
-            }
+            // 미허용이면 최상단 — 이 상태에서는 다른 무엇보다 이것부터 해결해야 한다.
+            // 허용된 뒤에는 한 줄짜리 확인 표시라 Behavior 아래로 내려간다.
+            if !appState.permissionMonitor.isTrusted { permissionSection }
             Section("Behavior") {
                 // 값·엔진 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 가로채기 토글과 동일 모델.
                 Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
@@ -28,9 +70,68 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            // 이 화면은 읽기 전용이다 — 설정 편집은 파일이 소유한다. UI가 쓰는 것은
-            // 메뉴바의 앱별 토글 하나뿐이고, 그마저도 재직렬화가 아니라 그 앱의 줄만
-            // 고치는 라인 편집이다 (20260809_config-yaml-line-edit-writes).
+            if appState.permissionMonitor.isTrusted { permissionSection }
+            Section {
+                // 정상 동작 중에는 볼 이유가 없고, 무언가 이상할 때만 필요한 정보다.
+                DisclosureGroup("Diagnostics") {
+                    LabeledContent(
+                        "Event Tap",
+                        value: eventTapStatusText(
+                            status: eventTap.status,
+                            interceptionEnabled: eventTap.isInterceptionEnabled))
+                    LabeledContent(
+                        "Kill Switch",
+                        value: killSwitchStatusText(
+                            installation: appState.killSwitch.installation,
+                            isTrusted: appState.permissionMonitor.isTrusted))
+                    Text(
+                        "Press ⌃⌥⌘⎋ (Control-Option-Command-Escape) to turn interception off — it works even if VimAction stops responding. Turn it back on from the menu bar."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+private extension GeneralTab {
+    /// 허용 전/후 두 자리에서 같은 섹션을 쓴다 — 위치만 다르고 내용은 하나다.
+    @ViewBuilder var permissionSection: some View {
+        Section("Permissions") {
+            LabeledContent("Accessibility") {
+                if appState.permissionMonitor.isTrusted {
+                    Label("Granted", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else {
+                    Text("Required")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if !appState.permissionMonitor.isTrusted {
+                Button("Request Permission…") {
+                    appState.permissionMonitor.requestWithPrompt()
+                }
+                Button("Open System Settings") {
+                    appState.permissionMonitor.openSystemSettings()
+                }
+                Text("Once granted, VimAction detects it automatically and activates without relaunching.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// 설정 파일 상태 — **읽기 전용이다.** 설정 편집은 파일이 소유한다. UI가 쓰는 것은 메뉴바의
+/// 앱별 토글 하나뿐이고, 그마저도 재직렬화가 아니라 그 앱의 줄만 고치는 라인 편집이다
+/// (20260809_config-yaml-line-edit-writes).
+private struct AppsTab: View {
+    let appState: AppState
+
+    var body: some View {
+        Form {
             Section("Configuration") {
                 LabeledContent(
                     "Status",
@@ -66,50 +167,39 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            Section("Permissions") {
-                LabeledContent("Accessibility") {
-                    if appState.permissionMonitor.isTrusted {
-                        Label("Granted", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    } else {
-                        Text("Required")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                if !appState.permissionMonitor.isTrusted {
-                    Button("Request Permission…") {
-                        appState.permissionMonitor.requestWithPrompt()
-                    }
-                    Button("Open System Settings") {
-                        appState.permissionMonitor.openSystemSettings()
-                    }
-                    Text("Once granted, VimAction detects it automatically and activates without relaunching.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                LabeledContent(
-                    "Event Tap",
-                    value: eventTapStatusText(
-                        status: eventTap.status, interceptionEnabled: eventTap.isInterceptionEnabled))
-                LabeledContent(
-                    "Kill Switch",
-                    value: killSwitchStatusText(
-                        installation: appState.killSwitch.installation,
-                        isTrusted: appState.permissionMonitor.isTrusted))
-                Text(
-                    "Press ⌃⌥⌘⎋ (Control-Option-Command-Escape) to turn interception off — it works even if VimAction stops responding. Turn it back on from the menu bar."
-                )
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        }
+        .formStyle(.grouped)
+    }
+}
+
+/// 버전 + 외부 링크. 업데이트 확인은 아직 없다 — Sparkle 도입 여부가 의존성 결정이라 별도 논의감이다.
+private struct AboutTab: View {
+    /// 번들 Info.plist의 실제 버전(`CFBundleShortVersionString` = MARKETING_VERSION). 하드코딩 드리프트 방지.
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    }
+
+    var body: some View {
+        Form {
+            Section("VimAction") {
+                LabeledContent("Version", value: appVersion)
+            }
+            Section("Links") {
+                Link("GitHub Repository", destination: AboutLinks.repository)
+                Link("Report an Issue", destination: AboutLinks.issues)
+                Link("Keybindings Reference", destination: AboutLinks.keybindings)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 560)
-        // 설정 창이 열려 있는 동안만 Dock 아이콘을 노출한다. `onAppear`가 유일하게
-        // 신뢰할 수 있는 열림 신호인 이유(창이 key가 되지 않는다)와 닫힘을 창 알림이
-        // 맡는 이유는 `DockIconController`에 있다. 닫힘 쪽 짝은 `onDisappear`가 아니다.
-        .onAppear { appState.dockIcon.settingsWindowDidAppear() }
     }
+}
+
+/// 리터럴 URL 상수 — 여기서만 만들어지므로 항상 유효하다 (`NSImage.menuBarSymbol`과 같은 근거).
+private enum AboutLinks {
+    static let repository = URL(string: "https://github.com/pilyang/vim-action")!
+    static let issues = URL(string: "https://github.com/pilyang/vim-action/issues")!
+    static let keybindings = URL(
+        string: "https://github.com/pilyang/vim-action/blob/main/docs/KEYBINDINGS.md")!
 }
 
 /// "Event Tap" 행 문구를 (설치 상태, 가로채기 토글)에서 파생한다. `.running`은 탭
