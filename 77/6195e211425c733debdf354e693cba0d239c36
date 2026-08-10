@@ -1,0 +1,36 @@
+.claude/skills/decisions/references/20260810_appcast-hosting-github-releases.md
+  s_e6dc36242901f2::t_e1bb2d3778f404 1-24
+.claude/skills/plans/SKILL.md
+  s_e6dc36242901f2::t_eb2d29407aa86c 52
+.claude/skills/decisions/references/20260810_dmg-packaging.md
+  s_e6dc36242901f2::t_6ce308be2eb71f 1-23
+.claude/skills/plans/references/20260810_release-prep.md
+  s_e6dc36242901f2::t_abf02ba59f48ba 1-30,32-38
+  s_e6dc36242901f2::t_56623393ee8e5b 31
+  s_e6dc36242901f2::t_30ae00fe17c429 39
+.claude/skills/decisions/SKILL.md
+  s_e6dc36242901f2::t_a262a22e593a0f 72-75
+  s_e6dc36242901f2::t_c035136dfaef2e 76
+.claude/skills/decisions/references/20260810_sparkle-auto-update.md
+  s_e6dc36242901f2::t_d12ce678f89754 1-28
+.claude/skills/decisions/references/20260810_tag-push-release-pipeline.md
+  s_e6dc36242901f2::t_9cbcf1a1bdc4ef 1-27
+.claude/skills/decisions/references/20260810_homebrew-personal-tap.md
+  s_e6dc36242901f2::t_69230ae82ba9d4 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "776195e211425c733debdf354e693cba0d239c36",
+  "prompts": {},
+  "sessions": {
+    "s_e6dc36242901f2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1779c06b-ba10-4945-8e28-40bdf92a2fb1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
