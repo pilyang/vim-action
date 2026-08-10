@@ -85,6 +85,18 @@ nonisolated struct FocusedTextReader: Sendable {
             windowRange: windowRange)
     }
 
+    /// **선택 범위만 읽는 경량 재읽기** — 편집 하이브리드의 되읽어 검증 전용이다.
+    ///
+    /// 창(`AXStringForRange`)도 `AXNumberOfCharacters`도 읽지 않는다: 검증이 묻는 것은 "쓴
+    /// 범위가 착지했는가" 하나뿐이라 왕복 1회면 되고, 그 왕복이 폴링 간격마다 반복된다.
+    ///
+    /// **스냅샷도 memo도 만들지 않는 것이 계약의 전부다** — `AXWindowSnapshot`의 액션당 1회
+    /// memo는 쓰기 **전** 값이라, 그것을 재사용하면 검증이 자기 자신을 확인하는 장식이 된다
+    /// (`20260808_ax-readback-verify-convergence-poll.md` 1항).
+    static func readSelection(_ element: AXUIElement) -> NSRange? {
+        copyRange(element, kAXSelectedTextRangeAttribute)
+    }
+
     /// 캐럿(또는 선택) 양옆 `radius`를 문서 경계로 clamp한 범위.
     /// 범위가 문서와 아귀가 맞지 않으면(음수 위치, 문서 밖 선택) `nil` — 읽기 실패와 같은 편이다.
     static func window(

@@ -80,6 +80,12 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
     /// 이름 붙인 프로퍼티인 것이 계약이다 — 매퍼는 설정 어휘(`ConfigAction`)를 모르고,
     /// `ResolvedProfile`이 설정↔실행의 유일한 번역 지점으로 남는다.
     var newLineStrokes: [KeyStroke]? { strokes(for: .openLine) }
+
+    /// 줄을 만드는 키가 **사용자 지시로 꺼져 있는가.** `newLineStrokes`의 `nil`이 "재정의
+    /// 없음"과 "disable" 둘을 뭉치므로, 기본 `Return`으로 fail-open 하면 안 되는 자리가 따로
+    /// 묻는다 — 마지막 줄 linewise `p`의 개행 합성이 그 자리다(`.openLine`은 어댑터가 매핑
+    /// 조회보다 앞에서 걸러내지만 `.paste`는 그 게이트를 지나지 않는다).
+    var newLineDisabled: Bool { actionOverrides[.openLine] == .disabled }
     var pasteStrokes: [KeyStroke]? { strokes(for: .paste) }
     var undoStrokes: [KeyStroke]? { strokes(for: .undo) }
     var redoStrokes: [KeyStroke]? { strokes(for: .redo) }

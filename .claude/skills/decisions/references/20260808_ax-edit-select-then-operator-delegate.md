@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260808_ax-collapse-posted-arrow-not-caret-write.md](20260808_ax-collapse-posted-arrow-not-caret-write.md) — "yank collapse는 `←` 대신 AX 캐럿 쓰기" 문언(게시 `←` 유지로 환원 — 동기 쓰기 상시 선착 실측) / 편집 형태·되읽어 검증·텍스트 쓰기 미채택은 유효
+
 # AX 편집은 "AX 범위 선택 + 오퍼레이터 1타 위임" — 텍스트 쓰기(`AXSelectedText`) 미채택
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

@@ -69,6 +69,12 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 묻지 않는다 — keyboard 전략 앱은 이 경로로 인한 AX 왕복이 0건이다.
     private let axWindow: @Sendable (AXUIElement) -> FocusedText?
 
+    /// **되읽어 검증 전용 재읽기 seam** — 선택 범위만 읽는다. `axWindow`와 갈린 이유가
+    /// 검증의 존재 이유 그 자체다: 창 스냅샷은 액션당 1회 memo라 **쓰기 전** 값이고, 그것과
+    /// 비교하면 검증이 자기 자신을 확인하는 장식이 된다. 그래서 이쪽은 memo가 없고 폴링
+    /// 간격마다 새로 부른다 (`20260808_ax-readback-verify-convergence-poll.md` 1항).
+    private let axSelection: @Sendable (AXUIElement) -> NSRange?
+
     /// AX 쓰기 단일 통로. 주입 이유는 리더들과 같고 하나 더 있다 — 실제로 쓰면 테스트가
     /// **개발자의 실제 문서를 편집한다** (`AXWriter` doc).
     private let writer: AXWriter
@@ -106,6 +112,9 @@ nonisolated struct KeyboardAdapter: Sendable {
         axWindow: @escaping @Sendable (AXUIElement) -> FocusedText? = {
             FocusedTextReader.read($0, radius: FocusedTextReader.axWindowRadius)
         },
+        axSelection: @escaping @Sendable (AXUIElement) -> NSRange? = {
+            FocusedTextReader.readSelection($0)
+        },
         writer: AXWriter = AXWriter(),
         axElement: @escaping @Sendable (pid_t) -> AXUIElement? = AXRead.focusedElement(ofProcess:),
         reportExecutionFailure: @escaping @Sendable (TimeInterval) -> Void = { _ in },
@@ -119,6 +128,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         self.visualAnchor = visualAnchor
         self.viewportReader = viewportReader
         self.axWindow = axWindow
+        self.axSelection = axSelection
         self.writer = writer
         self.axElement = axElement
         self.reportExecutionFailure = reportExecutionFailure
@@ -211,12 +221,22 @@ nonisolated struct KeyboardAdapter: Sendable {
             return true
         }
 
-        /// 페이싱 다타 그룹(Visual 정확화·paste 접두)을 **스트로크(다운·업 쌍) 사이 고정
-        /// 간격**으로 게시한다 —
-        /// Notion 실측에서 0간격 버스트는 재앵커의 Shift 확장을 소화하지 못했다(이벤트당
-        /// 5ms 프로브는 완전 정상 — 간격 문제로 확정). 그룹은 원자라 내부 중단 확인은 없다
-        /// (최대 수 타 × 5ms라 무해). 최신 여부 확인·중단 계약은 `flush`와 같다.
-        /// 반환 false = 이 실행이 밀려남 — 호출자는 즉시 그만둔다.
+        /// 한 그룹을 **스트로크(다운·업 쌍) 사이 고정 간격**으로 게시한다 — 래치 질의도 청크
+        /// 간격도 없는 순수 게시다. Notion 실측에서 0간격 버스트는 재앵커의 Shift 확장도
+        /// 붙여넣기 접두의 화살표도 소화하지 못했다(이벤트당 5ms 프로브는 완전 정상 — 간격
+        /// 문제로 확정). 그룹은 원자라 내부 중단 확인이 없다(최대 수 타 × 5ms라 무해).
+        ///
+        /// 하이브리드의 첫 그룹은 이것을 **직접** 부른다 — 원자 그룹 ④는 그 앞에 래치 질의를
+        /// 두지 못하기 때문이다. 간격 규칙이 두 경로에서 갈리지 않도록 함수를 공유한다.
+        func postSpaced(_ events: [CGEvent]) {
+            for index in stride(from: 0, to: events.count, by: 2) {
+                if index > 0 { Thread.sleep(forTimeInterval: Self.pacedStrokeInterval) }
+                executor.post(Array(events[index..<min(index + 2, events.count)]))
+            }
+        }
+
+        /// 페이싱 그룹을 청크 경계 규칙 아래 게시한다 — 최신 여부 확인·중단 계약은 `flush`와
+        /// 같다. 반환 false = 이 실행이 밀려남 — 호출자는 즉시 그만둔다.
         func postPaced(_ events: [CGEvent]) -> Bool {
             if postedChunks > 0 { Thread.sleep(forTimeInterval: Self.chunkInterval) }
             guard isCurrent() else {
@@ -226,11 +246,32 @@ nonisolated struct KeyboardAdapter: Sendable {
                 #endif
                 return false
             }
-            for index in stride(from: 0, to: events.count, by: 2) {
-                if index > 0 { Thread.sleep(forTimeInterval: Self.pacedStrokeInterval) }
-                executor.post(Array(events[index..<min(index + 2, events.count)]))
-            }
+            postSpaced(events)
             postedChunks += 1
+            return true
+        }
+
+        /// AX 쓰기 앞의 **순서 봉인** — 같은 execute에 아직 게시되지 않은 keyboard 이벤트를
+        /// 먼저 비운다. 게시는 배달만 걸고 돌아오고 AX 쓰기는 대상 앱 런루프까지 동기라,
+        /// 두고 쓰면 화면 순서가 액션 순서와 그대로 뒤집힌다 — "동기 AX 쓰기 → 게시"만
+        /// 레이스가 없다는 계약의 코드 측 대응이다.
+        /// 반환 false = 이 실행이 밀려남 — 호출자는 즉시 그만둔다.
+        func sealOrder(before action: VimAction) -> Bool {
+            guard flush() else {
+                visualAnchor.apply(.discard)
+                return false
+            }
+            #if DEBUG
+            // `flush`는 **미게시분**만 해결한다 — 이미 게시된 이벤트를 대상 앱이 소비하는
+            // 순서 대 동기 AX 쓰기는 미확정 방향이다(계약이 보증하는 것은 "AX 쓰기 → 게시"
+            // 하나뿐). 한 execute가 전부 AX이거나 전부 위임이라 도달 불가여야 하므로, 뜨면
+            // 그 전제가 깨진 것이다.
+            if postedChunks > 0 {
+                Logger.eventTap.debug(
+                    "AX 쓰기가 위임 게시 뒤에 온다 — 소비 순서 미보장: \(String(describing: action), privacy: .public)"
+                )
+            }
+            #endif
             return true
         }
 
@@ -260,26 +301,9 @@ nonisolated struct KeyboardAdapter: Sendable {
             switch mapping(
                 for: action, family: family, profile: profile, text: text, axText: axText,
                 viewport: viewport, layout: layout) {
-            case .ax(let range):
-                // ① **순서 보존**: 같은 execute에 아직 게시되지 않은 keyboard 이벤트가 pending에
-                //    남아 있는데 동기 AX 쓰기가 먼저 나가면 순서가 뒤집힌다(게시는 배달만 걸고
-                //    돌아오고, AX 쓰기는 동기다). "동기 AX 쓰기 → 게시"만 레이스가 없다는
-                //    계약의 코드 측 대응이다.
-                guard flush() else {
-                    visualAnchor.apply(.discard)
-                    return
-                }
-                #if DEBUG
-                // `flush`는 **미게시분**만 해결한다 — 이미 게시된 이벤트를 대상 앱이 소비하는
-                // 순서 대 동기 AX 쓰기는 미확정 방향이다(계약이 보증하는 것은 "AX 쓰기 → 게시"
-                // 하나뿐). D1a에서는 한 execute가 전부 `.ax`이거나 전부 위임이라 도달 불가여야
-                // 하므로, 뜨면 그 전제가 깨진 것이다.
-                if postedChunks > 0 {
-                    Logger.eventTap.debug(
-                        "AX 쓰기가 위임 게시 뒤에 온다 — 소비 순서 미보장: \(String(describing: action), privacy: .public)"
-                    )
-                }
-                #endif
+            case .ax(let range, let visual):
+                // ① 순서 봉인 (위 `sealOrder` 주석).
+                guard sealOrder(before: action) else { return }
                 // ② 중단 래치는 **파괴적 쓰기 직전**에 한 번 더 — AX 경로에는 청크가 없으므로
                 //    질의 지점이 "액션 사이 + 쓰기 직전"이 되어 keyboard 8타 청크보다 촘촘하다.
                 guard isCurrent() else {
@@ -294,28 +318,20 @@ nonisolated struct KeyboardAdapter: Sendable {
                 //    잔여까지 함께 접는 것은 "첫 미지원·첫 실패" 구조 규칙과 같은 근거다:
                 //    한 키 입력 안에서 이 실패는 일시적이지 않고, 접지 않으면 `100j`가
                 //    100×50ms로 게시 큐를 잡는다.
-                //    `axText`는 memo라 여기서 다시 물어도 **범위를 계산한 바로 그 읽기**다 —
-                //    따로 읽으면 사전 검증이 범위와 다른 문서 상태를 기준으로 서서 방어가
-                //    아니라 장식이 된다. 요소·읽기가 여기서 `nil`인 것은 정상 경로에서는
-                //    불가능하다(계획이 그 둘을 이미 통과했고 둘 다 memo다) — 옵셔널은 타입이
-                //    요구하는 형식이지 분기가 아니다. 남는 실질 분기는 경계 증명 하나다.
-                guard let element = axTarget.value(), let focused = axText.value(),
-                    let proven = AXWriteOutcome.provenWriteRange(
-                        range, characterCount: focused.characterCount)
-                else {
-                    // 미지원 스킵(DEBUG)과 달리 우리 계산이 어긋났다는 신호라 항상 남긴다.
-                    Logger.eventTap.error(
-                        "AX 쓰기 범위 증명 실패 — 스킵 [\(range.location, privacy: .public), \(range.upperBound, privacy: .public)): \(String(describing: action), privacy: .public)"
-                    )
-                    return
-                }
-                let outcome = AXWriteOutcome.classify(
-                    writer.writeSelectedTextRange(element, proven))
-                effects.apply(outcome, action: action)
-                // ④ `apply`는 흐름을 정하지 않는다 — 호출자가 outcome을 보고 끊는다. `.success`
+                //    (아래 `provenTarget` 주석 참고 — memo·경계 증명·실패 로그가 거기 있다.)
+                guard let target = Self.provenTarget(
+                    range, element: axTarget, window: axText, action: action)
+                else { return }
+                // ④ `written`은 흐름을 정하지 않는다 — 호출자가 outcome을 보고 끊는다. `.success`
                 //    외 전부에서 끊는 것이 "실행 실패 보고는 키 입력 1건당 최대 1회"를 구조로
                 //    보장하고, 미지원·경합 앱에서 동기 왕복이 곱해지는 것을 함께 막는다.
-                guard outcome == .success else { return }
+                guard written(target, action: action, effects: &effects) == .success else {
+                    return
+                }
+                // ⑤ 확정 부수효과는 **쓰기 성공 뒤**다. Visual 아닌 액션은 `.unchanged`라 무동작
+                //    이고, 되읽어 검증이 없는 것은 이 케이스가 뒤에 아무것도 게시하지 않기
+                //    때문이다 — 실질 방어선은 다음 액션 읽기의 자가 검증이다.
+                confirmVisual(action, update: visual, path: .accessibility)
                 continue
             case .axUnavailable:
                 #if DEBUG
@@ -324,25 +340,77 @@ nonisolated struct KeyboardAdapter: Sendable {
                 )
                 #endif
                 return
-            case .groups(let mapped, let pacedGroups):
-                // 게시 직전의 단일 치환 단계 — 비-QWERTY에서만 논리 ANSI 명령 키코드
-                // (6/7/8/9)를 현재 레이아웃의 역조회 키코드로 바꾼다. QWERTY 생략이
-                // 현행 바이트 동일의 증명이다.
-                if layout.isQwerty {
-                    groups = mapped
-                } else if let substituted = Self.rewritten(mapped, using: layout.commandKeyCodes) {
-                    groups = substituted
-                } else {
-                    // 게이트가 필요 문자를 확인한 뒤라 정상 경로에서는 도달하지 않는다
-                    // (레이아웃 스냅샷을 게이트와 공유한다). ANSI 코드가 비-QWERTY로
-                    // 그대로 나가는 것이 이 축의 위험 그 자체라, CGEvent 생성 실패와
-                    // 같은 all-or-nothing으로 액션을 폐기한다.
-                    Logger.eventTap.error(
-                        "역조회 치환 실패 — 액션 폐기: \(String(describing: action), privacy: .public)"
-                    )
+            case .hybrid(let range, let mapped, let pacedGroups):
+                // 하이브리드도 위임 그룹을 게시하므로 치환은 `.groups`와 같은 자리·같은
+                // `LayoutSnapshot`을 쓴다 (게이트와 치환의 TOCTOU 봉쇄가 그대로 상속된다).
+                guard let substituted = Self.substituted(mapped, layout: layout, action: action),
+                    let delegated = substituted.first
+                else {
                     visualAnchor.apply(.discard)
                     continue
                 }
+                // ① 순서 봉인 — `.ax`와 같은 자리·같은 이유다.
+                guard sealOrder(before: action) else { return }
+                // ② 중단 래치는 **접두 쓰기 직전까지만**이다. 이 뒤 게시 그룹까지는 원자 그룹
+                //    ④라 질의가 없다 — 사이에서 끊기면 AX 선택이 화면에 잔류하고 다음 Normal
+                //    `x`가 그것을 통째로 잘라낸다
+                //    (`20260808_hybrid-prefix-atomic-with-first-group.md`).
+                guard isCurrent() else {
+                    #if DEBUG
+                    Logger.eventTap.debug(
+                        "실행 중단 — 하이브리드 접두 폐기: \(String(describing: action), privacy: .public)")
+                    #endif
+                    return
+                }
+                guard let target = Self.provenTarget(
+                    range, element: axTarget, window: axText, action: action)
+                else { return }
+                // ③ **CGEvent 생성을 쓰기 앞으로 당긴다.** 그룹을 만들 수 없는데 접두만 쓰면
+                //    선택이 잔류하는 그 창이 그대로 열린다 — 같은 결정의 후반부다.
+                guard let delegatedEvents = Self.events(for: delegated) else {
+                    Logger.eventTap.error(
+                        "CGEvent 생성 실패 — 접두 쓰기 없이 액션 폐기: \(String(describing: action), privacy: .public)"
+                    )
+                    continue
+                }
+                // ④ 접두 쓰기 — 실패 처리는 `.ax`와 같다(폴백 없음, execute 잔여 중단).
+                guard written(target, action: action, effects: &effects) == .success else {
+                    return
+                }
+                // ⑤ 되읽어 검증 — 쓴 범위가 착지해야 파괴 단계가 나간다. 실패는 보고가 아니라
+                //    무동작 + execute 잔여 중단이다(쓰기는 `.success`였고 파괴는 시도 전).
+                guard verifiedSelection(target.element, matches: target.range) else {
+                    effects.noteVerifyMismatch(action: action)
+                    return
+                }
+                // ⑥ 게시는 **래치 질의를 거치지 않고** 곧장 — 원자 그룹 ④다. 스트로크 간격만은
+                //    `.groups`와 같은 규칙으로 둔다(2타 이상 페이싱 그룹 = `.paste`의
+                //    `[Return, Cmd-V]` — 0간격 버스트에서 앞 키를 잃는 앱이 실측됐다).
+                if pacedGroups, delegated.count >= 2 {
+                    postSpaced(delegatedEvents)
+                } else {
+                    executor.post(delegatedEvents)
+                }
+                postedChunks += 1
+                // **게시가 실제로 나간 뒤에** wise를 기억한다. `.groups`에서는 매핑 확정이 곧
+                // 게시 확정에 가까웠지만, 하이브리드는 그 사이에 설계된 실패 단계(검증 불일치
+                // 등)가 여럿 있어 매핑 시점 기록이면 나가지도 않은 편집의 wise가 남는다 —
+                // 그 뒤 외부 복사 1회가 델타를 정확히 1로 만들면 `p`가 그 기억으로 오판된다.
+                // 편집이 아닌 하이브리드(`.openLine`·`.paste`)에는 부수효과가 없어 no-op이다.
+                recordEditWise(for: action)
+                // 둘째 그룹부터는 원자가 아니다 — `.groups`와 **같은 청크·페이싱 루프**로
+                // 낙하한다(`.paste`의 나머지 `Cmd-V`들). 그룹이 하나뿐이면 빈 배열이라 루프가
+                // 그냥 지나간다.
+                groups = Array(substituted.dropFirst())
+                paced = pacedGroups
+
+            case .groups(let mapped, let pacedGroups):
+                guard let substituted = Self.substituted(mapped, layout: layout, action: action)
+                else {
+                    visualAnchor.apply(.discard)
+                    continue
+                }
+                groups = substituted
                 paced = pacedGroups
             case .unsupported:
                 #if DEBUG
@@ -464,6 +532,114 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 소화할 시간**이다.
     private static let pacedStrokeInterval: TimeInterval = 0.005
 
+    /// 되읽어 검증의 폴링 간격 — 도그푸딩 조절값이다.
+    ///
+    /// Notion은 `AXSelectedTextRange` 쓰기가 `.success`를 돌려준 뒤에도 적용이 **비동기**여서
+    /// 되읽기가 ~6ms까지 낡은 값을 주고 ~10ms경 수렴한다(세션 0 실측). 즉시 1회 읽기로
+    /// 설계하면 그 앱에서 편집 전부가 상시 헛스킵이 된다.
+    private static let readbackPollInterval: TimeInterval = 0.002
+
+    /// 되읽어 검증의 총 상한 — 실측 수렴 ~10ms의 3~4배 마진이다. 도달 = 검증 실패.
+    ///
+    /// `AXRead.messagingTimeout`(50ms)과 공유하지 않는 것은 의미가 달라서다 — 그쪽은 병적
+    /// 정지 차단기, 이쪽은 정상 앱의 적용 지연 대기다
+    /// (`20260808_ax-readback-verify-convergence-poll.md` 2항).
+    private static let readbackVerifyTimeout: TimeInterval = 0.040
+
+    /// 접두 쓰기가 착지했는가 — **신선한 선택 전용 재읽기의 수렴 폴링**이다.
+    ///
+    /// 첫 재읽기는 지연 없이 나가므로 즉시 일관한 앱(TextEdit 실측)에서는 폴링 비용이 0이다.
+    /// 창 스냅샷(`AXWindowSnapshot`) memo를 쓰지 않는 것이 이 함수의 존재 이유다 — 그 값은
+    /// 쓰기 **전**이라 비교가 자기 확인이 된다.
+    ///
+    /// 상한 판정에 `now` seam을 쓰므로 **테스트에서 상한 도달을 재현하려면 진행하는 `now`를
+    /// 주입해야 한다** (프로덕션 `systemUptime`은 항상 진행한다). 수렴·즉시 일치 경로는
+    /// 시각을 아예 보지 않는다.
+    private func verifiedSelection(_ element: AXUIElement, matches range: NSRange) -> Bool {
+        let deadline = now() + Self.readbackVerifyTimeout
+        while true {
+            if axSelection(element) == range { return true }
+            guard now() < deadline else { return false }
+            Thread.sleep(forTimeInterval: Self.readbackPollInterval)
+        }
+    }
+
+    /// 접두·캐럿 쓰기가 겨냥할 요소와 **사전 경계 검증을 통과한** 범위.
+    ///
+    /// `window`가 memo라 여기서 다시 물어도 **범위를 계산한 바로 그 읽기**다 — 따로 읽으면
+    /// 사전 검증이 범위와 다른 문서 상태를 기준으로 서서 방어가 아니라 장식이 된다. 요소·읽기가
+    /// 여기서 `nil`인 것은 정상 경로에서는 불가능하다(계획이 그 둘을 이미 통과했고 둘 다
+    /// memo다) — 옵셔널은 타입이 요구하는 형식이지 분기가 아니다. 남는 실질 분기는 경계 증명
+    /// 하나이며, 그 탈락은 우리 계산이 어긋났다는 신호라 미지원 스킵(DEBUG)과 달리 항상 남긴다.
+    private static func provenTarget(
+        _ range: NSRange, element: AXElementSnapshot, window: AXWindowSnapshot, action: VimAction
+    ) -> (element: AXUIElement, range: NSRange)? {
+        guard let handle = element.value(), let focused = window.value(),
+            let proven = AXWriteOutcome.provenWriteRange(
+                range, characterCount: focused.characterCount)
+        else {
+            Logger.eventTap.error(
+                "AX 쓰기 범위 증명 실패 — 스킵 [\(range.location, privacy: .public), \(range.upperBound, privacy: .public)): \(String(describing: action), privacy: .public)"
+            )
+            return nil
+        }
+        return (handle, proven)
+    }
+
+    /// 게시 직전의 단일 치환 단계 — 비-QWERTY에서만 논리 ANSI 명령 키코드(6/7/8/9)를 현재
+    /// 레이아웃의 역조회 키코드로 바꾼다. QWERTY 생략이 현행 바이트 동일의 증명이다.
+    ///
+    /// `.groups`와 `.hybrid`가 **같은 함수를 거치는 것이 계약**이다 — 하이브리드의 오퍼레이터
+    /// 그룹도 `Cmd-X`/`Cmd-C`라 치환 대상인데, 분기마다 따로 두면 한쪽이 조용히 빠진다.
+    ///
+    /// `nil` = 액션 폐기다. 게이트가 필요 문자를 확인한 뒤라 정상 경로에서는 도달하지 않지만
+    /// (레이아웃 스냅샷을 게이트와 공유한다), ANSI 코드가 비-QWERTY로 그대로 나가는 것이 이
+    /// 축의 위험 그 자체라 CGEvent 생성 실패와 같은 all-or-nothing으로 버린다.
+    private static func substituted(
+        _ groups: [[KeyStroke]], layout: LayoutSnapshot, action: VimAction
+    ) -> [[KeyStroke]]? {
+        if layout.isQwerty { return groups }
+        guard let rewritten = rewritten(groups, using: layout.commandKeyCodes) else {
+            Logger.eventTap.error(
+                "역조회 치환 실패 — 액션 폐기: \(String(describing: action), privacy: .public)")
+            return nil
+        }
+        return rewritten
+    }
+
+    /// AX 쓰기 1회 — 통로 호출과 효과 반영이 **한 자리에** 있어야 `.ax`와 `.hybrid`가 같은
+    /// 감사 경로를 쓴다(분류·보고·요약 버킷이 한쪽에서만 바뀌는 일이 없다).
+    ///
+    /// 흐름은 정하지 않는다 — 호출자가 outcome을 보고 끊는 것이 `AXWriteEffects.apply`의 계약
+    /// 그대로다.
+    private func written(
+        _ target: (element: AXUIElement, range: NSRange), action: VimAction,
+        effects: inout AXWriteEffects
+    ) -> AXWriteOutcome {
+        let outcome = AXWriteOutcome.classify(
+            writer.writeSelectedTextRange(target.element, target.range))
+        effects.apply(outcome, action: action)
+        return outcome
+    }
+
+    /// 이 편집이 클립보드에 남기는 내용의 wise를 기억한다 — 뒤따르는 `p`가 끝 개행
+    /// 휴리스틱(앱마다 틀린다)에 기대지 않게 하는 자리다.
+    ///
+    /// **호출 시점이 계약이다: 게시가 확정된 뒤.** 스킵된 편집이 기억을 남기면 다음 외부 복사
+    /// 한 번 뒤의 `p`가 그 wise로 오판된다(델타-1 규칙이 그때는 자가 치유하지 못한다).
+    /// 위임(`.groups`)은 매핑 확정이 곧 게시 확정이라 그 자리에서 부르고, 하이브리드는 접두
+    /// 쓰기·되읽어 검증이라는 실패 단계가 사이에 있어 **실제 게시 뒤에** 부른다.
+    private func recordEditWise(for action: VimAction) {
+        guard case .edit(let op, let range) = action else { return }
+        if case .selection = range {
+            // 내용 wise는 범위가 아니라 세션이 정한다 — change도 선택을 그대로 자르므로
+            // (cc의 줄 유지 반올림이 없다) 세션 wise가 곧 내용이다.
+            pasteWise.recordSelectionEdit()
+        } else if let wise = Self.contentWise(op, range) {
+            pasteWise.recordEdit(wise)
+        }
+    }
+
     /// 원자 그룹 하나의 CGEvent. 하나라도 생성에 실패하면 `nil` — 부분 시퀀스를 내지 않는다.
     private static func events(for strokes: [KeyStroke]) -> [CGEvent]? {
         var events: [CGEvent] = []
@@ -519,9 +695,28 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// `paced:`가 없는 것도 계약이다 — AX 쓰기는 합성 이벤트가 아니라 드롭 모드가 없어
         /// 페이싱 대상이 아니고, `paced`는 위임 전용 속성으로 남는다.
         ///
-        /// 하이브리드(`.openLine`·`.paste`·편집의 "접두 쓰기 + 그룹")는 아직 없다 — PR-D1b
-        /// 몫이며, 빈 분기를 강요하는 케이스를 미리 두지 않는다.
-        case ax(NSRange)
+        /// `visual`은 Visual 세션의 상태 변화다(그 외 액션은 `.unchanged`). 매핑 시점에 적용할
+        /// 수 없어 여기 실린다 — **쓰기 `.success` 뒤**에야 확정이고, 그 사이에 설계된 실패
+        /// 단계(요소·경계 증명·쓰기 자체)가 여럿이라 매핑 시점 적용이면 나가지도 않은 액션의
+        /// side가 남는다 (`recordEditWise`가 하이브리드에서 게시 뒤로 간 것과 같은 함정).
+        case ax(NSRange, visual: VisualAnchorUpdate)
+        /// **하이브리드** — AX 범위/캐럿 접두 쓰기 + 위임 게시 그룹. 편집(delete·change·yank)·
+        /// `.openLine`·`.paste`가 이 케이스를 공유한다.
+        ///
+        /// 접두 쓰기(및 되읽어 검증)와 **첫 게시 그룹 사이에는 중단 질의가 없다** — 원자 그룹
+        /// ④다. 사이에서 끊기면 편집의 AX 선택이 화면에 잔류하고, 다음 Normal `x`
+        /// (`Shift-→, Cmd-X`)가 그것을 통째로 잘라낸다
+        /// (`20260808_hybrid-prefix-atomic-with-first-group.md`).
+        ///
+        /// **원자인 것은 첫 그룹뿐이다** — 둘째 그룹부터는 `.groups`와 **같은 청크·페이싱
+        /// 경로**를 탄다. 그룹이 여럿인 액션은 `.paste` 하나이고(`1000p` = `Cmd-V` 1,000타),
+        /// 통짜로 내면 중단 래치가 파고들 틈이 없다는 것이 `.groups`에서와 같은 이유다.
+        ///
+        /// `paced`의 의미도 `.groups`와 같다(2타 이상 그룹의 스트로크 사이 간격). 실효 지점은
+        /// `.paste`의 `[Return, Cmd-V]` 한 그룹뿐이지만 — 나머지 paste 그룹은 1타라 페이싱
+        /// 규칙 밖이다 — 그 자리가 정확히 Notion 0간격 버스트 약점의 재현 지점이고, 편집·
+        /// openLine은 `false`라 세션 2가 확인한 타이밍이 그대로 유지된다.
+        case hybrid(NSRange, [[KeyStroke]], paced: Bool)
         /// AX 경로인데 **쓰기 시도 전 단계**가 실패했다 — 포커스 요소 미노출, 읽기 타임아웃.
         ///
         /// 보고도 폴백도 아닌 스킵이다(실행을 시도하지 않았다). `.skipped`와 갈라 두는 것은
@@ -620,7 +815,15 @@ nonisolated struct KeyboardAdapter: Sendable {
         // `.selection` 편집이 이전 세션의 wise로 기록되는 구멍을 여기서 막는다. 망각은
         // 기록이 아니라서 "게이트가 부수효과보다 앞" 계약을 깨지 않는다(보수 방향 —
         // 틀려봐야 휴리스틱 폴백이다).
-        if case .beginSelection = action { pasteWise.forgetSelectionWise() }
+        if case .beginSelection = action {
+            pasteWise.forgetSelectionWise()
+            // **새 세션의 경로도 여기서 잊는다.** 고정은 확정 뒤(`confirmVisual`)인데, AX 분기를
+            // 골라 놓고 그 앞에서 실패하는 경로(요소·읽기 실패·경계 증명 실패·쓰기 실패)는
+            // 확정에 도달하지 않는다 — 잊지 않으면 **AX가 된 적 없는 세션이 옛 pin을 상속해**
+            // 남은 확장이 전부 스킵된다(쓴 것이 없으니 keyboard 폴백이 안전한 자리다).
+            // 망각은 기록이 아니라서 위 `forgetSelectionWise`와 같은 이유로 게이트보다 앞이다.
+            visualAnchor.pin(.keyboard)
+        }
         // `actions:` disable 판정은 **모든 게이트·부수효과보다 앞**이다 — 사용자가 끈
         // 액션은 `recordEdit`·클립보드 읽기 같은 부수효과도 남기면 안 되고
         // (걸러내기 게이트가 부수효과보다 앞인 것과 같은 규칙), 분류도 미지원이 아니라
@@ -658,14 +861,14 @@ nonisolated struct KeyboardAdapter: Sendable {
         case .move(let motion):
             // **AX 실행 계획의 갈림길은 여기 한 곳이다.** 게이트 3종 뒤라 위임 경로와 전제가
             // 같고, 확대 창 읽기는 그 뒤에 온다 — 게이트에 걸린 액션은 AX 왕복도 0건이다.
-            if Self.usesAXCaretWrite(motion, family: family, profile: profile) {
+            if Self.usesAXWrite(action, family: family, profile: profile) {
                 // 읽기 실패(포커스 요소 미노출·타임아웃)는 **`unproven`과 다른 축**이다 —
                 // 창이 답을 못 한 것이 아니라 물어볼 창이 없는 것이라, 위임이 아니라 스킵이며
                 // execute 잔여까지 함께 접는다 (`Mapping.axUnavailable`).
                 guard let focused = axText.value() else { return .axUnavailable }
                 switch FocusedTextOffsets.caretTarget(for: motion, in: focused) {
                 case .caret(let offset):
-                    return .ax(NSRange(location: offset, length: 0))
+                    return .ax(NSRange(location: offset, length: 0), visual: .unchanged)
                 case .invalid:
                     // 미지원이 아니라 "지원하지만 Vim에서 무효" — 편집의 증명된 무게시와 같은
                     // 편이다(첫 줄 `k`류가 위임되면 실제로 캐럿이 움직인다).
@@ -694,40 +897,87 @@ nonisolated struct KeyboardAdapter: Sendable {
             //
             // 읽기 실패·타임아웃·pid 없음은 전부 `nil`이라 매퍼가 무상태 시퀀스를 낸다 —
             // 정확화만 포기하고 실행은 한다. 스킵도, 실행 실패 보고도 아니다.
-            let focused = EditKeyMapper.consultsFocusedText(range) ? text.value() : nil
-            let result = Self.classifyEdit(
-                op: op, range: range, family: family, profile: profile, text: focused)
-            if case .skipped = result {
-                // 미지원이 아니라 "지원하지만 이번 입력에는 게시할 것이 없다"이므로 `.skipped`다
-                // (`p`의 빈 클립보드와 같은 편) — `op`·`range`·액션을 다 아는 이 자리에서
-                // 자체 로그를 남긴다. `classifyEdit`은 사유를 알지만 액션을 모른다.
-                #if DEBUG
-                Logger.eventTap.debug(
-                    "편집 스킵 — 읽기가 Vim 무효를 증명했다: \(String(describing: action), privacy: .public)"
-                )
-                #endif
+            //
+            // **AX 실행 계획이 먼저다** — 통과하면 확대 창(4096)이 범위를 증명하고, 그 창이
+            // 위임 낙하 시 정확화 입력까지 겸한다(한 액션은 창을 한 번만 읽는다).
+            var axFocused: FocusedText?
+            var hybrid: Mapping?
+            if Self.usesAXWrite(action, family: family, profile: profile) {
+                // 읽기 실패는 `unproven`과 **다른 축**이다 — 창이 답을 못 한 것이 아니라
+                // 물어볼 창이 없는 것이라, 위임이 아니라 스킵이며 execute 잔여도 접는다.
+                guard let focused = axText.value() else { return .axUnavailable }
+                axFocused = focused
+                switch FocusedTextOffsets.editSpan(for: op, range: range, in: focused) {
+                case .range(let span):
+                    // 오퍼레이터 그룹은 keyboard 경로와 **같은 함수**에서 나온다 — yank
+                    // collapse `←`의 프로파일 재정의·disable 전파가 두 경로에서 갈리지 않는다.
+                    // `nil`(= `char_left` disable)이면 아래 위임으로 낙하해 기존 경로가
+                    // `.disabledByProfile`로 정직하게 집계한다.
+                    if let operatorKeys = EditKeyMapper.operatorStrokes(for: op, profile: profile) {
+                        // 위임분은 `[Cmd-X]` 또는 `[Cmd-C, ←]` 한 그룹이고, 현행 keyboard 편집이
+                        // 무페이싱이라 그대로 둔다 (`.paste`만 `paced: true`다).
+                        hybrid = .hybrid(span, [operatorKeys], paced: false)
+                    }
+                case .invalid:
+                    // 미지원이 아니라 "지원하지만 Vim에서 무효" — 모션의 증명된 무게시와 같은
+                    // 편이다(마지막 줄 `dj`·첫 줄 `dk`가 위임되면 실제로 줄이 지워진다).
+                    #if DEBUG
+                    Logger.eventTap.debug(
+                        "AX 편집 스킵 — 범위가 Vim 무효를 증명했다: \(String(describing: action), privacy: .public)"
+                    )
+                    #endif
+                    return .skipped
+                case .unproven:
+                    // 창이 답하지 못했다 → 아래 위임으로 낙하한다. 쓰기 시도 **전**이라 이중
+                    // 실행이 원리적으로 불가하며, 쓰기 시도 **후** 실패의 폴백 금지와는 별개
+                    // 축이다 (`20260808_hybrid-prefix-failure-axes-clarified.md`).
+                    break
+                }
+            }
+            // 위임 낙하는 **이미 읽은 AX 창을 그대로** 정확화에 먹인다 — 256 창 재읽기는
+            // 액션당 왕복을 두 배로 만들고, 4096 창은 그 초집합이라 술어에 같은 답을 낸다
+            // (`20260808_ax-unproven-edit-delegation-reuses-ax-window.md`).
+            let result: Mapping
+            if let hybrid {
+                result = hybrid
+            } else {
+                let focused =
+                    axFocused ?? (EditKeyMapper.consultsFocusedText(range) ? text.value() : nil)
+                result = Self.classifyEdit(
+                    op: op, range: range, family: family, profile: profile, text: focused)
+                if case .skipped = result {
+                    // 미지원이 아니라 "지원하지만 이번 입력에는 게시할 것이 없다"이므로 `.skipped`다
+                    // (`p`의 빈 클립보드와 같은 편) — `op`·`range`·액션을 다 아는 이 자리에서
+                    // 자체 로그를 남긴다. `classifyEdit`은 사유를 알지만 액션을 모른다.
+                    #if DEBUG
+                    Logger.eventTap.debug(
+                        "편집 스킵 — 읽기가 Vim 무효를 증명했다: \(String(describing: action), privacy: .public)"
+                    )
+                    #endif
+                }
             }
             // 편집은 전부 클립보드를 쓴다(delete·change는 `Cmd-X`, yank는 `Cmd-C`) — 뒤따르는
             // `p`가 끝 개행 휴리스틱(앱마다 틀린다)에 기대지 않게 내용의 wise를 기억해 둔다.
             // **게시가 확정된 뒤에만** 기억한다 — 프로파일 disable로 스킵된 편집이 기억을
             // 남기면, 다음 외부 복사 한 번 뒤의 `p`가 그 wise로 오판된다 (게이트 2종과 같은
             // 규칙이되, 모션 disable은 매퍼 안에서야 드러나므로 판정이 앞설 수 없어 기억을
-            // 뒤로 미룬다).
-            if case .groups = result {
-                if case .selection = range {
-                    // 내용 wise는 범위가 아니라 세션이 정한다 — change도 선택을 그대로
-                    // 자르므로(cc의 줄 유지 반올림이 없다) 세션 wise가 곧 내용이다.
-                    pasteWise.recordSelectionEdit()
-                } else if let wise = Self.contentWise(op, range) {
-                    pasteWise.recordEdit(wise)
-                }
-            }
+            // 뒤로 미룬다). **하이브리드는 여기서 기억하지 않는다** — 접두 쓰기·되읽어 검증이
+            // 매핑과 게시 사이에 있어 실제 게시 뒤에 부른다 (`recordEditWise` doc).
+            if case .groups = result { recordEditWise(for: action) }
             return result
 
         case .beginSelection, .extendSelection, .switchSelectionWise, .clearSelection:
             // **읽기의 두 번째 소비 지점**이다 (M5 PR-C1). 편집의 범위 술어와 달리 Visual은
             // **세션 술어**다 — 앵커 상태의 수립(진입)과 자가 검증(세션 중)이 읽기의
             // 소비자라, 어떤 액션이 읽는지는 범위가 아니라 세션 상태가 정한다.
+            //
+            // AX 경로가 **먼저**다 — 진입이 세션 경로를 정하고, AX로 고정된 세션은 아래
+            // keyboard 재앵커 기계로 낙하하지 않는다(무상태·재정의 시퀀스 금지). `nil`은
+            // "이 세션은 keyboard다"이며 그때 아래가 현행 그대로 돈다.
+            if let ax = axVisualMapping(
+                for: action, family: family, profile: profile, text: text, axText: axText) {
+                return ax
+            }
             let context = anchorContext(for: action, text: text)
             let (result, update) = Self.classifyVisual(
                 action: action, family: family, profile: profile, anchor: context)
@@ -743,37 +993,37 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
             // 게시가 확정된 뒤에만 상태를 남긴다 — `recordEdit`과 같은 규칙이다.
             // 걸러진 액션이 side를 뒤집으면 다음 액션이 있지도 않은 재앵커를 전제로 계산한다.
+            // 위임은 매핑 확정이 곧 게시 확정에 가깝다(AX는 쓰기 성공 뒤 — `confirmVisual`).
             if case .groups = result {
-                visualAnchor.apply(update)
-                // 게시가 확정된 진입·전환의 wise를 세션 wise로 note한다 — `.selection`
-                // 편집의 내용 wise는 세션이 정하는데, 스킵된 전환(`V`→`v` 폴백 `nil`)은
-                // 화면 선택이 그대로라 **확정 스트림만** 따라가야 기억이 내용과 일치한다.
-                switch action {
-                case .beginSelection(let linewise), .switchSelectionWise(let linewise):
-                    pasteWise.noteSelectionWise(linewise ? .linewise : .charwise)
-                default:
-                    break
-                }
-                #if DEBUG
-                // 상태 전이 관측 — 도그푸딩에서 각 액션이 어느 경로(수립·재앵커·폐기·무상태)를
-                // 탔는지 화면과 대조하는 유일한 수단이다.
-                switch update {
-                case .set(let state):
-                    Logger.eventTap.debug(
-                        "Visual 앵커 갱신 [\(String(describing: state.side), privacy: .public), pinned \(state.pinnedEnd, privacy: .public)]: \(String(describing: action), privacy: .public)"
-                    )
-                case .discard:
-                    Logger.eventTap.debug(
-                        "Visual 앵커 폐기 (게시 경로): \(String(describing: action), privacy: .public)"
-                    )
-                case .unchanged:
-                    break
-                }
-                #endif
+                confirmVisual(action, update: update, path: .keyboard)
             }
             return result
 
-        case .openLine, .undo, .redo:
+        case .openLine(let above):
+            // AX 접두는 **논리** 줄 시작/끝이라 `Cmd-←`/`Cmd-→`(시각 줄)가 못 서던 자리가
+            // 함께 풀린다 — 소프트 랩 문단에서 `O`가 빈 줄을 못 만들던 수용 엣지가 그것이다.
+            // 위임분(`Return`·`O`의 복귀)은 매퍼가 내므로 `.textField` 게이트와 `new_line`
+            // 재정의가 keyboard 경로와 같은 함수를 지난다.
+            if Self.usesAXWrite(action, family: family, profile: profile) {
+                guard let focused = axText.value() else { return .axUnavailable }
+                if case .at(let offset) = FocusedTextOffsets.openLineInsertion(
+                    above: above, in: focused),
+                    let delegated = CommandKeyMapper.openLineDelegatedStrokes(
+                        above: above, family: family, profile: profile) {
+                    return .hybrid(
+                        NSRange(location: offset, length: 0), [delegated], paced: false)
+                }
+                // `.unproven`(창이 답 못 함)·위임분 `nil`(계열 게이트·모션 disable)은 아래
+                // 위임으로 낙하한다. `Insertion`의 `.appendingLine`은 openLine이 내지 않지만,
+                // 오면 같은 보수 방향(위임)으로 흡수된다.
+            }
+            return Self.classify(
+                CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
+            ) {
+                CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+            }
+
+        case .undo, .redo:
             return Self.classify(
                 CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
             ) {
@@ -808,12 +1058,48 @@ nonisolated struct KeyboardAdapter: Sendable {
                 Logger.eventTap.debug("paste 스킵 — 클립보드에 텍스트가 없다")
                 return .skipped
             }
+            // **AX 실행 계획이 먼저다** — 접두가 화살표 조합이 아니게 되면서 keyboard가 우회
+            // 장치로 덮던 자리들이 사라진다: 줄 끝 접두 생략(`pasteConsultsFocusedText`)과
+            // linewise after의 꼬리 `Cmd-←` 멱등 보정자는 **폴백 경로 전담**으로 남는다.
+            var axFocused: FocusedText?
+            if Self.usesAXWrite(action, family: family, profile: profile) {
+                // 읽기 실패는 `unproven`과 **다른 축**이다 (`.edit`·`.move`와 같은 규칙).
+                guard let focused = axText.value() else { return .axUnavailable }
+                axFocused = focused
+                switch FocusedTextOffsets.pasteInsertion(before: before, wise: wise, in: focused) {
+                case .at(let offset):
+                    if let groups = CommandKeyMapper.pasteDelegatedGroups(
+                        count: count, appendsLine: false, family: family, profile: profile) {
+                        return .hybrid(
+                            NSRange(location: offset, length: 0), groups, paced: true)
+                    }
+                case .appendingLine(let offset):
+                    // 마지막 줄(뒤 개행 없음)의 linewise `p` — 문서 끝 캐럿 + `[Return, Cmd-V]`
+                    // 원자 그룹이다. naive 문서 끝 캐럿은 병합 훼손이 실측됐고, 캐럿 쓰기만으로는
+                    // 구분 개행을 만들 수 없다 (`20260808_last-line-linewise-paste-return-synthesis.md`).
+                    // 위임분이 `nil`이면(단일행 필드 — `Return`이 submit) 아래 위임으로 낙하해
+                    // 현행 동작(`P` 퇴행) 그대로다.
+                    if let groups = CommandKeyMapper.pasteDelegatedGroups(
+                        count: count, appendsLine: true, family: family, profile: profile) {
+                        return .hybrid(
+                            NSRange(location: offset, length: 0), groups, paced: true)
+                    }
+                case .unproven:
+                    // 창이 답하지 못했다 → 아래 위임으로 낙하한다. 쓰기 시도 **전**이라 이중
+                    // 실행이 원리적으로 불가하다 (`20260808_hybrid-prefix-failure-axes-clarified.md`).
+                    break
+                }
+            }
             // **읽기의 세 번째 소비 지점** — charwise `p`만 줄 끝 증명을 위해 묻는다
             // (`P`·linewise는 왕복 0건 유지). 읽기 실패·pid 없음은 `nil`이라 현행 접두
             // 그대로다. 정확화가 접두를 비울 뿐 `nil`을 새로 만들지 않으므로 편집·Visual과
-            // 달리 프로브는 그대로 둘이다.
-            let focused = CommandKeyMapper.pasteConsultsFocusedText(before: before, wise: wise)
-                ? text.value() : nil
+            // 달리 프로브는 그대로 둘이다. 위임 낙하는 **이미 읽은 AX 창을 그대로** 먹인다 —
+            // 한 액션은 창을 한 번만 읽는다
+            // (`20260808_ax-unproven-edit-delegation-reuses-ax-window.md`).
+            let focused =
+                axFocused
+                ?? (CommandKeyMapper.pasteConsultsFocusedText(before: before, wise: wise)
+                    ? text.value() : nil)
             // 유일하게 그룹이 여럿인 액션 — 액션 1개 안에서 카운트가 곱해지므로 래치가
             // 파고들 틈을 매퍼가 직접 낸다. 분류 규칙은 `classify`와 같고 그룹 모양만 다르다.
             // `paced`인 것은 접두 다타 그룹(linewise 4타 등)이 Notion 0간격 버스트에서
@@ -871,6 +1157,173 @@ nonisolated struct KeyboardAdapter: Sendable {
         //    프로파일 disable로 둔갑한다.
         return EditKeyMapper.keyStrokes(for: op, range: range, family: family, profile: .empty)
             != nil ? .disabledByProfile : .unsupported
+    }
+
+    /// Visual 액션의 **확정 부수효과** — 상태 적용·세션 경로 고정·세션 wise note가 한 몸이다.
+    ///
+    /// **호출 시점이 계약이다**: 위임(`.groups`)은 매핑 확정이 곧 게시 확정이라 그 자리에서,
+    /// AX(`.ax`)는 쓰기 `.success`를 확인한 뒤에 부른다. 두 경로가 같은 함수를 지나야 한쪽만
+    /// note를 빠뜨리거나 경로를 잘못 고정하는 일이 없다 (`EditKeyMapper.operatorStrokes`·
+    /// `CommandKeyMapper`의 위임분 진입점과 같은 선례).
+    ///
+    /// Visual 아닌 액션(`.move` 등)은 `.unchanged`를 싣고 오며 아래 어느 분기도 타지 않는다.
+    private func confirmVisual(
+        _ action: VimAction, update: VisualAnchorUpdate, path: VisualAnchorTracker.Path
+    ) {
+        visualAnchor.apply(update)
+        switch action {
+        case .beginSelection(let linewise):
+            // **경로는 진입에서만 정해진다** — 세션 도중 전환 금지가 pin의 존재 이유이고,
+            // 폐기가 경로를 되돌리지 않는 것이 그 계약의 나머지 절반이다(`sessionPath` doc).
+            visualAnchor.pin(path)
+            pasteWise.noteSelectionWise(linewise ? .linewise : .charwise)
+        case .switchSelectionWise(let linewise):
+            // 확정된 전환의 wise만 세션 wise로 note한다 — 스킵된 전환은 화면 선택이 그대로라
+            // 기억도 그대로여야 내용과 일치한다.
+            pasteWise.noteSelectionWise(linewise ? .linewise : .charwise)
+        default:
+            break
+        }
+        #if DEBUG
+        // 상태 전이 관측 — 도그푸딩에서 각 액션이 어느 경로(수립·재앵커·폐기·무상태)를
+        // 탔는지 화면과 대조하는 유일한 수단이다.
+        switch update {
+        case .set(let state):
+            Logger.eventTap.debug(
+                "Visual 앵커 갱신 [\(String(describing: path), privacy: .public), \(String(describing: state.side), privacy: .public), pinned \(state.pinnedEnd, privacy: .public)]: \(String(describing: action), privacy: .public)"
+            )
+        case .discard:
+            Logger.eventTap.debug(
+                "Visual 앵커 폐기 (게시 경로): \(String(describing: action), privacy: .public)")
+        case .unchanged:
+            break
+        }
+        #endif
+    }
+
+    /// **AX로 고정된 Visual 세션의 매핑** — `nil`이면 이 세션은 keyboard이므로 호출자가 현행
+    /// 재앵커 경로로 낙하한다.
+    ///
+    /// 진입만이 경로를 정한다: 증명되면 세션 전체가 AX이고, 못 하면 세션 전체가 keyboard다.
+    /// 세션 중간에는 **위임으로 낙하하지 않는다** — AX가 써 넣은 범위 위에서는 앱이 어느 끝을
+    /// 포커스로 보는지 미정의라 무상태 `Shift-→`가 앵커 반대쪽으로 자랄 수 있고, 뒤따르는 `d`가
+    /// 엉뚱한 텍스트를 지운다(강등이 아니라 파괴 방향 동전 던지기)
+    /// (`20260808_ax-visual-session-path-pinning.md`). 그래서 중간의 모든 실패는 스킵이다.
+    ///
+    /// `.clearSelection`이 여기 오지 않는 것도 결정이다 — collapse는 게시 `←` 유지다(동기 AX
+    /// 쓰기가 `Cmd-C` 게시를 상시 이겨 빈 복사가 됨이 실측
+    /// `20260808_ax-collapse-posted-arrow-not-caret-write.md`).
+    private func axVisualMapping(
+        for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
+        text: FocusedTextSnapshot, axText: AXWindowSnapshot
+    ) -> Mapping? {
+        switch action {
+        case .beginSelection(let linewise):
+            guard Self.usesAXWrite(action, family: family, profile: profile),
+                let processID = text.processID
+            else { return nil }
+            guard let focused = axText.value() else { return .axUnavailable }
+            // 진입에는 Vim 무효가 없다 — `.unproven`만 오고, 그것이 곧 keyboard 세션 고정이다.
+            guard
+                case .range(let range, let anchor, let column) =
+                    FocusedTextOffsets.visualEntrySelection(linewise: linewise, in: focused)
+            else { return nil }
+            // 진입 선택은 언제나 전진형이다(범위 시작 == 앵커). `V`의 원래 캐럿은 **정확값**이라
+            // keyboard ⑦의 열 근사 없이 `V`→`v`가 선다.
+            let state = VisualAnchorState(
+                anchor: anchor, wise: linewise ? .linewise : .charwise, side: .left,
+                pinnedEnd: anchor, processID: processID,
+                originalCaret: linewise ? focused.selection.location : nil,
+                focusLineDistance: nil, desiredColumn: column)
+            return .ax(range, visual: .set(state))
+
+        case .extendSelection(let motion):
+            guard visualAnchor.sessionPath == .accessibility else { return nil }
+            // 프로파일이 이름한 모션은 **정직한 스킵**이다 — 재정의 시퀀스도 무상태 시퀀스라
+            // 위임 금지의 뿌리가 그대로 적용되고, 사용자 지시("이 앱에서 이 키를 쓰지 마라")를
+            // 위반하지도 않는다 (`20260808_ax-visual-overridden-motion-honest-skip.md`).
+            // disable은 기존 분류 그대로 집계한다.
+            if profile.motionOverrides[motion] != nil {
+                guard MotionKeyMapper.selectionStrokes(for: motion, profile: profile) != nil else {
+                    return .disabledByProfile
+                }
+                return skippedAXVisual(action, "프로파일이 재정의한 모션")
+            }
+            return axVisualSession(action, family: family, profile: profile, text: text, axText: axText) {
+                state, focused in
+                FocusedTextOffsets.visualExtendSelection(for: motion, anchor: state, in: focused)
+            } state: { state, range, anchor, column in
+                state.moved(to: range, anchor: anchor, column: column)
+            }
+
+        case .switchSelectionWise(let linewise):
+            guard visualAnchor.sessionPath == .accessibility else { return nil }
+            return axVisualSession(action, family: family, profile: profile, text: text, axText: axText) {
+                state, focused in
+                FocusedTextOffsets.visualSwitchSelection(
+                    toLinewise: linewise, anchor: state, in: focused)
+            } state: { state, range, anchor, column in
+                var next = state.moved(to: range, anchor: anchor, column: column)
+                next.wise = linewise ? .linewise : .charwise
+                // `v`→`V`는 charwise 앵커를 보관한다 — 그것이 `V`→`v` 복원의 유일한 원천이고,
+                // AX는 그 값을 추정이 아니라 그대로 들고 있다(keyboard ⑥이 회수한 것과 갈린다).
+                next.originalCaret = linewise ? state.anchor : nil
+                return next
+            }
+
+        default:
+            // `.clearSelection` — 위 doc.
+            return nil
+        }
+    }
+
+    /// AX 고정 세션의 공통 배선: 게이트 → 창 읽기 → 자가 검증 → 산출 → 상태.
+    /// 실패는 전부 스킵이며(위임 금지), 요소·읽기 실패만 `.axUnavailable`(execute 잔여 접기)다.
+    private func axVisualSession(
+        _ action: VimAction, family: ElementFamily, profile: ResolvedProfile,
+        text: FocusedTextSnapshot, axText: AXWindowSnapshot,
+        selection: (VisualAnchorState, FocusedText) -> FocusedTextOffsets.Selection,
+        state next: (VisualAnchorState, NSRange, Int, Int?) -> VisualAnchorState
+    ) -> Mapping {
+        // 세션은 AX인데 전략·계열이 더 이상 AX가 아니다(포커스가 비텍스트로 옮겨간 자리 등) —
+        // 쓸 수도 위임할 수도 없으므로 스킵이다.
+        guard Self.usesAXWrite(action, family: family, profile: profile) else {
+            return skippedAXVisual(action, "전략·계열이 더 이상 AX가 아니다")
+        }
+        guard let focused = axText.value() else { return .axUnavailable }
+        // 자가 검증은 AX에서도 유지한다 — 세션 중 위임 액션(`p`·`u`)이 선택을 파괴할 수 있고,
+        // 매 액션 어차피 읽으므로 비용이 0이다. 실패는 상태 폐기 + 스킵이며, **경로 pin은
+        // 살아 있어** 이후 액션도 스킵이다(무상태 폴백 금지 — `sessionPath` doc).
+        guard let state = visualAnchor.validated(against: focused, processID: text.processID)
+        else {
+            #if DEBUG
+            Logger.eventTap.debug(
+                "AX Visual 스킵 — 자가 검증 불일치(상태 폐기, 세션은 AX 유지): 읽은 선택 [\(focused.selection.location, privacy: .public), \(focused.selection.upperBound, privacy: .public))"
+            )
+            #endif
+            return .skipped
+        }
+        switch selection(state, focused) {
+        case .range(let range, let anchor, let column):
+            return .ax(range, visual: .set(next(state, range, anchor, column)))
+        case .invalid:
+            return skippedAXVisual(action, "범위 무변화가 정확 동작이다")
+        case .unproven:
+            // Normal 경로와 갈리는 유일한 지점이다 — 거기서는 위임 낙하지만 AX 세션에서는
+            // 무상태 시퀀스가 곧 파괴 위험이라 스킵이다.
+            return skippedAXVisual(action, "창이 답하지 못했다 (세션이 AX라 위임 금지)")
+        }
+    }
+
+    /// AX Visual 스킵 1건 — 사유를 아는 자리에서 자체 로그를 남긴다(`.skipped` 계약).
+    /// 도그푸딩에서 이 빈도가 "세션이 죽은 채 남는가"의 판정 데이터다.
+    private func skippedAXVisual(_ action: VimAction, _ reason: String) -> Mapping {
+        #if DEBUG
+        Logger.eventTap.debug(
+            "AX Visual 스킵 — \(reason, privacy: .public): \(String(describing: action), privacy: .public)"
+        )
+        #endif
+        return .skipped
     }
 
     /// Visual 액션 1건의 정확화 입력 — 세션 술어의 본체다.
@@ -950,13 +1403,12 @@ nonisolated struct KeyboardAdapter: Sendable {
         )
     }
 
-    /// 이 모션을 AX 캐럿 쓰기로 실행하는가 — **위임 표의 단일 판정 지점**이다.
+    /// 이 액션을 AX 쓰기(캐럿·범위)로 실행하는가 — **위임 표의 단일 판정 지점**이다.
     ///
     /// 표가 코드에서 한 곳에 있어야 어휘가 늘어도 골격 규칙("명령 매퍼 계열 = 위임, 모션·편집·
-    /// Visual 매퍼 계열 = AX")이 규칙으로 유지된다. D1a는 `.move`만 AX이므로 판정도 모션 하나만
-    /// 받는다 — 편집·Visual·하이브리드가 들어오는 D1b에서 액션 단위로 넓어진다.
+    /// Visual 매퍼 계열 = AX")이 규칙으로 유지된다.
     ///
-    /// 셋 중 하나라도 걸리면 현행 keyboard 경로 그대로다:
+    /// 넷 중 하나라도 걸리면 현행 keyboard 경로 그대로다:
     /// ① 전략이 accessibility가 아니다 — **기본값 keyboard**라 미지정 앱은 동작 diff 0이다.
     /// ② 계열이 `.nonText`/`.unresolved` — **전 액션 keyboard 강등**이다. AX 대입은 텍스트 요소
     ///    전제라 Finder 리스트에서 무동작이 되고, 그러면 "모션·스크롤은 게시"라는 걸러내기
@@ -964,22 +1416,72 @@ nonisolated struct KeyboardAdapter: Sendable {
     ///    더 위험한 방향이라 같은 규칙이 더 강하게 적용된다.
     /// ③ `j`/`k`는 위임 유지 — 오프셋 대입이 **희망 열(desired column)** 을 잃는다. 짧은 줄을
     ///    지나면 열이 영구히 깎여 현행보다 나쁜 회귀다.
-    /// ④ 프로파일에 그 모션 항목이 있으면(strokes 재정의든 disable이든) 위임한다. 재정의는
-    ///    "이 앱에서 이 모션을 달성하는 방법"이라는 사용자 지시라 AX가 덮어쓰지 않고, disable은
-    ///    기존 경로가 `.disabledByProfile`로 정직하게 집계한다. 스크롤 사다리("프로파일 명시값
-    ///    > AX 정확값 > 상수")와 같은 우선순위다.
+    /// ④ 프로파일에 **그 액션이 이름한 모션** 항목이 있으면(strokes 재정의든 disable이든)
+    ///    위임한다. 재정의는 "이 앱에서 이 모션을 달성하는 방법"이라는 사용자 지시라 AX가
+    ///    덮어쓰지 않고, disable은 기존 경로가 `.disabledByProfile`로 정직하게 집계한다. 스크롤
+    ///    사다리("프로파일 명시값 > AX 정확값 > 상수")와 같은 우선순위다.
+    ///
+    /// 편집에서 ④의 대상이 **범위가 이름한 모션까지**인 것이 계약이다 (`dw`의 `w`, `cw`의
+    /// 리타깃 `e`, `dk`의 `k`). `dd`·`diw`가 내부적으로 쓰는 조합(`lineStart`·`wordBackward`
+    /// 등)은 사용자가 그 액션에 대해 지시한 모션이 아니고, 여기서 보려면 `EditKeyMapper`의
+    /// 시퀀스 조립표가 어댑터로 복사돼 두 곳이 갈라진다.
+    ///
+    /// **Visual에는 ④를 적용하지 않는다.** 재정의 시퀀스도 무상태 시퀀스라 AX로 고정된 세션에서
+    /// 위임하면 무상태 폴백 금지의 뿌리를 정면으로 어긴다 — 답은 위임이 아니라 정직한 스킵이고,
+    /// 그 판정은 세션 경로를 아는 `axVisualMapping`이 한다
+    /// (`20260808_ax-visual-overridden-motion-honest-skip.md`). 여기서는 전략·계열만 본다.
+    /// `.clearSelection`이 빠진 것도 결정이다 — collapse는 게시 `←` 유지다.
     ///
     /// `ElementFamily`에 exhaustive switch를 거는 것은 `survivesFilterGate`와 같은 규칙이다.
-    private static func usesAXCaretWrite(
-        _ motion: Motion, family: ElementFamily, profile: ResolvedProfile
+    /// `VimAction`에 걸지 않는 것은 매퍼와 같은 계약이다.
+    private static func usesAXWrite(
+        _ action: VimAction, family: ElementFamily, profile: ResolvedProfile
     ) -> Bool {
         guard profile.strategy == .accessibility else { return false }
         switch family {
         case .textArea, .textField: break
         case .nonText, .unresolved: return false
         }
-        guard motion != .lineUp, motion != .lineDown else { return false }
-        return profile.motionOverrides[motion] == nil
+        switch action {
+        case .move(let motion):
+            guard motion != .lineUp, motion != .lineDown else { return false }
+            return profile.motionOverrides[motion] == nil
+        case .edit(let op, let range):
+            return namedMotions(of: range, for: op).allSatisfy {
+                profile.motionOverrides[$0] == nil
+            }
+        case .beginSelection, .extendSelection, .switchSelectionWise:
+            // ④는 위 doc대로 Visual 분기가 스킵으로 처리한다.
+            return true
+        case .openLine, .paste:
+            // ④의 대상이 없다 — `o`의 줄 끝·`p`의 한 칸 오른쪽은 사용자가 그 액션에 대해
+            // 지시한 모션이 아니라 **접두의 내부 분해**다(`dd`가 쓰는 `lineStart`와 같은 편).
+            // 사용자가 지시할 수 있는 것은 `new_line`·`paste` 스트로크이고, 그 둘은 위임분에
+            // 그대로 남아 매퍼를 지난다. `actions:` disable은 `mapping` 최상단이 이미 앞선다.
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// 이 편집 범위가 **사용자 어휘로 이름하는** 모션 — ④ 가드의 판정 재료다.
+    /// 빈 집합 = 이름한 모션이 없다(프로파일 모션 재정의와 무관하게 AX로 간다).
+    /// `TextRange`에 exhaustive switch를 걸지 않는 것은 매퍼와 같은 계약이다.
+    private static func namedMotions(
+        of range: VimAction.TextRange, for op: VimAction.Operator
+    ) -> [Motion] {
+        switch range {
+        case .motion(let motion, _):
+            // `cw`는 `ce`로 리타깃되므로 실제로 겨냥하는 모션이 둘이다 — 판정도 둘을 본다
+            // (`EditKeyMapper.retargeted`와 같은 조건).
+            guard op == .change, motion == .wordForward else { return [motion] }
+            return [motion, .wordEndForward]
+        case .linewiseMotion(let motion, _):
+            return [motion]
+        default:
+            // `.line`(`dd`)·`iw`·`.selection` — 이름한 모션이 없다.
+            return []
+        }
     }
 
     /// 이 계열에서 이 액션을 게시하는가 — 걸러내기 게이트 본체다.

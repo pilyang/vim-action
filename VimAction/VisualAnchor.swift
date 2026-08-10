@@ -42,6 +42,31 @@ nonisolated struct VisualAnchorState: Equatable, Sendable {
     /// 앵커 줄에서 포커스 줄까지의 부호 있는 거리 — 정확 모션(`j`/`k` ±n)으로만 추적하고
     /// `gg`/`G` 뒤에는 미상(`nil`)이다. `V`→`v` 조건부 지원의 두 번째 입력.
     var focusLineDistance: Int?
+    /// 포커스의 **희망 열**(Vim curswant) — AX 경로 전용이다. charwise `j`/`k`가 물려받아
+    /// 짧은 줄을 지나도 열을 복원하고(Vim 실측), `V` 세션에서는 `V`→`v` 복원의 포커스 열이다.
+    /// `FocusedTextOffsets.lineEndColumn`은 `$` 뒤의 "줄 끝 고정"이다.
+    ///
+    /// **기본값 `nil`이 계약이다** — keyboard 세션은 열을 추적하지 않고(희망 열의 주인이 앱이다)
+    /// `nil`이 그 경로의 정확한 값이라, 재앵커 기계의 상태 생성자들은 이 필드를 모른 채 남는다.
+    var desiredColumn: Int?
+
+    /// 산출 결과로 다음 상태를 만든다 — `side`·`pinnedEnd` 도출 규칙이 사는 유일한 자리다.
+    ///
+    /// 범위는 항상 앵커와 포커스를 잇는다 → **한쪽 끝이 반드시 앵커 쪽**이다. 시작이 앵커면
+    /// 전진형이고(앱 앵커도 그 시작), 아니면 후진형이라 앱 앵커는 범위 끝이다. charwise 후진
+    /// `[F, A+1)`·linewise 후진 `[포커스 줄 시작, 앵커 줄 끝 다음)`이 둘 다 이 규칙 안에 있다.
+    /// 포커스 줄 거리는 **미상으로 좁힌다** — AX는 그것을 추적하지 않는다(포커스 오프셋
+    /// 정확값이 그 대응물이다). 알던 값을 두면 전략이 keyboard로 넘어간 세션의 `V`→`v`가
+    /// 낡은 거리로 잘못 재선택한다.
+    func moved(to range: NSRange, anchor: Int, column: Int?) -> VisualAnchorState {
+        var next = self
+        next.anchor = anchor
+        next.side = range.location == anchor ? .left : .right
+        next.pinnedEnd = range.location == anchor ? anchor : range.upperBound
+        next.desiredColumn = column
+        next.focusLineDistance = nil
+        return next
+    }
 
     /// 읽은 선택이 이 상태와 맞는가 — 자가 검증 본체다. **앵커 쪽 끝만 본다**: 포커스 쪽은
     /// 모션 착지를 앱이 계산하므로 예측할 수 없고, 예측 가능한 쪽만 검증해야 헛실패가
@@ -92,11 +117,37 @@ nonisolated enum VisualAnchorContext: Equatable, Sendable {
 /// 접근이 직렬화된다. `@unchecked Sendable`은 컴파일러가 못 보는 그 사실의 표현이다
 /// (`20260804_visual-anchor-state-collaborator.md`).
 nonisolated final class VisualAnchorTracker: @unchecked Sendable {
+    /// 이 Visual 세션의 실행 경로 — 진입에서 정해지고 세션 내내 바뀌지 않는다
+    /// (`20260808_ax-visual-session-path-pinning.md`).
+    enum Path: Equatable, Sendable {
+        case keyboard
+        case accessibility
+    }
+
     private var state: VisualAnchorState?
 
+    /// **`beginSelection`에서만 쓰이고, 상태 폐기로는 지워지지 않는다.**
+    ///
+    /// 수명이 상태와 갈리는 것이 요점이다: 자가 검증 실패의 원인 중 하나가 "앱이 우리가 쓴
+    /// 범위를 정규화·클램프"인데(TextEdit 실측), 그때 화면에 남은 선택은 **AX가 쓴 범위**라
+    /// 무상태 `Shift-→`는 파괴 방향 동전 던지기다. 폐기와 함께 경로를 잊으면 정확히 그 자리에서
+    /// 무상태 시퀀스가 나가므로, AX 세션은 상태를 잃어도 남은 확장·전환을 정직하게 스킵한다.
+    ///
+    /// 쓰는 자리가 진입 **둘**인 것도 계약이다: 진입 초입에서 `.keyboard`로 되돌리고(망각),
+    /// AX 진입이 확정되면 `.accessibility`로 올린다. 후자만 두면 AX 분기를 골라 놓고 확정 전에
+    /// 실패한 세션(요소·읽기 실패, 쓰기 실패)이 **AX가 된 적 없이** 옛 pin을 상속한다.
+    private(set) var sessionPath: Path = .keyboard
+
     /// 초기 상태 주입은 테스트 seam이다 — 골든이 수립 없이 세션 중간 상태를 만들 수 있다.
-    init(state: VisualAnchorState? = nil) {
+    init(state: VisualAnchorState? = nil, sessionPath: Path = .keyboard) {
         self.state = state
+        self.sessionPath = sessionPath
+    }
+
+    /// 세션 경로 고정 — 진입 초입의 망각(`.keyboard`)과 진입 확정 뒤의 승격(AX는 쓰기
+    /// `.success` 뒤) 두 자리에서만 부른다.
+    func pin(_ path: Path) {
+        sessionPath = path
     }
 
     /// 상태 유무 — 읽기 전의 값싼 확인이다. 상태가 없으면 검증할 것도 없으므로 세션 중

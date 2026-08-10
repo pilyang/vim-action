@@ -113,6 +113,25 @@ struct AXWriteEffectsTests {
         #expect(effects.count(of: .failure) == 0)
     }
 
+    /// 되읽어 검증 불일치는 **`AXWriteOutcome` 밖의 전용 버킷**이다 — 그 enum은 `AXError`
+    /// 분류표 그 자체이고 검증 불일치는 `AXError`가 아니다(쓰기는 `.success`였다). 보고로도
+    /// 새지 않는다: 파괴 단계는 시도 전이다.
+    @Test("검증 불일치 버킷은 분류표와도 보고와도 섞이지 않는다")
+    func verifyMismatchStaysOutOfOutcomeTable() {
+        nonisolated(unsafe) var reports = 0
+        var effects = AXWriteEffects(
+            bundleID: "com.apple.TextEdit", report: { _ in reports += 1 }, now: { 0 })
+
+        effects.apply(.success, action: anyAction)
+        effects.noteVerifyMismatch(action: anyAction)
+        effects.noteVerifyMismatch(action: anyAction)
+        effects.logSummary()
+
+        #expect(effects.verifyMismatchCount == 2)
+        #expect(reports == 0, "쓰기는 `.success`였고 파괴는 시도 전이다")
+        #expect(AXWriteOutcome.allCases.allSatisfy { effects.count(of: $0) == ($0 == .success ? 1 : 0) })
+    }
+
     /// 어댑터가 실제로 seam을 들고 효과 지점을 만든다는 유일한 증거 — 세션 2의 드라이버는
     /// 이 팩토리로 인스턴스를 얻는다.
     @Test("어댑터의 팩토리가 만든 효과 지점은 주입된 보고 seam·시계를 쓴다")

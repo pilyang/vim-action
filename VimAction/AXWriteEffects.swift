@@ -46,6 +46,12 @@ nonisolated struct AXWriteEffects {
 
     private var buckets: [AXWriteOutcome: Bucket] = [:]
 
+    /// **되읽어 검증 불일치 전용 버킷** — `AXWriteOutcome`이 아니라 별도 필드인 것이 계약이다.
+    /// 저 enum은 `AXError` 16 → 7 분류표 그 자체이고 검증 불일치는 `AXError`가 아니다(쓰기는
+    /// `.success`였고, 어긋난 것은 그 뒤의 착지다). 표에 섞으면 전수 스윕이 표현할 수 없는
+    /// 케이스를 안게 된다.
+    private var verifyMismatch: Bucket?
+
     /// 이미 보고했는가 — 위 계약 ①의 래치다.
     private var reported = false
 
@@ -85,13 +91,39 @@ nonisolated struct AXWriteEffects {
         report(now())
     }
 
+    /// 되읽어 검증(파괴 단계 게시 전 선택 착지 확인)이 상한 안에 수렴하지 못했다.
+    ///
+    /// **보고가 아니다** — 쓰기는 `.success`였고 파괴 단계는 시도 전이다. 남기는 것은 전용
+    /// 버킷의 **상시 `.info`** 한 줄이며 `.illegalArgument` 관측 로그와 같은 규칙·같은
+    /// 이유다: 이 빈도와 번들 ID가 Visual 양단 검증 승격과 오프셋 공간 문제 판정의 **사후
+    /// 회수 데이터**다(`log show --info`).
+    ///
+    /// 실행 흐름(무동작 + execute 잔여 중단)은 여기서 정하지 않는다 — `apply`와 같은 규칙으로
+    /// 호출자(실행 드라이버) 몫이다.
+    mutating func noteVerifyMismatch(action: VimAction) {
+        if var bucket = verifyMismatch {
+            bucket.count += 1
+            verifyMismatch = bucket
+        } else {
+            verifyMismatch = Bucket(count: 1, first: action)
+        }
+    }
+
     /// 클래스별 누적 — 요약 로그는 단언할 수 없으므로(os.Logger) **버킷이 섞이지 않는다**를
     /// 테스트가 여기로 본다. 섞이면 심사자가 앱의 정적 미지원(강등 신호)과 일시적 경합을
     /// 구분하지 못한다.
     func count(of outcome: AXWriteOutcome) -> Int { buckets[outcome]?.count ?? 0 }
 
+    /// 위 전용 버킷의 누적 — 같은 이유로 테스트가 여기로 본다.
+    var verifyMismatchCount: Int { verifyMismatch?.count ?? 0 }
+
     /// execute 끝에서 1회 — 클래스마다 최대 한 줄이다.
     func logSummary() {
+        if let bucket = verifyMismatch {
+            Logger.eventTap.info(
+                "AX 되읽어 검증 불일치 — 무동작 스킵 ×\(bucket.count, privacy: .public) [\(self.bundleID ?? "앱 미상", privacy: .public)]: \(String(describing: bucket.first), privacy: .public)"
+            )
+        }
         for row in Self.summaryRows {
             guard let bucket = buckets[row.outcome] else { continue }
             #if !DEBUG

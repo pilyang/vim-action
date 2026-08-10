@@ -57,14 +57,15 @@ nonisolated enum EditKeyMapper {
             return nil
         }
         // `.selection`은 계열 분기 **밖**이다: 이미 있는 선택에 대한 `Cmd-X`/`Cmd-C`는
-        // TextField에서도 같고, 무엇보다 `apply(_:)`가 yank에 무조건 붙이는 `←`를 피해야 한다.
+        // TextField에서도 같고, 무엇보다 `operatorStrokes(for:profile:)`가 yank에 무조건 붙이는
+        // `←`를 피해야 한다.
         if case .selection = range {
             return op == .yank ? [copy] : [cut]
         }
         guard let selection = textAreaSelection(op, range, profile, text),
-            let operatorStrokes = apply(op, profile)
+            let operatorKeys = operatorStrokes(for: op, profile: profile)
         else { return nil }
-        return selection + operatorStrokes
+        return selection + operatorKeys
     }
 
     /// 이 범위가 캐럿 주변 읽기를 묻는가 — **묻지 않으면 AX 왕복도 없다**(읽기는 lazy다).
@@ -408,8 +409,12 @@ nonisolated enum EditKeyMapper {
     ///
     /// `.selection`은 이 경로를 타지 않는다 — collapse를 `clearSelection`이 전담하므로
     /// 여기서 `←`를 또 붙이면 캐럿이 한 칸 더 밀린다.
-    private static func apply(
-        _ op: VimAction.Operator, _ profile: ResolvedProfile
+    ///
+    /// **internal인 것은 AX 편집 하이브리드가 두 번째 호출자이기 때문이다** — 그쪽은 선택을
+    /// AX 범위 쓰기로 만들고 이 오퍼레이터 그룹만 게시한다. 함수를 공유해야 yank collapse
+    /// `←`의 프로파일 재정의·disable 전파가 두 경로에서 갈리지 않는다.
+    static func operatorStrokes(
+        for op: VimAction.Operator, profile: ResolvedProfile
     ) -> [KeyStroke]? {
         switch op {
         case .delete, .change:
