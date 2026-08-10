@@ -1,7 +1,5 @@
 # AX Visual은 세션 단위 경로 고정 + `VisualAnchorTracker` 공유 — 무상태 폴백 금지
 
-> Superseded (부분) by [20260810_ax-visual-window-boundary-jk-delegation.md](20260810_ax-visual-window-boundary-jk-delegation.md) — 창이 인접 논리 줄 없음을 증명한 **전진형 charwise `j`/`k`**만 무상태 폴백 금지의 예외로 열렸다 / 나머지(진입 시점 경로 고정, 트래커 공유, 자가 검증, 그 밖 모든 실패의 정직한 스킵)는 유효하다.
-
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-08 (M5 D1-설계 세션, 결정 ⑥(b)·쟁점 3)

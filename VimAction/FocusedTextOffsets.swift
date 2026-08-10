@@ -62,12 +62,6 @@ nonisolated enum FocusedTextOffsets {
     enum Selection: Equatable, Sendable {
         /// Vim 자체가 무효(범위 무변화 포함) — 그 액션만 정직한 스킵이다.
         case invalid
-        /// 창이 **위/아래 인접 논리 줄이 없음**을 증명한 charwise `j`/`k`. Vim의 답은
-        /// `.invalid`와 같지만, **요소가 곧 문서가 아닌 앱**(Notion은 블록마다 별개 요소이고
-        /// 그 요소가 소프트 랩된 문단 하나다)에서는 이 자리만 무상태 폴백 금지의 예외가
-        /// 성립하므로 사유를 타입으로 남긴다 — 어댑터가 그 예외를 좁게 판정한다
-        /// (`20260810_ax-visual-window-boundary-jk-delegation.md`).
-        case noAdjacentLine
         /// 증명된 **절대 UTF-16 범위** + 새 논리 앵커 + 새 희망 열(`nil` = 모름).
         case range(NSRange, anchor: Int, column: Int?)
         /// 창이 답하지 못했다. Normal 경로와 달리 **AX Visual 세션에서는 위임이 아니라 스킵**
@@ -849,11 +843,6 @@ nonisolated enum FocusedTextOffsets {
                 // 소실)를 상태가 열을 들어 없앤다. 모르면 근사하지 않고 정직하게 스킵한다.
                 guard let desired = anchor.desiredColumn else { return .unproven }
                 moved = movedFocus(from: focus, down: motion == .lineDown, column: desired)
-                // **창 경계의 무이동만 사유를 갈라 낸다** — `movedFocus`의 `.invalid`는
-                // `movedLine`에서만 오므로(`focusOnLine`은 `.index`/`.unproven`) 이 자리가
-                // "인접 논리 줄 없음"의 유일한 발생점이다. 다른 `.invalid`(범위 무변화)와
-                // 섞이면 어댑터가 위임 예외를 좁게 판정할 수 없다.
-                if case .invalid = moved { return .noAdjacentLine }
                 inherited = desired
             default:
                 moved = step(motion, from: focus)

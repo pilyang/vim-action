@@ -225,8 +225,8 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-10 | Visual inclusive 끝은 종결자도 문다 | 세션 1의 "`v$`는 개행을 안 문다"는 마지막 줄 한정 실측이었다 — 비-마지막 줄 레지스터가 `"ab\n"`, `lvl`도 같다. `landsPastCharacter`에 남는 것은 `e` 하나 | [20260810_visual-inclusive-end-bites-terminator.md](references/20260810_visual-inclusive-end-bites-terminator.md) |
 | 08-10 | charwise Visual `j`/`k`는 희망 열 추적 | 위임 문언 × 무상태 폴백 금지의 교차 — 포커스 = 줄 시작 + `min(열, 줄 길이)`, `$`는 줄 끝 고정 sentinel, 열 미상은 정직한 스킵 | [20260810_ax-visual-desired-column-tracked.md](references/20260810_ax-visual-desired-column-tracked.md) |
 | 08-10 | AX `v`↔`V`는 양방향 정확 지원 | 세션 1이 비워 둔 자리 — 진입이 원래 캐럿을 정확히 읽어 두므로 열이 뺄셈이다. 산출이 범위 + 새 논리 앵커 + 열을 함께 낸다(`Selection`), 상한 32·페이싱 불필요 | [20260810_ax-visual-switch-both-directions-exact.md](references/20260810_ax-visual-switch-both-directions-exact.md) |
+| 08-10 | Notion은 AX Visual에 부적합 — 번들 keyboard 유지 | 실측 3건: 앱은 **범위 시작을 앵커**로 봐 후진 확장이 원리적 불가 · Notion은 **블록 넘는 선택을 보고하지 않는다**(화면엔 선택, AX는 `[0,0)`) · 그래서 AX 세션이 블록을 못 벗어난다. 세션 5의 두 예외는 수혜자 부재로 철회. **`strategy` 앱 단위 단일 값의 첫 한계 사례**(편집은 AX·Visual은 keyboard를 표현 못 함 → PR-E) | [20260810_notion-unfit-for-ax-visual-session-5-withdrawn.md](references/20260810_notion-unfit-for-ax-visual-session-5-withdrawn.md) |
 | 08-10 | AX Visual 세션 경로는 폐기보다 오래 산다 | pin은 트래커 프로퍼티·진입에서만 쓴다 — 자가 검증 실패 뒤에도 남아 확장·전환이 정직한 스킵(앱 클램프 시 화면에 남은 것이 AX가 쓴 범위라 무상태 폴백은 파괴 방향) | [20260810_ax-visual-session-path-outlives-state-discard.md](references/20260810_ax-visual-session-path-outlives-state-discard.md) |
-| 08-10 | 창 경계 `j`/`k`만 무상태 폴백 금지의 예외 | 요소가 곧 문서가 아닌 앱(Notion 블록)에서 창의 정확한 판정이 `j`/`k`를 죽인다 — 산출 `.noAdjacentLine` + 전진형 + charwise + 재정의 없음일 때만 `Shift-↓`/`↑` 1타 위임, 상태 무갱신 (20260808 경로 고정 부분 supersede) | [20260810_ax-visual-window-boundary-jk-delegation.md](references/20260810_ax-visual-window-boundary-jk-delegation.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 
