@@ -1,0 +1,69 @@
+VimAction/AXWriteEffects.swift
+  s_560bb96e1507c9::t_29454be1f21a25 49-54
+  s_560bb96e1507c9::t_a355a830834174 122-126
+  s_560bb96e1507c9::t_bc094ed145f01b 94-111,117-118
+  s_560bb96e1507c9::t_5ef7b1a7e67c25 119
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_560bb96e1507c9::t_95d9f5ee02faa6 82
+  s_560bb96e1507c9::t_0ba6b5c40978c1 84
+  s_560bb96e1507c9::t_f9c57fea7937b6 3
+  s_560bb96e1507c9::t_5e16bc6f753456 80
+VimActionTests/KeyboardAdapterAXWriteTests.swift
+  s_560bb96e1507c9::t_278dd5dfe9bac3 273-438,440-627,659-682
+  s_560bb96e1507c9::t_0619d125113eee 439
+  s_560bb96e1507c9::t_063bd20a610f17 30-35,40-42,47-48,53-54,60,62-64,69
+  s_560bb96e1507c9::t_c69442c77ffb48 628-658
+VimActionTests/AXWriteEffectsTests.swift
+  s_560bb96e1507c9::t_34de4b5571dbf2 116-134
+VimAction/FocusedTextReader.swift
+  s_560bb96e1507c9::t_7a3df1f008e191 88-99
+VimAction/KeyboardAdapter.swift
+  s_560bb96e1507c9::t_ca2dacebf919a6 685-689
+  s_560bb96e1507c9::t_ca38bb23254323 72-77
+  s_560bb96e1507c9::t_a76ee68a579ad9 359
+  s_560bb96e1507c9::t_9723029191f579 115-117
+  s_560bb96e1507c9::t_995cf375436ddd 588-617
+  s_560bb96e1507c9::t_56a326cced5531 826
+  s_560bb96e1507c9::t_f07d7c1bcc6a44 862-865,867-878,880-899
+  s_560bb96e1507c9::t_39d8707839a792 900-917
+  s_560bb96e1507c9::t_26ccc2be0aedfc 879
+  s_560bb96e1507c9::t_b0efecfaf9a15c 335-336
+  s_560bb96e1507c9::t_9315801d2402d5 314-317
+  s_560bb96e1507c9::t_5131e6b0e39d24 247-270
+  s_560bb96e1507c9::t_2dbad4fb096ff4 866
+  s_560bb96e1507c9::t_a0e0aa23bd62f3 131
+  s_560bb96e1507c9::t_82cfff0f7962ce 346-355,361,363-365,369-374
+  s_560bb96e1507c9::t_d8e826e856199b 513-587,618-620
+  s_560bb96e1507c9::t_b2a89428ecbfbd 1155,1158,1160,1168-1178,1181-1183,1190-1220
+  s_560bb96e1507c9::t_33c530a321d738 677-684
+  s_560bb96e1507c9::t_145349a8821e64 924-926
+  s_560bb96e1507c9::t_0fed272cd1027d 332-334,337-340,356,383-387,391
+  s_560bb96e1507c9::t_c93bfb3ba920f8 298-299,318,321-323,341-345,357-358,366-368,375-382
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_560bb96e1507c9::t_98bdc56ae11c8f 46
+  s_560bb96e1507c9::t_dd002b7fabf4f2 77
+  s_560bb96e1507c9::t_af2dc87dc91e20 96
+  s_560bb96e1507c9::t_7d9b04fb1956e7 6
+VimAction/EditKeyMapper.swift
+  s_560bb96e1507c9::t_096476a9550f78 66,68
+  s_560bb96e1507c9::t_f52c6e59c3a9ec 60-61
+  s_560bb96e1507c9::t_4374b10f6ef29d 412-417
+.claude/skills/plans/SKILL.md
+  s_560bb96e1507c9::t_9d4aecad4ec25e 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "a879139eeec036314dc8187c4cebd667ae286d21",
+  "prompts": {},
+  "sessions": {
+    "s_560bb96e1507c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c5d9081e-c675-46c1-af97-3caeae386bb5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}

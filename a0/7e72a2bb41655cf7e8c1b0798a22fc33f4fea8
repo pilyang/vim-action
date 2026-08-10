@@ -1,0 +1,51 @@
+.claude/skills/plans/SKILL.md
+  s_3b0136365628f7::t_c3d30839323b7c 53
+VimActionTests/FocusedTextOffsetsTests.swift
+  s_3b0136365628f7::t_d4ee83ba2cc691 416-480
+  s_3b0136365628f7::t_c76015f6058b89 568-706,708-717,723-817
+  s_3b0136365628f7::t_8f681e50d4665c 140-394,397-415
+  s_3b0136365628f7::t_5364f56b9b07ee 707,718-722
+  s_3b0136365628f7::t_3868d477078fbb 395-396
+.claude/skills/decisions/SKILL.md
+  s_3b0136365628f7::t_de6af7ec683a60 219
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_3b0136365628f7::t_256c1708cc51bf 3
+  s_3b0136365628f7::t_a6325e16a0e309 59-73
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_3b0136365628f7::t_3292b480e991f8 64-71
+  s_3b0136365628f7::t_a84fa0e436b1dd 6
+  s_3b0136365628f7::t_2aed6584379641 45
+  s_3b0136365628f7::t_6f814f2e4d5079 96
+  s_3b0136365628f7::t_eb2290881fcfc1 77
+VimAction/FocusedTextOffsets.swift
+  s_3b0136365628f7::t_7e657c43781f38 45-69
+  s_3b0136365628f7::t_a5669447a9d263 283-285
+  s_3b0136365628f7::t_7f9a6060735d92 426-430
+  s_3b0136365628f7::t_f6061fa9e1acb9 476-480,486
+  s_3b0136365628f7::t_85b8efa1d6bdfb 237,243,247,249-252
+  s_3b0136365628f7::t_ba21543f782531 313,320-336
+  s_3b0136365628f7::t_2608db42ee5658 133-236,238-242,244-246,248,253-265
+  s_3b0136365628f7::t_7e1f4767ed8b27 381-383,385-390,394-399,409-412
+  s_3b0136365628f7::t_a3095281322295 450-454,460
+  s_3b0136365628f7::t_469415c3caaf86 771-774,776,778-785
+  s_3b0136365628f7::t_736f89f8c72786 502-770,775,777,786-859
+  s_3b0136365628f7::t_5a23b036fd0e46 337
+.claude/skills/decisions/references/20260809_ax-span-vim-exact-where-table-is-silent.md
+  s_3b0136365628f7::t_4cda654497a105 1-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "a07e72a2bb41655cf7e8c1b0798a22fc33f4fea8",
+  "prompts": {},
+  "sessions": {
+    "s_3b0136365628f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1ce37a6-92d8-40ab-a21e-3b95027ffa5e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
