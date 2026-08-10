@@ -1,0 +1,29 @@
+.claude/skills/decisions/references/20260810_notion-unfit-for-ax-visual-session-5-withdrawn.md
+  s_7d9cca2313d4c2::t_3cfe2fa7d8129d 1,5,9-16,20-45,49-56,60-74
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_7d9cca2313d4c2::t_a4590fd44496e2 3,55,73,81
+VimActionTests/FocusedTextOffsetsTests.swift
+  s_7d9cca2313d4c2::t_a4590fd44496e2 444,571
+.claude/skills/decisions/SKILL.md
+  s_7d9cca2313d4c2::t_02acfbf0055d83 223
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_7d9cca2313d4c2::t_83df132cf18dc0 6,49,85,109-110
+VimAction/KeyboardAdapter.swift
+  s_7d9cca2313d4c2::t_a4590fd44496e2 1211,1252
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "ff64735dbb94a603fc42705699d34699b99f4e5b",
+  "prompts": {},
+  "sessions": {
+    "s_7d9cca2313d4c2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ae1aa6f-4a97-4c6d-b823-0de103802bee",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
