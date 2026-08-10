@@ -1208,7 +1208,10 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 세션 중간에는 **위임으로 낙하하지 않는다** — AX가 써 넣은 범위 위에서는 앱이 어느 끝을
     /// 포커스로 보는지 미정의라 무상태 `Shift-→`가 앵커 반대쪽으로 자랄 수 있고, 뒤따르는 `d`가
     /// 엉뚱한 텍스트를 지운다(강등이 아니라 파괴 방향 동전 던지기)
-    /// (`20260808_ax-visual-session-path-pinning.md`). 그래서 중간의 모든 실패는 스킵이다.
+    /// (`20260808_ax-visual-session-path-pinning.md`). 그래서 중간의 모든 실패는 스킵이다 —
+    /// **예외는 창 경계 `j`/`k` 하나**이고, 그 조건과 근거는 `axVisualSession`의 산출 switch에
+    /// 있다(전진형 + 창이 증명한 인접 논리 줄 없음 —
+    /// `20260810_ax-visual-window-boundary-jk-delegation.md`).
     ///
     /// `.clearSelection`이 여기 오지 않는 것도 결정이다 — collapse는 게시 `←` 유지다(동기 AX
     /// 쓰기가 `Cmd-C` 게시를 상시 이겨 빈 복사가 됨이 실측
@@ -1249,7 +1252,15 @@ nonisolated struct KeyboardAdapter: Sendable {
                 }
                 return skippedAXVisual(action, "프로파일이 재정의한 모션")
             }
-            return axVisualSession(action, family: family, profile: profile, text: text, axText: axText) {
+            // 창 경계 위임분 — 산출이 `.noAdjacentLine`을 낼 때만 소비되므로 모션을 여기서 다시
+            // 거르지 않는다(그 케이스는 charwise `j`/`k`에서만 생성된다). 재정의 모션은 바로
+            // 위에서 이미 스킵됐으므로 여기 오는 것은 언제나 기본 시퀀스이고, 그래서 이 위임은
+            // 무상태 폴백 경로와 **바이트 동일**하다(`VisualKeyMapper`가 지나는 같은 함수다).
+            let boundaryDelegation = MotionKeyMapper.selectionStrokes(for: motion, profile: profile)
+            return axVisualSession(
+                action, family: family, profile: profile, text: text, axText: axText,
+                boundaryDelegation: boundaryDelegation
+            ) {
                 state, focused in
                 FocusedTextOffsets.visualExtendSelection(for: motion, anchor: state, in: focused)
             } state: { state, range, anchor, column in
@@ -1279,9 +1290,13 @@ nonisolated struct KeyboardAdapter: Sendable {
 
     /// AX 고정 세션의 공통 배선: 게이트 → 창 읽기 → 자가 검증 → 산출 → 상태.
     /// 실패는 전부 스킵이며(위임 금지), 요소·읽기 실패만 `.axUnavailable`(execute 잔여 접기)다.
+    ///
+    /// `boundaryDelegation`은 **창 경계 `j`/`k`의 위임 예외** 전용 시퀀스다(`.extendSelection`만
+    /// 넘긴다 — `switchSelectionWise`의 산출은 `.noAdjacentLine`을 만들 수 없다).
     private func axVisualSession(
         _ action: VimAction, family: ElementFamily, profile: ResolvedProfile,
         text: FocusedTextSnapshot, axText: AXWindowSnapshot,
+        boundaryDelegation: [KeyStroke]? = nil,
         selection: (VisualAnchorState, FocusedText) -> FocusedTextOffsets.Selection,
         state next: (VisualAnchorState, NSRange, Int, Int?) -> VisualAnchorState
     ) -> Mapping {
@@ -1308,6 +1323,35 @@ nonisolated struct KeyboardAdapter: Sendable {
             return .ax(range, visual: .set(next(state, range, anchor, column)))
         case .invalid:
             return skippedAXVisual(action, "범위 무변화가 정확 동작이다")
+        case .noAdjacentLine:
+            // **무상태 폴백 금지의 유일한 예외**다 — 창은 정확히 판정했지만 요소가 곧 문서가
+            // 아닌 앱(Notion 블록)에서 그 판정이 `j`/`k`를 통째로 죽인다. 예외의 범위는 실측이
+            // 닫은 자리로 좁힌다: **전진형**(`side == .left`)이면 앱이 포커스로 보는 끝(실측
+            // "끝이 포커스" 5/5)이 우리 포커스와 같아 `j`(확장)·`k`(축소)가 둘 다 정확하고,
+            // 후진형은 `Shift-↑`가 우리 **앵커**를 움직이므로 계속 스킵이다.
+            //
+            // 상태를 손대지 않는 것도 계약이다(여기서 `.groups`를 내면 `confirmVisual`이 아예
+            // 안 불린다 = `.unchanged`): 착지를 모르니 좁히는 방향만 허용인데 좁힐 것이 없다 —
+            // 앵커·`side`·`pinnedEnd`는 전진형에서 범위 **시작**이고, `focusLineDistance`는 AX
+            // 세션에서 이미 `nil`이다. **`desiredColumn`은 반드시 살려야 한다** —
+            // `charwiseExtension`의 열 가드가 `movedFocus`보다 앞이라, 지우면 다음 `j`가
+            // `.unproven`(스킵)이 되어 연속 `j`가 첫 타 뒤 죽는다.
+            //
+            // 끝이 **앵커 바깥으로 자라는 동안은** 그 상태가 그대로 참이라 다음 액션의 자가
+            // 검증도 통과한다(`j` 연타·`vjk`의 축소). 다만 `k`가 앵커를 넘으면 앱이 시작을
+            // 앵커 위로 끌어올려(실측 `[33,36)`+`Shift-↑` → `[23,33)`) 앵커 글자 1개가 빠지고
+            // `agrees`가 실패한다 — 상태 폐기 + 경로 pin 유지라 남은 세션이 정직한 스킵으로
+            // 떨어지는, **예측 가드가 원리적으로 불가한 수용 편차**다
+            // (`20260810_ax-visual-window-boundary-jk-delegation.md`).
+            guard state.side == .left, let strokes = boundaryDelegation else {
+                return skippedAXVisual(action, "창 경계 j/k — 전진형 위임 예외 밖")
+            }
+            #if DEBUG
+            Logger.eventTap.debug(
+                "AX Visual 창 경계 위임 — 인접 논리 줄 없음(시각 줄로 낙하): \(String(describing: action), privacy: .public)"
+            )
+            #endif
+            return .groups([strokes], paced: false)
         case .unproven:
             // Normal 경로와 갈리는 유일한 지점이다 — 거기서는 위임 낙하지만 AX 세션에서는
             // 무상태 시퀀스가 곧 파괴 위험이라 스킵이다.

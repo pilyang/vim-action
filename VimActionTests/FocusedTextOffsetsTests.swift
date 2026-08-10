@@ -441,7 +441,9 @@ let visualSpanFixtures: [VisualSpanFixture] = [
     // 다시 내려가면 열이 **복원**된다 — 짧은 줄이 열을 깎지 않는 것이 curswant다 (실측 `4lvjj`).
     extend("vjj — 짧은 줄을 지나도 열 복원", ragged, selection: NSRange(location: 2, length: 8), anchor: 2, .charwise, .left, .lineDown, range(2, 11), column: 2),
     extend("vk — 후진도 같은 열", ragged, selection: NSRange(location: 12, length: 1), anchor: 12, .charwise, .left, .lineUp, range(9, 4), column: 2),
-    // 문서 끝/시작에서는 갈 줄이 없다 — Vim no-op이라 무게시다.
+    // 위/아래 줄이 없다 — 여기서는 `Span` 뷰라 `.invalid`로 접히지만 실제 산출은
+    // `.noAdjacentLine`이고(갈림은 `lineBoundarySplitsFromRangeUnchanged`가 고정한다),
+    // 전진형 AX 세션에서는 무게시가 아니라 **창 경계 위임**이 된다.
     extend("vj — 마지막 줄은 무효", ragged, selection: NSRange(location: 12, length: 1), anchor: 12, .charwise, .left, .lineDown, .invalid, column: 2),
     extend("vk — 첫 줄은 무효", ragged, selection: NSRange(location: 2, length: 1), anchor: 2, .charwise, .left, .lineUp, .invalid, column: 2),
     // `$` 뒤의 열은 **줄 끝 고정**이라 다음 줄의 길이와 무관하게 종결자에 붙는다 (실측 `v$j`).
@@ -566,9 +568,11 @@ func expectBoundedSpan(
 }
 
 /// Visual 산출의 **범위만** 본다 — 앵커·희망 열은 아래 전용 표가 따로 고정한다.
+/// `Span`에는 창 경계 축이 없으므로 `.noAdjacentLine`은 여기서 `.invalid`로 접힌다 — Vim의
+/// 답이 같기 때문이다(둘의 갈림은 위임 예외 전용이라 아래 전용 테스트가 고정한다).
 func span(of selection: FocusedTextOffsets.Selection) -> FocusedTextOffsets.Span {
     switch selection {
-    case .invalid: return .invalid
+    case .invalid, .noAdjacentLine: return .invalid
     case .unproven: return .unproven
     case .range(let range, _, _): return .range(range)
     }
@@ -805,6 +809,27 @@ struct FocusedTextOffsetsTests {
         var session = beginSession("foo.bar\nabcdefg", caret: 0, linewise: false)
         #expect(advance(&session, .wordEndForward) == .range(NSRange(location: 0, length: 3), anchor: 0, column: 2))
         #expect(advance(&session, .lineDown) == .range(NSRange(location: 0, length: 11), anchor: 0, column: 2))
+    }
+
+    /// **두 무효는 갈려야 한다** — 창이 증명한 "인접 논리 줄 없음"만 어댑터의 위임 예외 입력이고,
+    /// 범위 무변화는 그대로 정직한 스킵이다. `Span` 뷰가 둘을 접으므로(위 `span(of:)`) 이
+    /// 테스트가 갈림의 유일한 고정 지점이다.
+    @Test("창 경계 j/k만 noAdjacentLine이다")
+    func lineBoundarySplitsFromRangeUnchanged() {
+        // `ragged`는 줄 길이 6/2/6. 문서 끝 줄의 `j`와 첫 줄의 `k`가 창이 증명한 무이동이다.
+        var last = beginSession(ragged, caret: 12, linewise: false)
+        #expect(advance(&last, .lineDown) == .noAdjacentLine)
+        var first = beginSession(ragged, caret: 2, linewise: false)
+        #expect(advance(&first, .lineUp) == .noAdjacentLine)
+
+        // 범위 무변화(종결자 위의 `l`)는 그대로 `.invalid`다 — 두 축이 안 섞인다.
+        var terminator = beginSession(twoLines, caret: 1, linewise: false)
+        #expect(span(of: advance(&terminator, .charRight)).isRange)
+        #expect(advance(&terminator, .charRight) == .invalid)
+
+        // **charwise 한정** — `V` 세션의 같은 자리는 `.invalid`로 남아 위임 예외 밖이다.
+        var linewise = beginSession(ragged, caret: 12, linewise: true)
+        #expect(advance(&linewise, .lineDown) == .invalid)
     }
 
     /// **열은 Character 델타여야 한다** — 절대 오프셋 뺄셈은 UTF-16 델타라 이모지 앞의 캐럿에서
