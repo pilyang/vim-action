@@ -69,6 +69,11 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-09 | UI 쓰기는 라인 편집만 | 재직렬화 금지는 유지, 값 토큰 교체·한 줄 삽입은 허용 — 안전 계약 3종(에러 상태 거부/애매하면 nil+결과 자가검증/파일 열기 폴백) | [20260809_config-yaml-line-edit-writes.md](references/20260809_config-yaml-line-edit-writes.md) |
 | 08-09 | 설정 창은 3탭 | General(권한·Behavior·접힌 Diagnostics)/Apps(기본 선택)/About, 460×560 고정 — 권한 섹션은 신뢰 상태에 따라 자리 이동 | [20260809_settings-window-three-tabs.md](references/20260809_settings-window-three-tabs.md) |
 | 08-09 | 미허용 발견성은 push 2종 | 런치 1회 자동 오픈(`openSettings`를 `MenuBarExtra` label에서 — `sendAction`은 macOS 14부터 사망) + 메뉴 상시 경고 행 | [20260809_permission-discoverability-push.md](references/20260809_permission-discoverability-push.md) |
+| 08-10 | 자동 업데이트는 Sparkle 2.x | appcast + EdDSA·코드서명 이중 검증, 샌드박스 해제라 XPC 불필요 — 자체 구현 기각 | [20260810_sparkle-auto-update.md](references/20260810_sparkle-auto-update.md) |
+| 08-10 | 배포 패키징은 DMG | 첫 설치 UX·설치 위치 안정성 — Sparkle·cask 공용, zip 기각 | [20260810_dmg-packaging.md](references/20260810_dmg-packaging.md) |
+| 08-10 | Homebrew는 personal tap | 본진은 notability 미달 — `pilyang/homebrew-*` tap으로 시작, 도달 시 본진 이관 | [20260810_homebrew-personal-tap.md](references/20260810_homebrew-personal-tap.md) |
+| 08-10 | 릴리스는 tag push GH Actions | tag → 빌드·서명·공증(notarytool, ASC API 키)·DMG·appcast·Release 업로드, 버전은 tag 주입 | [20260810_tag-push-release-pipeline.md](references/20260810_tag-push-release-pipeline.md) |
+| 08-10 | appcast는 Releases 자산 | `releases/latest/download/appcast.xml` 고정 URL — Pages·raw 기각, 정식 릴리스만 non-prerelease | [20260810_appcast-hosting-github-releases.md](references/20260810_appcast-hosting-github-releases.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
