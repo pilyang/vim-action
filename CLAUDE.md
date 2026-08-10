@@ -62,7 +62,20 @@ xcodebuild build -project VimAction.xcodeproj -scheme VimAction \
 
 ## Accessibility(TCC) 권한 — 로컬 개발 시 주의
 
-앱은 런타임 TCC로 **Accessibility 권한만** 요청합니다 (Input Monitoring 불필요, App Sandbox 해제됨). 로컬 빌드는 ad-hoc 서명이라 **리빌드마다 cdhash가 바뀌어 기존 TCC 부여가 무효화**됩니다 — 시스템 설정의 체크박스가 켜져 보여도 낡은 항목이라 `AXIsProcessTrusted()`는 false(메뉴바 글리프 `square.dashed`)일 수 있습니다.
+앱은 런타임 TCC로 **Accessibility 권한만** 요청합니다 (Input Monitoring 불필요, App Sandbox 해제됨).
+
+**도그푸딩은 Developer ID 서명 빌드 권장** (2026-08-10부터 — 이 머신 키체인에 Developer ID Application 인증서 있음). 서명 identity가 안정적이라 `/Applications`에 교체 설치해도 **TCC 부여가 리빌드에 유지**되어 아래 리셋 절차가 불필요합니다:
+
+```bash
+# 산출물 .app을 /Applications/VimAction.app 으로 교체 후 실행
+xcodebuild build -project VimAction.xcodeproj -scheme VimAction -configuration Release \
+  -destination 'platform=macOS' \
+  CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=X6DU3VVLRZ \
+  CODE_SIGN_IDENTITY="Developer ID Application" ENABLE_HARDENED_RUNTIME=YES \
+  CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO OTHER_CODE_SIGN_FLAGS=--timestamp
+```
+
+기본 로컬 빌드(ad-hoc 서명)로 도그푸딩할 때는 **리빌드마다 cdhash가 바뀌어 기존 TCC 부여가 무효화**됩니다 — 시스템 설정의 체크박스가 켜져 보여도 낡은 항목이라 `AXIsProcessTrusted()`는 false(메뉴바 글리프 `square.dashed`)일 수 있습니다.
 
 해소 절차:
 
