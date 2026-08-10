@@ -1,0 +1,24 @@
+.claude/skills/plans/SKILL.md
+  s_e6dc36242901f2::t_f7667ca687ab9a 52
+LICENSE
+  s_e6dc36242901f2::t_2700309547f6c6 1-21
+.claude/skills/plans/references/20260810_release-prep.md
+  s_e6dc36242901f2::t_62e560ee8f9a2f 16
+  s_e6dc36242901f2::t_eff4ad655e1a8b 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "e18d6b339dd8a59c45f3d2c28dc2fa02165933e1",
+  "prompts": {},
+  "sessions": {
+    "s_e6dc36242901f2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1779c06b-ba10-4945-8e28-40bdf92a2fb1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
