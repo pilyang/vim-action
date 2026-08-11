@@ -5,11 +5,11 @@ what VimAction supports today and what is planned — it describes the
 *vocabulary* (which keys mean what), not the implementation, and not the
 implementation order.
 
-> **Development status note.** VimAction is under active development. The
-> interpretation engine covers everything marked ✅ below, but the execution
-> layer (which performs the interpreted actions inside apps) is still being
-> built — so ✅ means "part of the current vocabulary", not yet "works
-> end-to-end in every app".
+> **Development status note.** VimAction is under active development.
+> Everything marked ✅ below is interpreted by the engine **and executed
+> end-to-end** inside apps. Execution delegates to each app's native editing
+> commands (and Accessibility APIs where enabled), so the exact result of an
+> action can still vary between apps.
 
 > **Status legend**
 >
@@ -46,7 +46,7 @@ except `Esc` (and `Ctrl-[`) which enters Normal mode.
 ### Motions
 
 Motions move the cursor. Every motion accepts a `[count]` prefix
-(`3w` = three words forward; counts are capped at 9,999).
+(`3w` = three words forward; counts are capped at 1,000).
 
 | Key | Motion | Status | Notes |
 |-----|--------|:------:|-------|
@@ -65,8 +65,8 @@ Motions move the cursor. Every motion accepts a `[count]` prefix
 | `p` / `P` | Paste after / before | ✅ | Uses the system clipboard; `3p` pastes 3 copies as one edit |
 | `u` | Undo | ✅ | Delegates to the app's native undo; `3u` undoes 3 times |
 | `Ctrl-r` | Redo | ✅ | Delegates to the app's native redo |
-| `Ctrl-d` / `Ctrl-u` | Scroll half page down / up | ✅ | |
-| `Ctrl-f` / `Ctrl-b` | Scroll full page down / up | ✅ | |
+| `Ctrl-d` / `Ctrl-u` | Scroll half page down / up | ✅ | Scroll counts are capped at 33 |
+| `Ctrl-f` / `Ctrl-b` | Scroll full page down / up | ✅ | Scroll counts are capped at 33 |
 | `Ctrl-e` / `Ctrl-y` | Scroll line down / up | 📅 | |
 
 ### Operators — the composable grammar
@@ -112,9 +112,9 @@ Each cell answers: can this operator take this target?
   targets like Vim's `d3G` are not supported).
 - Text objects: counts are not accepted (`d2iw` is invalid).
 
-**Note on `cw`:** it is interpreted as `c` + `w` (change to the next word).
-Vim's special-case behavior where `cw` acts like `ce` depends on the
-execution layer, which is still in development.
+**Note on `cw`:** as in Vim, `cw` is special-cased — it changes to the *end*
+of the word under the cursor (like `ce`), not to where `dw` would delete
+(on whitespace it changes just the remaining whitespace, also like Vim).
 
 #### Text object keys
 
