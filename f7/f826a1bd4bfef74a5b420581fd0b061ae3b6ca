@@ -1,0 +1,30 @@
+.claude/skills/plans/SKILL.md
+  s_c369cb7591a5de::t_acf3cf7d87467f 52
+.claude/skills/decisions/references/20260812_ci-signing-job-tools-digest-pinned.md
+  s_c369cb7591a5de::t_1f192a67acb396 1-26
+.claude/skills/plans/references/20260812_security-hardening.md
+  s_c369cb7591a5de::t_d55514c109c0cc 13-15
+  s_c369cb7591a5de::t_7f8fab496c9723 24-26
+  s_c369cb7591a5de::t_e0baf00866e26a 1-12,16-18,21-23,27-41,43-50,52-65
+  s_c369cb7591a5de::t_6f65cdf532122f 42
+  s_c369cb7591a5de::t_ff0d900c7e3042 51
+  s_c369cb7591a5de::t_ed132788903321 19-20
+.claude/skills/decisions/SKILL.md
+  s_c369cb7591a5de::t_dd2674669ee015 80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "f7f826a1bd4bfef74a5b420581fd0b061ae3b6ca",
+  "prompts": {},
+  "sessions": {
+    "s_c369cb7591a5de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63adf766-ad44-4209-aabb-635b2f19fdef",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
