@@ -1,0 +1,8 @@
+# GitHub Actions를 커밋 SHA로 핀하므로, 버전 bump 제안은 Dependabot이 담당한다
+# (SHA 핀도 버전 주석과 함께 자동 갱신해 준다).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

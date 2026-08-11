@@ -29,6 +29,10 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
   # 앱이 링크하는 Sparkle 버전(Package.resolved)과 맞춘다 — 의존성 버전을 올리면 여기도 함께.
   SPARKLE_VERSION: 2.9.5
+  # 위 버전 배포 tarball(Sparkle-$SPARKLE_VERSION.tar.xz)의 SHA-256 — 버전을 올리면 반드시 함께 갱신.
+  # 서명 자재가 살아 있는 잡에서 실행되는 툴이라 다운로드를 다이제스트로 고정한다
+  # (SPM 의존성의 Package.resolved 핀과 같은 원칙).
+  SPARKLE_SHA256: 015336b601493e05c237964954bff6191370003d94edefe663724c88840d73cc
 
 jobs:
   release:
@@ -36,7 +40,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 120 # 공증 대기 포함 (첫 제출 ~50분 실측)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Derive version from tag
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
@@ -100,13 +104,17 @@ jobs:
 
       - name: Package DMG
         run: |
-          brew install create-dmg
+          # create-dmg는 셸 스크립트라 설치가 불필요하다 — brew(핀 없는 가변 최신) 대신
+          # 커밋 SHA로 소스를 고정해 바로 실행한다. 태그: v1.3.0
+          CREATE_DMG_SHA=a2b71d0fda6d0df2a86dc7f67082d4d73e84c59f
+          git clone --no-checkout https://github.com/create-dmg/create-dmg.git "$RUNNER_TEMP/create-dmg"
+          git -C "$RUNNER_TEMP/create-dmg" checkout --quiet "$CREATE_DMG_SHA"
           STAGE="$RUNNER_TEMP/dmg-root"
           mkdir -p "$STAGE" dist
           cp -R "build/Build/Products/Release/VimAction.app" "$STAGE/"
           # create-dmg는 Finder AppleScript로 레이아웃을 잡아 headless 러너에서 간헐 실패한다 — 재시도.
           for attempt in 1 2 3; do
-            if create-dmg \
+            if "$RUNNER_TEMP/create-dmg/create-dmg" \
               --volname "VimAction" \
               --window-size 540 380 \
               --icon-size 128 \
@@ -123,6 +131,14 @@ jobs:
           done
           codesign --force --sign "Developer ID Application" --timestamp \
             "dist/VimAction-$VERSION.dmg"
+
+      # Developer ID 개인키는 DMG 서명까지만 쓰인다 — 이후 스텝은 키체인이 불필요하다
+      # (notarytool=ASC API 키 파일, generate_appcast=EdDSA 키 파일, gh·git=토큰).
+      # 여기서 바로 삭제해 개인키 노출 구간을 줄인다. 마지막 정리 스텝은 실패 대비 백스톱.
+      - name: Delete signing keychain (no longer needed)
+        run: |
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db"
+          security list-keychains -d user -s login.keychain-db
 
       # DMG를 공증하면 내용물(.app)까지 티켓이 발급된다. 스테이플은 DMG에.
       - name: Notarize and staple
@@ -141,13 +157,15 @@ jobs:
           spctl --assess --type open --context context:primary-signature \
             "dist/VimAction-$VERSION.dmg"
 
-      # 도구는 앱이 링크하는 것과 같은 버전의 Sparkle 배포 tarball에서 가져온다.
+      # 도구는 앱이 링크하는 것과 같은 버전의 Sparkle 배포 tarball에서 가져오고,
+      # 다이제스트 검증을 통과해야만 실행한다.
       - name: Generate appcast
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
         run: |
           curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" \
             "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          echo "$SPARKLE_SHA256  $RUNNER_TEMP/sparkle.tar.xz" | shasum -a 256 -c -
           mkdir -p "$RUNNER_TEMP/sparkle"
           tar -xJf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
           KEY_FILE="$RUNNER_TEMP/eddsa_private_key"
