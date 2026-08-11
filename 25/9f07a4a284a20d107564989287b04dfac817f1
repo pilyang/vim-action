@@ -1,0 +1,26 @@
+VimAction.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+  s_2dd898ad8c3c11::t_82689151a1acf8 2,4-12
+VimAction.xcodeproj/project.pbxproj
+  s_2dd898ad8c3c11::t_e72658459d0c02 218
+  s_2dd898ad8c3c11::t_ab205c89ead269 130
+  s_2dd898ad8c3c11::t_d11b4bbe19e0eb 598-608
+  s_2dd898ad8c3c11::t_b8b04f054596f4 65
+  s_2dd898ad8c3c11::t_a3132bf48d552a 14
+  s_2dd898ad8c3c11::t_a261bdda6e54ed 626-630
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "259f07a4a284a20d107564989287b04dfac817f1",
+  "prompts": {},
+  "sessions": {
+    "s_2dd898ad8c3c11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b33d1b0-2959-4934-8663-a8291cc8679f",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
