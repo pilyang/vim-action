@@ -79,6 +79,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-11 | 릴리스 버전은 tag semver 하나 | CFBundleVersion(=Sparkle 비교축)까지 X.Y.Z 동일 주입, 별도 빌드 번호 없음 — 로컬 빌드(1)는 업데이트 미제안 엣지 수용 | [20260811_release-version-semver-cfbundleversion.md](references/20260811_release-version-semver-cfbundleversion.md) |
 | 08-12 | Dock 아이콘 닫힘은 창 동일성 | 열림 훅이 설정 창을 캡처(`windows` seam)하고 그 창이 닫힐 때만 강등 — Sparkle titled 창 오탐 해소, 못 잡으면 강등 안 함(fail-safe) | [20260812_dock-icon-close-signal-window-identity.md](references/20260812_dock-icon-close-signal-window-identity.md) |
 | 08-12 | 서명 잡 외부 툴은 다이제스트/SHA 핀 | Sparkle tarball SHA-256 검증·create-dmg 커밋 SHA·actions 풀 SHA+Dependabot — SPM 핀과 동일 원칙, 키체인은 DMG 서명 직후 삭제 | [20260812_ci-signing-job-tools-digest-pinned.md](references/20260812_ci-signing-job-tools-digest-pinned.md) |
+| 08-12 | Hardened Runtime은 pbxproj 고정 | 앱 타깃 두 config에 `ENABLE_HARDENED_RUNTIME = YES` — 워크플로 편집에 안 사라지고 로컬 빌드도 하드닝, Debug 디버깅은 base 엔타이틀먼트 주입으로 유지 | [20260812_hardened-runtime-pinned-in-pbxproj.md](references/20260812_hardened-runtime-pinned-in-pbxproj.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
