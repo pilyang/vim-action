@@ -13,15 +13,16 @@
 - [x] **단일 PR 구현 완료** (2026-08-12, `security-hardening` 브랜치에 커밋됨): release.yml(#1 `SPARKLE_SHA256` 검증, #3 create-dmg SHA 핀, 선택6 키체인 조기 삭제 — 이후 스텝의 키체인 비의존 스텝별 확인 후 포함), pbxproj `ENABLE_HARDENED_RUNTIME`(#2), checkout SHA 핀 + dependabot.yml(#4), KEYBINDINGS.md 클립보드 경고(#5)
 - [x] 로컬 검증 통과: CI 동일 앱 빌드 성공(경고 추가 0), 엔진 테스트 100건 통과, `shasum -c` 네거티브 테스트(틀린 다이제스트 → exit 1), create-dmg 핀 SHA에서 `--version` 정상(1.3.0), 워크플로 YAML 파스 OK
 - [x] decisions 기록: [20260812_ci-signing-job-tools-digest-pinned.md](../../decisions/references/20260812_ci-signing-job-tools-digest-pinned.md)
+- [x] [PR #47](https://github.com/pilyang/vim-action/pull/47) CI 통과 → 머지 (main `1e02271`)
+- [x] **v0.1.1 태그에서 e2e 확인** (2026-08-12): 하드닝된 release.yml 전 스텝 성공 — Sparkle tarball 다이제스트 검증 통과, 핀 SHA create-dmg로 DMG 생성(재시도 없이 1회), 키체인 조기 삭제 후 공증·appcast·릴리스·cask bump 전부 정상. 릴리스 DMG 실측: `codesign -dv`에서 앱·중첩 Sparkle Updater 모두 `flags=0x10000(runtime)`, 버전 0.1.1/0.1.1, Gatekeeper "Notarized Developer ID"
 
 ## 남은 것
 
-- [ ] [PR #47](https://github.com/pilyang/vim-action/pull/47) CI 통과 확인 → 머지
-- [ ] 다음 릴리스 태그(v0.1.1+)에서 e2e: appcast 생성 성공, DMG 레이아웃 동일, hardened runtime `flags=0x10000` 확인 (CLI 오버라이드 없이도 pbxproj가 보장하는지는 릴리스 빌드로만 완전 검증 가능) — 확인되면 이 플랜은 완료 처리(삭제) 대상
+- 없음 — 4건 전부 반영·머지되고 릴리스 e2e까지 확인됨. 이 플랜은 완료 처리(삭제) 대상.
 
 ## 진행 중 컨텍스트
 
-**현재 상태 (2026-08-12)**: 구현·검증 완료, origin/main(`6230235`) 위로 rebase(충돌 1건 — decisions 인덱스에 main의 dock-icon 결정 행과 both-append, 두 행 모두 유지로 해소) 후 push, **[PR #47](https://github.com/pilyang/vim-action/pull/47) 오픈**. PR 통합 사유는 변경 파일 비중첩·상호 의존 없음·solo maintainer. 아래 "검증된 사실"의 라인 번호는 구현 **전** 기준.
+**현재 상태 (2026-08-12)**: 완료. PR #47 머지(main `1e02271`) 후 v0.1.1 릴리스에서 하드닝된 파이프라인이 실제로 동작함을 확인. 아래 "검증된 사실"의 라인 번호는 구현 **전** 기준.
 
 ### 검증된 사실 (2026-08-12, 구현 전 기준 라인 번호)
 

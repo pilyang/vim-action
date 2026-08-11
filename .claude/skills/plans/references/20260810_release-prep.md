@@ -3,7 +3,7 @@
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 플랜 생성일. 이 문서는 살아있는 문서입니다: 진행에 따라 계속 갱신하고, 완료·폐기되면 삭제합니다 (decisions와 정반대). -->
 
 - **생성일**: 2026-08-10
-- **갱신일**: 2026-08-11
+- **갱신일**: 2026-08-12
 
 ## 목표
 
@@ -17,14 +17,14 @@ M5와 병렬로, release tag를 push하면 서명·공증된 DMG가 GitHub Relea
 - [x] **1단계 — 수동 서명+공증 1회 성공** (2026-08-10): Developer ID Application 인증서 발급 → Release 빌드 명령줄 오버라이드 서명 → `notarytool` Accepted(첫 제출 ~50분 소요, 정상) → `stapler` → `spctl` "Notarized Developer ID" → `/Applications` 설치 후 Hardened Runtime 하 CGEventTap/AX 정상 동작 사용자 실증 완료. 도그푸딩 TCC cdhash 문제도 함께 해소됨
 - [x] **3단계 — GH Actions release 파이프라인 + v0.1.0 발행** (2026-08-11, PR #43·#44 머지, tag `v0.1.0`): `release.yml` 신설 — tag push → Developer ID 빌드 → **Sparkle 중첩 재서명**(공증 Invalid 실측으로 추가, decisions 기록) → create-dmg → 공증·스테이플 → `generate_appcast` → non-prerelease Release. GH Secrets 4종 등록(p12 암호 분리로 계획 3종에서 +1, 업로드 전 로컬 짝 검증 절차 확립). **첫 릴리스 v0.1.0 발행·검증 완료**: Gatekeeper "Notarized Developer ID", appcast 고정 URL 정상, 릴리스 DMG로 도그푸딩 교체 설치(이후 Sparkle 업데이트 수신 가능 기준점)
 - [x] **4단계 — Homebrew tap (레포·cask·파이프라인 연결)** (2026-08-11): `pilyang/homebrew-tap` 레포 생성(로컬 체크아웃 `~/Projects/homebrew-tap` — 범용 tap이라 vim-action 밖, submodule 없이 완전 분리, 메인 레포와의 연결은 release.yml bump 단계뿐) + `Casks/vimaction.rb`(v0.1.0, `auto_updates true`, `depends_on macos: :tahoe`). 검증: `brew style` 클린, `brew fetch` 체크섬 일치, 임시 appdir로 설치/제거 e2e. release.yml에 cask 자동 bump 단계 추가 — [PR #45](https://github.com/pilyang/vim-action/pull/45)
+- [x] **4단계 마무리 + v0.1.1 릴리스** (2026-08-12): GH Secret `TAP_PUSH_TOKEN` 등록(사용자) → [PR #45](https://github.com/pilyang/vim-action/pull/45) 머지 → tag `v0.1.1` push로 파이프라인 전체 e2e 성공. 확인된 것: Release 발행(non-prerelease, DMG+appcast 자산), `releases/latest/download/appcast.xml`이 0.1.1·EdDSA 서명 포함, 릴리스 DMG Gatekeeper "Notarized Developer ID"+스테이플 유효, **cask 자동 bump 동작**(tap `011cf4b` "vimaction 0.1.1", sha256이 릴리스 DMG 실측과 일치)
 - [x] **2단계 — Sparkle 2.x 통합** (2026-08-11, [PR #42](https://github.com/pilyang/vim-action/pull/42) 머지 완료, main `0494269`): SPM 의존성 2.9.5 고정 → `generate_keys` EdDSA 키 생성(사용자 실행) → 부분 Info.plist로 `SUPublicEDKey`·`SUFeedURL` 주입 → updater 배선(메뉴바+About 확인 버튼, General 자동 확인 토글, 시동은 bootstrap XCTest 가드 뒤). Developer ID 서명 빌드 도그푸딩으로 전 항목 정상 동작 사용자 실증 완료(피드 404 에러 처리 포함). 결정·architecture·플랜 문서 갱신 포함
 
 ## 남은 것
 
 <!-- 다음에 할 것이 맨 위. 인계 단위(세션/마일스톤 수준)로 — 함수 단위 세부 todo는 세션 내 TodoList의 몫. -->
 
-- [ ] **4단계 마무리**: GH Secret `TAP_PUSH_TOKEN` 등록(사용자 — `pilyang/homebrew-tap` 한정 fine-grained PAT, Contents: write) → [PR #45](https://github.com/pilyang/vim-action/pull/45) 머지. (본진 homebrew-cask는 notability 기준 미달로 추후)
-- [ ] (선택) v0.1.1 릴리스 시 설치된 v0.1.0에서 Sparkle 업데이트 다이얼로그→교체 설치까지의 진짜 end-to-end 확인 + cask 자동 bump 동작 확인
+- [ ] **Sparkle 인앱 업데이트 e2e (사용자 확인 필요)**: 설치된 v0.1.0에서 업데이트 다이얼로그가 뜨는지 → 교체 설치까지 확인. 피드·서명·CFBundleVersion 축은 전부 검증됨(appcast 0.1.1 + EdDSA 서명, `latest` 고정 URL 정상)이라 남은 건 앱 쪽 수신 동작뿐. 이것까지 확인되면 이 플랜은 완료 처리(삭제) 대상. (본진 homebrew-cask 등록은 notability 기준 미달로 추후)
 
 ## 진행 중 컨텍스트
 
