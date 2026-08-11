@@ -74,6 +74,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-10 | Homebrew는 personal tap | 본진은 notability 미달 — `pilyang/homebrew-*` tap으로 시작, 도달 시 본진 이관 | [20260810_homebrew-personal-tap.md](references/20260810_homebrew-personal-tap.md) |
 | 08-10 | 릴리스는 tag push GH Actions | tag → 빌드·서명·공증(notarytool, ASC API 키)·DMG·appcast·Release 업로드, 버전은 tag 주입 | [20260810_tag-push-release-pipeline.md](references/20260810_tag-push-release-pipeline.md) |
 | 08-10 | appcast는 Releases 자산 | `releases/latest/download/appcast.xml` 고정 URL — Pages·raw 기각, 정식 릴리스만 non-prerelease | [20260810_appcast-hosting-github-releases.md](references/20260810_appcast-hosting-github-releases.md) |
+| 08-11 | 업데이트 확인 UX — 표준 동의·3자리 | 자동 확인은 Sparkle 표준 프롬프트(기본 강제 없음), 버튼은 메뉴바+About·토글은 General | [20260811_sparkle-updater-ui-and-consent.md](references/20260811_sparkle-updater-ui-and-consent.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
