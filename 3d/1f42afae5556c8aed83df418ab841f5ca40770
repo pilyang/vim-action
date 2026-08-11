@@ -1,0 +1,26 @@
+.claude/skills/plans/SKILL.md
+  s_1b9e399e0557b4::t_db95bc492c01b2 53
+  s_1b9e399e0557b4::t_d96382ed15c103 52
+.claude/skills/plans/references/20260810_release-prep.md
+  s_1b9e399e0557b4::t_94df9acf0435b3 27
+  s_1b9e399e0557b4::t_31d5431cf52da1 20
+  s_1b9e399e0557b4::t_0bfa043dd2a457 6
+.claude/skills/plans/references/20260812_security-hardening.md
+  s_1b9e399e0557b4::t_e84c9be6bcc825 16-17,21,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "3d1f42afae5556c8aed83df418ab841f5ca40770",
+  "prompts": {},
+  "sessions": {
+    "s_1b9e399e0557b4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "26847f77-dfe1-4080-97da-ed91a163cbcc",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
