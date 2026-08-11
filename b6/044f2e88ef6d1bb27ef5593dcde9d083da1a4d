@@ -1,0 +1,30 @@
+VimAction/AppState.swift
+  s_2dd898ad8c3c11::t_d2369ffe7be4e7 95-97
+  s_2dd898ad8c3c11::t_8c41666f79efe1 10
+  s_2dd898ad8c3c11::t_038609b605e565 31-38
+VimAction/SettingsView.swift
+  s_2dd898ad8c3c11::t_9d5b6ad0893967 182,184-185,195
+  s_2dd898ad8c3c11::t_63d23b8798dc39 74-79
+  s_2dd898ad8c3c11::t_5d8f5f276cf597 6
+  s_2dd898ad8c3c11::t_10e0a0eef0ebf4 39
+VimAction/UpdaterViews.swift
+  s_2dd898ad8c3c11::t_7b6066243ba0ef 1-58
+VimAction/VimActionApp.swift
+  s_2dd898ad8c3c11::t_f92ff09fd27c78 97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b6044f2e88ef6d1bb27ef5593dcde9d083da1a4d",
+  "prompts": {},
+  "sessions": {
+    "s_2dd898ad8c3c11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b33d1b0-2959-4934-8663-a8291cc8679f",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
