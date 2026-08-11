@@ -112,6 +112,12 @@ final class AppState {
         UserDefaults.standard.set(true, forKey: PreferenceKeys.didShowOnboarding)
     }
 
+    /// 설정 뷰가 자기 창에 붙었다 — Dock 아이콘 닫힘 판정의 기준 창을 넘긴다
+    /// (`SettingsWindowReader`가 부른다).
+    func settingsWindowDidConnect(_ window: NSWindow) {
+        dockIcon.settingsWindowDidConnect(window)
+    }
+
     /// 메뉴 'Reload Config' 진입점 — 로드 결과를 게이트에 반영까지 해야 한 번의 리로드다.
     /// 반환 false = 파일 통째 에러 존재(직전 유효 설정 유지됨) — 호출자(메뉴)가 사용자에게
     /// 보인다. 프로파일 쪽은 푸시가 필요 없다 — 디스패치가 `configStore`를 매 키마다

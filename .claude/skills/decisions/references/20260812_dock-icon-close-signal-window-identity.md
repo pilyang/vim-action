@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260812_dock-icon-settings-window-handoff.md](20260812_dock-icon-settings-window-handoff.md) — 캡처 방식(열거 + `windows` seam + 찾기 술어)만 뒤집힘 / 동일성 판정·fail-safe 방향·승격 신호는 유효
+
 # Dock 아이콘 닫힘 신호는 설정 창 동일성
 
 - **결정일**: 2026-08-12
