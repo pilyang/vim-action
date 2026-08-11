@@ -15,7 +15,7 @@ M5와 병렬로, release tag를 push하면 서명·공증된 DMG가 GitHub Relea
 - [x] Apple Developer Program 가입·승인 (사용자 직접 완료)
 - [x] LICENSE 파일 추가 (MIT, 2026-08-10) — 레포 루트에, 저작권자 Jaepil Yang
 - [x] **1단계 — 수동 서명+공증 1회 성공** (2026-08-10): Developer ID Application 인증서 발급 → Release 빌드 명령줄 오버라이드 서명 → `notarytool` Accepted(첫 제출 ~50분 소요, 정상) → `stapler` → `spctl` "Notarized Developer ID" → `/Applications` 설치 후 Hardened Runtime 하 CGEventTap/AX 정상 동작 사용자 실증 완료. 도그푸딩 TCC cdhash 문제도 함께 해소됨
-- [x] **2단계 — Sparkle 2.x 통합** (2026-08-11, 브랜치 `feat/release-sparkle-integration`, PR 머지 대기): SPM 의존성 2.9.5 고정 → `generate_keys` EdDSA 키 생성(사용자 실행) → 부분 Info.plist로 `SUPublicEDKey`·`SUFeedURL` 주입 → updater 배선(메뉴바+About 확인 버튼, General 자동 확인 토글, 시동은 bootstrap XCTest 가드 뒤). Developer ID 서명 빌드 도그푸딩으로 전 항목 정상 동작 사용자 실증 완료(피드 404 에러 처리 포함). 결정·architecture·플랜 문서 갱신 포함
+- [x] **2단계 — Sparkle 2.x 통합** (2026-08-11, [PR #42](https://github.com/pilyang/vim-action/pull/42) 머지 완료, main `0494269`): SPM 의존성 2.9.5 고정 → `generate_keys` EdDSA 키 생성(사용자 실행) → 부분 Info.plist로 `SUPublicEDKey`·`SUFeedURL` 주입 → updater 배선(메뉴바+About 확인 버튼, General 자동 확인 토글, 시동은 bootstrap XCTest 가드 뒤). Developer ID 서명 빌드 도그푸딩으로 전 항목 정상 동작 사용자 실증 완료(피드 404 에러 처리 포함). 결정·architecture·플랜 문서 갱신 포함
 
 ## 남은 것
 
