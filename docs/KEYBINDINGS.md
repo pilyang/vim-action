@@ -90,6 +90,11 @@ Reading a few examples:
 An invalid sequence (e.g. `dq`) is discarded silently, like in Vim.
 `c` always finishes by entering Insert mode (`cc`, `c$`, `ciw`, …).
 
+> **Clipboard warning.** Delete and change (`x`, `D`, `C`, `d…`, `c…`, and
+> their Visual-mode forms) cut through the **system clipboard** — the removed
+> text overwrites whatever you had copied. This is by design: the clipboard
+> acts as Vim's unnamed register, so `p` pastes what you last deleted.
+
 #### Operator × Target support matrix
 
 Each cell answers: can this operator take this target?
