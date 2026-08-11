@@ -1,0 +1,21 @@
+.claude/skills/decisions/SKILL.md
+  s_1b9e399e0557b4::t_b948510c083866 82
+.claude/skills/decisions/references/20260812_hardened-runtime-pinned-in-pbxproj.md
+  s_1b9e399e0557b4::t_5cd9dbe6ee8c99 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "51d8f02bee1f2264db5f1d31e682b5072c6b72d3",
+  "prompts": {},
+  "sessions": {
+    "s_1b9e399e0557b4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "26847f77-dfe1-4080-97da-ed91a163cbcc",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
