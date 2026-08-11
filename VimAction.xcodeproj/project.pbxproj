@@ -11,6 +11,7 @@
 		FE55555555555555555555E5 /* VimEngine in Frameworks */ = {isa = PBXBuildFile; productRef = FE44444444444444444444E4 /* VimEngine */; };
 		FE77777777777777777777E7 /* VimActionConfig in Frameworks */ = {isa = PBXBuildFile; productRef = FE66666666666666666666E6 /* VimActionConfig */; };
 		FE99999999999999999999E9 /* VimActionConfig in Frameworks */ = {isa = PBXBuildFile; productRef = FE88888888888888888888E8 /* VimActionConfig */; };
+		FEAAAAAAAAAAAAAAAAAAAAEA /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FEBBBBBBBBBBBBBBBBBBBBEB /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -61,6 +62,7 @@
 			files = (
 				FE33333333333333333333E3 /* VimEngine in Frameworks */,
 				FE77777777777777777777E7 /* VimActionConfig in Frameworks */,
+				FEAAAAAAAAAAAAAAAAAAAAEA /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,6 +127,7 @@
 			packageProductDependencies = (
 				FE22222222222222222222E2 /* VimEngine */,
 				FE66666666666666666666E6 /* VimActionConfig */,
+				FEBBBBBBBBBBBBBBBBBBBBEB /* Sparkle */,
 			);
 			productName = VimAction;
 			productReference = B52D10A03002939E008FEE9F /* VimAction.app */;
@@ -212,6 +215,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				FE11111111111111111111E1 /* XCLocalSwiftPackageReference "Packages/VimActionCore" */,
+				FECCCCCCCCCCCCCCCCCCCCEC /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B52D10A13002939E008FEE9F /* Products */;
@@ -591,6 +595,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		FECCCCCCCCCCCCCCCCCCCCEC /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.5;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		FE22222222222222222222E2 /* VimEngine */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -607,6 +622,11 @@
 		FE88888888888888888888E8 /* VimActionConfig */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = VimActionConfig;
+		};
+		FEBBBBBBBBBBBBBBBBBBBBEB /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FECCCCCCCCCCCCCCCCCCCCEC /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
