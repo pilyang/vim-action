@@ -1,0 +1,159 @@
+# 릴리스 파이프라인 — tag(v*) push 트리거 (20260810_tag-push-release-pipeline).
+#
+# 흐름: 빌드(Developer ID 서명, 1단계에서 확정한 오버라이드 그대로) → DMG 패키징(create-dmg)
+# → 공증(notarytool, ASC API 키) + 스테이플 → generate_appcast(EdDSA 서명) → GitHub Release 업로드.
+#
+# 버전은 tag에서 파생한다: v1.2.3 → MARKETING_VERSION=1.2.3, CURRENT_PROJECT_VERSION=1.2.3
+# (CFBundleVersion이 Sparkle의 비교 대상 sparkle:version이 된다 — semver 증가가 곧 단조 증가).
+#
+# 필요한 GH Secrets 4종:
+#   MACOS_CERT_P12          — Developer ID Application 인증서+개인키 p12의 base64
+#   MACOS_CERT_PASSWORD     — 위 p12의 암호
+#   ASC_API_KEY_P8          — App Store Connect API 키(.p8) 내용 (공증용)
+#   SPARKLE_ED_PRIVATE_KEY  — Sparkle EdDSA 개인키 (generate_keys -x 출력)
+#
+# 주의: appcast는 `releases/latest/download/appcast.xml` 고정 URL로 소비되므로
+# 정식 릴리스만 non-prerelease로 발행해야 한다 (20260810_appcast-hosting-github-releases).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+  # 앱이 링크하는 Sparkle 버전(Package.resolved)과 맞춘다 — 의존성 버전을 올리면 여기도 함께.
+  SPARKLE_VERSION: 2.9.5
+
+jobs:
+  release:
+    name: Build, notarize, and publish
+    runs-on: macos-26
+    timeout-minutes: 120 # 공증 대기 포함 (첫 제출 ~50분 실측)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      # 임시 키체인에만 인증서를 넣는다 — 러너 login 키체인 오염 방지, 종료 시 삭제.
+      - name: Import signing certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN_PATH" \
+            -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/cert.p12"
+          # codesign이 UI 프롬프트 없이 키를 쓸 수 있어야 한다 (headless 러너).
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+      # 1단계에서 확정한 서명 오버라이드 그대로 (CLAUDE.md·플랜 참고).
+      # CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO 필수 — 기본값이 get-task-allow를 주입해 공증 거부.
+      - name: Build Release (Developer ID, Hardened Runtime)
+        run: >
+          xcodebuild build
+          -project VimAction.xcodeproj
+          -scheme VimAction
+          -configuration Release
+          -destination 'platform=macOS'
+          -derivedDataPath build
+          CODE_SIGN_STYLE=Manual
+          DEVELOPMENT_TEAM=X6DU3VVLRZ
+          CODE_SIGN_IDENTITY="Developer ID Application"
+          ENABLE_HARDENED_RUNTIME=YES
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO
+          OTHER_CODE_SIGN_FLAGS=--timestamp
+          MARKETING_VERSION="$VERSION"
+          CURRENT_PROJECT_VERSION="$VERSION"
+
+      - name: Package DMG
+        run: |
+          brew install create-dmg
+          STAGE="$RUNNER_TEMP/dmg-root"
+          mkdir -p "$STAGE" dist
+          cp -R "build/Build/Products/Release/VimAction.app" "$STAGE/"
+          # create-dmg는 Finder AppleScript로 레이아웃을 잡아 headless 러너에서 간헐 실패한다 — 재시도.
+          for attempt in 1 2 3; do
+            if create-dmg \
+              --volname "VimAction" \
+              --window-size 540 380 \
+              --icon-size 128 \
+              --icon "VimAction.app" 140 180 \
+              --hide-extension "VimAction.app" \
+              --app-drop-link 400 180 \
+              "dist/VimAction-$VERSION.dmg" \
+              "$STAGE"; then
+              break
+            fi
+            rm -f "dist/VimAction-$VERSION.dmg"
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 10
+          done
+          codesign --force --sign "Developer ID Application" --timestamp \
+            "dist/VimAction-$VERSION.dmg"
+
+      # DMG를 공증하면 내용물(.app)까지 티켓이 발급된다. 스테이플은 DMG에.
+      - name: Notarize and staple
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          KEY_FILE="$RUNNER_TEMP/AuthKey_J25P43B5G4.p8"
+          printf '%s\n' "$ASC_API_KEY_P8" > "$KEY_FILE"
+          xcrun notarytool submit "dist/VimAction-$VERSION.dmg" \
+            --key "$KEY_FILE" \
+            --key-id J25P43B5G4 \
+            --issuer 4c66c8b6-9bec-4f18-b220-a53d27eeac23 \
+            --wait
+          rm "$KEY_FILE"
+          xcrun stapler staple "dist/VimAction-$VERSION.dmg"
+          spctl --assess --type open --context context:primary-signature \
+            "dist/VimAction-$VERSION.dmg"
+
+      # 도구는 앱이 링크하는 것과 같은 버전의 Sparkle 배포 tarball에서 가져온다.
+      - name: Generate appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xJf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
+          KEY_FILE="$RUNNER_TEMP/eddsa_private_key"
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$KEY_FILE"
+          "$RUNNER_TEMP/sparkle/bin/generate_appcast" \
+            --ed-key-file "$KEY_FILE" \
+            --download-url-prefix "https://github.com/pilyang/vim-action/releases/download/$GITHUB_REF_NAME/" \
+            -o dist/appcast.xml \
+            dist
+          rm "$KEY_FILE"
+          cat dist/appcast.xml
+
+      # non-prerelease로 발행해야 releases/latest가 이 릴리스를 가리킨다.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/VimAction-$VERSION.dmg" \
+            "dist/appcast.xml" \
+            --verify-tag \
+            --title "VimAction $VERSION" \
+            --generate-notes
+
+      - name: Clean up keychain
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
+          security list-keychains -d user -s login.keychain-db
