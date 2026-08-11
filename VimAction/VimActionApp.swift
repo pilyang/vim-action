@@ -94,6 +94,7 @@ struct VimActionApp: App {
             SettingsLink {
                 Text("Preferences…")
             }
+            CheckForUpdatesView(updater: appState.updater)
             Divider()
             Button("Quit VimAction") {
                 NSApp.terminate(nil)
