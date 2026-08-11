@@ -65,7 +65,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-02 | 비자신 캐시는 게이트 소유 + `@Observable` | 캐시·순수 파생을 `FrontmostAppGate`에, 판정은 계속 최전면 — 자기 활성화는 Preferences 경로에서 실측 | [20260802_frontmost-gate-non-self-cache-observable.md](references/20260802_frontmost-gate-non-self-cache-observable.md) |
 | 08-02 | ConfigError 가시화·적용 의미론 | 메뉴 상태 라인 상시 + 리로드 실패만 NSAlert, 최초 로드는 부분 적용·이후 실패는 직전 유지 | [20260802_config-error-visibility-and-apply-semantics.md](references/20260802_config-error-visibility-and-apply-semantics.md) |
 | 08-02 | App Icon은 Icon Composer `.icon` | legacy는 macOS 26이 회색 컨테이너에 강제 합성(실측) — appiconset 제거, 소스 벡터는 stroke가 아닌 외곽선 fill이어야 함 | [20260802_app-icon-icon-composer.md](references/20260802_app-icon-icon-composer.md) |
-| 08-02 | 설정 창 열린 동안만 Dock 아이콘 | `.regular` 승격(앱 메뉴 동반 수용) — 열림=`onAppear`(창이 key가 안 됨, 실측)·닫힘=`willClose`(visible+titled+비-`NSPanel`) | [20260802_dock-icon-while-settings-open.md](references/20260802_dock-icon-while-settings-open.md) |
+| 08-02 | 설정 창 열린 동안만 Dock 아이콘 | `.regular` 승격(앱 메뉴 동반 수용) — 열림=`onAppear`(창이 key가 안 됨, 실측)·닫힘=`willClose` (닫힘 판정 술어는 20260812 창 동일성으로 부분 supersede) | [20260802_dock-icon-while-settings-open.md](references/20260802_dock-icon-while-settings-open.md) |
 | 08-09 | UI 쓰기는 라인 편집만 | 재직렬화 금지는 유지, 값 토큰 교체·한 줄 삽입은 허용 — 안전 계약 3종(에러 상태 거부/애매하면 nil+결과 자가검증/파일 열기 폴백) | [20260809_config-yaml-line-edit-writes.md](references/20260809_config-yaml-line-edit-writes.md) |
 | 08-09 | 설정 창은 3탭 | General(권한·Behavior·접힌 Diagnostics)/Apps(기본 선택)/About, 460×560 고정 — 권한 섹션은 신뢰 상태에 따라 자리 이동 | [20260809_settings-window-three-tabs.md](references/20260809_settings-window-three-tabs.md) |
 | 08-09 | 미허용 발견성은 push 2종 | 런치 1회 자동 오픈(`openSettings`를 `MenuBarExtra` label에서 — `sendAction`은 macOS 14부터 사망) + 메뉴 상시 경고 행 | [20260809_permission-discoverability-push.md](references/20260809_permission-discoverability-push.md) |
@@ -77,6 +77,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-11 | 업데이트 확인 UX — 표준 동의·3자리 | 자동 확인은 Sparkle 표준 프롬프트(기본 강제 없음), 버튼은 메뉴바+About·토글은 General | [20260811_sparkle-updater-ui-and-consent.md](references/20260811_sparkle-updater-ui-and-consent.md) |
 | 08-11 | Sparkle 중첩 실행물 파이프라인 재서명 | SPM 아티팩트가 adhoc — XPC·Autoupdate·Updater.app을 Developer ID+runtime+timestamp로 재서명 후 앱 씰 재생성 (공증 Invalid 실측) | [20260811_sparkle-nested-resign-in-pipeline.md](references/20260811_sparkle-nested-resign-in-pipeline.md) |
 | 08-11 | 릴리스 버전은 tag semver 하나 | CFBundleVersion(=Sparkle 비교축)까지 X.Y.Z 동일 주입, 별도 빌드 번호 없음 — 로컬 빌드(1)는 업데이트 미제안 엣지 수용 | [20260811_release-version-semver-cfbundleversion.md](references/20260811_release-version-semver-cfbundleversion.md) |
+| 08-12 | Dock 아이콘 닫힘은 창 동일성 | 열림 훅이 설정 창을 캡처(`windows` seam)하고 그 창이 닫힐 때만 강등 — Sparkle titled 창 오탐 해소, 못 잡으면 강등 안 함(fail-safe) | [20260812_dock-icon-close-signal-window-identity.md](references/20260812_dock-icon-close-signal-window-identity.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
