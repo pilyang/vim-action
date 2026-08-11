@@ -1,0 +1,41 @@
+VimAction/DockIconController.swift
+  s_aba8c79279b6db::t_2e8f1833960f92 24,28-30
+  s_aba8c79279b6db::t_e5b1ac8150680a 56-59
+  s_aba8c79279b6db::t_6fcbd0a71507e1 96-98,103-108
+  s_aba8c79279b6db::t_cd4bf1799dfedf 69
+  s_aba8c79279b6db::t_f1b2c86dce14ae 44
+  s_aba8c79279b6db::t_4e4487d663a06d 109-110
+VimAction/SettingsView.swift
+  s_aba8c79279b6db::t_3a941648864b9c 50-51,54-56
+  s_aba8c79279b6db::t_5930a1e791c565 61-86
+  s_aba8c79279b6db::t_9482e5fc4720b5 87-88
+.claude/skills/decisions/references/20260812_dock-icon-settings-window-handoff.md
+  s_aba8c79279b6db::t_7f31a273780a4e 1-61
+.claude/skills/decisions/references/20260812_dock-icon-close-signal-window-identity.md
+  s_aba8c79279b6db::t_0e59a69e5d64ea 1-2
+.claude/skills/architecture/references/system-overview.md
+  s_aba8c79279b6db::t_a5c66647f78beb 3
+  s_aba8c79279b6db::t_85bfd82ab1fbc2 52
+VimAction/AppState.swift
+  s_aba8c79279b6db::t_eb146e516983be 115-120
+VimActionTests/DockIconControllerTests.swift
+  s_aba8c79279b6db::t_50fccfb92a545d 11-13,16,47,55,63-65,69,72-75,82-87,91,99-102,107,113,122,124-125
+.claude/skills/decisions/SKILL.md
+  s_aba8c79279b6db::t_bb5203b9927abd 80-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "47900c81851b60e52eb974d07d2ea1c77ee3ff08",
+  "prompts": {},
+  "sessions": {
+    "s_aba8c79279b6db": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9920061b-0157-43cb-a6b2-2b420197da04",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
