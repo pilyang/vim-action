@@ -1,0 +1,21 @@
+.github/workflows/ci.yml
+  s_c369cb7591a5de::t_a4f4f2d31496c7 21,29
+.github/dependabot.yml
+  s_c369cb7591a5de::t_344f8360dd1c8f 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "3cfd2fa26597d4fe1035a6f5a6aac60902dceeca",
+  "prompts": {},
+  "sessions": {
+    "s_c369cb7591a5de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63adf766-ad44-4209-aabb-635b2f19fdef",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}

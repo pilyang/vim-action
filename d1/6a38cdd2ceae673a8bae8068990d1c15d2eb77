@@ -1,0 +1,25 @@
+.github/workflows/release.yml
+  s_c369cb7591a5de::t_0537294a7b85ea 168
+  s_c369cb7591a5de::t_c3932bdaa97144 160-161
+  s_c369cb7591a5de::t_863f595e1e7766 107-111
+  s_c369cb7591a5de::t_68a0d077e0eab0 32-35
+  s_c369cb7591a5de::t_f93ee49d0ee862 43
+  s_c369cb7591a5de::t_6a6ec42f1d3001 117
+  s_c369cb7591a5de::t_cc4cee5981f124 135-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "d16a38cdd2ceae673a8bae8068990d1c15d2eb77",
+  "prompts": {},
+  "sessions": {
+    "s_c369cb7591a5de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63adf766-ad44-4209-aabb-635b2f19fdef",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
