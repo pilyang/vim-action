@@ -1,0 +1,19 @@
+VimAction.xcodeproj/project.pbxproj
+  s_c369cb7591a5de::t_fabdca4efa30d1 434,467
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "589f342f143ea81bbd920b267c1e9770e47dec8a",
+  "prompts": {},
+  "sessions": {
+    "s_c369cb7591a5de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63adf766-ad44-4209-aabb-635b2f19fdef",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
