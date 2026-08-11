@@ -37,6 +37,12 @@ xcodebuild build -project VimAction.xcodeproj -scheme VimAction \
 CI(GitHub Actions)는 위의 엔진 테스트와 앱 빌드 두 잡을 PR·main push마다 실행합니다.
 **빌드 경고 기준선은 0건입니다** — 새 경고가 생기면 그 자리에서 처리하세요.
 
+## 커밋·릴리스 태그 컨벤션 (2026-08-11부터)
+
+- **커밋 메시지는 영어**로 작성합니다 — `feat(scope): ...` 형식, 타입·본문 모두 소문자 영어 (feat, fix, docs, chore 등).
+- **릴리스 태그도 영어**로 작성합니다 — 태그 이름은 `vX.Y.Z`, annotated tag 메시지와 릴리스 노트 전부 영어.
+- git 히스토리의 기존 스타일(대문자 `FEAT(...)` + 한국어)은 이 규칙 이전 것입니다 — 히스토리 스타일을 따라 하지 말고 이 규칙을 따르세요.
+
 ## 아키텍처 큰 그림
 
 키 입력은 단일 `CGEventTap` 하나로만 진입 → `KeyTranslator`가 CGEvent를 `Key`로 정규화 → 순수 Swift **모드 엔진**(`Packages/VimActionCore`의 `VimEngine`, macOS 의존성 없음)이 `Key`를 추상 `VimAction`으로 해석 → **전략 디스패처**가 앱/요소별로 Accessibility(AXUIElement) 실행 vs Keyboard(합성 이벤트) 실행을 선택 → 모든 출력은 단일 `ActionExecutor`를 거치며 합성 이벤트에 재진입 마커를 붙여 무한 루프를 방지합니다.
