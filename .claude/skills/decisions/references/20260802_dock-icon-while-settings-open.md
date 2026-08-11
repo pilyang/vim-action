@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260812_dock-icon-close-signal-window-identity.md](20260812_dock-icon-close-signal-window-identity.md) — 닫힘 판정 술어 / 나머지(승격 신호·`activate`·`.regular` 대가)는 유효
+
 # 설정 창이 열린 동안만 Dock 아이콘 노출
 
 - **결정일**: 2026-08-02

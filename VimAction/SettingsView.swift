@@ -49,7 +49,8 @@ struct SettingsView: View {
         // 맡는 이유는 `DockIconController`에 있다. 닫힘 쪽 짝은 `onDisappear`가 아니다.
         //
         // **TabView 루트여야 한다** — 탭 하나 안에 두면 다른 탭이 기본으로 열릴 때 훅이
-        // 뜨지 않아 창이 열려도 Dock 아이콘이 안 나온다. 재호출은 무해하다(`apply` 동등성 가드).
+        // 뜨지 않아 창이 열려도 Dock 아이콘이 안 나온다. 재호출은 무해하다(설정 창 재캡처는
+        // 부수효과가 없고, 정책 재적용은 `apply` 동등성 가드가 막는다).
         .onAppear { appState.settingsWindowDidAppear() }
     }
 }
