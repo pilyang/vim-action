@@ -3,6 +3,7 @@
 //  VimAction
 //
 
+import Sparkle
 import SwiftUI
 import VimActionConfig
 
@@ -35,7 +36,7 @@ struct SettingsView: View {
             AppsTab(appState: appState)
                 .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
                 .tag(SettingsTab.apps)
-            AboutTab()
+            AboutTab(updater: appState.updater)
                 .tabItem { Label("About", systemImage: "info.circle") }
                 .tag(SettingsTab.about)
         }
@@ -67,6 +68,12 @@ private struct GeneralTab: View {
                 // 값·엔진 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 가로채기 토글과 동일 모델.
                 Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
                 Text("After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Updates") {
+                UpdaterSettingsToggle(updater: appState.updater)
+                Text("VimAction periodically checks GitHub for new versions and always asks before installing.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -172,8 +179,10 @@ private struct AppsTab: View {
     }
 }
 
-/// 버전 + 외부 링크. 업데이트 확인은 아직 없다 — Sparkle 도입 여부가 의존성 결정이라 별도 논의감이다.
+/// 버전 + 업데이트 확인 + 외부 링크.
 private struct AboutTab: View {
+    let updater: SPUUpdater
+
     /// 번들 Info.plist의 실제 버전(`CFBundleShortVersionString` = MARKETING_VERSION). 하드코딩 드리프트 방지.
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -183,6 +192,7 @@ private struct AboutTab: View {
         Form {
             Section("VimAction") {
                 LabeledContent("Version", value: appVersion)
+                CheckForUpdatesView(updater: updater)
             }
             Section("Links") {
                 Link("GitHub Repository", destination: AboutLinks.repository)

@@ -7,6 +7,7 @@ import AppKit
 import Foundation
 import Observation
 import os
+import Sparkle
 import VimEngine
 
 /// 앱 셸이 관찰하는 UI 상태와 전역 컴포넌트(권한 모니터, 이벤트 탭, 설정 스토어)의 소유자.
@@ -27,6 +28,14 @@ final class AppState {
     /// 알려주고 닫힘은 컨트롤러가 창 알림으로 스스로 잡으므로, `bootstrap`이 아니라 여기
     /// 생성 시점이 배선의 전부다.
     let dockIcon = DockIconController.forCurrentEnvironment()
+    /// Sparkle 자동 업데이트. 생성만 하고 시동하지 않는다(`startingUpdater: false`) —
+    /// 시동은 bootstrap(XCTest 가드 뒤)에서만. 테스트·프리뷰가 업데이트 확인 스케줄러를
+    /// 돌리거나 네트워크로 appcast를 조회하면 안 된다 (init은 IO 없음 관례와 동일).
+    private let updaterController = SPUStandardUpdaterController(
+        startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+
+    /// 메뉴바·설정 UI가 쓰는 업데이트 핸들 — 수동 확인 트리거와 자동 확인 설정의 진입점.
+    var updater: SPUUpdater { updaterController.updater }
 
     /// 런치 시 설정 창을 한 번 밀어 올려야 하는가 — 메뉴바 라벨(`MenuBarLabel`)이 소비한다.
     /// `openSettings`는 SwiftUI 환경 액션이라 뷰 밖에서 호출할 수 없어서, `bootstrap()`은
@@ -83,6 +92,9 @@ final class AppState {
         if !permissionMonitor.isTrusted {
             permissionMonitor.startPollingUntilGranted()
         }
+        // 업데이트 확인 시동 — 입력 파이프라인과 무관한 부수 기능이라 핵심(설정·탭) 뒤에 온다.
+        // Info.plist의 SUFeedURL·SUPublicEDKey를 읽고, 자동 확인이 동의된 상태면 스케줄러가 돈다.
+        updaterController.startUpdater()
         needsOnboardingPresentation = shouldPresentOnboarding(
             isTrusted: permissionMonitor.isTrusted, defaults: .standard)
     }
