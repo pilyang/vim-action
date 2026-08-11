@@ -47,11 +47,42 @@ struct SettingsView: View {
         // 설정 창이 열려 있는 동안만 Dock 아이콘을 노출한다. `onAppear`가 유일하게
         // 신뢰할 수 있는 열림 신호인 이유(창이 key가 되지 않는다)와 닫힘을 창 알림이
         // 맡는 이유는 `DockIconController`에 있다. 닫힘 쪽 짝은 `onDisappear`가 아니다.
+        // 닫힘 판정의 기준 창은 아래 reader가 별도로 넘긴다 — `onAppear` 시점에는 창이
+        // 아직 `isVisible`이 아닐 수 있어 여기서 열거로 잡으면 빈손이 난다.
         //
         // **TabView 루트여야 한다** — 탭 하나 안에 두면 다른 탭이 기본으로 열릴 때 훅이
-        // 뜨지 않아 창이 열려도 Dock 아이콘이 안 나온다. 재호출은 무해하다(설정 창 재캡처는
-        // 부수효과가 없고, 정책 재적용은 `apply` 동등성 가드가 막는다).
+        // 뜨지 않아 창이 열려도 Dock 아이콘이 안 나온다. 재호출은 무해하다(창 전달은
+        // 대입뿐이고, 정책 재적용은 `apply` 동등성 가드가 막는다).
+        .background(SettingsWindowReader { appState.settingsWindowDidConnect($0) })
         .onAppear { appState.settingsWindowDidAppear() }
+    }
+}
+
+/// 설정 창 전달 통로 — 뷰가 창에 붙는 순간(`viewDidMoveToWindow`) 자기 `NSWindow`를
+/// 넘긴다. 뷰가 설정 창 안에 있으므로 넘어오는 창이 곧 설정 창이다 — `NSApp.windows`를
+/// 술어로 뒤지는 방식과 달리 추정이 없고, `onAppear`와 달리 창 상태 타이밍에도 안 걸린다.
+/// 창에서 떨어질 때(`window == nil`)는 아무것도 하지 않는다 — 닫힘 처리는
+/// `NSWindow.willCloseNotification`의 몫이다.
+private struct SettingsWindowReader: NSViewRepresentable {
+    let onConnect: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> ReaderView {
+        let view = ReaderView()
+        view.onConnect = onConnect
+        return view
+    }
+
+    func updateNSView(_ view: ReaderView, context: Context) {
+        view.onConnect = onConnect
+    }
+
+    final class ReaderView: NSView {
+        var onConnect: ((NSWindow) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { onConnect?(window) }
+        }
     }
 }
 

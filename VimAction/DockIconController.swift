@@ -21,22 +21,15 @@ import Foundation
 /// 쓴다 — `onDisappear`는 리렌더에도 뜰 수 있어 설정 창이 열린 채 Dock 아이콘이
 /// 사라질 수 있다. `onAppear`가 재오픈에도 매번 오는 것은 실기기에서 확인했다.
 ///
-/// 닫히는 창이 설정 창인지는 **열림 훅에서 잡아 둔 참조와의 동일성**으로 판정한다 — "titled
+/// 닫히는 창이 설정 창인지는 **설정 뷰가 직접 넘겨준 창과의 동일성**으로 판정한다 — "titled
 /// 비-패널이면 설정 창"이라는 술어 판정은 쓰지 않는다. Sparkle이 'Checking for updates…'
 /// (`SUStatusController`)와 업데이트 알림(`SUUpdateAlert`)을 titled 일반 `NSWindow`로 띄우기
 /// 때문에, 술어로 판정하면 그 창이 닫힐 때 설정 창이 열려 있는데도 아이콘이 내려간다 — 재승격
-/// 신호가 `onAppear`뿐이라 설정 창이 계속 떠 있는 한 돌아오지도 않는다.
+/// 신호가 `onAppear`뿐이라 설정 창이 계속 떠 있는 한 돌아오지도 않는다. `NSApp.windows`를
+/// 술어로 뒤져 잡는 방식도 쓰지 않는다 — `onAppear` 시점의 창 상태(`isVisible` 등)에 기대는
+/// 캡처는 도그푸딩에서 빈손이 났고, 빈손이면 강등이 영영 없다.
 @MainActor
 final class DockIconController {
-    /// 설정 창 **찾기** 술어 — 열림 훅이 현재 창들 중 설정 창을 고를 때 쓴다(닫힘 판정은 이
-    /// 술어가 아니라 캡처한 참조 동일성이다). 이 앱이 만드는 창 중 메뉴바 상태 항목 창은
-    /// titled가 아니고 'Reload Config' 실패 `NSAlert`는 `NSPanel`이라 둘 다 걸러진다.
-    /// Sparkle 창은 이 술어를 통과하지만 찾기 시점에만 후보로 끼어들 뿐이다.
-    /// 순수 판정이라 알림 배선 없이 테스트한다 (`FrontmostAppGate.isDisabled`와 같은 분리).
-    static func isSettingsWindow(_ window: NSWindow) -> Bool {
-        window.isVisible && window.styleMask.contains(.titled) && !(window is NSPanel)
-    }
-
     /// 프로덕션 컨트롤러 생성. 단위 테스트(TEST_HOST=앱 프로세스)와 SwiftUI 프리뷰에서는
     /// 라이브 창 알림을 구독하지도, 정책을 뒤집지도 않는다 — 테스트가 만든 창 하나에 앱이
     /// 통째로 `.regular`가 되면 안 되고, 프리뷰 캔버스가 `SettingsView`를 렌더하면
@@ -48,7 +41,7 @@ final class DockIconController {
             || ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
         return isInert
             ? DockIconController(
-                setPolicy: { _ in }, activate: {}, windows: { [] },
+                setPolicy: { _ in }, activate: {},
                 notificationCenter: NotificationCenter())
             : DockIconController()
     }
@@ -59,12 +52,11 @@ final class DockIconController {
 
     private let setPolicy: @MainActor (NSApplication.ActivationPolicy) -> Void
     private let activate: @MainActor () -> Void
-    private let windows: @MainActor () -> [NSWindow]
 
-    /// 열림 훅에서 잡아 둔 설정 창 — 닫힘 판정의 기준이다. 닫힌 창을 붙잡지 않도록 `weak`이고,
-    /// 못 잡아 `nil`이면 **강등하지 않는다**: 아이콘이 남는 쪽이 fail-safe다(설정 창이 열려
-    /// 있는데 사라지는 것이 반대보다 나쁘고, 술어 폴백을 두면 오늘 고친 버그가 되살아난다).
-    /// 못 잡는 경우가 실제로 있는지는 도그푸딩에서 바로 드러난다 — 설정 창을 닫아도 아이콘이
+    /// 설정 뷰가 넘겨준 설정 창 — 닫힘 판정의 기준이다. 닫힌 창을 붙잡지 않도록 `weak`이고,
+    /// 못 받아 `nil`이면 **강등하지 않는다**: 아이콘이 남는 쪽이 fail-safe다(설정 창이 열려
+    /// 있는데 사라지는 것이 반대보다 나쁘고, 술어 폴백을 두면 Sparkle 창 버그가 되살아난다).
+    /// 못 받는 경우가 실제로 있는지는 도그푸딩에서 바로 드러난다 — 설정 창을 닫아도 아이콘이
     /// 내려가지 않는다.
     private weak var settingsWindow: NSWindow?
     /// 옵저버 해제를 `deinit`(nonisolated)에서 하므로 격리 밖에서 읽혀야 한다.
@@ -74,18 +66,16 @@ final class DockIconController {
     private let notificationCenter: NotificationCenter
     private nonisolated(unsafe) var observerToken: NSObjectProtocol?
 
-    /// 정책 적용·활성화·창 열거는 주입 지점이다 — 테스트가 라이브 `NSApp`을 건드리지 않는다.
+    /// 정책 적용·활성화는 주입 지점이다 — 테스트가 라이브 `NSApp`을 건드리지 않는다.
     init(
         setPolicy: @escaping @MainActor (NSApplication.ActivationPolicy) -> Void = {
             NSApp.setActivationPolicy($0)
         },
         activate: @escaping @MainActor () -> Void = { NSApp.activate(ignoringOtherApps: true) },
-        windows: @escaping @MainActor () -> [NSWindow] = { NSApp.windows },
         notificationCenter: NotificationCenter = .default
     ) {
         self.setPolicy = setPolicy
         self.activate = activate
-        self.windows = windows
         self.notificationCenter = notificationCenter
         observerToken = notificationCenter.addObserver(
             forName: NSWindow.willCloseNotification, object: nil, queue: .main
@@ -103,17 +93,19 @@ final class DockIconController {
         if let observerToken { notificationCenter.removeObserver(observerToken) }
     }
 
-    /// 설정 창이 화면에 올라왔다 — `SettingsView.onAppear`가 부른다. 승격에 앞서 닫힘 판정의
-    /// 기준이 될 설정 창을 매번 다시 잡는다: `Settings` 씬이 재오픈에서 새 `NSWindow`를 만들어도
-    /// 따라가고, 재캡처 자체는 부수효과가 없어 멱등이 유지된다(정책 재적용·`activate` 반복은
-    /// `apply`의 동등성 가드가 막는다).
-    ///
-    /// 후보가 여럿이면 첫 매치다. 술어에 걸리는 창은 설정 창과 Sparkle 창뿐이라, Sparkle
-    /// 다이얼로그가 떠 있는 채로 설정 창을 새로 여는 드문 순서에서만 엉뚱한 창을 잡을 수 있다 —
-    /// 설정 창을 닫았다 다시 열면 자가 복구되므로 수용한다.
+    /// 설정 창이 화면에 올라왔다 — `SettingsView.onAppear`가 부른다. 승격 전용이다.
+    /// 닫힘 판정의 기준 창은 `settingsWindowDidConnect(_:)`가 별도로 받는다 — `onAppear`
+    /// 시점에는 창을 신뢰할 수 있게 특정할 방법이 없기 때문이다(타입 주석 참고).
     func settingsWindowDidAppear() {
-        settingsWindow = windows().first(where: Self.isSettingsWindow)
         apply(.regular)
+    }
+
+    /// 설정 뷰가 자기 `NSWindow`에 붙었다 — `SettingsWindowReader`(`viewDidMoveToWindow`)가
+    /// 부른다. 넘어온 창이 곧 설정 창이다(뷰가 그 창 안에 있으므로 정의상 참) — 추정도 타이밍
+    /// 의존도 없다. `Settings` 씬이 재오픈에서 새 `NSWindow`를 만들어도 새 뷰 계층이 다시
+    /// 부르므로 따라가고, 같은 창으로 재호출되면 대입만 반복돼 멱등이다.
+    func settingsWindowDidConnect(_ window: NSWindow) {
+        settingsWindow = window
     }
 
     private func apply(_ newPolicy: NSApplication.ActivationPolicy) {
