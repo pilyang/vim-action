@@ -16,12 +16,12 @@
 
 ## 남은 것
 
-- [ ] push + PR 생성 (**사용자 확인 대기** — 푸시·PR 금지 지시로 멈춤, PR 제목·본문 초안은 준비됨)
-- [ ] 다음 릴리스 태그(v0.1.1+)에서 e2e: appcast 생성 성공, DMG 레이아웃 동일, hardened runtime `flags=0x10000` 확인 (CLI 오버라이드 없이도 pbxproj가 보장하는지는 릴리스 빌드로만 완전 검증 가능)
+- [ ] [PR #47](https://github.com/pilyang/vim-action/pull/47) CI 통과 확인 → 머지
+- [ ] 다음 릴리스 태그(v0.1.1+)에서 e2e: appcast 생성 성공, DMG 레이아웃 동일, hardened runtime `flags=0x10000` 확인 (CLI 오버라이드 없이도 pbxproj가 보장하는지는 릴리스 빌드로만 완전 검증 가능) — 확인되면 이 플랜은 완료 처리(삭제) 대상
 
 ## 진행 중 컨텍스트
 
-**현재 상태 (2026-08-12)**: 구현·검증·커밋 완료, `security-hardening` 브랜치(worktree `~/.herdr/worktrees/VimAction/security-hardening`)에 논리 단위 커밋 5개. **push·PR 생성은 사용자 확인 후** — PR 통합 사유는 변경 파일 비중첩·상호 의존 없음·solo maintainer. 아래 "검증된 사실"의 라인 번호는 구현 **전** 기준.
+**현재 상태 (2026-08-12)**: 구현·검증 완료, origin/main(`6230235`) 위로 rebase(충돌 1건 — decisions 인덱스에 main의 dock-icon 결정 행과 both-append, 두 행 모두 유지로 해소) 후 push, **[PR #47](https://github.com/pilyang/vim-action/pull/47) 오픈**. PR 통합 사유는 변경 파일 비중첩·상호 의존 없음·solo maintainer. 아래 "검증된 사실"의 라인 번호는 구현 **전** 기준.
 
 ### 검증된 사실 (2026-08-12, 구현 전 기준 라인 번호)
 
