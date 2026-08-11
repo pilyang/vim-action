@@ -1,16 +1,18 @@
 # 릴리스 파이프라인 — tag(v*) push 트리거 (20260810_tag-push-release-pipeline).
 #
 # 흐름: 빌드(Developer ID 서명, 1단계에서 확정한 오버라이드 그대로) → DMG 패키징(create-dmg)
-# → 공증(notarytool, ASC API 키) + 스테이플 → generate_appcast(EdDSA 서명) → GitHub Release 업로드.
+# → 공증(notarytool, ASC API 키) + 스테이플 → generate_appcast(EdDSA 서명) → GitHub Release 업로드
+# → Homebrew cask bump (pilyang/homebrew-tap).
 #
 # 버전은 tag에서 파생한다: v1.2.3 → MARKETING_VERSION=1.2.3, CURRENT_PROJECT_VERSION=1.2.3
 # (CFBundleVersion이 Sparkle의 비교 대상 sparkle:version이 된다 — semver 증가가 곧 단조 증가).
 #
-# 필요한 GH Secrets 4종:
+# 필요한 GH Secrets 5종:
 #   MACOS_CERT_P12          — Developer ID Application 인증서+개인키 p12의 base64
 #   MACOS_CERT_PASSWORD     — 위 p12의 암호
 #   ASC_API_KEY_P8          — App Store Connect API 키(.p8) 내용 (공증용)
 #   SPARKLE_ED_PRIVATE_KEY  — Sparkle EdDSA 개인키 (generate_keys -x 출력)
+#   TAP_PUSH_TOKEN          — pilyang/homebrew-tap 한정 fine-grained PAT (Contents: write)
 #
 # 주의: appcast는 `releases/latest/download/appcast.xml` 고정 URL로 소비되므로
 # 정식 릴리스만 non-prerelease로 발행해야 한다 (20260810_appcast-hosting-github-releases).
@@ -169,6 +171,24 @@ jobs:
             --verify-tag \
             --title "VimAction $VERSION" \
             --generate-notes
+
+      # tap 레포(pilyang/homebrew-tap)의 cask version·sha256을 교체해 푸시한다.
+      # 기본 GITHUB_TOKEN은 다른 레포에 푸시할 수 없어 tap 한정 fine-grained PAT를 쓴다.
+      - name: Bump Homebrew cask
+        env:
+          TAP_PUSH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
+        run: |
+          SHA256=$(shasum -a 256 "dist/VimAction-$VERSION.dmg" | awk '{print $1}')
+          git clone --depth 1 \
+            "https://x-access-token:$TAP_PUSH_TOKEN@github.com/pilyang/homebrew-tap.git" \
+            "$RUNNER_TEMP/homebrew-tap"
+          cd "$RUNNER_TEMP/homebrew-tap"
+          sed -i '' -E "s/^  version \".*\"/  version \"$VERSION\"/" Casks/vimaction.rb
+          sed -i '' -E "s/^  sha256 \".*\"/  sha256 \"$SHA256\"/" Casks/vimaction.rb
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -am "vimaction $VERSION"
+          git push
 
       - name: Clean up keychain
         if: always()
