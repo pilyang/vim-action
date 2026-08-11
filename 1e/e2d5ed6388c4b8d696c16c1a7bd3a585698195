@@ -1,0 +1,22 @@
+.claude/skills/plans/references/20260812_security-hardening.md
+  s_c369cb7591a5de::t_f4f8aa88db5656 24
+  s_c369cb7591a5de::t_e8d964020f9f26 19-20
+.claude/skills/plans/SKILL.md
+  s_c369cb7591a5de::t_94704cb77469a2 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "1ee2d5ed6388c4b8d696c16c1a7bd3a585698195",
+  "prompts": {},
+  "sessions": {
+    "s_c369cb7591a5de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63adf766-ad44-4209-aabb-635b2f19fdef",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
