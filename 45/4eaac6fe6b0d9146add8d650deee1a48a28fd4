@@ -1,0 +1,23 @@
+VimAction/Info.plist
+  s_2dd898ad8c3c11::t_8e76f749b4221f 1-10
+VimAction.xcodeproj/project.pbxproj
+  s_2dd898ad8c3c11::t_1d6f5d09ad7eb5 469
+  s_2dd898ad8c3c11::t_cc52f19e35cacc 40-49,53-55
+  s_2dd898ad8c3c11::t_9db1513be6fc91 437
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "454eaac6fe6b0d9146add8d650deee1a48a28fd4",
+  "prompts": {},
+  "sessions": {
+    "s_2dd898ad8c3c11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b33d1b0-2959-4934-8663-a8291cc8679f",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
