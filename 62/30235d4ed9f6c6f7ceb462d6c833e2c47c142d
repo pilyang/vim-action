@@ -1,0 +1,22 @@
+docs/KEYBINDINGS.md
+  s_be48d8161770f9::t_bc7402c37dda2f 49
+  s_be48d8161770f9::t_0ccd9bfbcf365d 68-69
+  s_be48d8161770f9::t_c8814b61a974b8 8-12
+  s_be48d8161770f9::t_ac6073c0bdbd5f 115-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "6230235d4ed9f6c6f7ceb462d6c833e2c47c142d",
+  "prompts": {},
+  "sessions": {
+    "s_be48d8161770f9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e7c1a468-42a8-4b19-9d0e-9eb3a232ec75",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
