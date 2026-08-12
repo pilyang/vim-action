@@ -161,7 +161,7 @@ Bug reports and feature requests are welcome in [Issues](https://github.com/pily
 
 If VimAction isn't quite what you need, these explore the same idea:
 
-- [kindaVim](https://kindavim.app) — a polished commercial app that brings Vim moves to macOS system-wide.
+- [kindaVim](https://kindavim.app) — a polished app that brings Vim moves to macOS system-wide.
 - [SketchyVim](https://github.com/FelixKratz/SketchyVim) — an open-source project adding Vim moves and modes to macOS text fields.
 
 ## Acknowledgements
