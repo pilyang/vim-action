@@ -28,6 +28,9 @@ final class AppState {
     /// 알려주고 닫힘은 컨트롤러가 창 알림으로 스스로 잡으므로, `bootstrap`이 아니라 여기
     /// 생성 시점이 배선의 전부다.
     let dockIcon = DockIconController.forCurrentEnvironment()
+    /// 로그인 시 자동 시작 토글의 소유자. 상태를 저장하지 않고 시스템 등록 상태를 그대로
+    /// 비추므로, 배선은 생성과 창 열림 훅의 `refresh()`가 전부다 (bootstrap에 할 일 없음).
+    let launchAtLogin = LaunchAtLoginController()
     /// Sparkle 자동 업데이트. 생성만 하고 시동하지 않는다(`startingUpdater: false`) —
     /// 시동은 bootstrap(XCTest 가드 뒤)에서만. 테스트·프리뷰가 업데이트 확인 스케줄러를
     /// 돌리거나 네트워크로 appcast를 조회하면 안 된다 (init은 IO 없음 관례와 동일).
@@ -107,6 +110,9 @@ final class AppState {
     /// 다음 실행에 다시 시도한다. 설정 창을 여는 모든 경로가 부르므로 멱등이어야 한다.
     func settingsWindowDidAppear() {
         dockIcon.settingsWindowDidAppear()
+        // 로그인 항목은 사용자가 시스템 설정에서 통지 없이 끌 수 있다 — 창을 열 때마다
+        // 다시 물어야 토글이 실제 상태와 어긋나지 않는다 (미러를 두지 않는 이유 그 자체).
+        launchAtLogin.refresh()
         guard needsOnboardingPresentation else { return }
         needsOnboardingPresentation = false
         UserDefaults.standard.set(true, forKey: PreferenceKeys.didShowOnboarding)

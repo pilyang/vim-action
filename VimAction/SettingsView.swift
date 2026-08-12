@@ -97,6 +97,23 @@ private struct GeneralTab: View {
             // 허용된 뒤에는 한 줄짜리 확인 표시라 Behavior 아래로 내려간다.
             if !appState.permissionMonitor.isTrusted { permissionSection }
             Section("Behavior") {
+                // 저장된 설정이 아니라 시스템 등록 상태를 비추는 토글이라 `@Bindable`이 아니다 —
+                // 쓰기는 register/unregister 시도이고, 표시값은 그 뒤 재조회한 status가 정한다
+                // (실패하면 여기서 토글이 그대로 되돌아온다).
+                Toggle(
+                    "Launch at login",
+                    isOn: Binding(
+                        get: { appState.launchAtLogin.isEnabled },
+                        set: { appState.launchAtLogin.setEnabled($0) }))
+                if let message = appState.launchAtLogin.failureMessage {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                } else {
+                    Text("VimAction starts in the background when you log in — menu bar only, no window.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 // 값·엔진 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 가로채기 토글과 동일 모델.
                 Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
                 Text("After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked.")

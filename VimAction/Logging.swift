@@ -23,4 +23,7 @@ nonisolated extension Logger {
     /// 설정 시딩·로드·리로드와 경고/에러. `VimActionConfig`는 경고·에러를 값으로만
     /// 반환하므로, 로그로 흘리는 책임은 전부 앱(`ConfigStore`)에 있다.
     static let config = Logger(subsystem: subsystem, category: "config")
+
+    /// 로그인 시 자동 시작(`SMAppService`) 등록·해제 실패.
+    static let launchAtLogin = Logger(subsystem: subsystem, category: "launchAtLogin")
 }
