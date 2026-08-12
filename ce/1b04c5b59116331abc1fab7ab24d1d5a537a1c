@@ -1,0 +1,30 @@
+.claude/skills/plans/references/20260812_docs-readme-and-guide.md
+  s_f60c19966e13e5::t_d67195411fd16b 1-11,14-16,18-21,23,25-28
+  s_f60c19966e13e5::t_b1e92d004a5c42 24
+  s_f60c19966e13e5::t_a280507ea73684 22
+  s_f60c19966e13e5::t_e6e270dc1f074f 17
+  s_f60c19966e13e5::t_f1e71d7687b3f5 12-13
+.claude/skills/plans/SKILL.md
+  s_f60c19966e13e5::t_378c55186d0cda 52
+README.md
+  s_f60c19966e13e5::t_c9255419bf8c55 128-133,135,137
+  s_f60c19966e13e5::t_2b6ab1118fe4ed 1-4
+  s_f60c19966e13e5::t_e5641794ca3734 7-45,47,49,51-58,60,62,64,66-74,76,78,80,82,84-117,120-123,126,139,141
+  s_f60c19966e13e5::t_77482b343c53d6 127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ce1b04c5b59116331abc1fab7ab24d1d5a537a1c",
+  "prompts": {},
+  "sessions": {
+    "s_f60c19966e13e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c6170740-bf52-4e7e-a6a5-3c19650b3b84",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
