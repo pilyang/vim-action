@@ -11,6 +11,7 @@
 
 - [x] 방향 확정 (사용자와 합의): **영어 단일** README(한국어 병행본은 만들었다가 제거 — Vim 쓰는 한국 개발자에게 영어 README는 부담 아님, docs도 전부 영어), 짧은 가이드(온보딩·설정)는 README 안에 포함(길어지면 그때 docs/로 분리), GIF는 이 브랜치에서 PR 전에 처리.
 - [x] `README.md` 영어 재작성 — Install(brew cask `pilyang/tap/vimaction`, DMG)·Getting started(권한 온보딩, 메뉴바 글리프 표)·Keybindings 미리보기·Per-app configuration·Privacy & safety·How it works·Development·Related projects(kindaVim·SketchyVim, 중립 서술)·Acknowledgements(Vim/Neovim·Sparkle·Yams)·MIT. 낡은 "실행 계층 미구현" 경고·Stage 로드맵·"라이선스 미정" 제거.
+- [x] config 문서 — 신규 `docs/CONFIGURATION.md`(전체 레퍼런스: config.yaml `apps:` 맵, 프로파일 필드 4종, 키 토큰 표기, 모션 12종·액션 5종 표, 에러 처리, 시딩/소유권) + README Per-app configuration 섹션에 Slack `open_line: [shift-return]` 대표 예시와 CONFIGURATION.md 링크 추가. 분리 근거: KEYBINDINGS.md와 같은 "README 미리보기 + docs/ 전체 레퍼런스" 패턴. `strategy:`는 계획대로 미문서.
 
 ## 남은 것
 

@@ -84,7 +84,18 @@ Configuration is plain YAML in **`~/.config/vim-action/`** — seeded with comme
 - **`config.yaml`** — per-app on/off map. Terminals (Terminal, iTerm2, Ghostty) and editors with their own Vim plugins (VS Code, Cursor, Windsurf) are **off by default**: double interpretation breaks both sides.
 - **`profiles/<bundle-id>.yaml`** — optional per-app tuning: remap or disable individual motions and actions, or adjust scroll distances. The bundled Slack and Notion profiles double as annotated examples. Most apps should not need a profile.
 
+The classic case is Slack, where `Return` sends the message — so `o`/`O` would post a half-written message instead of opening a line. The bundled profile swaps in `Shift-Return` as the newline key, and `o`/`O` just work:
+
+```yaml
+# profiles/com.tinyspeck.slackmacgap.yaml
+name: Slack
+actions:
+  open_line: [shift-return]
+```
+
 The menu bar menu covers the common flows without hand-editing: toggle VimAction for the frontmost app, copy its bundle id, open or create its profile, and **Reload Config** to apply your edits without restarting.
+
+Every configurable field — motion and action names, key token notation, scroll distances, and how errors are handled — is documented in **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)**.
 
 ## Privacy & safety
 
