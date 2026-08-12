@@ -1,15 +1,8 @@
 # VimAction Keybindings
 
-System-wide Vim keybindings for macOS. This document is the reference for
-what VimAction supports today and what is planned — it describes the
-*vocabulary* (which keys mean what), not the implementation, and not the
-implementation order.
+System-wide Vim keybindings for macOS. This document is the reference for what VimAction supports today and what is planned — it describes the *vocabulary* (which keys mean what), not the implementation, and not the implementation order.
 
-> **Development status note.** VimAction is under active development.
-> Everything marked ✅ below is interpreted by the engine **and executed
-> end-to-end** inside apps. Execution delegates to each app's native editing
-> commands (and Accessibility APIs where enabled), so the exact result of an
-> action can still vary between apps.
+> **Development status note.** VimAction is under active development. Everything marked ✅ below is interpreted by the engine **and executed end-to-end** inside apps. Execution delegates to each app's native editing commands (and Accessibility APIs where enabled), so the exact result of an action can still vary between apps.
 
 > **Status legend**
 >
@@ -22,9 +15,7 @@ implementation order.
 
 ## Modes at a Glance
 
-VimAction starts in **Insert mode** — your normal typing is untouched until
-you explicitly enter Normal mode. `Ctrl-[` is a full alias for `Esc`
-everywhere.
+VimAction starts in **Insert mode** — your normal typing is untouched until you explicitly enter Normal mode. `Ctrl-[` is a full alias for `Esc` everywhere.
 
 | From | Key | To | Status | Notes |
 |------|-----|----|:------:|-------|
@@ -38,15 +29,13 @@ everywhere.
 
 ## Insert Mode
 
-Insert mode is transparent: every key passes through to the app unchanged,
-except `Esc` (and `Ctrl-[`) which enters Normal mode.
+Insert mode is transparent: every key passes through to the app unchanged, except `Esc` (and `Ctrl-[`) which enters Normal mode.
 
 ## Normal Mode
 
 ### Motions
 
-Motions move the cursor. Every motion accepts a `[count]` prefix
-(`3w` = three words forward; counts are capped at 1,000).
+Motions move the cursor. Every motion accepts a `[count]` prefix (`3w` = three words forward; counts are capped at 1,000).
 
 | Key | Motion | Status | Notes |
 |-----|--------|:------:|-------|
@@ -71,8 +60,7 @@ Motions move the cursor. Every motion accepts a `[count]` prefix
 
 ### Operators — the composable grammar
 
-Operators (`d` delete, `c` change, `y` yank) don't act alone; they combine
-with a *target*:
+Operators (`d` delete, `c` change, `y` yank) don't act alone; they combine with a *target*:
 
     [count] operator [count] (motion | text object | doubled key)
 
@@ -87,13 +75,9 @@ Reading a few examples:
 | `ci"` | Change inside the surrounding `"…"` quotes, then enter Insert |
 | `dgg` / `dG` | Delete whole lines from the cursor to the document start / end |
 
-An invalid sequence (e.g. `dq`) is discarded silently, like in Vim.
-`c` always finishes by entering Insert mode (`cc`, `c$`, `ciw`, …).
+An invalid sequence (e.g. `dq`) is discarded silently, like in Vim. `c` always finishes by entering Insert mode (`cc`, `c$`, `ciw`, …).
 
-> **Clipboard warning.** Delete and change (`x`, `D`, `C`, `d…`, `c…`, and
-> their Visual-mode forms) cut through the **system clipboard** — the removed
-> text overwrites whatever you had copied. This is by design: the clipboard
-> acts as Vim's unnamed register, so `p` pastes what you last deleted.
+> **Clipboard warning.** Delete and change (`x`, `D`, `C`, `d…`, `c…`, and their Visual-mode forms) cut through the **system clipboard** — the removed text overwrites whatever you had copied. This is by design: the clipboard acts as Vim's unnamed register, so `p` pastes what you last deleted.
 
 #### Operator × Target support matrix
 
@@ -113,13 +97,10 @@ Each cell answers: can this operator take this target?
 **Count rules** (per row):
 
 - Motions: counts multiply — `2d3w` deletes 6 words.
-- `gg` / `G` targets: any count makes the command invalid (absolute line
-  targets like Vim's `d3G` are not supported).
+- `gg` / `G` targets: any count makes the command invalid (absolute line targets like Vim's `d3G` are not supported).
 - Text objects: counts are not accepted (`d2iw` is invalid).
 
-**Note on `cw`:** as in Vim, `cw` is special-cased — it changes to the *end*
-of the word under the cursor (like `ce`), not to where `dw` would delete
-(on whitespace it changes just the remaining whitespace, also like Vim).
+**Note on `cw`:** as in Vim, `cw` is special-cased — it changes to the *end* of the word under the cursor (like `ce`), not to where `dw` would delete (on whitespace it changes just the remaining whitespace, also like Vim).
 
 #### Text object keys
 
@@ -136,10 +117,7 @@ Text objects come after an operator plus `i` (inner) or `a` (around):
 
 ## Visual Mode (char & line)
 
-Enter with `v` (character-wise) or `V` (line-wise) from Normal mode. Motions
-extend the selection instead of moving the cursor; operators act on the
-selection immediately — there is no operator-pending state, so a leading
-count before an operator is simply ignored (`3d` deletes the selection).
+Enter with `v` (character-wise) or `V` (line-wise) from Normal mode. Motions extend the selection instead of moving the cursor; operators act on the selection immediately — there is no operator-pending state, so a leading count before an operator is simply ignored (`3d` deletes the selection).
 
 | Key | Action | Status | Notes |
 |-----|--------|:------:|-------|
@@ -154,23 +132,18 @@ Text objects (`iw`, `i(`, …) are not available in Visual mode.
 
 ## Planned — v2+ backlog
 
-These are backlog candidates. They are **not** commitments with a
-timeline, but you can expect them to be considered after v1:
+These are backlog candidates. They are **not** commitments with a timeline, but you can expect them to be considered after v1:
 
-- **Search** — `/`, `?`, `n`, `N` (where the host app exposes the needed
-  accessibility queries).
+- **Search** — `/`, `?`, `n`, `N` (where the host app exposes the needed accessibility queries).
 - **Marks** — `m{a-z}`, backtick / `'` jumps.
-- **Registers** — `"a`–`"z`. Until then, the system clipboard is the only
-  register.
+- **Registers** — `"a`–`"z`. Until then, the system clipboard is the only register.
 - **Macros** — `q` / `@`.
 
 ## Not Planned
 
 Explicitly out of scope (deliberate decisions, not oversights):
 
-- **Ex commands** (`:w`, `:q`, `:%s/…/…`) — VimAction is a modal layer over
-  existing apps, not a text editor.
-- **Buffers, split windows, `.vimrc` parsing** — same reason: VimAction is
-  not a full Vim emulator.
+- **Ex commands** (`:w`, `:q`, `:%s/…/…`) — VimAction is a modal layer over existing apps, not a text editor.
+- **Buffers, split windows, `.vimrc` parsing** — same reason: VimAction is not a full Vim emulator.
 - **`f` / `F` / `t` / `T`** — not part of the curated vocabulary.
 - **`jk` escape mapping** — explored and deferred indefinitely.
