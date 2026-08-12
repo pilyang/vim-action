@@ -22,7 +22,7 @@
 ## 진행 중 컨텍스트
 
 - `docs/assets/demo.gif`(960×336, 355KB, 193프레임)는 `assets/readme/video-without-keycast.mov`(메인 체크아웃)에서 **AVFoundation+ImageIO Swift 스크립트로 생성** — 렌더 스크립트는 `assets/readme/render-demo-gif.swift`에 보관(세그먼트 컷 8.8–22.45s + 26.2–32.5s로 중복 삭제·붙여넣기 사이클 제거, 1.25배속 12fps, 크롭 y72–520, **메뉴바 글리프 확대 칩 합성**(우상단 "menu bar" — 모드 전환 i/N/Vl 표시), 원본의 스트레이 오타 "back.b"의 b를 줄 수 자동 감지로 픽셀 패치, 하단 키캡 캡션 6구간 — 복원 캡션은 `P`). ffmpeg/gifski 불필요.
-- `video-with-keycast.mov`는 KeyCastr 오버레이 포함 테이크 — How it works 보조 GIF(물리 키 → 합성 키 번역이 보이는 장면) 후보로 남아 있음, 히어로에는 미사용.
+- `docs/assets/how-it-works.gif`(960×422, 174KB, 6초 실시간)는 `video-with-keycast.mov`의 11.3–17.3s에서 생성 — 텍스트 밴드(y188–428)와 KeyCastr 오버레이 밴드(y600–920)를 상하로 붙인 구성(중간 빈 공간 제거), 스크립트는 `assets/readme/render-howitworks-gif.swift`. `^[`·`b→⌥←`·`$→⌘→`·`0→⌘←` 번역 짝이 보이는 구간.
 - **글리프 표 인라인 아이콘 7종**(`docs/assets/menubar-*.png`, 56×56)은 사용자가 찍은 메뉴바 캡처(`assets/readme/menu-icon-*.png`)에서 크롭 — 단 **`menubar-secure-input.png`(lock)만은 캡처가 아니라 앱이 쓰는 `lock.square` SF Symbol을 캡처 배경 위에 렌더**한 것(Secure Input 상태 연출이 번거로워서). 재생성 좌표·코드는 세션 스크래치라 필요 시 캡처에서 다시 크롭하면 됨.
 - `docs/assets/settings-permission.png` = `assets/readme/setting-perm-required.png`, `docs/assets/menubar-menu.png` = `assets/readme/menubar-perm-granted.png`(Ghostty 최전면 + Disable 체크 상태) 이름만 바꿔 복사.
 - `docs/assets/icon.png`(README 헤더용, 1024px)는 설치된 `/Applications/VimAction.app`의 **시스템 렌더링 아이콘을 NSWorkspace로 추출**한 것 — 아이콘이 바뀌면 같은 방법으로 재추출 (`NSWorkspace.shared.icon(forFile:)` → PNG 덤프).

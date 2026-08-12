@@ -117,6 +117,12 @@ An app that intercepts every keystroke has to earn trust. VimAction is built acc
 
 Keys enter through a single `CGEventTap` and are normalized into layout-independent key values. A pure Swift mode engine ([`Packages/VimActionCore`](Packages/VimActionCore), no macOS dependency) interprets them into abstract Vim actions — it knows nothing about how they execute. A dispatcher then performs each action in the focused app by synthesizing that app's native editing commands (e.g. `w` → `Option-Right`), reading the Accessibility API to compute exact offsets where an app exposes them and falling back to plain key synthesis where it doesn't. Every synthetic event carries a marker so the tap never re-interprets its own output.
 
+<p align="center">
+  <img src="docs/assets/how-it-works.gif" width="560" alt="KeyCastr capture showing each pressed Vim key followed by the native shortcuts VimAction synthesizes: b becomes Option-Left, $ becomes Command-Right, 0 becomes Command-Left">
+  <br>
+  <sub>Both sides of the translation, caught by a keystroke visualizer — the key you press, then what the focused app receives.</sub>
+</p>
+
 **Where this is heading.** Reading is only half of it. Performing the edits through the Accessibility API too — rather than synthesizing keys for them — is implemented and gets closer to Vim-exact results in apps that support it, but it stays off by default. Automatic per-app detection is the next step, and until it ships the manual switch stays undocumented: an app that doesn't expose its focused element would simply stop responding to motions, with nothing on screen to say why.
 
 ## Known limitations
