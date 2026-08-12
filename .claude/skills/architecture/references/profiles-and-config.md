@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-09 (메뉴바 앱별 on/off 토글 — UI 쓰기가 라인 편집으로 열림)
+- **Last updated**: 2026-08-12 (UserDefaults↔YAML 경계에 "시스템 소유" 칸 추가)
 
 ## 현재 구조
 
@@ -92,6 +92,7 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 
 - UserDefaults 잔류: `interceptionEnabled`(마스터 토글 — 킬스위치가 전용 스레드에서 직접 영속하는 안전 경로라 파일 IO에 의존시키지 않는다), `normalModeEscapeEnabled`(기존 Settings UI 토글 유지).
 - YAML: 앱별 on/off, 프로파일 전부.
+- **어느 쪽도 아닌 셋째 칸이 있다 — 시스템이 소유하는 상태.** 로그인 시 자동 시작은 `SMAppService.mainApp.status`가 SSOT이고 앱은 값을 저장하지 않는다(사용자가 시스템 설정에서 통지 없이 바꾸므로 미러는 반드시 어긋난다 — [system-overview.md](system-overview.md)). Sparkle 자동 확인도 같은 성격으로, 값의 영속은 Sparkle이 소유한다.
 
 ## 불변식·계약
 
