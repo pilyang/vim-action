@@ -49,4 +49,5 @@ description: VimAction 프로젝트의 진행 중 작업 플랜(단기 기억) S
 
 | Created | Updated | Title | Short Description | Reference |
 |---|---|---|---|---|
+| 2026-08-12 | 2026-08-12 | 문서 정비 — README + 데모 GIF | 사용자 유입용 repo 첫인상. 영어 단일 README 재작성 **완료**(한국어 병행본은 논의 후 제거). 남은 것: 데모 GIF 녹화·삽입(주석 블록 살리기) → PR. `strategy:` 필드는 PR-E까지 미문서 유지. | [20260812_docs-readme-and-guide.md](references/20260812_docs-readme-and-guide.md) |
 | 2026-08-02 | 2026-08-11 | M5 — AX 어댑터 + auto 전략 | MVP 1단계(M1~M4) 완료 후의 1차 확장. AX 읽기 혼용이 축 — M3 수용 엣지 대부분이 여기서 해소된다. **PR 단위 7개로 분해됨**(A 읽기 기반 → B·C 혼용 → D AX 어댑터·auto → E 스키마), PR마다 worktree. **PR-A·B·C1·C2 + D1-설계 세션 + PR-D1a(#39) + PR-D1b([PR #41](https://github.com/pilyang/vim-action/pull/41), main `544005c`) 머지 완료 — D1 트랙 종료**(AX 쓰기 통로·단일 `.ax` 드라이버·`FocusedTextOffsets`·편집/삽입/Visual 하이브리드·`strategy` 파싱). 남은 것은 **PR-D2**(auto 프로브 + AX 거짓말 감지 + force-text, `.illegalArgument` 승격 재심사 포함) → **PR-E**(스키마 확장·마감) | [20260802_m5-ax-adapter.md](references/20260802_m5-ax-adapter.md) |
