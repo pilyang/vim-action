@@ -1,0 +1,39 @@
+VimAction/LaunchAtLoginController.swift
+  s_3149e311d8db43::t_f46bc901c9b347 1-65,67,69-77
+  s_3149e311d8db43::t_673177f1a86f0d 66,68
+.claude/skills/architecture/references/system-overview.md
+  s_3149e311d8db43::t_00b4414b8cd50d 53-54
+  s_3149e311d8db43::t_6b1fd41908da1e 3
+.claude/skills/architecture/references/profiles-and-config.md
+  s_3149e311d8db43::t_e9b0aab48b7377 3
+  s_3149e311d8db43::t_a91fd6e629612d 95
+VimActionTests/LaunchAtLoginControllerTests.swift
+  s_3149e311d8db43::t_ac30fb75bafea7 1-139
+VimAction/Logging.swift
+  s_3149e311d8db43::t_470d97a7c6bd88 26-28
+VimAction/AppState.swift
+  s_3149e311d8db43::t_7a74bfb9451f34 31-33
+  s_3149e311d8db43::t_2ee59a8c3b71cc 113-115
+VimAction/SettingsView.swift
+  s_3149e311d8db43::t_57a113a2a39cef 100-116
+.claude/skills/decisions/SKILL.md
+  s_3149e311d8db43::t_5a63d2a04573f1 84
+.claude/skills/decisions/references/20260812_launch-at-login-smappservice-status-ssot.md
+  s_3149e311d8db43::t_608f128557cdc7 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "5aa6d7faee148c2a8fc63cd0f047c60df9f11117",
+  "prompts": {},
+  "sessions": {
+    "s_3149e311d8db43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "38c19802-6875-457c-b838-62628a59a7f3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
