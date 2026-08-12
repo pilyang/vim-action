@@ -15,13 +15,16 @@
 
 ## 남은 것
 
-- [ ] 데모 GIF 사용자 최종 확인 (브라우저/GitHub 렌더링 확인 권장).
+- [ ] GitHub 렌더링 최종 확인 (GIF·글리프 표 인라인 이미지·스크린샷 2장).
 - [ ] 최종 검토 후 PR 생성 (base: main).
+- [ ] (별도) repo Settings → Social preview에 `assets/social-preview/github-social-preview.png` 업로드 여부 확인.
 
 ## 진행 중 컨텍스트
 
 - `docs/assets/demo.gif`(960×336, 355KB, 193프레임)는 `assets/readme/video-without-keycast.mov`(메인 체크아웃)에서 **AVFoundation+ImageIO Swift 스크립트로 생성** — 렌더 스크립트는 `assets/readme/render-demo-gif.swift`에 보관(세그먼트 컷 8.8–22.45s + 26.2–32.5s로 중복 삭제·붙여넣기 사이클 제거, 1.25배속 12fps, 크롭 y72–520, **메뉴바 글리프 확대 칩 합성**(우상단 "menu bar" — 모드 전환 i/N/Vl 표시), 원본의 스트레이 오타 "back.b"의 b를 줄 수 자동 감지로 픽셀 패치, 하단 키캡 캡션 6구간 — 복원 캡션은 `P`). ffmpeg/gifski 불필요.
 - `video-with-keycast.mov`는 KeyCastr 오버레이 포함 테이크 — How it works 보조 GIF(물리 키 → 합성 키 번역이 보이는 장면) 후보로 남아 있음, 히어로에는 미사용.
+- **글리프 표 인라인 아이콘 7종**(`docs/assets/menubar-*.png`, 56×56)은 사용자가 찍은 메뉴바 캡처(`assets/readme/menu-icon-*.png`)에서 크롭 — 단 **`menubar-secure-input.png`(lock)만은 캡처가 아니라 앱이 쓰는 `lock.square` SF Symbol을 캡처 배경 위에 렌더**한 것(Secure Input 상태 연출이 번거로워서). 재생성 좌표·코드는 세션 스크래치라 필요 시 캡처에서 다시 크롭하면 됨.
+- `docs/assets/settings-permission.png` = `assets/readme/setting-perm-required.png`, `docs/assets/menubar-menu.png` = `assets/readme/menubar-perm-granted.png`(Ghostty 최전면 + Disable 체크 상태) 이름만 바꿔 복사.
 - `docs/assets/icon.png`(README 헤더용, 1024px)는 설치된 `/Applications/VimAction.app`의 **시스템 렌더링 아이콘을 NSWorkspace로 추출**한 것 — 아이콘이 바뀌면 같은 방법으로 재추출 (`NSWorkspace.shared.icon(forFile:)` → PNG 덤프).
 - `strategy:` 프로파일 필드는 **의도적으로 미문서** — PR-E 스키마 확정 전까지 사용자 문서화 금지 (architecture profiles-and-config의 미결 질문 참조). "How it works"는 KEYBINDINGS.md와 같은 수위("native editing commands, AX where enabled")로만 서술해 둠.
 - 최소 macOS 버전은 pbxproj `MACOSX_DEPLOYMENT_TARGET = 26.5` 기준으로 26.5+로 표기함 — 의도한 최소 버전이 더 낮으면 pbxproj부터 조정 필요.

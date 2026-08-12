@@ -41,18 +41,22 @@ Either way you get the same build: Developer ID-signed, notarized, and self-upda
 2. **Grant Accessibility permission.** The settings window opens on first launch; click *Grant Permission* and enable VimAction under *System Settings → Privacy & Security → Accessibility*. The app detects the grant within a second — no restart needed.
 3. **Press `Esc` in any text field** (or `Ctrl-[`) — you are in Normal mode. `i` puts you back in Insert.
 
+<p align="center">
+  <img src="docs/assets/settings-permission.png" width="380" alt="VimAction settings window, General tab, with the Accessibility permission marked Required and a Request Permission button">
+</p>
+
 VimAction starts in **Insert mode**: your typing is completely untouched until you explicitly press `Esc`. Unmapped `Cmd`/`Opt` shortcuts (Spotlight, Raycast, …) pass through *and* drop you back to Insert, so typing right after them just works.
 
 The menu bar icon shows the current mode and state:
 
 | Icon | Meaning |
-|------|---------|
-| `i` (outlined) | Insert — every key passes through unchanged |
-| `n` (filled) | Normal — keys are interpreted as Vim commands |
-| `v` (filled) / `Vl` | Visual / Visual Line |
-| Slashed square | Interception paused (menu bar toggle) |
-| Dashed square | Not running — usually the Accessibility permission is missing |
-| Lock | Secure input active while the tap is down — keys aren't reaching VimAction |
+|:----:|---------|
+| <img src="docs/assets/menubar-insert.png" width="28" alt="Outlined square with an i"> | Insert — every key passes through unchanged |
+| <img src="docs/assets/menubar-normal.png" width="28" alt="Filled square with an n"> | Normal — keys are interpreted as Vim commands |
+| <img src="docs/assets/menubar-visual.png" width="28" alt="Filled square with a v"> <img src="docs/assets/menubar-visual-line.png" width="28" alt="Filled square with Vl"> | Visual / Visual Line |
+| <img src="docs/assets/menubar-paused.png" width="28" alt="Slashed square"> | Interception paused (menu bar toggle) |
+| <img src="docs/assets/menubar-inactive.png" width="28" alt="Dashed square"> | Not running — usually the Accessibility permission is missing |
+| <img src="docs/assets/menubar-secure-input.png" width="28" alt="Square with a lock"> | Secure input active while the tap is down — keys aren't reaching VimAction |
 
 If anything ever misbehaves, **`Ctrl-Option-Cmd-Esc` is the kill switch** — it turns interception off instantly. The menu bar toggle re-enables it.
 
@@ -91,6 +95,10 @@ actions:
 ```
 
 The menu bar menu covers the common flows without hand-editing: toggle VimAction for the frontmost app, copy its bundle id, open or create its profile, and **Reload Config** to apply your edits without restarting.
+
+<p align="center">
+  <img src="docs/assets/menubar-menu.png" width="260" alt="VimAction menu bar menu with Ghostty frontmost: Disable for This App checked, Reload Config, Open config.yaml, and profile shortcuts">
+</p>
 
 Every configurable field — motion and action names, key token notation, scroll distances, and how errors are handled — is documented in **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)**.
 
