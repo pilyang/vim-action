@@ -1,5 +1,7 @@
 # App Icon은 Icon Composer `.icon`
 
+> Superseded (부분) by [20260812_deployment-target-macos-14.md](20260812_deployment-target-macos-14.md) — "배포 타깃 26.5라 구버전 폴백 불필요" 전제만 무효(하한이 14.0으로 내려가 14~15에서는 Xcode가 `.icon`에서 자동 생성하는 평면화 폴백에 의존) / `.icon` 단독 채택·appiconset 제거 결정은 유효.
+
 - **결정일**: 2026-08-02
 
 ## 결정

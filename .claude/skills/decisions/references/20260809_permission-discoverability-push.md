@@ -1,5 +1,7 @@
 # 미허용 발견성은 push 2종 — 런치 1회 자동 오픈 + 메뉴 상시 경고 행
 
+> Superseded (부분) by [20260812_deployment-target-macos-14.md](20260812_deployment-target-macos-14.md) — "배포 타깃 26.5라 가용성 가드 불필요" 근거만 교체(채택한 `openSettings`가 macOS 14+라 14.0 하한에서도 가드 불필요) / 결정 자체는 전부 유효.
+
 - **결정일**: 2026-08-09
 
 ## 결정

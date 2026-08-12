@@ -34,3 +34,31 @@ jobs:
           -scheme VimAction
           -destination 'platform=macOS'
           CODE_SIGNING_ALLOWED=NO
+
+  # 배포 하한(macOS 14.0) 회귀 게이트 — 최신 러너에서 deployment target만 낮춰 빌드한다.
+  # (구버전 macos-14 러너는 swift-tools-version 6.2를 파싱하지 못해 쓸 수 없다.)
+  # 오버라이드 빌드는 pbxproj가 드리프트해도 14.0 기준으로 신규 API 사용을 잡고,
+  # 단언 스텝은 "API는 안 쓰면서 pbxproj 값만 올라가는" 조용한 드리프트를 잡는다.
+  app-build-floor:
+    name: App build (macOS 14.0 deployment floor)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Assert pbxproj deployment target is 14.0
+        run: |
+          if ! grep -q "MACOSX_DEPLOYMENT_TARGET = 14.0;" VimAction.xcodeproj/project.pbxproj; then
+            echo "::error::no MACOSX_DEPLOYMENT_TARGET = 14.0 entries in pbxproj"
+            exit 1
+          fi
+          if grep "MACOSX_DEPLOYMENT_TARGET" VimAction.xcodeproj/project.pbxproj | grep -v "MACOSX_DEPLOYMENT_TARGET = 14.0;"; then
+            echo "::error::MACOSX_DEPLOYMENT_TARGET drifted from 14.0 (see lines above)"
+            exit 1
+          fi
+      - name: Build with deployment target floor
+        run: >
+          xcodebuild build
+          -project VimAction.xcodeproj
+          -scheme VimAction
+          -destination 'platform=macOS'
+          CODE_SIGNING_ALLOWED=NO
+          MACOSX_DEPLOYMENT_TARGET=14.0
