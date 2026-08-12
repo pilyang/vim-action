@@ -1,0 +1,21 @@
+.claude/skills/decisions/SKILL.md
+  s_f60c19966e13e5::t_196c673337edbd 86
+.claude/skills/decisions/references/20260812_readme-demo-media-native-render-pipeline.md
+  s_f60c19966e13e5::t_38a43541356210 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "8df32a1e24dcce1bba7eb6a60e876ad1ddc828e0",
+  "prompts": {},
+  "sessions": {
+    "s_f60c19966e13e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c6170740-bf52-4e7e-a6a5-3c19650b3b84",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
