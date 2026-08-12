@@ -1,0 +1,31 @@
+VimAction.xcodeproj/project.pbxproj
+  s_165b1fe4f54806::t_38202307f73098 360,417,498,518
+.github/workflows/ci.yml
+  s_165b1fe4f54806::t_bd5201c062a24e 37-64
+.claude/skills/decisions/references/20260809_permission-discoverability-push.md
+  s_165b1fe4f54806::t_be9059427a69f7 3-4
+.claude/skills/decisions/references/20260802_app-icon-icon-composer.md
+  s_165b1fe4f54806::t_f20d4b9286ad0f 3-4
+.claude/skills/decisions/references/20260812_deployment-target-macos-14.md
+  s_165b1fe4f54806::t_e9c2a6192182d0 1-38
+.claude/skills/decisions/SKILL.md
+  s_165b1fe4f54806::t_733b5ea667aa12 67
+  s_165b1fe4f54806::t_ad17a53e7fb998 71
+  s_165b1fe4f54806::t_1818812dc287f6 84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ae0d2c4936028c69fcab89c396abf9e2fb25bc9d",
+  "prompts": {},
+  "sessions": {
+    "s_165b1fe4f54806": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "086ffd29-48c8-479f-b350-76d722bf2eed",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
