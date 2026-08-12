@@ -110,7 +110,14 @@ An app that intercepts every keystroke has to earn trust. VimAction is built acc
 
 ## How it works
 
-Keys enter through a single `CGEventTap` and are normalized into layout-independent key values. A pure Swift mode engine ([`Packages/VimActionCore`](Packages/VimActionCore), no macOS dependency) interprets them into abstract Vim actions — it knows nothing about how they execute. A dispatcher then performs each action in the focused app by synthesizing that app's native editing commands (e.g. `w` → `Option-Right`), using the Accessibility API where enabled for more precise edits. Every synthetic event carries a marker so the tap never re-interprets its own output.
+Keys enter through a single `CGEventTap` and are normalized into layout-independent key values. A pure Swift mode engine ([`Packages/VimActionCore`](Packages/VimActionCore), no macOS dependency) interprets them into abstract Vim actions — it knows nothing about how they execute. A dispatcher then performs each action in the focused app by synthesizing that app's native editing commands (e.g. `w` → `Option-Right`), reading the Accessibility API to compute exact offsets where an app exposes them and falling back to plain key synthesis where it doesn't. Every synthetic event carries a marker so the tap never re-interprets its own output.
+
+**Where this is heading.** Reading is only half of it. Performing the edits through the Accessibility API too — rather than synthesizing keys for them — is implemented and gets closer to Vim-exact results in apps that support it, but it stays off by default. Automatic per-app detection is the next step, and until it ships the manual switch stays undocumented: an app that doesn't expose its focused element would simply stop responding to motions, with nothing on screen to say why.
+
+## Known limitations
+
+- **The Unicode Hex Input keyboard layout breaks word motions.** That input source reserves `Option` for hex code entry, so `Option`-based combinations don't exist in it at all — not even typed by hand. VimAction reaches word-level motions through them, so `w`, `b`, `e`, `iw`, `^`, and `vb` do nothing while it is the active input source. This is a macOS limitation rather than something VimAction can detect or work around. Workaround: switch to a standard layout (ABC, US, or any non-hex layout) while using VimAction.
+- **Some apps don't expose their text to the Accessibility API** — Slack and VS Code among them. VimAction still works there, but without exact offsets to read a few edits stay approximate rather than Vim-exact; for example `x` at the end of a line joins it with the next instead of stopping.
 
 ## Development
 
