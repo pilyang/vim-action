@@ -83,6 +83,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-12 | Hardened Runtime은 pbxproj 고정 | 앱 타깃 두 config에 `ENABLE_HARDENED_RUNTIME = YES` — 워크플로 편집에 안 사라지고 로컬 빌드도 하드닝, Debug 디버깅은 base 엔타이틀먼트 주입으로 유지 | [20260812_hardened-runtime-pinned-in-pbxproj.md](references/20260812_hardened-runtime-pinned-in-pbxproj.md) |
 | 08-12 | 로그인 시 자동 시작은 `SMAppService.mainApp` | opt-in 토글(기본 off, 묵시적 등록 없음) — 상태 SSOT는 `status` 하나(UserDefaults 미러 금지: 시스템 설정에서 직접 끌 수 있어 어긋난다), 창 열 때 재조회 | [20260812_launch-at-login-smappservice-status-ssot.md](references/20260812_launch-at-login-smappservice-status-ssot.md) |
 | 08-12 | 배포 타깃은 macOS 14.0 | 26.5는 Xcode 생성 기본값 오입 — 코드 무변경 하한 14.0 확정(13.0은 `@Observable`·`openSettings`로 불가), CI 하한 게이트(오버라이드 빌드+pbxproj 단언), cask는 릴리스 후 `:sonoma`+arm64 가드 | [20260812_deployment-target-macos-14.md](references/20260812_deployment-target-macos-14.md) |
+| 08-12 | README 데모 미디어 재생성 파이프라인 | `docs/assets/` 미디어는 `assets/readme/`(비추적) 소스+네이티브 Swift 스크립트로 재생성(ffmpeg 무의존) — lock 글리프는 SF Symbol 렌더, icon.png는 NSWorkspace 추출 | [20260812_readme-demo-media-native-render-pipeline.md](references/20260812_readme-demo-media-native-render-pipeline.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
