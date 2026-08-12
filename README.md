@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/pilyang/vim-action/actions/workflows/ci.yml/badge.svg)](https://github.com/pilyang/vim-action/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/pilyang/vim-action)](https://github.com/pilyang/vim-action/releases/latest)
-[![macOS 26.5+](https://img.shields.io/badge/macOS-26.5%2B-black)](#install)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black)](#install)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <p align="center">
@@ -33,7 +33,9 @@ brew install --cask pilyang/tap/vimaction
 
 Download the latest DMG from [Releases](https://github.com/pilyang/vim-action/releases/latest) and drag VimAction into Applications.
 
-Either way you get the same build: Developer ID-signed, notarized, and self-updating via Sparkle (update checks ask for your consent on first run). Requires macOS 26.5 or later.
+Either way you get the same build: Developer ID-signed, notarized, and self-updating via Sparkle (update checks ask for your consent on first run).
+
+**Requires macOS 14 or later.** Development and day-to-day testing happen on macOS 26; earlier versions are currently covered by build checks only, with light smoke testing in VMs planned. If anything misbehaves on a version below macOS 26, please [report it in Issues](https://github.com/pilyang/vim-action/issues) — those reports are what harden support there.
 
 ## Getting started
 

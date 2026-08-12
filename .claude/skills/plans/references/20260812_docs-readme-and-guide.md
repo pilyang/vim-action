@@ -27,7 +27,7 @@
 - `docs/assets/settings-permission.png` = `assets/readme/setting-perm-required.png`, `docs/assets/menubar-menu.png` = `assets/readme/menubar-perm-granted.png`(Ghostty 최전면 + Disable 체크 상태) 이름만 바꿔 복사.
 - `docs/assets/icon.png`(README 헤더용, 1024px)는 설치된 `/Applications/VimAction.app`의 **시스템 렌더링 아이콘을 NSWorkspace로 추출**한 것 — 아이콘이 바뀌면 같은 방법으로 재추출 (`NSWorkspace.shared.icon(forFile:)` → PNG 덤프).
 - `strategy:` 프로파일 필드는 **의도적으로 미문서** — PR-E 스키마 확정 전까지 사용자 문서화 금지 (architecture profiles-and-config의 미결 질문 참조). "How it works"는 KEYBINDINGS.md와 같은 수위("native editing commands, AX where enabled")로만 서술해 둠.
-- 최소 macOS 버전은 pbxproj `MACOSX_DEPLOYMENT_TARGET = 26.5` 기준으로 26.5+로 표기함 — 의도한 최소 버전이 더 낮으면 pbxproj부터 조정 필요.
+- 최소 macOS 버전은 **14+** (PR #50에서 `MACOSX_DEPLOYMENT_TARGET = 14.0`으로 하향, main rebase 반영됨). README에는 "실사용 테스트는 macOS 26, 하위 버전은 빌드 체크만 + VM 스모크 테스트 예정, 문제 발견 시 Issues 제보" 안내 포함.
 
 ## 관련 링크
 
