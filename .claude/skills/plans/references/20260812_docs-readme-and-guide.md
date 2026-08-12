@@ -15,11 +15,13 @@
 
 ## 남은 것
 
-- [ ] 데모 GIF 녹화·삽입 — README 상단의 주석 처리된 `docs/assets/demo.gif` 블록을 살리면 됨 (Notes/Notion에서 Normal 모션 + `ciw` 류 오퍼레이터 시연 권장).
+- [ ] 데모 GIF 사용자 최종 확인 (브라우저/GitHub 렌더링 확인 권장).
 - [ ] 최종 검토 후 PR 생성 (base: main).
 
 ## 진행 중 컨텍스트
 
+- `docs/assets/demo.gif`(960×336, 355KB, 193프레임)는 `assets/readme/video-without-keycast.mov`(메인 체크아웃)에서 **AVFoundation+ImageIO Swift 스크립트로 생성** — 렌더 스크립트는 `assets/readme/render-demo-gif.swift`에 보관(세그먼트 컷 8.8–22.45s + 26.2–32.5s로 중복 삭제·붙여넣기 사이클 제거, 1.25배속 12fps, 크롭 y72–520, **메뉴바 글리프 확대 칩 합성**(우상단 "menu bar" — 모드 전환 i/N/Vl 표시), 원본의 스트레이 오타 "back.b"의 b를 줄 수 자동 감지로 픽셀 패치, 하단 키캡 캡션 6구간 — 복원 캡션은 `P`). ffmpeg/gifski 불필요.
+- `video-with-keycast.mov`는 KeyCastr 오버레이 포함 테이크 — How it works 보조 GIF(물리 키 → 합성 키 번역이 보이는 장면) 후보로 남아 있음, 히어로에는 미사용.
 - `docs/assets/icon.png`(README 헤더용, 1024px)는 설치된 `/Applications/VimAction.app`의 **시스템 렌더링 아이콘을 NSWorkspace로 추출**한 것 — 아이콘이 바뀌면 같은 방법으로 재추출 (`NSWorkspace.shared.icon(forFile:)` → PNG 덤프).
 - `strategy:` 프로파일 필드는 **의도적으로 미문서** — PR-E 스키마 확정 전까지 사용자 문서화 금지 (architecture profiles-and-config의 미결 질문 참조). "How it works"는 KEYBINDINGS.md와 같은 수위("native editing commands, AX where enabled")로만 서술해 둠.
 - 최소 macOS 버전은 pbxproj `MACOSX_DEPLOYMENT_TARGET = 26.5` 기준으로 26.5+로 표기함 — 의도한 최소 버전이 더 낮으면 pbxproj부터 조정 필요.

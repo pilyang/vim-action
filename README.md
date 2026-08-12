@@ -11,12 +11,9 @@
 [![macOS 26.5+](https://img.shields.io/badge/macOS-26.5%2B-black)](#install)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-<!-- TODO(docs branch, before PR): record and embed the demo GIF —
-     Normal-mode motions + an operator edit (e.g. ciw) in Notes or Notion.
 <p align="center">
-  <img src="docs/assets/demo.gif" width="640" alt="VimAction demo: Vim motions and edits in a regular macOS text field">
+  <img src="docs/assets/demo.gif" width="640" alt="VimAction demo: Vim motions, line delete and paste, and a ciw edit in a regular Apple Note">
 </p>
--->
 
 ## Why
 
@@ -55,7 +52,7 @@ The menu bar icon shows the current mode and state:
 | `v` (filled) / `Vl` | Visual / Visual Line |
 | Slashed square | Interception paused (menu bar toggle) |
 | Dashed square | Not running — usually the Accessibility permission is missing |
-| Lock | Secure input (e.g. a password field) — macOS pauses key delivery |
+| Lock | Secure input active while the tap is down — keys aren't reaching VimAction |
 
 If anything ever misbehaves, **`Ctrl-Option-Cmd-Esc` is the kill switch** — it turns interception off instantly. The menu bar toggle re-enables it.
 
@@ -103,7 +100,7 @@ An app that intercepts every keystroke has to earn trust. VimAction is built acc
 
 - **Accessibility permission only.** Input Monitoring is never requested.
 - **Keystrokes never leave your Mac.** No telemetry, no analytics; the only network traffic is Sparkle checking GitHub Releases for updates.
-- **Secure-input aware.** When macOS engages Secure Input (password fields), keys stop reaching VimAction and the menu bar shows a lock.
+- **Secure-input aware.** When macOS engages Secure Input (password fields), keys stop reaching VimAction, so nothing is intercepted.
 - **Hard kill switch.** `Ctrl-Option-Cmd-Esc` runs on its own event tap and dedicated thread, so it works even if the app stalls — and it also aborts any synthetic key burst mid-flight.
 - **Fails off, not weird.** Repeated execution failures automatically disable interception instead of letting a broken state keep grabbing keys.
 - **Open source and auditable.** MIT-licensed; every release is built, signed, and notarized by a public GitHub Actions pipeline.
@@ -118,6 +115,7 @@ Keys enter through a single `CGEventTap` and are normalized into layout-independ
 
 - **The Unicode Hex Input keyboard layout breaks word motions.** That input source reserves `Option` for hex code entry, so `Option`-based combinations don't exist in it at all — not even typed by hand. VimAction reaches word-level motions through them, so `w`, `b`, `e`, `iw`, `^`, and `vb` do nothing while it is the active input source. This is a macOS limitation rather than something VimAction can detect or work around. Workaround: switch to a standard layout (ABC, US, or any non-hex layout) while using VimAction.
 - **Some apps don't expose their text to the Accessibility API** — Slack and VS Code among them. VimAction still works there, but without exact offsets to read a few edits stay approximate rather than Vim-exact; for example `x` at the end of a line joins it with the next instead of stopping.
+- **Keystroke visualizers show VimAction's output too.** Tools like KeyCastr watch the same event stream that apps receive, so alongside the key you press they also display the shortcuts VimAction synthesizes from it — `w` shows up as `w` followed by `⌥→`. The synthesized events are real keyboard events by design; that is exactly what makes them work everywhere.
 
 ## Development
 
