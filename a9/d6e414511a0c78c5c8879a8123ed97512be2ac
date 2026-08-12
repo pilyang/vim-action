@@ -1,0 +1,22 @@
+.claude/skills/plans/references/20260812_docs-readme-and-guide.md
+  s_f60c19966e13e5::t_4857741ba17a9b 30
+README.md
+  s_f60c19966e13e5::t_a408c516c19b75 36-38
+  s_f60c19966e13e5::t_9cdf44cf85fc93 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a9d6e414511a0c78c5c8879a8123ed97512be2ac",
+  "prompts": {},
+  "sessions": {
+    "s_f60c19966e13e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c6170740-bf52-4e7e-a6a5-3c19650b3b84",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
