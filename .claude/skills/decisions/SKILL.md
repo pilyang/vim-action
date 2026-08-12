@@ -64,11 +64,11 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-02 | 메뉴바 최전면 앱 편의 기능 2종 | bundle id 복사 + 프로파일 scaffold 생성·열기 — non-self 앱 캐시 전제, 기존 파일 무수정 | [20260802_menubar-frontmost-app-conveniences.md](references/20260802_menubar-frontmost-app-conveniences.md) |
 | 08-02 | 비자신 캐시는 게이트 소유 + `@Observable` | 캐시·순수 파생을 `FrontmostAppGate`에, 판정은 계속 최전면 — 자기 활성화는 Preferences 경로에서 실측 | [20260802_frontmost-gate-non-self-cache-observable.md](references/20260802_frontmost-gate-non-self-cache-observable.md) |
 | 08-02 | ConfigError 가시화·적용 의미론 | 메뉴 상태 라인 상시 + 리로드 실패만 NSAlert, 최초 로드는 부분 적용·이후 실패는 직전 유지 | [20260802_config-error-visibility-and-apply-semantics.md](references/20260802_config-error-visibility-and-apply-semantics.md) |
-| 08-02 | App Icon은 Icon Composer `.icon` | legacy는 macOS 26이 회색 컨테이너에 강제 합성(실측) — appiconset 제거, 소스 벡터는 stroke가 아닌 외곽선 fill이어야 함 | [20260802_app-icon-icon-composer.md](references/20260802_app-icon-icon-composer.md) |
+| 08-02 | App Icon은 Icon Composer `.icon` | legacy는 macOS 26이 회색 컨테이너에 강제 합성(실측) — appiconset 제거, 소스 벡터는 stroke가 아닌 외곽선 fill이어야 함 (26.5 전제는 20260812 배포 타깃 결정으로 부분 supersede) | [20260802_app-icon-icon-composer.md](references/20260802_app-icon-icon-composer.md) |
 | 08-02 | 설정 창 열린 동안만 Dock 아이콘 | `.regular` 승격(앱 메뉴 동반 수용) — 열림=`onAppear`(창이 key가 안 됨, 실측)·닫힘=`willClose` (닫힘 판정 술어는 20260812 창 동일성으로 부분 supersede) | [20260802_dock-icon-while-settings-open.md](references/20260802_dock-icon-while-settings-open.md) |
 | 08-09 | UI 쓰기는 라인 편집만 | 재직렬화 금지는 유지, 값 토큰 교체·한 줄 삽입은 허용 — 안전 계약 3종(에러 상태 거부/애매하면 nil+결과 자가검증/파일 열기 폴백) | [20260809_config-yaml-line-edit-writes.md](references/20260809_config-yaml-line-edit-writes.md) |
 | 08-09 | 설정 창은 3탭 | General(권한·Behavior·접힌 Diagnostics)/Apps(기본 선택)/About, 460×560 고정 — 권한 섹션은 신뢰 상태에 따라 자리 이동 | [20260809_settings-window-three-tabs.md](references/20260809_settings-window-three-tabs.md) |
-| 08-09 | 미허용 발견성은 push 2종 | 런치 1회 자동 오픈(`openSettings`를 `MenuBarExtra` label에서 — `sendAction`은 macOS 14부터 사망) + 메뉴 상시 경고 행 | [20260809_permission-discoverability-push.md](references/20260809_permission-discoverability-push.md) |
+| 08-09 | 미허용 발견성은 push 2종 | 런치 1회 자동 오픈(`openSettings`를 `MenuBarExtra` label에서 — `sendAction`은 macOS 14부터 사망) + 메뉴 상시 경고 행 (26.5 전제는 20260812 배포 타깃 결정으로 부분 supersede — 결론 유지) | [20260809_permission-discoverability-push.md](references/20260809_permission-discoverability-push.md) |
 | 08-10 | 자동 업데이트는 Sparkle 2.x | appcast + EdDSA·코드서명 이중 검증, 샌드박스 해제라 XPC 불필요 — 자체 구현 기각 | [20260810_sparkle-auto-update.md](references/20260810_sparkle-auto-update.md) |
 | 08-10 | 배포 패키징은 DMG | 첫 설치 UX·설치 위치 안정성 — Sparkle·cask 공용, zip 기각 | [20260810_dmg-packaging.md](references/20260810_dmg-packaging.md) |
 | 08-10 | Homebrew는 personal tap | 본진은 notability 미달 — `pilyang/homebrew-*` tap으로 시작, 도달 시 본진 이관 | [20260810_homebrew-personal-tap.md](references/20260810_homebrew-personal-tap.md) |
@@ -81,6 +81,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-12 | Dock 아이콘 기준 창은 뷰가 전달 | 열거 캡처가 도그푸딩에서 빈손(닫아도 아이콘 잔류) — `SettingsWindowReader`(`viewDidMoveToWindow`)가 자기 창을 직접 전달, `windows` seam·찾기 술어 제거 | [20260812_dock-icon-settings-window-handoff.md](references/20260812_dock-icon-settings-window-handoff.md) |
 | 08-12 | 서명 잡 외부 툴은 다이제스트/SHA 핀 | Sparkle tarball SHA-256 검증·create-dmg 커밋 SHA·actions 풀 SHA+Dependabot — SPM 핀과 동일 원칙, 키체인은 DMG 서명 직후 삭제 | [20260812_ci-signing-job-tools-digest-pinned.md](references/20260812_ci-signing-job-tools-digest-pinned.md) |
 | 08-12 | Hardened Runtime은 pbxproj 고정 | 앱 타깃 두 config에 `ENABLE_HARDENED_RUNTIME = YES` — 워크플로 편집에 안 사라지고 로컬 빌드도 하드닝, Debug 디버깅은 base 엔타이틀먼트 주입으로 유지 | [20260812_hardened-runtime-pinned-in-pbxproj.md](references/20260812_hardened-runtime-pinned-in-pbxproj.md) |
+| 08-12 | 배포 타깃은 macOS 14.0 | 26.5는 Xcode 생성 기본값 오입 — 코드 무변경 하한 14.0 확정(13.0은 `@Observable`·`openSettings`로 불가), CI 하한 게이트(오버라이드 빌드+pbxproj 단언), cask는 릴리스 후 `:sonoma`+arm64 가드 | [20260812_deployment-target-macos-14.md](references/20260812_deployment-target-macos-14.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
