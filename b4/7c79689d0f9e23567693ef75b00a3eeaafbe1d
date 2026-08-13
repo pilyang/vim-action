@@ -1,0 +1,21 @@
+.claude/skills/decisions/SKILL.md
+  s_84622caadc5485::t_1bf8504e8b0e53 87
+.claude/skills/decisions/references/20260813_main-branch-protection-required-checks.md
+  s_84622caadc5485::t_c5b362f0a9d6bd 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b47c79689d0f9e23567693ef75b00a3eeaafbe1d",
+  "prompts": {},
+  "sessions": {
+    "s_84622caadc5485": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24879988-6ab2-4cbe-946c-33da7d653663",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
