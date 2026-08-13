@@ -1,0 +1,91 @@
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_dbe6127fbe3485::t_10e1670ea3809c 50
+  s_dbe6127fbe3485::t_f68fc41bdbe7ef 3
+VimAction/FrontmostAppGate.swift
+  s_dbe6127fbe3485::t_17e88e6ec2adb8 38,41-48,50
+  s_dbe6127fbe3485::t_0b3d19c0bb0e5b 57-60,62-69
+  s_dbe6127fbe3485::t_ee795ae734efcf 120-121,138,146-150
+  s_dbe6127fbe3485::t_9ab0dc5ddf3138 83-89
+  s_dbe6127fbe3485::t_68465fac1fa738 160-171
+VimAction/AXTrustVerdict.swift
+  s_dbe6127fbe3485::t_678fba9723480c 15-17
+  s_dbe6127fbe3485::t_262ff9928d99b9 38,48-51
+.claude/skills/plans/SKILL.md
+  s_dbe6127fbe3485::t_404ba630d93546 52
+VimAction/KeyboardAdapter.swift
+  s_dbe6127fbe3485::t_f0b07401278e59 360-380
+  s_dbe6127fbe3485::t_ac79233e4ba40c 132-134,149
+  s_dbe6127fbe3485::t_a4e0b666a8ebdf 96-106
+VimActionTests/ExecutionWiringTests.swift
+  s_dbe6127fbe3485::t_8fe9e91ef7b9a7 253-295
+VimAction/AXTrustProber.swift
+  s_dbe6127fbe3485::t_af140d77a5b4d8 96-101
+  s_dbe6127fbe3485::t_5a88abc3c55b9c 305-308
+  s_dbe6127fbe3485::t_652802cc19619b 327-359
+  s_dbe6127fbe3485::t_1d6dfb50eef3a5 506
+  s_dbe6127fbe3485::t_ff131e1c595e83 127-129
+  s_dbe6127fbe3485::t_138198e87f6f03 48-58
+  s_dbe6127fbe3485::t_536b4423723ce4 361-362,365
+  s_dbe6127fbe3485::t_421ef6f29a9987 163-164
+  s_dbe6127fbe3485::t_22b879623127c1 102-106
+  s_dbe6127fbe3485::t_80f6991c6107f2 28-36,38
+  s_dbe6127fbe3485::t_e864a6fff188e2 293-294
+  s_dbe6127fbe3485::t_665e5a6791b3b4 9
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_dbe6127fbe3485::t_5f294ed76d0c40 44
+  s_dbe6127fbe3485::t_21327eb107efab 3
+  s_dbe6127fbe3485::t_2fc0784be8e0d8 42
+  s_dbe6127fbe3485::t_183e1658a5098e 217
+.claude/skills/decisions/SKILL.md
+  s_dbe6127fbe3485::t_2be1221809c0db 65
+  s_dbe6127fbe3485::t_1b109614e8e194 262
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_dbe6127fbe3485::t_5bdfe805a011cb 6
+  s_dbe6127fbe3485::t_4e5f109726f396 83
+  s_dbe6127fbe3485::t_1e0e80672d8b6b 39-40
+  s_dbe6127fbe3485::t_995ade84aab93f 80
+  s_dbe6127fbe3485::t_32c984570215aa 58
+.claude/skills/decisions/references/20260802_frontmost-gate-non-self-cache-observable.md
+  s_dbe6127fbe3485::t_896bc5fd8e125e 3-4
+VimAction/AppState.swift
+  s_dbe6127fbe3485::t_a1468d8ecd78e0 11
+  s_dbe6127fbe3485::t_231aa1431f8f7f 157-169
+  s_dbe6127fbe3485::t_8d2e7691a877c2 266-288
+.claude/skills/decisions/references/20260814_menu-verdict-pid-from-gate-non-self-pair.md
+  s_dbe6127fbe3485::t_fd335a9c891c94 1-30
+VimActionTests/AXTrustVerdictTests.swift
+  s_dbe6127fbe3485::t_8d55d1f9afda03 49-80
+VimAction/VimActionApp.swift
+  s_dbe6127fbe3485::t_56854147469da3 69-73
+VimAction/EventTapController.swift
+  s_dbe6127fbe3485::t_0b2e63b4f61156 223-226,229-230,234-236
+  s_dbe6127fbe3485::t_4f4cea2d0c0ab7 181-190
+VimActionTests/AXTrustProberTests.swift
+  s_dbe6127fbe3485::t_7c26955ba33fcd 330-331,340-444
+  s_dbe6127fbe3485::t_8e8653c7fb088c 445
+VimActionTests/KeyboardAdapterAXWriteTests.swift
+  s_dbe6127fbe3485::t_dac11c14fe7d6d 340-416
+  s_dbe6127fbe3485::t_a002661712c1f4 59,80
+VimActionTests/FrontmostAppGateTests.swift
+  s_dbe6127fbe3485::t_f3d353df5c45bb 17-19,21-23,26
+  s_dbe6127fbe3485::t_2ace421d69330d 117-118,122,124,127,129-143
+  s_dbe6127fbe3485::t_3fca95cb9b9a81 94,96-105,107-109,111-113
+  s_dbe6127fbe3485::t_00da050f3f0baa 176-177,186-187,189
+  s_dbe6127fbe3485::t_3ea9bb6d36b6a9 162-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "140bbf0021a17f277d24adc228b42958a676b177",
+  "prompts": {},
+  "sessions": {
+    "s_dbe6127fbe3485": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "be77dcde-a9b0-45e0-9c30-bfc60f962e16",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
