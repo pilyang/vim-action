@@ -1,0 +1,30 @@
+.github/ISSUE_TEMPLATE/2-app-bug.yml
+  s_12021b03232e5c::t_283cb2f762de9d 1-35
+CONTRIBUTING.md
+  s_12021b03232e5c::t_cd2cc1a8ea90ea 1-48
+.github/ISSUE_TEMPLATE/3-vim-feature.yml
+  s_12021b03232e5c::t_f4df4067ec7b39 1-13,15-38
+  s_12021b03232e5c::t_9fc60bf266e391 14
+.github/ISSUE_TEMPLATE/1-vim-bug.yml
+  s_12021b03232e5c::t_74f16bdce37c7a 1-51
+.github/ISSUE_TEMPLATE/4-app-feature.yml
+  s_12021b03232e5c::t_76142e9ad2a647 1-18
+README.md
+  s_12021b03232e5c::t_0e3c72680b8d6a 158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "cf500c0055adedde654bd650af884b83da3850fe",
+  "prompts": {},
+  "sessions": {
+    "s_12021b03232e5c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0ed4a4b6-4234-4345-bbd6-32f08e91878f",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
