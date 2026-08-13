@@ -1,0 +1,48 @@
+VimAction/AXRead.swift
+  s_86b88f3ab3276a::t_aad0828d83a795 44-63
+  s_86b88f3ab3276a::t_32245a0d6f75f9 30
+VimAction/AXTrustVerdict.swift
+  s_86b88f3ab3276a::t_a29a57b16b840d 27-100
+VimAction/AXTrustProber.swift
+  s_86b88f3ab3276a::t_3e794d2cb1d86d 398-399
+  s_86b88f3ab3276a::t_f19b535ecffa24 1-174,179-397,400-411
+  s_86b88f3ab3276a::t_64b5788ee7b65f 175-178
+VimAction/EventTapController.swift
+  s_86b88f3ab3276a::t_e07338402095b5 151-156
+  s_86b88f3ab3276a::t_bd03843fdc70ba 310,317
+  s_86b88f3ab3276a::t_a627b7d5b65ebd 817-823,828,830-834
+VimActionTests/ExecutionWiringTests.swift
+  s_86b88f3ab3276a::t_61b057b6a3db32 196-206,208-210,212,223,226-228,239-246,253-315
+  s_86b88f3ab3276a::t_cd383969b4691d 316
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_86b88f3ab3276a::t_11fada1301ddec 37-38
+  s_86b88f3ab3276a::t_f0ea1af8cb4bdd 6
+  s_86b88f3ab3276a::t_4aa5aad3bcf58c 56
+  s_86b88f3ab3276a::t_efb52408fd7d2f 78,80
+VimAction/AppState.swift
+  s_86b88f3ab3276a::t_2bff2ae24e24f4 142-145
+  s_86b88f3ab3276a::t_0614f3082fc1b4 27-29
+  s_86b88f3ab3276a::t_02d09a977e4549 54,57,60
+VimActionTests/AXTrustVerdictTests.swift
+  s_86b88f3ab3276a::t_c75a8041e80351 48-147
+.claude/skills/plans/SKILL.md
+  s_86b88f3ab3276a::t_848af79326a108 52
+VimActionTests/AXTrustProberTests.swift
+  s_86b88f3ab3276a::t_61d72efb75137f 1-419
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7ba928304363c295c9b3868c0a1cafc9b28ea359",
+  "prompts": {},
+  "sessions": {
+    "s_86b88f3ab3276a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5696b5ab-bb20-4920-8efc-ae209e7c0749",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
