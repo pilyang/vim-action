@@ -1,0 +1,68 @@
+.claude/skills/decisions/SKILL.md
+  s_4a8f32965869fb::t_e5ae9f26368afa 223
+  s_4a8f32965869fb::t_077f42565bc0fa 248-262
+.claude/skills/decisions/references/20260813_force-text-keyboard-family-substitution.md
+  s_4a8f32965869fb::t_d9b65ef61088a7 1-27
+.claude/skills/decisions/references/20260813_auto-parsing-in-d2.md
+  s_4a8f32965869fb::t_09adc0e0339127 1-27
+.claude/skills/decisions/references/20260813_ax-trust-deny-list-code-constant.md
+  s_4a8f32965869fb::t_148bd2145b1816 1-24
+.claude/skills/decisions/references/20260813_auto-probe-async-cached-verdict-pid-lifetime.md
+  s_4a8f32965869fb::t_243599271b395a 1-29
+.claude/skills/decisions/references/20260808_strategy-field-minimal-parsing-d1.md
+  s_4a8f32965869fb::t_c3f47104418285 3-4
+.claude/skills/decisions/references/20260813_auto-trusted-runtime-demotion-and-observability.md
+  s_4a8f32965869fb::t_05db66ea10a811 1-28
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_4a8f32965869fb::t_164abf803c8c02 112
+  s_4a8f32965869fb::t_d2eca2a0c64124 99
+  s_4a8f32965869fb::t_43c4caf53b90c7 216
+  s_4a8f32965869fb::t_62af9c78364903 21-23
+  s_4a8f32965869fb::t_e8ce96a2bcede8 3
+  s_4a8f32965869fb::t_febe3c079ca46e 204-205
+  s_4a8f32965869fb::t_de5b8a041385b7 32-49
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_4a8f32965869fb::t_2e1e179f03d3d7 48
+  s_4a8f32965869fb::t_39daeac14b1bb0 50
+.claude/skills/decisions/references/20260813_illegalargument-cannotcomplete-observation-kept.md
+  s_4a8f32965869fb::t_92c43d0135f0c0 1-22
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_4a8f32965869fb::t_84fe131d6422ea 33
+  s_4a8f32965869fb::t_7a47c54d152d73 74-80
+  s_4a8f32965869fb::t_15b5a3aaa79c90 81-85
+  s_4a8f32965869fb::t_1ea509c8b5c8cb 6
+  s_4a8f32965869fb::t_a57c832ba7c650 110
+  s_4a8f32965869fb::t_89f6c93ae5fd72 52
+.claude/skills/decisions/references/20260813_ax-lie-detection-read-attestation-settable.md
+  s_4a8f32965869fb::t_ddb70ae636f888 1-32
+.claude/skills/architecture/references/profiles-and-config.md
+  s_4a8f32965869fb::t_d54434ce1b2ebf 3
+  s_4a8f32965869fb::t_48cc5f0d1e8f60 120
+  s_4a8f32965869fb::t_461b5399ea8d8b 41
+  s_4a8f32965869fb::t_22025ecf0f3c88 65
+  s_4a8f32965869fb::t_0397dad734f7c5 36,40,42-46
+.claude/skills/decisions/references/20260813_electron-tree-wake-on-probe-failure.md
+  s_4a8f32965869fb::t_fb7c7fd0db3169 1-24
+.claude/skills/plans/SKILL.md
+  s_4a8f32965869fb::t_e98501b6e9b303 52
+.claude/skills/decisions/references/20260813_visual-selection-edit-pre-delegation-guard.md
+  s_4a8f32965869fb::t_df23c6600efa94 1-24
+.claude/skills/decisions/references/20260813_bundled-default-strategy-auto-flip-gated.md
+  s_4a8f32965869fb::t_6d5d63e948f83b 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "54db5275e7ff24d768381e2c24e4aab120c96268",
+  "prompts": {},
+  "sessions": {
+    "s_4a8f32965869fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "17e96231-a80b-4e09-b856-442605d9d8be",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
