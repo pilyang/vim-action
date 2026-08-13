@@ -53,6 +53,8 @@ final class AppState {
         let eventTap = EventTapController(
             frontmostAppGate: gate,
             profileProvider: { [weak store] bundleID in
+                // 스토어가 사라진 뒤(= 앱 해체) 오는 조회다 — "프로파일 부재"가 아니라 "설정
+                // 계층 없음"이라 번들 기본 전략이 아니라 `.empty`가 맞다.
                 store?.resolvedProfile(for: bundleID) ?? .empty
             })
         self.eventTap = eventTap

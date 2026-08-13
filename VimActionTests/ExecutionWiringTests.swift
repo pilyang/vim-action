@@ -193,6 +193,39 @@ struct ExecutionWiringTests {
         }
     }
 
+    /// 전략은 프로파일과 달리 **접혀서** 실린다 — 실행 계층은 `.auto`를 모르고, 접기 시점이
+    /// 콜백 1회라 한 버스트 안에서 라우팅이 갈리지 않는다. 판정 소스(pid 키 캐시)는 아직
+    /// 없으므로 지금은 모든 앱이 `.pending`이고, 그래서 auto 앱도 keyboard로 실행된다.
+    @Test(
+        "디스패치 페이로드에 접힌 실효 전략이 실린다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func replaceCarriesEffectiveStrategy() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var contexts: [DispatchContext] = []
+            let auto = ResolvedProfile(AppProfile(strategy: .auto))
+            let ax = ResolvedProfile(AppProfile(strategy: .accessibility))
+            let gate = Self.gate(frontmost: "com.tinyspeck.slackmacgap")
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: gate,
+                dispatchActions: { _, context in contexts.append(context) },
+                profileProvider: { bundleID in
+                    bundleID == "com.apple.TextEdit" ? ax : auto
+                })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .keyboard, "판정 없는 auto는 keyboard다")
+            #expect(contexts.last?.profile.strategy == .auto, "프로파일에는 원본이 남는다")
+
+            gate.update(bundleID: "com.apple.TextEdit")
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .accessibility, "명시 전략은 그대로다")
+        }
+    }
+
     /// bundle id도 같은 자리에서 **프로파일 조회와 같은 값**으로 실린다 — AX 쓰기 요약 로그가
     /// 앱을 특정하는 유일한 수단이라, 배선이 끊기면 `.illegalArgument` 관측 로그가 "앱 미상"만
     /// 쌓아 D1 종료 시 보고 승격 재심사가 판정 데이터를 잃는다(조용한 고장).

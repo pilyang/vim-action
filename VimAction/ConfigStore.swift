@@ -76,9 +76,12 @@ final class ConfigStore {
     }
 
     /// 키 입력 시점 프로파일 조회 — 딕셔너리 읽기뿐이다 (콜백 경량 불변식).
+    ///
+    /// 부재는 `.empty`가 아니라 `.noProfile`이다 — 프로파일이 없는 앱은 **번들 기본 전략**으로
+    /// 돌아야 하고, `.empty`는 그 축을 말하지 않는 센티널이다 (`ResolvedProfile`).
     func resolvedProfile(for bundleID: String?) -> ResolvedProfile {
-        guard let bundleID else { return .empty }
-        return resolvedProfiles[bundleID] ?? .empty
+        guard let bundleID else { return .noProfile }
+        return resolvedProfiles[bundleID] ?? .noProfile
     }
 
     /// 그 앱의 프로파일 파일 경로. `ConfigSeeder`가 내부에서 만드는 경로와 같은 형식이어야

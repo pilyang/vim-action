@@ -161,6 +161,8 @@ nonisolated struct KeyboardAdapter: Sendable {
     ///
     /// `profile`도 같은 이유의 스냅샷이다 — 최전면 앱의 프로파일을 컨트롤러가 콜백에서
     /// 캐시로 읽어 넘긴다. 기본값 `.empty`는 프로파일이 관심사가 아닌 호출자를 위한 것이다.
+    /// `effectiveStrategy`는 그 프로파일의 전략을 프로브 판정과 함께 **접은 값**이며, 접기가
+    /// 콜백 1회인 것도 같은 이유다(버스트 도중 라우팅이 갈리지 않는다).
     ///
     /// `processID`만은 **스냅샷이되 값이 아니라 대상**이다 — 이 pid로 아래에서 액션마다
     /// 캐럿 주변을 다시 읽는다(lazy). 계열·프로파일과 시점 요구가 정반대이기 때문이다:
@@ -172,11 +174,17 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 라벨이라 그 차이가 계약을 깨지 않는다 (`DispatchContext.bundleID`).
     func execute(
         _ actions: [VimAction], family: ElementFamily = .textArea,
-        profile: ResolvedProfile = .empty, processID: pid_t? = nil, bundleID: String? = nil,
+        profile: ResolvedProfile = .empty, effectiveStrategy: ProfileStrategy? = nil,
+        processID: pid_t? = nil, bundleID: String? = nil,
         isCurrent: () -> Bool = { true }
     ) {
         // dispatch 직후 곧바로 다음 키에 밀려난 경우 — 한 이벤트도 내보내지 않는다.
         guard isCurrent() else { return }
+
+        // AX 실행 계획이 보는 유일한 전략. `nil`은 전략이 관심사가 아닌 호출자(대부분의
+        // 테스트)를 위한 기본값이고, `.auto`가 아닌 프로파일에서는 접기와 결과가 같다
+        // (`effectiveStrategy(_:verdict:)`가 명시 전략을 그대로 돌려주기 때문).
+        let strategy = effectiveStrategy ?? profile.strategy
 
         // AX 쓰기 효과(보고 1회 접기·요약 버킷)의 수명은 **execute 1회**다. `defer`인 이유는
         // 아래 중단 경로의 이른 `return`들이 요약을 건너뛰면 안 되기 때문이고, 쓰기가 한 건도
@@ -299,8 +307,8 @@ nonisolated struct KeyboardAdapter: Sendable {
             let groups: [[KeyStroke]]
             let paced: Bool
             switch mapping(
-                for: action, family: family, profile: profile, text: text, axText: axText,
-                viewport: viewport, layout: layout) {
+                for: action, family: family, profile: profile, strategy: strategy, text: text,
+                axText: axText, viewport: viewport, layout: layout) {
             case .ax(let range, let visual):
                 // ① 순서 봉인 (위 `sealOrder` 주석).
                 guard sealOrder(before: action) else { return }
@@ -807,8 +815,8 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 프리미티브라 `text`와 리더도 수명(execute당 1회)도 다르다.
     private func mapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
-        text: FocusedTextSnapshot, axText: AXWindowSnapshot, viewport: ViewportSnapshot,
-        layout: LayoutSnapshot
+        strategy: ProfileStrategy, text: FocusedTextSnapshot, axText: AXWindowSnapshot,
+        viewport: ViewportSnapshot, layout: LayoutSnapshot
     ) -> Mapping {
         // 새 Visual 세션의 시작은 옛 세션 wise를 **게이트보다 앞에서** 잊는다 — note는
         // 게시 확정에 게이팅되므로, 걸러진 begin(`.nonText`·`.unresolved`) 뒤의
@@ -861,7 +869,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         case .move(let motion):
             // **AX 실행 계획의 갈림길은 여기 한 곳이다.** 게이트 3종 뒤라 위임 경로와 전제가
             // 같고, 확대 창 읽기는 그 뒤에 온다 — 게이트에 걸린 액션은 AX 왕복도 0건이다.
-            if Self.usesAXWrite(action, family: family, profile: profile) {
+            if Self.usesAXWrite(action, family: family, strategy: strategy, profile: profile) {
                 // 읽기 실패(포커스 요소 미노출·타임아웃)는 **`unproven`과 다른 축**이다 —
                 // 창이 답을 못 한 것이 아니라 물어볼 창이 없는 것이라, 위임이 아니라 스킵이며
                 // execute 잔여까지 함께 접는다 (`Mapping.axUnavailable`).
@@ -902,7 +910,7 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 위임 낙하 시 정확화 입력까지 겸한다(한 액션은 창을 한 번만 읽는다).
             var axFocused: FocusedText?
             var hybrid: Mapping?
-            if Self.usesAXWrite(action, family: family, profile: profile) {
+            if Self.usesAXWrite(action, family: family, strategy: strategy, profile: profile) {
                 // 읽기 실패는 `unproven`과 **다른 축**이다 — 창이 답을 못 한 것이 아니라
                 // 물어볼 창이 없는 것이라, 위임이 아니라 스킵이며 execute 잔여도 접는다.
                 guard let focused = axText.value() else { return .axUnavailable }
@@ -975,7 +983,8 @@ nonisolated struct KeyboardAdapter: Sendable {
             // keyboard 재앵커 기계로 낙하하지 않는다(무상태·재정의 시퀀스 금지). `nil`은
             // "이 세션은 keyboard다"이며 그때 아래가 현행 그대로 돈다.
             if let ax = axVisualMapping(
-                for: action, family: family, profile: profile, text: text, axText: axText) {
+                for: action, family: family, profile: profile, strategy: strategy, text: text,
+                axText: axText) {
                 return ax
             }
             let context = anchorContext(for: action, text: text)
@@ -1004,7 +1013,7 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 함께 풀린다 — 소프트 랩 문단에서 `O`가 빈 줄을 못 만들던 수용 엣지가 그것이다.
             // 위임분(`Return`·`O`의 복귀)은 매퍼가 내므로 `.textField` 게이트와 `new_line`
             // 재정의가 keyboard 경로와 같은 함수를 지난다.
-            if Self.usesAXWrite(action, family: family, profile: profile) {
+            if Self.usesAXWrite(action, family: family, strategy: strategy, profile: profile) {
                 guard let focused = axText.value() else { return .axUnavailable }
                 if case .at(let offset) = FocusedTextOffsets.openLineInsertion(
                     above: above, in: focused),
@@ -1062,7 +1071,7 @@ nonisolated struct KeyboardAdapter: Sendable {
             // 장치로 덮던 자리들이 사라진다: 줄 끝 접두 생략(`pasteConsultsFocusedText`)과
             // linewise after의 꼬리 `Cmd-←` 멱등 보정자는 **폴백 경로 전담**으로 남는다.
             var axFocused: FocusedText?
-            if Self.usesAXWrite(action, family: family, profile: profile) {
+            if Self.usesAXWrite(action, family: family, strategy: strategy, profile: profile) {
                 // 읽기 실패는 `unproven`과 **다른 축**이다 (`.edit`·`.move`와 같은 규칙).
                 guard let focused = axText.value() else { return .axUnavailable }
                 axFocused = focused
@@ -1215,11 +1224,11 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// `20260808_ax-collapse-posted-arrow-not-caret-write.md`).
     private func axVisualMapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
-        text: FocusedTextSnapshot, axText: AXWindowSnapshot
+        strategy: ProfileStrategy, text: FocusedTextSnapshot, axText: AXWindowSnapshot
     ) -> Mapping? {
         switch action {
         case .beginSelection(let linewise):
-            guard Self.usesAXWrite(action, family: family, profile: profile),
+            guard Self.usesAXWrite(action, family: family, strategy: strategy, profile: profile),
                 let processID = text.processID
             else { return nil }
             guard let focused = axText.value() else { return .axUnavailable }
@@ -1249,7 +1258,10 @@ nonisolated struct KeyboardAdapter: Sendable {
                 }
                 return skippedAXVisual(action, "프로파일이 재정의한 모션")
             }
-            return axVisualSession(action, family: family, profile: profile, text: text, axText: axText) {
+            return axVisualSession(
+                action, family: family, profile: profile, strategy: strategy, text: text,
+                axText: axText
+            ) {
                 state, focused in
                 FocusedTextOffsets.visualExtendSelection(for: motion, anchor: state, in: focused)
             } state: { state, range, anchor, column in
@@ -1258,7 +1270,10 @@ nonisolated struct KeyboardAdapter: Sendable {
 
         case .switchSelectionWise(let linewise):
             guard visualAnchor.sessionPath == .accessibility else { return nil }
-            return axVisualSession(action, family: family, profile: profile, text: text, axText: axText) {
+            return axVisualSession(
+                action, family: family, profile: profile, strategy: strategy, text: text,
+                axText: axText
+            ) {
                 state, focused in
                 FocusedTextOffsets.visualSwitchSelection(
                     toLinewise: linewise, anchor: state, in: focused)
@@ -1281,13 +1296,13 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 실패는 전부 스킵이며(위임 금지), 요소·읽기 실패만 `.axUnavailable`(execute 잔여 접기)다.
     private func axVisualSession(
         _ action: VimAction, family: ElementFamily, profile: ResolvedProfile,
-        text: FocusedTextSnapshot, axText: AXWindowSnapshot,
+        strategy: ProfileStrategy, text: FocusedTextSnapshot, axText: AXWindowSnapshot,
         selection: (VisualAnchorState, FocusedText) -> FocusedTextOffsets.Selection,
         state next: (VisualAnchorState, NSRange, Int, Int?) -> VisualAnchorState
     ) -> Mapping {
         // 세션은 AX인데 전략·계열이 더 이상 AX가 아니다(포커스가 비텍스트로 옮겨간 자리 등) —
         // 쓸 수도 위임할 수도 없으므로 스킵이다.
-        guard Self.usesAXWrite(action, family: family, profile: profile) else {
+        guard Self.usesAXWrite(action, family: family, strategy: strategy, profile: profile) else {
             return skippedAXVisual(action, "전략·계열이 더 이상 AX가 아니다")
         }
         guard let focused = axText.value() else { return .axUnavailable }
@@ -1435,9 +1450,13 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// `ElementFamily`에 exhaustive switch를 거는 것은 `survivesFilterGate`와 같은 규칙이다.
     /// `VimAction`에 걸지 않는 것은 매퍼와 같은 계약이다.
     private static func usesAXWrite(
-        _ action: VimAction, family: ElementFamily, profile: ResolvedProfile
+        _ action: VimAction, family: ElementFamily, strategy: ProfileStrategy,
+        profile: ResolvedProfile
     ) -> Bool {
-        guard profile.strategy == .accessibility else { return false }
+        // **접힌 실효 전략**을 본다 — `profile.strategy`가 아니다. `.auto`는 콜백에서 이미
+        // 판정과 함께 접혔고(`effectiveStrategy(_:verdict:)`), 프로파일에 남은 원본은 관측용
+        // 라벨이다. 어느 쪽이든 `.accessibility`가 아니면 keyboard라 실패 방향이 안전하다.
+        guard strategy == .accessibility else { return false }
         switch family {
         case .textArea, .textField: break
         case .nonText, .unresolved: return false

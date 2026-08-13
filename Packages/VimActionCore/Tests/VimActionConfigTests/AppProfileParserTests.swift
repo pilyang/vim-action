@@ -30,10 +30,11 @@ private func fixture(
 
 let appProfileFixtures: [AppProfileFixture] = [
     fixture(
-        "정상 — 필드 다섯 전부",
+        "정상 — 필드 여섯 전부",
         """
         name: Notion
         strategy: accessibility
+        keyboard_family: force_text
         scroll:
           half_page_lines: 20
           full_page_lines: 40
@@ -46,6 +47,7 @@ let appProfileFixtures: [AppProfileFixture] = [
         AppProfile(
             name: "Notion",
             strategy: .accessibility,
+            keyboardFamily: .forceText,
             halfPageLines: 20,
             fullPageLines: 40,
             motions: [
@@ -76,27 +78,55 @@ let appProfileFixtures: [AppProfileFixture] = [
         warnings: [w("name", .invalidValue("mapping"))]
     ),
 
-    // strategy — accessibility/keyboard 둘만. 그 외는 항목 warn+무시라 형제 필드가 산다.
-    fixture("strategy 미지정은 keyboard", "name: Slack", AppProfile(name: "Slack")),
+    // strategy — accessibility/keyboard/auto 셋. 그 외는 항목 warn+무시라 형제 필드가 산다.
+    fixture("strategy 미지정은 번들 기본", "name: Slack", AppProfile(name: "Slack")),
     fixture("strategy: keyboard 명시", "strategy: keyboard", AppProfile(strategy: .keyboard)),
-    fixture(
-        "strategy: auto는 아직 미지 값 — PR-E에서 정식 파싱으로 바뀐다",
-        """
-        strategy: auto
-        name: Slack
-        """,
-        AppProfile(name: "Slack"),
-        warnings: [w("strategy", .invalidValue("auto"))]
-    ),
+    fixture("strategy: auto 명시", "strategy: auto", AppProfile(strategy: .auto)),
     fixture(
         "strategy는 소문자만",
         "strategy: Accessibility",
         warnings: [w("strategy", .invalidValue("Accessibility"))]
     ),
     fixture(
+        "어휘 밖 strategy는 그 항목만 무시 — 형제는 생존",
+        """
+        strategy: hybrid
+        name: Slack
+        """,
+        AppProfile(name: "Slack"),
+        warnings: [w("strategy", .invalidValue("hybrid"))]
+    ),
+    fixture(
         "strategy가 맵이면 무시",
         "strategy: { mode: accessibility }",
         warnings: [w("strategy", .invalidValue("mapping"))]
+    ),
+
+    // keyboard_family — strategy와 같은 규칙. 명시 전용이라 미지정 = key_mapping이다.
+    fixture("keyboard_family 미지정은 key_mapping", "name: Slack", AppProfile(name: "Slack")),
+    fixture(
+        "keyboard_family: force_text 명시",
+        "keyboard_family: force_text",
+        AppProfile(keyboardFamily: .forceText)
+    ),
+    fixture(
+        "keyboard_family: key_mapping 명시는 미지정과 같다",
+        "keyboard_family: key_mapping",
+        AppProfile(keyboardFamily: .keyMapping)
+    ),
+    fixture(
+        "어휘 밖 keyboard_family는 그 항목만 무시 — 형제는 생존",
+        """
+        keyboard_family: force-text
+        name: Slack
+        """,
+        AppProfile(name: "Slack"),
+        warnings: [w("keyboard_family", .invalidValue("force-text"))]
+    ),
+    fixture(
+        "keyboard_family도 소문자만",
+        "keyboard_family: Force_Text",
+        warnings: [w("keyboard_family", .invalidValue("Force_Text"))]
     ),
 
     // scroll — 1...200 정수만. 스크롤은 카운트와 곱해지는 증폭 축이라 상한이 있다.

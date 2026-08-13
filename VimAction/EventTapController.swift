@@ -219,6 +219,7 @@ final class EventTapController {
             queue.async {
                 adapter.execute(
                     actions, family: context.family, profile: context.profile,
+                    effectiveStrategy: context.effectiveStrategy,
                     processID: context.processID, bundleID: context.bundleID,
                     isCurrent: { abort.isCurrent(run) })
             }
@@ -802,13 +803,19 @@ final class EventTapController {
             // bundleID는 지역에 묶어 프로파일 조회와 컨텍스트가 **같은 값**을 쓰게 한다 —
             // 두 번 읽으면 그 사이 앱 전환이 로그 라벨과 프로파일을 어긋나게 할 수 있다.
             let bundleID = frontmostAppGate.frontmostBundleID
+            // provider 미주입(설정 계층이 없는 테스트)만 `.empty`다 — 프로덕션에서 프로파일
+            // 파일이 없는 앱은 `ConfigStore`가 `.noProfile`로 답한다.
             let profile = profileProvider?(bundleID) ?? .empty
+            // 전략은 **여기서 접는다** — 실행 계층은 `.auto`를 모른다. 판정 소스(pid 키 캐시)는
+            // PR-D2 세션 2가 얹으며, 그때 이 `.pending` 상수가 캐시 조회 한 번으로 바뀐다
+            // (딕셔너리 읽기라 콜백 경량 불변식 안에 있다).
+            let effective = effectiveStrategy(profile.strategy, verdict: .pending)
             dispatchActions(
                 output.actions,
                 DispatchContext(
                     family: focusedElement.family,
                     processID: focusedElement.observedProcessID, bundleID: bundleID,
-                    profile: profile))
+                    profile: profile, effectiveStrategy: effective))
             return nil
         }
     }

@@ -27,6 +27,13 @@ private func range(from value: CFTypeRef) -> NSRange? {
     return NSRange(location: cfRange.location, length: cfRange.length)
 }
 
+/// 게시된 이벤트의 비교 가능한 지문 — 두 실행이 **같은 키를 냈는가**만 본다.
+private func signature(of events: [CGEvent]) -> [String] {
+    events.map {
+        "\($0.type.rawValue):\($0.getIntegerValueField(.keyboardEventKeycode)):\($0.flags.rawValue)"
+    }
+}
+
 /// 마지막으로 쓴 범위 — 기본 되읽기가 **즉시 착지한 앱**(TextEdit 실측)을 흉내내는 재료다.
 private final class LandedRange: @unchecked Sendable {
     var value: NSRange?
@@ -124,6 +131,45 @@ struct KeyboardAdapterAXWriteTests {
 
         #expect(writes == 0, "쓰기 seam 무호출이 위임의 증거다 — 내용 비교가 아니다")
         #expect(!posted.isEmpty)
+    }
+
+    /// **auto는 접힌 값으로만 판정된다.** 실행이 보는 것은 `profile.strategy`가 아니라
+    /// 콜백이 접어 넘긴 실효 전략이라, 판정 전(pending)인 auto 앱은 미지정 앱과 바이트 동일하게
+    /// keyboard로 돈다 — 판정 소스가 생기기 전까지 auto의 동작 diff가 0인 근거다.
+    @Test("판정 전 auto는 keyboard로 실행된다")
+    func pendingAutoDelegates() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var delegated: [CGEvent] = []
+        let autoProfile = ResolvedProfile(AppProfile(strategy: .auto))
+        let adapter = makeAXAdapter(
+            axText: axText, onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+        let control = makeAXAdapter(axText: axText, collecting: { delegated.append($0) })
+
+        adapter.execute(
+            [.move(.wordForward)], profile: autoProfile,
+            effectiveStrategy: effectiveStrategy(autoProfile.strategy, verdict: .pending),
+            processID: anyPID)
+        control.execute([.move(.wordForward)], processID: anyPID)
+
+        #expect(writes == 0, "쓰기 seam 무호출이 위임의 증거다")
+        #expect(signature(of: posted) == signature(of: delegated), "미지정 앱과 바이트 동일하다")
+        #expect(!posted.isEmpty, "위임이지 스킵이 아니다")
+    }
+
+    /// trusted 판정이 실리면 같은 auto 프로파일이 AX로 간다 — 접기가 유일한 갈림길이라는 증거다.
+    @Test("trusted로 접힌 auto는 AX 쓰기다")
+    func trustedAutoWritesCaret() {
+        nonisolated(unsafe) var calls: [AXCall] = []
+        let autoProfile = ResolvedProfile(AppProfile(strategy: .auto))
+        let adapter = makeAXAdapter(axText: axText, onWrite: { calls.append($0) })
+
+        adapter.execute(
+            [.move(.wordForward)], profile: autoProfile,
+            effectiveStrategy: effectiveStrategy(autoProfile.strategy, verdict: .trusted),
+            processID: anyPID)
+
+        #expect(calls.map(\.range) == [NSRange(location: 3, length: 0)])
     }
 
     /// 비텍스트·미상 계열은 **전 액션 keyboard 강등**이다 — AX 대입은 텍스트 요소 전제다.

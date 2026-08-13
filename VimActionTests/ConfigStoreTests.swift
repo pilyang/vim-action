@@ -98,7 +98,7 @@ struct ConfigStoreTests {
         #expect(store.disabledBundleIDs == ["off.app"])
     }
 
-    @Test("프로파일이 실행용으로 변환돼 bundle id로 조회된다 — 없으면 .empty")
+    @Test("프로파일이 실행용으로 변환돼 bundle id로 조회된다 — 없으면 .noProfile")
     func resolvedProfileLookup() {
         let fileSystem = InMemoryFileSystem(files: [
             "\(profilesDirectory)/com.tinyspeck.slackmacgap.yaml": """
@@ -114,8 +114,9 @@ struct ConfigStoreTests {
         let slack = store.resolvedProfile(for: "com.tinyspeck.slackmacgap")
         #expect(slack.name == "Slack")
         #expect(slack.actionOverrides == [.openLine: .disabled])
-        #expect(store.resolvedProfile(for: "com.apple.TextEdit") == .empty)
-        #expect(store.resolvedProfile(for: nil) == .empty)
+        // 부재는 **번들 기본 전략을 드는 값**이다 — `.empty`(재조회 센티널)가 아니다.
+        #expect(store.resolvedProfile(for: "com.apple.TextEdit") == .noProfile)
+        #expect(store.resolvedProfile(for: nil) == .noProfile)
     }
 
     /// 최초 로드는 에러가 있어도 부분 스냅샷을 적용한다 — 깨진 파일은 로더가 부재 처리했고,
@@ -332,13 +333,14 @@ struct ProfileScaffoldStoreTests {
         store.seedAndLoad()
 
         _ = store.prepareProfileFile(for: slack)
-        #expect(store.resolvedProfile(for: slack) == .empty, "생성만으로는 적용되지 않는다")
+        #expect(store.resolvedProfile(for: slack) == .noProfile, "생성만으로는 적용되지 않는다")
 
         #expect(store.reload())
         #expect(store.errors.isEmpty)
         #expect(store.warnings.isEmpty, "전부 주석이라 무시할 항목도 없다")
         #expect(store.appliedSnapshot.profiles[slack] != nil)
-        #expect(store.resolvedProfile(for: slack) == .empty, "빈 프로파일이라 동작은 그대로다")
+        // 전부 주석인 파일은 파서 기본값 그대로라 "파일 없음"과 값이 같아야 한다.
+        #expect(store.resolvedProfile(for: slack) == .noProfile, "빈 프로파일이라 동작은 그대로다")
     }
 
     @Test("hasProfile은 파일 유무를 그대로 돌려준다 — 메뉴 제목의 근거")

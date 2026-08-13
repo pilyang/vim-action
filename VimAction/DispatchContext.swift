@@ -4,9 +4,10 @@
 //
 
 import Foundation
+import VimActionConfig
 
 /// 실행 sink에 실리는 **키 입력 시점의 컨텍스트 스냅샷** — 요소 계열, 대상 앱 pid,
-/// 최전면 앱 프로파일.
+/// 최전면 앱 프로파일, 실효 전략.
 ///
 /// 콜백(메인)이 캐시에서 읽어 값으로 넘긴다: 게시 큐가 나중에 캐시를 읽으면 그 사이
 /// 포커스·최전면 앱이 옮겨간 뒤일 수 있다 (`KeyboardAdapter.execute`의 family 계약과
@@ -31,4 +32,11 @@ nonisolated struct DispatchContext: Equatable, Sendable {
     /// 이 값은 읽기·쓰기의 대상이 아니라 로그의 라벨이다.
     var bundleID: String?
     var profile: ResolvedProfile = .empty
+    /// 이 실행이 **실제로** 타는 전략 — 선언된 전략(`profile.strategy`)과 프로브 판정을 콜백이
+    /// 접어 둔 값이고, `.auto`는 여기 오지 않는다 (`effectiveStrategy(_:verdict:)`).
+    ///
+    /// 프로파일과 별개 필드인 것이 계약이다: 접힌 값을 `profile.strategy`에 덮어쓰면 그 스냅샷의
+    /// 프로파일이 더 이상 사용자가 쓴 값이 아니게 되고, auto 유래 실패를 명시 `accessibility`와
+    /// 구분하는 관측(전략 출처 라벨)이 재료를 잃는다.
+    var effectiveStrategy: ProfileStrategy = .keyboard
 }
