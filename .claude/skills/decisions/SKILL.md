@@ -223,7 +223,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-08 | AX 위임 표 + 단일 드라이버 | 명령 매퍼 계열 = 위임(j/k 추가 — 희망 열), openLine·paste 하이브리드, 비텍스트 계열 통째 강등 — 배선은 `Mapping` `.ax`/`.hybrid` 케이스, 액션 all-or-nothing | [20260808_ax-delegation-table-single-driver.md](references/20260808_ax-delegation-table-single-driver.md) |
 | 08-08 | AX 실패 보고 화이트리스트·폴백 없음 | D1 실보고는 `.failure`만(`.illegalArgument`는 관측 전용→승격 예약), `.cannotComplete`는 경합 스킵(이중 실행 위험) — 첫 실패 execute 중단, 시각은 게시 큐 캡처 | [20260808_ax-write-failure-whitelist-no-fallback.md](references/20260808_ax-write-failure-whitelist-no-fallback.md) |
 | 08-08 | AX 오프셋 계층 — 창+논리 줄 | `FocusedTextOffsets` 순수 함수·AX 전용 확대 반경(4096 잠정)·3상태 반환·unproven은 keyboard 위임 — 논리 줄 `dd` 채택(`dj`≠`d`+`j` 수용), 파라미터화 속성 기각 | [20260808_ax-offset-layer-window-logical-lines.md](references/20260808_ax-offset-layer-window-logical-lines.md) |
-| 08-08 | `strategy` 최소 파싱 선행 | D1a에서 accessibility/keyboard 두 값만 파싱(`auto`는 invalidValue warn+무시, PR-E에서 추가) — 임시 배선 기각, 기본값 keyboard | [20260808_strategy-field-minimal-parsing-d1.md](references/20260808_strategy-field-minimal-parsing-d1.md) |
+| 08-08 | `strategy` 최소 파싱 선행 | D1a에서 accessibility/keyboard 두 값만 파싱 — 임시 배선 기각 (auto 시점·기본값은 20260813 부분 supersede — D2로 이관·auto 전환) | [20260808_strategy-field-minimal-parsing-d1.md](references/20260808_strategy-field-minimal-parsing-d1.md) |
 | 08-08 | `.illegalArgument` 관측 로그는 상시 `.info` | 요약 버킷 관례(`#if DEBUG`+`.debug`)에서 이탈 — 승격 재심사가 `log show --info`로 사후 회수해야 하는 판정 데이터라, 스킵 2종은 `.debug` 유지 | [20260808_ax-illegal-argument-observation-log-level.md](references/20260808_ax-illegal-argument-observation-log-level.md) |
 | 08-08 | AX Visual 세션 경로 고정 | 진입 시점에 세션 전체 AX/keyboard 고정, 중간 실패는 스킵(무상태 폴백 금지 — 쓰기 후 포커스 끝 미정의) — `VisualAnchorTracker` 공유, AX가 side·pinnedEnd까지 채움 | [20260808_ax-visual-session-path-pinning.md](references/20260808_ax-visual-session-path-pinning.md) |
 | 08-08 | AX 모션은 캐럿 모델 유지 | 목표는 현행 keyboard가 겨냥하는 캐럿 자리 그대로(`e`=글자 뒤·`$`=줄 끝·`gg`=0), 정확해지는 것은 RunClass 단어 정의와 `^`뿐 — Vim no-op만 `.invalid`, 블록 커서 모델은 파급 때문에 기각 | [20260808_ax-motion-caret-model-vim-word-definition.md](references/20260808_ax-motion-caret-model-vim-word-definition.md) |
@@ -247,6 +247,21 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-10 | AX `v`↔`V`는 양방향 정확 지원 | 세션 1이 비워 둔 자리 — 진입이 원래 캐럿을 정확히 읽어 두므로 열이 뺄셈이다. 산출이 범위 + 새 논리 앵커 + 열을 함께 낸다(`Selection`), 상한 32·페이싱 불필요 | [20260810_ax-visual-switch-both-directions-exact.md](references/20260810_ax-visual-switch-both-directions-exact.md) |
 | 08-10 | Notion은 AX Visual에 부적합 — 번들 keyboard 유지 | 실측 3건: 앱은 **범위 시작을 앵커**로 봐 후진 확장이 원리적 불가 · Notion은 **블록 넘는 선택을 보고하지 않는다**(화면엔 선택, AX는 `[0,0)`) · 그래서 AX 세션이 블록을 못 벗어난다. 세션 5의 두 예외는 수혜자 부재로 철회. **`strategy` 앱 단위 단일 값의 첫 한계 사례**(편집은 AX·Visual은 keyboard를 표현 못 함 → PR-E) | [20260810_notion-unfit-for-ax-visual-session-5-withdrawn.md](references/20260810_notion-unfit-for-ax-visual-session-5-withdrawn.md) |
 | 08-10 | AX Visual 세션 경로는 폐기보다 오래 산다 | pin은 트래커 프로퍼티·진입에서만 쓴다 — 자가 검증 실패 뒤에도 남아 확장·전환이 정직한 스킵(앱 클램프 시 화면에 남은 것이 AX가 쓴 범위라 무상태 폴백은 파괴 방향) | [20260810_ax-visual-session-path-outlives-state-discard.md](references/20260810_ax-visual-session-path-outlives-state-discard.md) |
+
+### 실행 계층 — auto 전략·프로브·force-text (M5 D2 설계)
+
+| Date | Title | 요약 | Reference |
+|---|---|---|---|
+| 08-13 | `auto` 파싱은 D2에서 | PR-E 배정을 앞당김 — auto 프로브의 유일 소비자가 D2라 파싱 없이는 opt-in 도그푸딩 불가 | [20260813_auto-parsing-in-d2.md](references/20260813_auto-parsing-in-d2.md) |
+| 08-13 | 번들 기본 auto 전환은 D2 마지막 단계 | opt-in 도그푸딩 게이트 → 별도 커밋 전환(문제 시 전환만 철회) — `defaultStrategy` 단일 상수, `.empty` 센티널은 keyboard 유지 | [20260813_bundled-default-strategy-auto-flip-gated.md](references/20260813_bundled-default-strategy-auto-flip-gated.md) |
+| 08-13 | auto 프로브 — 비동기 캐시, pid 수명 | 별도 협력자 + 전용 큐, 판정 캐시 키 = pid(재시작 = 재프로브, 번들ID/pid 이원 캐시 경합 봉쇄), 트리거는 첫 vim 키 디스패치, 실효 전략은 콜백에서 순수 함수로 접어 DispatchContext 탑재 | [20260813_auto-probe-async-cached-verdict-pid-lifetime.md](references/20260813_auto-probe-async-cached-verdict-pid-lifetime.md) |
+| 08-13 | 거짓말 감지 — 읽기·settable 실증 | default-deny 계층(거부 목록→요소 실증→읽기+`IsAttributeSettable`) — 값 변경 왕복 제외(무결성 비용, "판별력 0" 근거는 철회), visible 제외, 선택 진실성 축은 런타임 검출 | [20260813_ax-lie-detection-read-attestation-settable.md](references/20260813_ax-lie-detection-read-attestation-settable.md) |
+| 08-13 | auto trusted 런타임 강등 + 관측 | `.axUnavailable` 연속 N(잠정 3)이면 pid 수명 강등(무로그 죽은 키 봉쇄 — 검토 3건 수렴), verify 불일치는 관측만(오강등 방지), `.info` 3종 + 메뉴바 판정 표시, 프로파일 명시 권고 안내는 PR-E 문서 | [20260813_auto-trusted-runtime-demotion-and-observability.md](references/20260813_auto-trusted-runtime-demotion-and-observability.md) |
+| 08-13 | AX 신뢰 거부 목록 | 코드 상수 `{notion.id}` — 등재 기준은 "신호가 못 잡음이 실측된 거짓말", auto에만 적용(명시 accessibility가 이김 + override `.info`), YAML 비노출 | [20260813_ax-trust-deny-list-code-constant.md](references/20260813_ax-trust-deny-list-code-constant.md) |
+| 08-13 | force-text — 자동 폴백 없음·치환은 keyboard 쪽만 | 20260712 유지 확인 + `keyboard_family: key_mapping\|force_text`(snake_case) — 실효 family 치환은 걸러내기·매퍼·위임분만, `usesAXWrite`·AX 강등은 원본 family(AX로 새면 비텍스트에 AX 쓰기) | [20260813_force-text-keyboard-family-substitution.md](references/20260813_force-text-keyboard-family-substitution.md) |
+| 08-13 | AX Visual `.selection` 편집 위임 가드 | `Cmd-X`/`Cmd-C` 위임 직전 선택 재검증 1회(기존 술어 재사용) — 앱의 범위 재정규화 위 파괴 경로 봉쇄, "다음 Visual 액션 검증"이 파괴 단계 앞에서만 비던 구멍 | [20260813_visual-selection-edit-pre-delegation-guard.md](references/20260813_visual-selection-edit-pre-delegation-guard.md) |
+| 08-13 | `.illegalArgument`·`.cannotComplete` 재심사 종결 | 관측 전용·경합 스킵 유지 — 세션 0 전수 실측 재현 불가(~550+121회·~580회 전부 0건), 관측 로그는 유지 | [20260813_illegalargument-cannotcomplete-observation-kept.md](references/20260813_illegalargument-cannotcomplete-observation-kept.md) |
+| 08-13 | Electron 트리 기상 — 요소 실증 실패 시 1회 | `AXManualAccessibility=true` + 유계 재시도, 첫 vim 키 앱에만(비례성) — 기존 "Slack·VS Code 미노출"은 수면 상태 측정(순환 반증), 기상 Slack은 왕복 10/10 "AX 신뢰 가능" | [20260813_electron-tree-wake-on-probe-failure.md](references/20260813_electron-tree-wake-on-probe-failure.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 

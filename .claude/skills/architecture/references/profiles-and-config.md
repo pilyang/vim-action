@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-12 (UserDefaults↔YAML 경계에 "시스템 소유" 칸 추가)
+- **Last updated**: 2026-08-13 (M5 D2 설계 — `strategy` 어휘에 `auto` 추가, `keyboard_family` 필드 신설, 번들 기본 전략 전환 계획. 구현은 PR-D2)
 
 ## 현재 구조
 
@@ -33,12 +33,17 @@ apps:                              # bundle-id → bool 맵 (목록이 아니라
   com.exafunction.windsurf: true   # 여기 없는 앱은 없는 것 — 기본값 판단은 앱 게이트 몫
 ```
 
-**profiles/\<bundle-id\>.yaml** — 필드 다섯(`name`·`strategy`·`scroll`·`motions`·`actions`), `enabled` 없음:
+**profiles/\<bundle-id\>.yaml** — 필드 여섯(`name`·`strategy`·`keyboard_family`·`scroll`·`motions`·`actions`), `enabled` 없음 (`keyboard_family`와 `strategy: auto`는 D2 설계 확정 — 구현은 PR-D2):
 
 ```yaml
 name: Notion                      # 선택 — 표시용
-strategy: accessibility           # 선택 — accessibility|keyboard. 미지정 = keyboard.
-                                  #   auto 등 그 외 값은 항목 warn+무시 — auto 정식 파싱은 PR-E
+strategy: accessibility           # 선택 — accessibility|keyboard|auto. auto = 프로브 판정
+                                  #   (strategy-dispatch.md의 auto 프로브 섹션).
+                                  #   미지정 = 번들 기본(defaultStrategy 단일 상수 — D2 마지막
+                                  #   단계에서 keyboard → auto 전환, 도그푸딩 게이트)
+keyboard_family: force_text       # 선택 — key_mapping(기본)|force_text. keyboard 실행의
+                                  #   요소 걸러내기를 우회(항상 TextArea 시퀀스) — 명시 전용,
+                                  #   자동 감지는 절대 선택하지 않는다
 scroll:
   half_page_lines: 20             # 기본 15 — 앱 뷰포트에 맞춘 근사값 재정의 (유효 1...200)
   full_page_lines: 40             # 기본 30 (유효 1...200)
@@ -57,7 +62,7 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 
 **키워드 표기**: 전부 소문자 snake_case. 키 스트로크 토큰은 `[modifier-]key` — modifier는 `cmd`/`opt`/`ctrl`/`shift`(순서 무관), 키 이름 v1 11종: `left` `right` `up` `down` `return` `escape` `tab` `home` `end` `page_up` `page_down`. 문자 키(`cmd-z` 류)는 레이아웃 의존이라 v1 제외. 비소문자 토큰(`Cmd-Down`)은 미지 키워드와 같은 warn+무시(대소문자 관용 없음).
 
-**로더 강건성 규칙**: 미지 키·미지 모션명·미지 액션명·미지 키 토큰은 해당 항목만 warn+무시(전방 호환 — `per_element` 등 남은 M5 필드가 여기로 접힌다), 어휘 밖 `strategy` 값(`auto` 포함)은 항목 `invalidValue` warn+무시(형제 필드와 파일이 생존한다 — 미리 써 둔 `strategy: auto`가 배포 순간 깨지지 않게), scroll 값은 1...200 정수만 유효(벗어나면 항목 warn+무시), 파일 통째 파싱 실패는 그 파일만 부재 취급 + error 반환(리로드에선 직전 유효 설정 유지 + 사용자 가시 에러). 시퀀스 안의 토큰 하나가 깨지면 그 항목(모션이든 액션이든) 전체를 버린다 — 반쯤 맞는 시퀀스를 만들지 않는다.
+**로더 강건성 규칙**: 미지 키·미지 모션명·미지 액션명·미지 키 토큰은 해당 항목만 warn+무시(전방 호환 — `per_element` 등 남은 M5 필드가 여기로 접힌다), 어휘 밖 `strategy`·`keyboard_family` 값은 항목 `invalidValue` warn+무시(형제 필드와 파일이 생존한다), scroll 값은 1...200 정수만 유효(벗어나면 항목 warn+무시), 파일 통째 파싱 실패는 그 파일만 부재 취급 + error 반환(리로드에선 직전 유효 설정 유지 + 사용자 가시 에러). 시퀀스 안의 토큰 하나가 깨지면 그 항목(모션이든 액션이든) 전체를 버린다 — 반쯤 맞는 시퀀스를 만들지 않는다.
 
 **한 매핑 안의 키 중복은 항목 단위로 접히지 않고 파일 통째 실패다** — Yams `compose`가 관용 옵션 없이 던지기 때문이고, 우회하려면 이벤트 단위 파싱을 직접 짜야 해서 v1에서는 수용한다. 손편집에서 흔한 실수인데 그 파일이 통째로 없는 것이 되므로(예: `config.yaml`이 날아가면 off로 지정한 앱들이 전부 켜진 상태가 된다), **앱은 이 error를 로그에만 남기지 말고 사용자에게 보이게 해야 한다**.
 
@@ -113,7 +118,7 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 
 ## 미결 질문 (결정 시 decisions에 기록 후 이 파일 갱신)
 
-- M5 필드 잔여분의 정식 스키마 — `strategy`는 두 값 최소 파싱이 확정됐고([20260808_strategy-field-minimal-parsing-d1.md](../../decisions/references/20260808_strategy-field-minimal-parsing-d1.md)), `auto` 값 정식 파싱과 `per_element`가 PR-E 몫으로 남아 있다. 사용자 문서화도 PR-E 스키마 확정 시(그때까지 `strategy`는 미문서).
+- M5 필드 잔여분의 정식 스키마 — `strategy`(3값)·`keyboard_family`는 D2 몫으로 확정됐고([20260813_auto-parsing-in-d2.md](../../decisions/references/20260813_auto-parsing-in-d2.md), [20260813_force-text-keyboard-family-substitution.md](../../decisions/references/20260813_force-text-keyboard-family-substitution.md)), `per_element`가 PR-E 몫으로 남아 있다. 사용자 문서화도 PR-E 스키마 확정 시 — 그때 "강등이 반복되는 앱은 `strategy: keyboard` 명시" 안내를 포함한다([20260813_auto-trusted-runtime-demotion-and-observability.md](../../decisions/references/20260813_auto-trusted-runtime-demotion-and-observability.md)). auto 기본화 이후의 전역 off 수단(config.yaml 전역 전략 키)도 PR-E 재검토 항목이다.
 - 시딩이 기존 파일 안의 항목을 갱신하지 못하는 것(수용한 대가)이 실제로 문제가 되면: "새 기본값이 생겼다" 알림이나 마이그레이션을 additive로 검토.
 - 라인 편집 쓰기를 앱별 on/off 밖으로(프로파일 항목 등) 넓히려는 요구가 실증되면: 같은 안전 계약을 유지할 수 있는지부터 확인 — `apps:`는 값이 bool 하나라 편집 단위가 한 줄로 닫히지만, 시퀀스 값(`motions:`)은 그렇지 않다.
 - 수동 리로드가 실사용에서 번거롭다고 실증되면: 파일 감시 자동 리로드를 additive로 재도입 (수동 트리거는 유지 — 리로드 수동 트리거 결정의 재개 조건).

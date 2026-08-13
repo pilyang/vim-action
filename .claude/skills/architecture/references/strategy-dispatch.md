@@ -1,6 +1,6 @@
 # 전략 디스패치
 
-- **Last updated**: 2026-08-10 (M5 PR-D1b 세션4 — Visual 배선: 세션 경로 pin(폐기보다 오래 산다), `Selection` 반환(범위+앵커+희망 열), charwise `j`/`k` 희망 열 추적, `v`↔`V` 양방향, inclusive 끝이 종결자를 문다)
+- **Last updated**: 2026-08-13 (M5 D2-설계 세션 — auto 프로브(비동기 캐시·pid 수명·기상·강등)·거짓말 감지 계층·거부 목록·force-text 구현 형태·`.edit(.selection)` 위임 가드 확정. 구현은 PR-D2)
 
 ## 현재 구조
 
@@ -18,9 +18,9 @@ flowchart TD
     P -->|"앱 off"| Pass[통과 후 중단]
     P -->|"strategy: accessibility"| AX[Accessibility 어댑터]
     P -->|"strategy: keyboard"| KB[Keyboard 어댑터]
-    P -->|"strategy: auto"| Probe{"AX 탐지<br/>(형태는 D2에서 결정 —<br/>동기+소캡은 실측 기각)"}
-    Probe -->|정상 값| AX
-    Probe -->|실패/타임아웃| KM["Keyboard 어댑터<br/>family = key-mapping"]
+    P -->|"strategy: auto"| Probe{"판정 캐시 조회<br/>(비동기 프로브 — 아래<br/>auto 프로브 섹션)"}
+    Probe -->|trusted| AX
+    Probe -->|"pending / untrusted"| KM["Keyboard 어댑터<br/>family = key-mapping"]
     AX --> Override{요소별 재정의?}
     KB --> Override
     KM --> Override
@@ -28,6 +28,24 @@ flowchart TD
     Override -->|없음| Exec[ActionExecutor로 실행]
     Re --> Exec
 ```
+
+### auto 전략 프로브 (M5 D2 설계 확정 — 구현은 PR-D2)
+
+`strategy: auto`(파싱은 D2에서 정식 추가 — [20260813_auto-parsing-in-d2.md](../../decisions/references/20260813_auto-parsing-in-d2.md)) 앱의 라우팅은 **비동기 캐시 판정**이다: 리졸버 밖의 **별도 협력자**가 전용 직렬 큐에서 판정하고(`AXRead` 50ms 상속 — 콜백·메인 스레드 AX 무접촉 불변식 유지), 결과는 `@MainActor` 판정 캐시에 실린다. **캐시 키·수명은 pid**(앱 실행 1회)다 — 앱 재시작이 곧 재프로브이고, 번들 ID(게이트)와 pid(리졸버)가 별개 옵저버 캐시라 생기는 앱 전환 어긋남 창도 pid 조회가 원리적으로 닫는다. 콜백은 스냅샷 시점에 `(profile.strategy, verdict[pid]) → 실효 전략`을 **순수 함수로 접어** `DispatchContext`에 싣고, `usesAXWrite`는 접힌 전략만 본다(판정 단일 지점 계약 불변) ([20260813_auto-probe-async-cached-verdict-pid-lifetime.md](../../decisions/references/20260813_auto-probe-async-cached-verdict-pid-lifetime.md)).
+
+**판정 계층 — default-deny, 전부 통과해야 trusted** ([20260813_ax-lie-detection-read-attestation-settable.md](../../decisions/references/20260813_ax-lie-detection-read-attestation-settable.md)):
+
+1. **거부 목록** — 코드 상수, 초기값 `{notion.id}`, 등재 기준은 "프로브 신호가 잡지 못함이 실측된 거짓말 앱". 목록 앱은 AX 접촉 없이 즉시 untrusted·재시도 없음. **auto 판정에만 적용** — 명시 `strategy: accessibility`가 이기며 override는 `.info` 1회 ([20260813_ax-trust-deny-list-code-constant.md](../../decisions/references/20260813_ax-trust-deny-list-code-constant.md)).
+2. **요소 실증** — 포커스 요소 존재 + `AXSelectedTextRange` 속성 노출. **리졸버 family 값은 재사용하지 않는다**(폴백이 `.textArea` 허용 방향) — 같은 검사를 default-deny 방향으로 재실행하되, 신호 수집은 리졸버가 이미 하는 속성 목록 패스에 얹을 수 있다(값이 아니라 패스의 재사용). **실패 시 그 앱에 `AXManualAccessibility=true`를 1회 쓰고 유계 재시도**(~200ms×1–2) — Electron 트리 기상. 실측(2026-08-13): 기상 상태의 Slack은 포커스 `AXTextArea` + 읽기 전부 success + 쓰기 왕복 10/10(수렴 p50 10.6ms)로, 기존 "미노출" 실측은 전부 수면 상태 측정이었다 ([20260813_electron-tree-wake-on-probe-failure.md](../../decisions/references/20260813_electron-tree-wake-on-probe-failure.md)).
+3. **읽기·쓰기 가능성 실증** — `selectedRange` 값·`characterCount`·`StringForRange` 창 읽기 + **`AXUIElementIsAttributeSettable(selectedTextRange)`**(무돌연변이 쓰기 축). **값을 바꾸는 쓰기 왕복은 없다** — 진짜 적용 검증은 값 변경이 필요해 캐럿·활성 선택·IME·타이핑 레이스가 전부 프로브 위험이 된다. visible 정합 검사도 없다(짧은 문서 오탐 실측, 소비자는 `provenViewport`가 하류에서 가드).
+
+**판정 수명과 강등**: pending(캐시 부재)·untrusted = key-mapping(완전 기능 — auto는 점진 강화), trusted = accessibility와 동일 라우팅. **프로브는 trusted 방향으로만 캐시를 움직이고, 반증은 런타임 증거뿐이다**: auto가 라우팅한 액션의 `.axUnavailable`이 연속 N회(잠정 3 — 도그푸딩 조절값)면 untrusted로 강등(pid 수명 sticky — 왕복 없음). 실패한 액션은 현행대로 접고 **다음 액션부터** keyboard라 "쓰기 후 폴백 금지"와 충돌하지 않는다. 되읽어 검증 불일치는 강등 신호가 아니다(정상 앱의 사용자 개입 49건 실측 — 관측 버킷만) ([20260813_auto-trusted-runtime-demotion-and-observability.md](../../decisions/references/20260813_auto-trusted-runtime-demotion-and-observability.md)). untrusted는 앱 활성화에서 재장전된다. **트리거는 그 앱의 첫 `.replace` 디스패치**(콜백은 플래그만 세우고 프로브는 큐에서) — vim 키를 안 쓰는 앱은 왕복 0건이고, 기상 개입도 그 앱들에 한정된다. 마스터 토글 off·config.yaml off 앱은 프로브를 돌리지 않고, 설정 리로드는 판정 캐시를 비운다. keyboard로 진입한 Visual 세션 중 판정 착지는 세션 경로 pin이 이미 막는다(진입 시점 고정 — 아래 Visual 문단).
+
+**관측**: 판정 전이(번들 ID + 판정 + 탈락 계층)·auto발 `.axUnavailable` 요약(전략 출처 라벨 — 명시 accessibility와 구분)·강등 이벤트가 **릴리스에서 생존하는 `.info`** 다(`log show --info` 사후 회수 — 기본값 전환 게이트와 거부 목록 성장의 판정 데이터). 메뉴바가 최전면 앱의 현재 판정("현재 앱: AX / 키보드 / 판정 중")을 표시한다.
+
+**선택 보고 진실성 축은 프로브가 원리적으로 못 본다**(프로브 시점에 살아 있는 선택이 없다 — Notion 블록 경계 `[0,0)` 실측이 이 축) — 검출자는 런타임 Visual 자가 검증과, **AX 세션의 `.edit(op, .selection)` 위임 직전 선택 재검증 1회**(기존 자가 검증 술어 재사용, 불일치 = 정직한 스킵)다. 앱이 우리가 쓴 범위를 재정규화한 위의 맨 `Cmd-X`가 앱의 선택을 자르는 파괴 경로를 닫는다 ([20260813_visual-selection-edit-pre-delegation-guard.md](../../decisions/references/20260813_visual-selection-edit-pre-delegation-guard.md)).
+
+**번들 기본 전략은 `defaultStrategy` 단일 상수**다 — 파서 기본값(필드 없음)과 프로파일 부재 경로가 함께 소비하고, `ResolvedProfile.empty`(builtIn 재조회 센티널)는 keyboard로 남는다. keyboard → auto 전환은 **D2 마지막 단계의 별도 커밋**(opt-in 도그푸딩 게이트, 문제 시 전환만 철회) ([20260813_bundled-default-strategy-auto-flip-gated.md](../../decisions/references/20260813_bundled-default-strategy-auto-flip-gated.md)).
 
 ### Accessibility 어댑터 (M5 D1 설계 확정 — 구현은 PR-D1a·D1b)
 
@@ -78,7 +96,7 @@ flowchart TD
 
 **실패 처리**: `AXError` 분류는 default-deny 화이트리스트 — D1 실보고는 `.failure`만, `.illegalArgument`(사전 경계 검증 통과 후 거부)는 관측 전용 요약 로그(번들 ID 포함, D1 종료 시 승격 재심사), `.attributeUnsupported`류 = 미지원 스킵, `.invalidUIElement`/`.cannotComplete` = 경합 스킵, 미지 코드 = 미보고 + error 로그. **쓰기 시도 후 실패의 keyboard 폴백은 없다**(이중 실행·어긋난 상태 위 상대 시퀀스 위험). **중단 규칙은 `.success` 외 전부**다 — 나머지도 앱의 정적 성질이거나 50ms 타임아웃 승수라 이어가서 얻는 것이 없고, default-deny가 흐름 제어에도 적용돼 새 코드가 조용히 "계속 진행"으로 흘러들지 않는다. **쓰기 시도 전 단계 실패**(포커스 요소 미노출·창 읽기 실패)는 보고도 폴백도 아닌 스킵이되 역시 execute 잔여를 접으며, `.unproven`(창이 답 못 함 → 위임)과 **별개 축**이라 `Mapping.axUnavailable`로 표현된다 — 물어볼 창이 없는 것을 위임으로 접으면 AX 전략이 조용히 무효화돼 D2가 볼 표본이 사라지고, 접지 않으면 Slack류에서 `100j`가 100×50ms로 게시 큐를 잡는다 ([20260808_ax-pre-write-failure-ends-execute.md](../../decisions/references/20260808_ax-pre-write-failure-ends-execute.md)). 사전 경계 검증 탈락은 우리 계산이 어긋났다는 신호라 요약이 아닌 즉시 error 로그다. AX 스킵은 전용 요약 버킷으로 집계 ([20260808_ax-write-failure-whitelist-no-fallback.md](../../decisions/references/20260808_ax-write-failure-whitelist-no-fallback.md)). 분류(`AXWriteOutcome.classify` — 16 → 7클래스 순수 함수)와 **효과 실행**(`AXWriteEffects` — 보고·요약 로그·버킷, execute 1회 수명)은 갈려 있다: 분류가 로깅까지 하면 표를 테스트로 고정할 수 없고, `AXWriter`가 `AXError`를 raw로 내보내는 이유와 같은 규칙이다. 사전 경계 검증은 `AXWriteOutcome.provenWriteRange`이며 통과 실패는 보고가 아니라 스킵이다. 보고 seam은 어댑터 주입(`KeyboardAdapter(reportExecutionFailure:now:)` → `axWriteEffects(bundleID:)`)이고 시각은 게시 큐에서 캡처한다 — 자세한 배선·로그 레벨은 [reentrancy-and-safety.md](reentrancy-and-safety.md).
 
-**Visual은 세션 단위 경로 고정**: 진입(`beginSelection`) 증명 성공이면 세션 전체 AX, 실패면 세션 전체 keyboard(기존 재앵커 기계). 세션 중간 실패는 그 액션만 정직한 스킵 — **무상태 폴백 금지**(AX가 쓴 범위는 앱의 포커스 끝이 미정의라 무상태 `Shift-→`가 파괴 방향 불확정). 그래서 `.unproven`도 Normal 경로와 달리 위임이 아니라 스킵이고, 요소·읽기 실패만 `.axUnavailable`(execute 잔여 접기)이다. **경로 pin(`VisualAnchorTracker.sessionPath`)은 진입 확정 시점에만 쓰이고 상태 폐기로는 지워지지 않는다** — 자가 검증 실패의 원인 중 하나가 "앱이 우리가 쓴 범위를 정규화·클램프"라 그때 화면에 남은 선택이 AX가 쓴 범위이기 때문이다(TextEdit 클램프 실측). 따라서 검증이 깨진 AX 세션은 재진입 전까지 확장·전환이 전부 스킵이며, `clearSelection`(게시 `←`)과 `.edit(_, .selection)`(위임)은 그대로 동작한다 ([20260810_ax-visual-session-path-outlives-state-discard.md](../../decisions/references/20260810_ax-visual-session-path-outlives-state-discard.md)). `VisualAnchorTracker`는 두 경로가 공유하고 AX는 `side`·`pinnedEnd`까지 정확값으로 채운다(전략 인수인계 공짜 — 단 포커스 줄 거리는 AX가 추적하지 않아 미상으로 좁힌다). 자가 검증은 AX에서도 유지(단측 + 비어 있지 않음 — 포커스 끝 불일치는 DEBUG 로그만), 확정 부수효과(상태 적용·경로 고정·세션 wise note)는 `confirmVisual` 한 함수가 담당하며 위임은 매핑 확정 시·AX는 쓰기 `.success` 확인 시이되 **`.success`가 적용 완료를 뜻하지 않는 앱이 실측돼**(Notion ~10ms 비동기) 실질 방어선은 다음 액션 읽기의 자가 검증이다 ([20260808_ax-visual-session-path-pinning.md](../../decisions/references/20260808_ax-visual-session-path-pinning.md), 근거 보정은 [20260808_ax-readback-verify-convergence-poll.md](../../decisions/references/20260808_ax-readback-verify-convergence-poll.md)). **프로파일 `motions:` 항목이 있는 모션의 `extendSelection`은 AX 세션에서 정직한 스킵**이다 — 재정의 시퀀스도 무상태 시퀀스라 무상태 폴백 금지의 뿌리가 그대로 적용되고, 사용자 지시("그 키를 쓰지 마라")를 위반하지 않는다 ([20260808_ax-visual-overridden-motion-honest-skip.md](../../decisions/references/20260808_ax-visual-overridden-motion-honest-skip.md)).
+**Visual은 세션 단위 경로 고정**: 진입(`beginSelection`) 증명 성공이면 세션 전체 AX, 실패면 세션 전체 keyboard(기존 재앵커 기계). 세션 중간 실패는 그 액션만 정직한 스킵 — **무상태 폴백 금지**(AX가 쓴 범위는 앱의 포커스 끝이 미정의라 무상태 `Shift-→`가 파괴 방향 불확정). 그래서 `.unproven`도 Normal 경로와 달리 위임이 아니라 스킵이고, 요소·읽기 실패만 `.axUnavailable`(execute 잔여 접기)이다. **경로 pin(`VisualAnchorTracker.sessionPath`)은 진입 확정 시점에만 쓰이고 상태 폐기로는 지워지지 않는다** — 자가 검증 실패의 원인 중 하나가 "앱이 우리가 쓴 범위를 정규화·클램프"라 그때 화면에 남은 선택이 AX가 쓴 범위이기 때문이다(TextEdit 클램프 실측). 따라서 검증이 깨진 AX 세션은 재진입 전까지 확장·전환이 전부 스킵이며, `clearSelection`(게시 `←`)은 그대로 동작하고 `.edit(_, .selection)`(위임)은 **위임 직전 선택 재검증 1회**를 거친다(D2 — 같은 자가 검증 술어, 불일치 = 스킵. [20260813_visual-selection-edit-pre-delegation-guard.md](../../decisions/references/20260813_visual-selection-edit-pre-delegation-guard.md)) ([20260810_ax-visual-session-path-outlives-state-discard.md](../../decisions/references/20260810_ax-visual-session-path-outlives-state-discard.md)). `VisualAnchorTracker`는 두 경로가 공유하고 AX는 `side`·`pinnedEnd`까지 정확값으로 채운다(전략 인수인계 공짜 — 단 포커스 줄 거리는 AX가 추적하지 않아 미상으로 좁힌다). 자가 검증은 AX에서도 유지(단측 + 비어 있지 않음 — 포커스 끝 불일치는 DEBUG 로그만), 확정 부수효과(상태 적용·경로 고정·세션 wise note)는 `confirmVisual` 한 함수가 담당하며 위임은 매핑 확정 시·AX는 쓰기 `.success` 확인 시이되 **`.success`가 적용 완료를 뜻하지 않는 앱이 실측돼**(Notion ~10ms 비동기) 실질 방어선은 다음 액션 읽기의 자가 검증이다 ([20260808_ax-visual-session-path-pinning.md](../../decisions/references/20260808_ax-visual-session-path-pinning.md), 근거 보정은 [20260808_ax-readback-verify-convergence-poll.md](../../decisions/references/20260808_ax-readback-verify-convergence-poll.md)). **프로파일 `motions:` 항목이 있는 모션의 `extendSelection`은 AX 세션에서 정직한 스킵**이다 — 재정의 시퀀스도 무상태 시퀀스라 무상태 폴백 금지의 뿌리가 그대로 적용되고, 사용자 지시("그 키를 쓰지 마라")를 위반하지 않는다 ([20260808_ax-visual-overridden-motion-honest-skip.md](../../decisions/references/20260808_ax-visual-overridden-motion-honest-skip.md)).
 
 **배선은 단일 실행 드라이버**: execute 루프(중단 래치·스냅샷·요약 로그)와 게이트 3종·부수효과(`recordEdit` 등)를 keyboard와 공유하고, `Mapping`에 `.ax`(쓰기 계획)와 `.hybrid`(접두 범위 + 위임 그룹) 형제 케이스를 얹는다. `.hybrid`의 연관값은 `(NSRange, [[KeyStroke]], paced: Bool)`로 **`.groups`와 같은 모양**이며, **원자인 것은 첫 그룹뿐**이다 — 둘째 그룹부터는 `.groups`와 같은 청크·페이싱 루프로 낙하한다(코드로는 분기 끝의 `groups = Array(substituted.dropFirst())` 대입이고, 하이브리드 전용 게시 루프를 두지 않아 청크 규칙이 한 곳에 남는다). 그룹이 여럿인 액션은 `.paste` 하나다(`1000p` = `Cmd-V` 1,000타 — 통짜로 내면 중단 래치가 파고들 틈이 없다). `paced`는 편집·`.openLine`이 `false`, `.paste`가 `true`이며 실효 지점은 `.appendingLine`의 `[Return, Cmd-V]` 한 그룹뿐이다(나머지 paste 그룹은 1타라 페이싱 규칙 밖) — 그 자리가 Notion 0간격 버스트 약점의 재현 지점이다 ([20260809_hybrid-mapping-multi-group-paced.md](../../decisions/references/20260809_hybrid-mapping-multi-group-paced.md)). "AX 어댑터가 keyboard 어댑터를 부른다"(감사 안 되는 둘째 진입점)와 "디스패처가 액션 단위로 어댑터를 가른다"(execute당 계약 분열·하이브리드 표현 불가)는 기각. `paced:`가 `.ax`에 없는 것도 계약이다 — AX 쓰기는 드롭 모드가 없어 페이싱 비대상이고 `paced`는 위임 전용 속성으로 남는다. `PasteWiseResolver`는 현행 계약 그대로다 — 클립보드 주체가 앱이라 델타-1·`recordEdit`(게시 확정 시)이 무변경으로 성립한다. 다만 **하이브리드에서는 "게시 확정"의 자리가 다르다**: 위임(`.groups`)은 매핑 확정이 곧 게시 확정에 가깝지만 하이브리드는 그 사이에 접두 쓰기·되읽어 검증이라는 **설계된 실패 단계**가 있어, 기록은 매핑 시점이 아니라 **실제 게시 뒤**여야 한다. 매핑 시점에 기록하면 검증 불일치로 접힌 편집의 wise가 남고, 델타-1 규칙은 그때 자가 치유하지 못한다 — 뒤이은 외부 복사 1회가 델타를 정확히 1로 만들어 `p`가 나가지도 않은 편집의 wise로 오판된다. 호출 자리는 **액션 무관 단일 지점**(게시 직후)이며 함수 자체가 `.edit` 가드로 시작한다 — `.openLine`·`.paste`에는 옮길 부수효과가 없어 no-op이다. `.paste`의 `pasteWise.resolve()`가 매퍼보다 앞에 남는 것도 계약이다: 기억을 소비하지 않는 **순수 조회**임이 감사로 확정됐고, wise가 접두 삽입점과 위임 그룹 모양을 둘 다 정하므로 뒤로 옮길 수도 없다 ([20260809_paste-resolve-is-pure-lookup.md](../../decisions/references/20260809_paste-resolve-is-pure-lookup.md)).
 
@@ -91,7 +109,7 @@ AX 실행 계획의 판정은 **`usesAXWrite(action:family:profile:)` 한 곳**�
 `ElementFamily`는 `.textArea` / `.textField` / `.nonText` / `.unresolved` 넷이며 리졸버가 보고한다. 앞의 셋이 판정 결과이고 `.unresolved`는 **앱 전환 직후 첫 읽기가 아직 착지하지 않은 상태**다 — 폴백(`.textArea`)과 구분되는 별개 값이며, 걸러내기에서는 `.nonText`와 같은 편에 선다. **계열은 시퀀스를 다변화하지 않는다 — 걸러낼지만 정한다.** `.textField`는 편집·Visual·붙여넣기·undo에서 `.textArea`와 **같은 시퀀스**를 쓴다: 단일행 필드에서 TextArea 시퀀스가 자연 수렴하고(주소창에서 `Shift-↓`는 끝까지 선택된다), 전용 분기는 role 오보고 시 여러 줄 검색창의 `dd` 1줄 삭제를 전체 삭제로 개악한다 — 실패 방향이 비대칭이다 ([20260801_textfield-edit-sequences-scrapped.md](../../decisions/references/20260801_textfield-edit-sequences-scrapped.md)).
 
 - **key-mapping 계열**: 리졸버를 참조해 요소 인식 시퀀스 선택. AX 불가 시 자동 감지가 사용하는 기본 폴백.
-- **force-text 계열**: 항상 TextArea 시퀀스 사용. 프로파일 명시 선택 전용, 자동 감지 금지.
+- **force-text 계열**: 항상 TextArea 시퀀스 사용. 프로파일 명시 선택 전용(`keyboard_family: force_text` — 어휘는 `key_mapping`(기본)/`force_text`), 자동 감지 금지 — `key-mapping`→`force-text` 자동 폴백도 없다(20260712 유지 확인). 구현은 실효 family를 `.textArea`로 치환하되 **keyboard 실행 쪽에만** 적용한다: 걸러내기 게이트·매퍼 호출·매퍼 내부 `.nonText` 봉쇄·하이브리드 위임분 진입점이 같은 치환값을 보고, `usesAXWrite`와 AX 분기의 계열 판정(`.nonText`/`.unresolved` 강등)은 **원본 family**를 유지한다 — 치환이 AX까지 새면 비텍스트 요소에 AX 쓰기가 나가고 `.unresolved` 창(위험 어휘 보류)이 뚫린다. AX 강등·`unproven` 위임이 낳는 keyboard 실행에도 치환이 적용된다(force-text는 "이 앱의 role 보고를 믿지 말라"는 사용자 지시라 경로 무관 일관 적용). 구현 선행 조건은 family 소비처 전수 조사 + 강등·위임 경로 회귀 테스트다 ([20260813_force-text-keyboard-family-substitution.md](../../decisions/references/20260813_force-text-keyboard-family-substitution.md)).
 
 **걸러내기 표** — 계열이 실제로 가르는 전부다:
 
@@ -183,7 +201,8 @@ AX 실행 계획의 판정은 **`usesAXWrite(action:family:profile:)` 한 곳**�
 - **AX 호출은 콜백·메인 스레드에 들어오지 않는다** — 리졸버는 전용 큐, 디스패치 경로 읽기는 게시 큐. 탭 생존을 지키는 것은 타임아웃 값이 아니라 이 배치다. 메시징 타임아웃은 **경로 불문 50ms 단일 상수**이며 병적 정지가 큐를 잡아두는 것을 자르는 차단기다 — 실패 반환은 캡+2ms로 바운드됨이 실측됐고, 유일한 예외는 프로세스 생애 최초 AX 호출 1회(~23ms, 리졸버가 앱 시작 직후 흡수) ([20260802_ax-read-timeout-50ms-supersedes-3ms.md](../../decisions/references/20260802_ax-read-timeout-50ms-supersedes-3ms.md)).
 - `AXValue` 전체 읽기는 키당 경로에 넣지 않는다 — 비용이 문서 크기에 비례한다.
 - **읽기는 분기의 근거이지 스트로크 수의 근거가 아니다 — 단 keyboard 경로 전용 불변식이다.** 절대 오프셋에 비례하는 스트로크를 내지 않는다. `execute` **사이**에는 낡은 값을 읽을 수 있고(`CGEvent.post`는 배달만 걸고 돌아온다), 오프셋 비례 스트로크는 그때 "엉뚱한 범위를 정확하게" 자른다. 재조립은 위치 상대적이거나, 현행 시퀀스의 부분집합이거나, 상수 1타여야 하며, 예외는 명시적으로 수용된 것 하나뿐이다(엣지 1의 방향 반전) ([20260803_refinement-branches-not-stroke-counts.md](../../decisions/references/20260803_refinement-branches-not-stroke-counts.md)). **AX 경로에는 적용되지 않는다** — 읽기·쓰기가 같은 큐에서 동기라 낡은 읽기 창이 없고, 오프셋이 실행 수단 그 자체다 ([20260808_ax-offset-layer-window-logical-lines.md](../../decisions/references/20260808_ax-offset-layer-window-logical-lines.md)).
-- `force-text`는 프로파일에서 명시적으로만 선택하며, 자동 감지가 선택하는 일은 없다.
+- `force-text`는 프로파일에서 명시적으로만 선택하며, 자동 감지가 선택하는 일은 없다. force-text의 family 치환은 keyboard 실행 쪽에만 닿는다 — AX 경로의 계열 판정은 항상 원본 family다.
+- **auto 판정 캐시는 프로브로는 trusted 방향으로만 움직인다** — 반증(강등)은 런타임 증거(auto발 `.axUnavailable` 연속)뿐이고, 강등은 pid 수명 sticky다. 판정이 왕복(플립플롭)하는 경로는 없다.
 
 ## 근거 요약
 
@@ -194,9 +213,7 @@ AX 실행 계획의 판정은 **`usesAXWrite(action:family:profile:)` 한 곳**�
 ## 미결 질문 (결정 시 decisions에 기록 후 이 파일 갱신)
 
 - 일회성 Accessibility → Keyboard 다운그레이드 수정 키 (kindaVim의 `fn` 방식) — 채택 여부와 키 선택.
-- "AX 거짓말" 감지 휴리스틱 (왕복 테스트, 번들 거부 목록) — `strategy: auto` 신뢰 전 결정.
-- `key-mapping` → `force-text` 자동 폴백 휴리스틱 존재 여부.
-- `strategy: auto` 프로브의 구체 형태 — 동기+소캡은 실측 기각됐고, 비동기 캐시형(리졸버 선례)이 유력. D2 착수 시 결정.
+- 기상 상태의 Slack에서 keyboard 혼용 정확화(디스패치 경로 읽기)도 살아나는가 — "Slack은 읽기 실패 상시 폴백" 전제가 수면 상태 측정이었음이 실측됐다(D2 세션 0 추가 실측). auto 도그푸딩에서 함께 관측 후 판단.
 
 ## 관련
 
