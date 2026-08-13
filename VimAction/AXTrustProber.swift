@@ -47,12 +47,14 @@ final class AXTrustProber {
     nonisolated static let manualAccessibilityAttribute = "AXManualAccessibility"
 
     /// 프로덕션 프로버 생성. 단위 테스트(TEST_HOST=앱 프로세스)에서는 라이브 알림을 구독하지
-    /// 않는다 — 격리된 `NotificationCenter`면 옵저버가 실제 앱 활성화를 받지 않아 재장전이
-    /// 머신 상태에 의존하지 않는다 (`FrontmostAppGate.forCurrentEnvironment()`와 같은 규칙).
-    /// 프로브 동작을 검증하는 테스트는 seam을 명시 주입한다.
+    /// 않고 **프로브 enqueue도 드롭한다** — 격리된 `NotificationCenter`가 재장전의 머신 상태
+    /// 의존을 끊고, 드롭 schedule이 라이브 AX 접촉을 원천 차단한다(리졸버의 `nil` pid와 같은
+    /// 강도). schedule만 무해화하면 되는 이유는 이 타입의 AX 접촉이 전부 schedule 안에
+    /// 있어서다. 기본 전략이 auto로 뒤집혀도(세션 5) 실제 pid를 주입한 배선 테스트가 라이브
+    /// 프로브 큐·기상 쓰기를 타지 않는다. 프로브 동작을 검증하는 테스트는 seam을 명시 주입한다.
     static func forCurrentEnvironment() -> AXTrustProber {
         isRunningUnderXCTest()
-            ? AXTrustProber(notificationCenter: NotificationCenter())
+            ? AXTrustProber(notificationCenter: NotificationCenter(), schedule: { _ in })
             : AXTrustProber()
     }
 
@@ -92,7 +94,7 @@ final class AXTrustProber {
     private let notificationCenter: NotificationCenter
     /// 옵저버 해제를 nonisolated `deinit`에서 하므로 격리 밖에서 읽혀야 한다
     /// (`FrontmostAppGate`와 같은 이유·같은 단언: 접근이 init/deinit 두 곳뿐이다).
-    private nonisolated(unsafe) var observerToken: NSObjectProtocol?
+    private nonisolated(unsafe) var observerTokens: [NSObjectProtocol] = []
 
     init(
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
@@ -111,21 +113,37 @@ final class AXTrustProber {
         self.wakeTree = wakeTree
         self.coldRetryPause = coldRetryPause
         self.schedule = schedule
-        observerToken = notificationCenter.addObserver(
-            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
-        ) { [weak self] notification in
-            let app =
-                notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-            // queue: .main 배달이라 항상 메인 스레드다 — assumeIsolated의 근거
-            // (게이트·리졸버와 같은 패턴).
-            MainActor.assumeIsolated {
-                self?.noteActivation(processID: app?.processIdentifier)
-            }
-        }
+        observerTokens.append(
+            notificationCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+            ) { [weak self] notification in
+                let app =
+                    notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    as? NSRunningApplication
+                // queue: .main 배달이라 항상 메인 스레드다 — assumeIsolated의 근거
+                // (게이트·리졸버와 같은 패턴).
+                MainActor.assumeIsolated {
+                    self?.noteActivation(processID: app?.processIdentifier)
+                }
+            })
+        // 종료 회수가 있어야 "수명 = 앱 실행 1회" 문언이 코드에서 성립한다 — 지우지 않으면
+        // 실제 수명이 "pid 값"이 되어, pid 되감기(99999 순환)가 낡은 판정을 무관한 새 앱에
+        // 승계시킨다. trusted 승계는 세션 3 강등 전까지 회복 간선이 없어 특히 위험하다.
+        observerTokens.append(
+            notificationCenter.addObserver(
+                forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
+            ) { [weak self] notification in
+                let app =
+                    notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    as? NSRunningApplication
+                MainActor.assumeIsolated {
+                    self?.noteTermination(processID: app?.processIdentifier)
+                }
+            })
     }
 
     deinit {
-        if let observerToken { notificationCenter.removeObserver(observerToken) }
+        for token in observerTokens { notificationCenter.removeObserver(token) }
     }
 
     // MARK: - 조회 (콜백이 읽는다)
@@ -172,9 +190,10 @@ final class AXTrustProber {
         }
         guard declaredStrategy == .auto else { return .none }
         if isDenyListed {
-            // pending에서만 판정을 심는다 — 이미 untrusted면 반복 apply가 무의미하고(전이도
-            // 로그도 없다), trusted는 목록이 정적 상수라 도달 불가다(프로브는 목록 검사를
-            // 지나야 돌고, `update`의 단조성 가드도 겹으로 막는다).
+            // pending에서만 판정을 심는다 — 이미 untrusted면 반복 apply가 무의미하다(전이도
+            // 로그도 없다). 목록 앱이 trusted에 이르는 정상 경로는 없고(프로브는 이 검사를
+            // 지나야 돈다), 판정이 심어진 뒤에는 `update`의 거부 목록 종단 가드가 늦게 착지한
+            // 프로브 결과의 상향 덮어쓰기까지 막는다.
             return verdict == .pending ? .applyDenyListVerdict : .none
         }
         guard !inFlight else { return .none }
@@ -218,7 +237,7 @@ final class AXTrustProber {
                 "AX 신뢰 거부 목록 override — 명시 accessibility가 이긴다 [\(bundleID, privacy: .public)]"
             )
         case .applyDenyListVerdict:
-            entries[processID] = entry
+            // 엔트리 저장은 `update`가 한다 — 이 분기는 entry를 바꾸지 않아 따로 쓸 것이 없다.
             update(verdict: .untrusted, failedLayer: .denyList, for: processID, bundleID: bundleID)
         case .probe:
             if entry.verdict == .untrusted {
@@ -249,6 +268,10 @@ final class AXTrustProber {
         guard verdict != .pending else { return }
         var entry = entries[processID] ?? Entry()
         guard entry.verdict != .trusted else { return }
+        // 거부 목록 판정은 pid 수명 **종단**이다 — "즉시 untrusted·재시도 없음" 문언 그대로.
+        // 이 가드가 없으면, 판정보다 먼저 enqueue돼 있던(어긋난 짝의) 프로브가 나중에 착지해
+        // untrusted → trusted 상향 간선으로 목록 판정을 덮을 수 있다.
+        guard entry.failedLayer != .denyList else { return }
         let transitioned = entry.verdict != verdict
         entry.verdict = verdict
         entry.failedLayer = failedLayer
@@ -277,6 +300,13 @@ final class AXTrustProber {
         entries[processID] = entry
     }
 
+    /// 앱 종료 — 엔트리를 통째로 회수한다. 판정·재프로브 상한·기상 1회 부기가 전부 앱 실행
+    /// 1회의 것이라, 같은 pid를 물려받은 다음 프로세스는 백지에서 시작한다(앱 재시작 = 재프로브).
+    func noteTermination(processID: pid_t?) {
+        guard let processID else { return }
+        entries[processID] = nil
+    }
+
     /// 설정 리로드 = 판정 캐시 클리어. 재프로브 상한·기상 1회 부기까지 초기화되고, 클리어
     /// 이전에 큐에 실린 프로브 결과는 세대 토큰으로 폐기된다.
     func clearVerdicts() {
@@ -284,14 +314,14 @@ final class AXTrustProber {
         entries.removeAll()
     }
 
-    /// 프로브 완료 진입점 — 큐 배관과 테스트가 함께 쓴다. 세대가 어긋나면(클리어 뒤 착지)
-    /// 결과를 버린다.
+    /// 프로브 완료 진입점 — 큐 배관과 테스트가 함께 쓴다. 세대가 어긋나거나(클리어 뒤 착지)
+    /// 엔트리가 사라졌으면(그 사이 앱 종료 — enqueue가 항상 엔트리를 먼저 세우므로 부재는
+    /// 회수의 증거다) 결과를 버린다 — 죽은 pid의 판정을 되살리면 종료 회수가 무의미해진다.
     func completeProbe(
         processID: pid_t, bundleID: String, wokeTree: Bool, verdict: AXTrustVerdict,
         failedLayer: AXTrustProbeLayer?, generation: Int
     ) {
-        guard generation == probeGeneration else { return }
-        var entry = entries[processID] ?? Entry()
+        guard generation == probeGeneration, var entry = entries[processID] else { return }
         entry.inFlight = false
         entry.wokeTree = entry.wokeTree || wokeTree
         entries[processID] = entry

@@ -367,6 +367,41 @@ struct AXTrustProberCacheTests {
         #expect(enqueued == 2, "클리어 뒤 첫 디스패치는 새 프로브다")
     }
 
+    /// "수명 = 앱 실행 1회"의 나머지 절반 — 회수가 없으면 실제 수명이 "pid 값"이 되어,
+    /// pid 되감기가 낡은 판정(특히 회복 간선 없는 trusted)을 무관한 새 앱에 승계시킨다.
+    @Test("앱 종료가 엔트리를 회수한다 — 같은 pid의 다음 프로세스는 백지다")
+    func terminationReclaimsEntry() {
+        nonisolated(unsafe) var enqueued = 0
+        let prober = makeProber(schedule: { _ in enqueued += 1 })
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example")
+        prober.noteTermination(processID: 7)
+        #expect(prober.verdict(for: 7) == .pending)
+
+        prober.noteReplaceDispatch(processID: 7, bundleID: "com.example", declaredStrategy: .auto)
+        #expect(enqueued == 1, "재사용된 pid의 첫 디스패치는 새 프로브다")
+    }
+
+    @Test("종료 뒤 착지한 완료는 버려진다 — 죽은 pid의 판정을 되살리지 않는다")
+    func completionAfterTerminationIsDropped() {
+        let prober = makeProber(schedule: { _ in })
+        prober.noteReplaceDispatch(processID: 7, bundleID: "com.example", declaredStrategy: .auto)
+        prober.noteTermination(processID: 7)
+        prober.completeProbe(
+            processID: 7, bundleID: "com.example", wokeTree: false, verdict: .trusted,
+            failedLayer: nil, generation: prober.probeGeneration)
+        #expect(prober.verdict(for: 7) == .pending, "엔트리 부재 = 회수의 증거 — 결과를 버린다")
+    }
+
+    /// "즉시 untrusted·재시도 없음"의 종단성 — 판정보다 먼저 enqueue돼 있던(앱 전환 순간
+    /// 어긋난 짝의) 프로브가 나중에 착지해도 상향 간선으로 목록 판정을 덮지 못한다.
+    @Test("거부 목록 판정은 종단 — 늦게 착지한 프로브 결과가 덮지 못한다")
+    func denyListVerdictIsTerminal() {
+        let prober = makeProber()
+        prober.update(verdict: .untrusted, failedLayer: .denyList, for: 7, bundleID: "notion.id")
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "notion.id")
+        #expect(prober.verdict(for: 7) == .untrusted)
+    }
+
     @Test("클리어 이전 세대의 완료는 버려진다")
     func staleCompletionIsDropped() {
         nonisolated(unsafe) var enqueued = 0

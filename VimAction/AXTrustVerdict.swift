@@ -11,9 +11,10 @@ import VimActionConfig
 /// 않았거나(`.pending`) 어느 계층에서든 탈락하면(`.untrusted`) keyboard로 돈다. 둘 다 완전
 /// 기능이라 auto는 "점진 강화"이지 "실패하면 무동작"이 아니다.
 ///
-/// 판정을 만들고 캐시하는 협력자(pid 키·프로브 큐·런타임 강등)는 **PR-D2 세션 2·3 몫**이라
-/// 아직 없다 — 지금은 모든 앱이 `.pending`이고, 그래서 이 세션의 auto는 예외 없이 keyboard로
-/// 접힌다. 판정 계층·수명·강등 규칙의 SSOT는 architecture `strategy-dispatch.md`의
+/// 판정을 만들고 캐시하는 협력자는 `AXTrustProber`(pid 키 캐시 + 전용 큐 프로브)이고,
+/// 콜백이 그 캐시를 조회해 아래 접기로 싣는다. 아직 없는 것은 **런타임 강등**(auto발
+/// `.axUnavailable` 연속 — PR-D2 세션 3 몫)뿐이라, trusted는 지금 단순 sticky다.
+/// 판정 계층·수명·강등 규칙의 SSOT는 architecture `strategy-dispatch.md`의
 /// auto 프로브 섹션이다 (`20260813_auto-probe-async-cached-verdict-pid-lifetime.md`).
 nonisolated enum AXTrustVerdict: Hashable, Sendable, CaseIterable {
     /// 아직 프로브가 판정하지 않았다 — 캐시 부재.
