@@ -1,0 +1,33 @@
+VimAction/AXTrustVerdict.swift
+  s_86b88f3ab3276a::t_c351a48cc9f60d 14-17
+VimAction/AXTrustProber.swift
+  s_86b88f3ab3276a::t_6b4a5ee2e79dd9 50-54,57
+  s_86b88f3ab3276a::t_761aebf7d0c201 116-142,146
+  s_86b88f3ab3276a::t_379b527cf3c385 97
+  s_86b88f3ab3276a::t_c320e619f4e3de 303-309
+  s_86b88f3ab3276a::t_b4b06966e5dfe1 271-274
+  s_86b88f3ab3276a::t_8b159e84d3d2a9 240
+  s_86b88f3ab3276a::t_449213678e76ae 193-196
+  s_86b88f3ab3276a::t_f4a2c833eb9e75 317-319,324
+VimActionTests/AXTrustProberTests.swift
+  s_86b88f3ab3276a::t_4a514eb45eaea5 370-404
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_86b88f3ab3276a::t_cc2cc2f5e3ae57 6
+  s_86b88f3ab3276a::t_0d4ad17336f56a 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "55d1955fa01e71bea7f8c762296218a462710928",
+  "prompts": {},
+  "sessions": {
+    "s_86b88f3ab3276a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5696b5ab-bb20-4920-8efc-ae209e7c0749",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
