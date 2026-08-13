@@ -116,9 +116,11 @@ private struct GeneralTab: View {
                 }
                 // 값·엔진 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 가로채기 토글과 동일 모델.
                 Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
-                Text("After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                Text(
+                    "After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked. When off, those shortcuts still pass through to the app — you just stay in Normal mode."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
             Section("Updates") {
                 UpdaterSettingsToggle(updater: appState.updater)

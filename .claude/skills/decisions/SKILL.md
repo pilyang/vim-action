@@ -124,6 +124,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-24 | Ctrl 매핑 취소 충돌 해소 | 매핑된 Ctrl 콤보만 탈출 판정 제외 — 테이블 파생 단일 소스 | [20260724_ctrl-combo-mapped-exception-cancellation.md](references/20260724_ctrl-combo-mapped-exception-cancellation.md) |
 | 07-24 | Ctrl-[ Esc 별칭 | handle() 초입에서 Esc로 치환 — 세 모드 완전 별칭, 엔진 정규화 | [20260724_ctrl-bracket-escape-normalization.md](references/20260724_ctrl-bracket-escape-normalization.md) |
 | 08-01 | Normal 빈 상태 Esc는 passthrough | pending 있으면 폐기+swallow, 없으면 통과 — Esc 연타로 앱에 취소 전달 | [20260801_normal-esc-passthrough-when-empty.md](references/20260801_normal-esc-passthrough-when-empty.md) |
+| 08-13 | modifier 콤보 swallow 비채택 | 3택 확장 기각(passthrough-only는 토글 off가 이미 제공, swallow는 시스템 단축키 차단) — 2택 유지 + 토글 도움말로 오해 해소 | [20260813_normal-mode-modifier-swallow-not-added.md](references/20260813_normal-mode-modifier-swallow-not-added.md) |
 
 ### 엔진 — 출력 계약 (VimAction 어휘)
 
