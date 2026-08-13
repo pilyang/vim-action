@@ -84,6 +84,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-12 | 로그인 시 자동 시작은 `SMAppService.mainApp` | opt-in 토글(기본 off, 묵시적 등록 없음) — 상태 SSOT는 `status` 하나(UserDefaults 미러 금지: 시스템 설정에서 직접 끌 수 있어 어긋난다), 창 열 때 재조회 | [20260812_launch-at-login-smappservice-status-ssot.md](references/20260812_launch-at-login-smappservice-status-ssot.md) |
 | 08-12 | 배포 타깃은 macOS 14.0 | 26.5는 Xcode 생성 기본값 오입 — 코드 무변경 하한 14.0 확정(13.0은 `@Observable`·`openSettings`로 불가), CI 하한 게이트(오버라이드 빌드+pbxproj 단언), cask는 릴리스 후 `:sonoma`+arm64 가드 | [20260812_deployment-target-macos-14.md](references/20260812_deployment-target-macos-14.md) |
 | 08-12 | README 데모 미디어 재생성 파이프라인 | `docs/assets/` 미디어는 `assets/readme/`(비추적) 소스+네이티브 Swift 스크립트로 재생성(ffmpeg 무의존) — lock 글리프는 SF Symbol 렌더, icon.png는 NSWorkspace 추출 | [20260812_readme-demo-media-native-render-pipeline.md](references/20260812_readme-demo-media-native-render-pipeline.md) |
+| 08-13 | main 브랜치 보호 — CI 3잡 required | auto-merge가 CI를 안 기다린 실측(#54) — 3잡 전부 required, strict=false·enforce_admins=false(직접 docs push 유지) | [20260813_main-branch-protection-required-checks.md](references/20260813_main-branch-protection-required-checks.md) |
 
 ### 프로젝트 운영·커뮤니티
 
