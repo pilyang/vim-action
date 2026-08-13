@@ -1,0 +1,35 @@
+name: App bug
+description: Settings, menu bar, permissions, config loading, updates — anything that isn't Vim editing behavior
+labels: ["bug", "area:app"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What went wrong, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can it be reproduced?
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: false
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: VimAction version (menu bar → About VimAction) and macOS version.
+      placeholder: e.g. VimAction 1.2.0, macOS 15.5
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Screenshots, config files, log output — anything that helps.
+    validations:
+      required: false

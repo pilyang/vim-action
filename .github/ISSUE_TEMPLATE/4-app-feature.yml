@@ -1,0 +1,18 @@
+name: App feature request
+description: Settings, menu bar, config, or other quality-of-life ideas outside Vim behavior
+labels: ["enhancement", "area:app"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like?
+      description: The feature, and the problem it would solve for you.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Alternatives you considered, how other tools handle it, etc.
+    validations:
+      required: false

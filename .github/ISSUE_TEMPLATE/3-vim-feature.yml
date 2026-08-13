@@ -1,0 +1,38 @@
+name: Vim feature request
+description: Request a motion, action, or text object — or better Vim behavior in a specific app
+labels: ["enhancement", "area:vim"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Before filing: [docs/KEYBINDINGS.md](https://github.com/pilyang/vim-action/blob/main/docs/KEYBINDINGS.md)
+        lists what already works, what is planned, and what is deliberately out of scope.
+  - type: textarea
+    id: what
+    attributes:
+      label: What should VimAction support?
+      description: A motion, operator, or text object — e.g. `f{char}`, `gU`, `i(` — or better behavior in a particular app.
+    validations:
+      required: true
+  - type: textarea
+    id: vim-behavior
+    attributes:
+      label: How does it work in Vim?
+      description: Skip this if it's just the standard Vim behavior of the keys above.
+    validations:
+      required: false
+  - type: input
+    id: apps
+    attributes:
+      label: Apps where this matters
+      description: If this is about one app (or a few), name them.
+      placeholder: e.g. Notion, Xcode — or everywhere
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Your current workaround, how often you reach for this, etc.
+    validations:
+      required: false
