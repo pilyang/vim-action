@@ -1,0 +1,23 @@
+.claude/skills/decisions/references/20260813_issue-taxonomy-vim-app-split.md
+  s_12021b03232e5c::t_0c08adfcda9620 1-27
+.claude/skills/decisions/SKILL.md
+  s_12021b03232e5c::t_31602b8fcb2c76 88-94
+.claude/skills/decisions/references/20260813_external-contribution-policy.md
+  s_12021b03232e5c::t_666463f3bb7705 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "bd9181aa1983e86491c205baf6f0bd476a627a4d",
+  "prompts": {},
+  "sessions": {
+    "s_12021b03232e5c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0ed4a4b6-4234-4345-bbd6-32f08e91878f",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
