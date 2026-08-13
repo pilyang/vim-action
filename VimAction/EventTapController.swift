@@ -148,6 +148,12 @@ final class EventTapController {
     /// 통과시키지만, 요소 계열은 엔진이 낸 액션을 어댑터가 걸러낼지에만 쓰인다.
     @ObservationIgnored private let focusedElement: FocusedElementResolver
 
+    /// auto 전략 프로브 협력자 — 게이트·리졸버와 나란한 자리이고 규칙도 같다: **콜백은
+    /// 판정 캐시만 읽고**(딕셔너리 조회 1회), 프로브의 AX 접촉은 전부 전용 큐 위다.
+    /// 콜백이 하는 나머지 하나는 `.replace` 디스패치 뒤 트리거 신호(`noteReplaceDispatch` —
+    /// 플래그 부기 + enqueue뿐)다 (`20260813_auto-probe-async-cached-verdict-pid-lifetime.md`).
+    @ObservationIgnored private let axTrustProber: AXTrustProber
+
     /// 실행 시퀀스의 유일한 출구. 기본값(`keyboardActionSink`)이 게시 직렬 큐와
     /// `KeyboardAdapter`를 캡처하므로 큐의 수명은 이 프로퍼티(= 컨트롤러)와 같다.
     ///
@@ -301,12 +307,14 @@ final class EventTapController {
         defaults: UserDefaults = .standard,
         frontmostAppGate: FrontmostAppGate? = nil,
         focusedElement: FocusedElementResolver? = nil,
+        axTrustProber: AXTrustProber? = nil,
         dispatchActions: (@Sendable ([VimAction], DispatchContext) -> Void)? = nil,
         profileProvider: ((String?) -> ResolvedProfile)? = nil
     ) {
         self.defaults = defaults
         self.frontmostAppGate = frontmostAppGate ?? .forCurrentEnvironment()
         self.focusedElement = focusedElement ?? .forCurrentEnvironment()
+        self.axTrustProber = axTrustProber ?? .forCurrentEnvironment()
         self.profileProvider = profileProvider
         self.executionAbort = ExecutionAbortLatch()
         // 프로덕션 sink 생성은 `dispatchActions`(lazy)로 미뤄져 있다 — 실패 보고 클로저가
@@ -806,16 +814,24 @@ final class EventTapController {
             // provider 미주입(설정 계층이 없는 테스트)만 `.empty`다 — 프로덕션에서 프로파일
             // 파일이 없는 앱은 `ConfigStore`가 `.noProfile`로 답한다.
             let profile = profileProvider?(bundleID) ?? .empty
-            // 전략은 **여기서 접는다** — 실행 계층은 `.auto`를 모른다. 판정 소스(pid 키 캐시)는
-            // PR-D2 세션 2가 얹으며, 그때 이 `.pending` 상수가 캐시 조회 한 번으로 바뀐다
-            // (딕셔너리 읽기라 콜백 경량 불변식 안에 있다).
-            let effective = effectiveStrategy(profile.strategy, verdict: .pending)
+            // 전략은 **여기서 접는다** — 실행 계층은 `.auto`를 모른다. pid는 리졸버의 것을
+            // 컨텍스트와 같은 값으로 쓴다 — 판정을 pid에 묶고 소비 시 같은 출처로 조회해야
+            // 번들 ID(게이트)와 pid(리졸버)가 별개 옵저버라 생기는 앱 전환 어긋남 창이 닫힌다
+            // (`20260813_auto-probe-async-cached-verdict-pid-lifetime.md`).
+            let processID = focusedElement.observedProcessID
+            let effective = effectiveStrategy(
+                profile.strategy, verdict: axTrustProber.verdict(for: processID))
             dispatchActions(
                 output.actions,
                 DispatchContext(
                     family: focusedElement.family,
-                    processID: focusedElement.observedProcessID, bundleID: bundleID,
+                    processID: processID, bundleID: bundleID,
                     profile: profile, effectiveStrategy: effective))
+            // 트리거는 디스패치 **뒤**다 — 이 키는 방금 접은 판정(pending이면 keyboard)으로
+            // 이미 나갔고, 프로브가 바꾸는 것은 다음 키부터다 (첫 몇 키의 keyboard 실행은
+            // 결정된 수용 비용).
+            axTrustProber.noteReplaceDispatch(
+                processID: processID, bundleID: bundleID, declaredStrategy: profile.strategy)
             return nil
         }
     }

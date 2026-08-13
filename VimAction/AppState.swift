@@ -24,6 +24,9 @@ final class AppState {
     /// 게이트를 AppState가 직접 만들어 컨트롤러에 주입한다 — 설정 로드·리로드 때
     /// disable 집합을 푸시할 핸들이 필요해서다 (컨트롤러는 설정 계층을 모른다).
     private let frontmostAppGate: FrontmostAppGate
+    /// auto 전략 프로브 — 게이트와 같은 이유로 AppState가 만들어 주입한다: 설정 리로드가
+    /// 판정 캐시를 비울 핸들이 필요하다 (`20260813_auto-probe-async-cached-verdict-pid-lifetime.md`).
+    private let axTrustProber: AXTrustProber
     /// 설정 창이 열린 동안만 Dock 아이콘을 노출한다. 열림은 `SettingsView.onAppear`가
     /// 알려주고 닫힘은 컨트롤러가 창 알림으로 스스로 잡으므로, `bootstrap`이 아니라 여기
     /// 생성 시점이 배선의 전부다.
@@ -48,10 +51,13 @@ final class AppState {
     init() {
         let gate = FrontmostAppGate.forCurrentEnvironment()
         let store = ConfigStore()
+        let prober = AXTrustProber.forCurrentEnvironment()
         frontmostAppGate = gate
         configStore = store
+        axTrustProber = prober
         let eventTap = EventTapController(
             frontmostAppGate: gate,
+            axTrustProber: prober,
             profileProvider: { [weak store] bundleID in
                 // 스토어가 사라진 뒤(= 앱 해체) 오는 조회다 — "프로파일 부재"가 아니라 "설정
                 // 계층 없음"이라 번들 기본 전략이 아니라 `.empty`가 맞다.
@@ -133,6 +139,10 @@ final class AppState {
     func reloadConfig() -> Bool {
         let succeeded = configStore.reload()
         frontmostAppGate.update(disabledBundleIDs: configStore.disabledBundleIDs)
+        // 리로드 성공 여부와 무관하게 비운다 — 실패(직전 유효 설정 유지)에서도 사용자가
+        // 설정을 바꾸려던 시점이라 낡은 판정을 계속 신뢰할 근거가 없고, pending=keyboard는
+        // 완전 기능이라 비우는 방향이 항상 안전하다.
+        axTrustProber.clearVerdicts()
         return succeeded
     }
 
