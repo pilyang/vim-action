@@ -46,6 +46,38 @@ struct EffectiveStrategyTests {
     }
 }
 
+/// 메뉴 "Strategy:" 줄 — `(선언된 전략, 판정) → 표시 문구`. 접기(`effectiveStrategy`)와
+/// 입력 공간이 같지만 출력이 셋으로 갈린다: 접기는 pending과 untrusted를 둘 다 keyboard로
+/// 접어 "판정 중"을 표현할 수 없다 — 이 함수가 접기 재사용이 아닌 이유가 곧 표의 존재
+/// 이유다 (`20260813_auto-trusted-runtime-demotion-and-observability.md` 메뉴바 표시).
+@Suite("메뉴 전략 표시 문구")
+struct StrategyStatusTextTests {
+    /// 전략 × 판정 전수 표 — `EffectiveStrategyTests`와 같은 규칙.
+    static let table: [(ProfileStrategy, AXTrustVerdict, String)] = [
+        // 명시 전략은 판정을 보지 않는다 — 접기와 같은 규칙.
+        (.accessibility, .pending, "Strategy: AX"),
+        (.accessibility, .trusted, "Strategy: AX"),
+        (.accessibility, .untrusted, "Strategy: AX"),
+        (.keyboard, .pending, "Strategy: Keyboard"),
+        (.keyboard, .trusted, "Strategy: Keyboard"),
+        (.keyboard, .untrusted, "Strategy: Keyboard"),
+        // auto만 셋으로 갈린다 — pending이 "판정 중"이다.
+        (.auto, .pending, "Strategy: probing…"),
+        (.auto, .trusted, "Strategy: AX"),
+        (.auto, .untrusted, "Strategy: Keyboard"),
+    ]
+
+    @Test("표시 표", arguments: table)
+    func renders(declared: ProfileStrategy, verdict: AXTrustVerdict, expected: String) {
+        #expect(strategyStatusText(declared: declared, verdict: verdict) == expected)
+    }
+
+    @Test("표는 전략 × 판정 전수다")
+    func tableIsExhaustive() {
+        #expect(Self.table.count == ProfileStrategy.allCases.count * AXTrustVerdict.allCases.count)
+    }
+}
+
 /// 프로브 신호 → 판정 — default-deny 계층의 순수 함수 표.
 ///
 /// 신호 4비트 **전수 16행**이다 (`AXWriteOutcome` 전수 스윕과 같은 규칙): 요소 실증

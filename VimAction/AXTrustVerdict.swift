@@ -12,8 +12,9 @@ import VimActionConfig
 /// 기능이라 auto는 "점진 강화"이지 "실패하면 무동작"이 아니다.
 ///
 /// 판정을 만들고 캐시하는 협력자는 `AXTrustProber`(pid 키 캐시 + 전용 큐 프로브)이고,
-/// 콜백이 그 캐시를 조회해 아래 접기로 싣는다. 아직 없는 것은 **런타임 강등**(auto발
-/// `.axUnavailable` 연속 — PR-D2 세션 3 몫)뿐이라, trusted는 지금 단순 sticky다.
+/// 콜백이 그 캐시를 조회해 아래 접기로 싣는다. trusted의 반증 간선은 **런타임 강등**
+/// (auto가 라우팅한 실행의 `.axUnavailable` 슬라이딩 창 —
+/// `AXTrustProber.noteAutoAXUnavailable`)뿐이다.
 /// 판정 계층·수명·강등 규칙의 SSOT는 architecture `strategy-dispatch.md`의
 /// auto 프로브 섹션이다 (`20260813_auto-probe-async-cached-verdict-pid-lifetime.md`).
 nonisolated enum AXTrustVerdict: Hashable, Sendable, CaseIterable {
@@ -34,7 +35,7 @@ nonisolated enum AXTrustVerdict: Hashable, Sendable, CaseIterable {
 /// `strategy: accessibility`는 목록과 무관하게 이긴다 (`20260813_ax-trust-deny-list-code-constant.md`).
 nonisolated let axTrustDenyList: Set<String> = ["notion.id"]
 
-/// 프로브 판정의 **탈락 계층** — 판정 전이 로그에 실려 거부 목록 성장·기본값 전환 게이트의
+/// 판정의 **탈락 계층** — 판정 전이 로그에 실려 거부 목록 성장·기본값 전환 게이트의
 /// 판정 데이터가 된다 (`20260813_auto-trusted-runtime-demotion-and-observability.md`).
 nonisolated enum AXTrustProbeLayer: Hashable, Sendable, CaseIterable {
     /// 계층 1 — 거부 목록. AX 접촉 없이 갈리므로 `classifyAXTrustProbe`의 입력이 아니라
@@ -44,6 +45,10 @@ nonisolated enum AXTrustProbeLayer: Hashable, Sendable, CaseIterable {
     case element
     /// 계층 3 — 읽기·쓰기 가능성 실증 (3프리미티브 읽기 + settable).
     case readWrite
+    /// 런타임 강등 — 프로브가 아니라 실행 증거(auto가 라우팅한 실행의 `.axUnavailable`
+    /// 슬라이딩 창 임계)가 낸 탈락. 거부 목록과 같은 pid 수명 **종단**이다 — 재승격은
+    /// 앱 재실행(= 엔트리 백지 + 재프로브)뿐이라 재장전·프로브 상향 대상이 아니다.
+    case runtime
 }
 
 /// 프로브가 한 번의 수집에서 모은 신호 — **Bool만 싣는다.**

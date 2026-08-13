@@ -66,6 +66,11 @@ struct VimActionApp: App {
             // 대상은 비자신 캐시라 메뉴를 여는 행위가 자기 자신을 최전면으로 만들어도 유지된다.
             if let bundleID = appState.frontmostTargetBundleID {
                 Text("Frontmost: \(bundleID)")
+                // 그 앱의 실행 전략 판정 — auto 기본화 이후 "이 앱 지금 뭘로 돌아?"의 최소
+                // 진단 수단이다. 판정 캐시·게이트가 @Observable이라 판정 전이·앱 전환이
+                // 메뉴가 열린 중에도 이 줄을 갱신한다
+                // (20260813_auto-trusted-runtime-demotion-and-observability).
+                Text(appState.strategyStatusLine(for: bundleID))
                 // 실사용의 주력 플로우 — 이것 없이는 "이 앱에서 Vim 끄기"가 에디터 왕복
                 // 7단계다. 상태의 출처는 계속 config.yaml 하나이고(체크마크는 로드된
                 // 스냅샷의 파생), 클릭은 그 파일의 그 줄만 고친다.

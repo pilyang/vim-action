@@ -56,6 +56,7 @@ private func makeAXAdapter(
     readback: (@Sendable () -> NSRange?)? = nil,
     now: @escaping @Sendable () -> TimeInterval = { 0 },
     reportFailure: @escaping @Sendable (TimeInterval) -> Void = { _ in },
+    onAutoAXUnavailable: @escaping @Sendable (pid_t, String?, TimeInterval) -> Void = { _, _, _ in },
     onWrite: @escaping @Sendable (AXCall) -> Void = { _ in },
     collecting posted: @escaping @Sendable (CGEvent) -> Void = { _ in }
 ) -> KeyboardAdapter {
@@ -76,6 +77,7 @@ private func makeAXAdapter(
         },
         axElement: { _ in element },
         reportExecutionFailure: reportFailure,
+        reportAutoAXUnavailable: onAutoAXUnavailable,
         now: now)
 }
 
@@ -332,6 +334,83 @@ struct KeyboardAdapterAXWriteTests {
 
         #expect(trace.first == "post")
         #expect(trace.last == "ax")
+    }
+}
+
+// MARK: - auto 유래 `.axUnavailable` 신호 (PR-D2 세션 3)
+
+/// `strategy: auto` 프로파일 — auto가 trusted로 라우팅한 실행은 접힌 전략
+/// `.accessibility`를 함께 싣는다 (콜백 접기의 스냅샷 모양 그대로).
+private let autoProfile = ResolvedProfile(AppProfile(strategy: .auto))
+
+/// 강등 신호의 출처 판별 — `.axUnavailable`은 **auto가 라우팅한 실행에서만** 신호를 내고,
+/// 명시 accessibility·keyboard 경로에서는 어느 쪽으로도 섞이지 않는다 (결정 문언
+/// `20260813_auto-trusted-runtime-demotion-and-observability.md`).
+struct KeyboardAdapterAutoAXUnavailableTests {
+    @Test("auto 유래 요소·읽기 실패는 pid·시각을 실어 1회 보고한다")
+    func autoOriginFailureReportsOnce() {
+        nonisolated(unsafe) var reported: [(pid_t, String?, TimeInterval)] = []
+        let adapter = makeAXAdapter(
+            axText: nil, element: nil, now: { 42 },
+            onAutoAXUnavailable: { reported.append(($0, $1, $2)) })
+
+        // 액션이 여럿이어도 `.axUnavailable`이 execute를 접어 신호는 키 입력당 최대 1건이다.
+        adapter.execute(
+            [.move(.wordForward), .move(.wordForward)], profile: autoProfile,
+            effectiveStrategy: .accessibility, processID: anyPID, bundleID: "com.example")
+
+        #expect(reported.count == 1)
+        #expect(reported.first?.0 == anyPID)
+        #expect(reported.first?.1 == "com.example")
+        #expect(reported.first?.2 == 42, "시각은 게시 큐의 now seam에서 캡처한다")
+    }
+
+    /// 섞임 금지의 절반 — 명시 accessibility의 같은 실패는 사용자 지시라 강등할 판정이
+    /// 없다 (auto와 라벨·신호 어느 쪽에서도 섞이지 않는다).
+    @Test("명시 accessibility의 요소·읽기 실패는 보고하지 않는다")
+    func explicitAccessibilityFailureDoesNotReport() {
+        nonisolated(unsafe) var reports = 0
+        let adapter = makeAXAdapter(
+            axText: nil, element: nil, onAutoAXUnavailable: { _, _, _ in reports += 1 })
+
+        adapter.execute(
+            [.move(.wordForward)], profile: axProfile, processID: anyPID,
+            bundleID: "com.example")
+
+        #expect(reports == 0)
+    }
+
+    /// auto가 keyboard로 접힌 실행(pending·untrusted)은 AX 경로 자체가 없다 — 신호도 없다.
+    @Test("auto의 keyboard 접기 실행은 보고하지 않는다")
+    func autoFoldedToKeyboardDoesNotReport() {
+        nonisolated(unsafe) var reports = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: nil, element: nil, onAutoAXUnavailable: { _, _, _ in reports += 1 },
+            collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.move(.wordForward)], profile: autoProfile, effectiveStrategy: .keyboard,
+            processID: anyPID, bundleID: "com.example")
+
+        #expect(reports == 0)
+        #expect(!posted.isEmpty, "keyboard 경로는 평소처럼 합성 이벤트를 낸다")
+    }
+
+    @Test("auto 유래라도 AX 성공 경로는 보고하지 않는다")
+    func autoOriginSuccessDoesNotReport() {
+        nonisolated(unsafe) var reports = 0
+        nonisolated(unsafe) var writes = 0
+        let adapter = makeAXAdapter(
+            axText: axText, onAutoAXUnavailable: { _, _, _ in reports += 1 },
+            onWrite: { _ in writes += 1 })
+
+        adapter.execute(
+            [.move(.wordForward)], profile: autoProfile, effectiveStrategy: .accessibility,
+            processID: anyPID, bundleID: "com.example")
+
+        #expect(writes == 1, "AX 캐럿 쓰기가 나갔다")
+        #expect(reports == 0, "성공은 강등 신호가 아니다")
     }
 }
 

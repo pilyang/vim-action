@@ -327,13 +327,120 @@ struct AXTrustProberCacheTests {
     }
 
     /// 단조성 — 프로브 결과는 trusted를 끌어내리지 못한다 (플립플롭 금지 문언 그대로).
-    /// 강등 간선은 세션 3이 런타임 증거 전용의 별도 진입점으로 얹는다.
+    /// 강등 간선은 런타임 증거 전용의 별도 진입점 `noteAutoAXUnavailable`이다 — 바로 아래
+    /// 테스트가 그 대조다("프로브는 못 내리고 런타임 증거는 내린다").
     @Test("프로브 결과는 trusted를 끌어내리지 못한다")
     func probeResultNeverDemotesTrusted() {
         let prober = makeProber()
         prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example")
         prober.update(verdict: .untrusted, failedLayer: .element, for: 7, bundleID: "com.example")
         #expect(prober.verdict(for: 7) == .trusted)
+    }
+
+    /// 위 단조성의 대조 — 런타임 증거(auto발 `.axUnavailable` 창 안 임계)는 trusted를
+    /// 내린다. 강등이 곧 다음 키의 keyboard 접기다 (`effectiveStrategy`).
+    @Test("런타임 증거는 trusted를 끌어내린다 — 창 안 임계 도달")
+    func runtimeEvidenceDemotesTrusted() {
+        let prober = makeProber()
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example")
+        for tick in 0..<AXTrustProber.demotionThreshold {
+            #expect(prober.verdict(for: 7) == .trusted, "임계 전에는 판정이 서 있다")
+            prober.noteAutoAXUnavailable(
+                processID: 7, bundleID: "com.example", at: TimeInterval(tick))
+        }
+        #expect(prober.verdict(for: 7) == .untrusted)
+        #expect(
+            effectiveStrategy(.auto, verdict: prober.verdict(for: 7)) == .keyboard,
+            "강등 뒤 접기는 keyboard다")
+    }
+
+    @Test("창 밖으로 흩어진 신호는 강등하지 못한다 — 슬라이딩 창 만료")
+    func demotionSignalsExpireOutsideWindow() {
+        let prober = makeProber()
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example")
+        // 2건 뒤 창 길이만큼 지나 3번째 — 앞 2건이 만료돼 임계에 닿지 않는다.
+        prober.noteAutoAXUnavailable(processID: 7, bundleID: "com.example", at: 0)
+        prober.noteAutoAXUnavailable(processID: 7, bundleID: "com.example", at: 1)
+        prober.noteAutoAXUnavailable(
+            processID: 7, bundleID: "com.example", at: AXTrustProber.demotionWindow + 1)
+        #expect(prober.verdict(for: 7) == .trusted, "지속 실패가 아니라 산발 실패다 — 강등 없음")
+    }
+
+    /// 엔트리 부재 = 종료 회수·클리어의 증거 — 신호가 엔트리를 만들면 안 된다
+    /// (`completeProbe`의 부재 드롭과 같은 방어).
+    @Test("엔트리 없는 강등 신호는 버려진다 — 엔트리를 만들지 않는다")
+    func demotionSignalWithoutEntryIsDropped() {
+        nonisolated(unsafe) var enqueued = 0
+        let prober = makeProber(schedule: { _ in enqueued += 1 })
+        prober.noteAutoAXUnavailable(processID: 7, bundleID: "com.example", at: 0)
+        #expect(prober.verdict(for: 7) == .pending)
+
+        prober.noteReplaceDispatch(processID: 7, bundleID: "com.example", declaredStrategy: .auto)
+        #expect(enqueued == 1, "다음 디스패치는 백지의 첫 프로브다 — 신호가 부기를 남기지 않았다")
+    }
+
+    /// pending·untrusted로 도는 중의 신호는 낡은 홉이다 — 판정도 탈락 계층도 건드리지 않는다.
+    @Test("trusted가 아닌 엔트리의 강등 신호는 무시된다")
+    func demotionSignalOnNonTrustedIsIgnored() {
+        nonisolated(unsafe) var enqueued = 0
+        let prober = makeProber(schedule: { _ in enqueued += 1 })
+        // 프로브 탈락 untrusted(.element) — 강등 신호가 와도 재장전 자격이 살아 있어야 한다.
+        prober.update(verdict: .untrusted, failedLayer: .element, for: 7, bundleID: "com.example")
+        for tick in 0..<AXTrustProber.demotionThreshold {
+            prober.noteAutoAXUnavailable(
+                processID: 7, bundleID: "com.example", at: TimeInterval(tick))
+        }
+        #expect(prober.verdict(for: 7) == .untrusted)
+        prober.noteActivation(processID: 7)
+        prober.noteReplaceDispatch(processID: 7, bundleID: "com.example", declaredStrategy: .auto)
+        #expect(enqueued == 1, "신호가 탈락 계층을 .runtime으로 바꿨다면 재장전이 막혔을 것이다")
+    }
+
+    /// "재승격은 앱 재실행 = 재프로브뿐" — 강등은 활성화 재장전 대상이 아니다
+    /// (거부 목록과 같은 pid 수명 종단).
+    @Test("강등된 앱은 활성화로 재장전되지 않는다")
+    func demotedAppIsNotReArmedByActivation() {
+        nonisolated(unsafe) var enqueued = 0
+        let prober = makeProber(schedule: { _ in enqueued += 1 })
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example")
+        for tick in 0..<AXTrustProber.demotionThreshold {
+            prober.noteAutoAXUnavailable(
+                processID: 7, bundleID: "com.example", at: TimeInterval(tick))
+        }
+        #expect(prober.verdict(for: 7) == .untrusted)
+
+        prober.noteActivation(processID: 7)
+        prober.noteReplaceDispatch(processID: 7, bundleID: "com.example", declaredStrategy: .auto)
+        #expect(enqueued == 0, "강등은 pid 수명 sticky — 재프로브 경로가 없다")
+    }
+
+    /// 강등의 종단성 — 강등보다 먼저 enqueue돼 있던(어긋난 짝의) 프로브가 나중에 착지해도
+    /// 상향 간선으로 강등을 덮지 못한다 (거부 목록 종단과 같은 축).
+    @Test("강등 판정은 종단 — 늦게 착지한 프로브 결과가 덮지 못한다")
+    func runtimeDemotionIsTerminal() {
+        let prober = makeProber()
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example")
+        for tick in 0..<AXTrustProber.demotionThreshold {
+            prober.noteAutoAXUnavailable(
+                processID: 7, bundleID: "com.example", at: TimeInterval(tick))
+        }
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example")
+        #expect(prober.verdict(for: 7) == .untrusted, "재승격은 앱 재실행(백지 엔트리)뿐이다")
+    }
+
+    /// 강등 카운터도 엔트리 수명이다 — 종료 회수 뒤 같은 pid의 새 앱은 카운터까지 백지다.
+    @Test("종료 회수는 강등 카운터도 백지로 만든다")
+    func terminationResetsDemotionCounter() {
+        let prober = makeProber()
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example")
+        prober.noteAutoAXUnavailable(processID: 7, bundleID: "com.example", at: 0)
+        prober.noteAutoAXUnavailable(processID: 7, bundleID: "com.example", at: 1)
+        prober.noteTermination(processID: 7)
+
+        // 같은 pid를 물려받은 새 앱 — trusted 재수립 뒤 신호 1건으로는 강등되지 않아야 한다.
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.other")
+        prober.noteAutoAXUnavailable(processID: 7, bundleID: "com.other", at: 2)
+        #expect(prober.verdict(for: 7) == .trusted, "이전 프로세스의 신호 2건이 승계되면 안 된다")
     }
 
     @Test("untrusted → trusted는 허용 — 기상·재프로브가 성공한 경로")

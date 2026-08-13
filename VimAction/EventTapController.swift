@@ -178,6 +178,16 @@ final class EventTapController {
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated { self?.reportExecutionFailure(at: failedAt) }
                 }
+            },
+            reportAutoAXUnavailable: { [weak self] processID, bundleID, failedAt in
+                // 강등 카운터·판정 캐시는 프로버의 MainActor 계약이다 — `reportFailure`와
+                // 같은 모양으로 홉만 얹고, 시각·pid·번들 ID는 게시 큐에서 캡처돼 온다.
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        self?.axTrustProber.noteAutoAXUnavailable(
+                            processID: processID, bundleID: bundleID, at: failedAt)
+                    }
+                }
             })
 
     /// 주입된 sink — `nil`이면 위 lazy가 프로덕션 것을 만든다.
@@ -210,13 +220,20 @@ final class EventTapController {
     /// `reportFailure`는 어댑터가 AX 쓰기 실패를 돌려보내는 통로다 — **실패 시각을 인자로
     /// 받는다**(게시 큐 캡처). 컨트롤러의 카운터는 MainActor 계약이라 클로저 쪽이 홉을 지고,
     /// 이 sink는 그것을 어댑터에 꽂아 주기만 한다.
+    ///
+    /// `reportAutoAXUnavailable`은 auto 유래 `.axUnavailable`이 프로버의 런타임 강등
+    /// 진입점으로 돌아가는 통로다 — 시각(게시 큐 캡처)·홉의 규칙이 `reportFailure`와 같고,
+    /// 착지점만 컨트롤러 카운터가 아니라 `axTrustProber`다.
     private static func keyboardActionSink(
         abort: ExecutionAbortLatch,
-        reportFailure: @escaping @Sendable (TimeInterval) -> Void
+        reportFailure: @escaping @Sendable (TimeInterval) -> Void,
+        reportAutoAXUnavailable: @escaping @Sendable (pid_t, String?, TimeInterval) -> Void
     ) -> @Sendable ([VimAction], DispatchContext) -> Void {
         guard !isRunningUnderXCTest() else { return { _, _ in } }
         let queue = DispatchQueue(label: "dev.pilyang.VimAction.execution", qos: .userInitiated)
-        let adapter = KeyboardAdapter(reportExecutionFailure: reportFailure)
+        let adapter = KeyboardAdapter(
+            reportExecutionFailure: reportFailure,
+            reportAutoAXUnavailable: reportAutoAXUnavailable)
         return { actions, context in
             // `beginRun`은 **큐 밖**(탭 콜백 스레드)이어야 한다 — 큐 안이면 이미 도는 버스트가
             // 끝난 뒤에야 세대가 올라가 아무것도 끊지 못한다. 비용은 잠금 1회 + 증가 1회라

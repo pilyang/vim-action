@@ -6,6 +6,7 @@
 import AppKit
 import ApplicationServices
 import Foundation
+import Observation
 import os
 import VimActionConfig
 
@@ -24,10 +25,17 @@ import VimActionConfig
 /// 토글 off·config off 앱은 `.replace` 자체가 없어 프로브 없음이 구조적으로 성립한다.
 ///
 /// **프로브는 trusted 방향으로만 캐시를 움직인다** (`update` 단조성 가드) — 반증은 런타임
-/// 증거(auto발 `.axUnavailable` 연속 강등, 세션 3)뿐이라 판정이 왕복(플립플롭)하는 경로가
-/// 없다. untrusted는 앱 활성화에서 재프로브 자격만 재장전되고(즉시 프로브 아님 — 프로브
-/// 진입점은 디스패치 하나), 재프로브 횟수는 pid당 상한 상수로 바운드된다.
+/// 증거(auto가 라우팅한 실행의 `.axUnavailable` 슬라이딩 창 — `noteAutoAXUnavailable`)뿐이라
+/// 판정이 왕복(플립플롭)하는 경로가 없다. untrusted는 앱 활성화에서 재프로브 자격만
+/// 재장전되고(즉시 프로브 아님 — 프로브 진입점은 디스패치 하나. 거부 목록·런타임 강등은
+/// 종단이라 제외), 재프로브 횟수는 pid당 상한 상수로 바운드된다.
+///
+/// `@Observable`인 것은 메뉴바가 최전면 앱의 판정("Strategy:" 줄)을 그려야 하기 때문이다 —
+/// `FrontmostAppGate`와 같은 근거·같은 비용 분석: 콜백의 `verdict(for:)` 읽기가 더하는 것은
+/// 추적 스코프 밖 즉시 반환하는 `access(keyPath:)`뿐이고, 엔트리 변이는 전부 사용자 페이스다
+/// (프로브 트리거·완료·활성화·강등).
 @MainActor
+@Observable
 final class AXTrustProber {
     /// 프로브 AX 전용 직렬 큐. 직렬인 이유는 리졸버 읽기 큐와 같다 — 동시 AX 호출을 만들지
     /// 않기 위해서다. 리졸버 큐와 **분리**한 이유는 위 타입 주석(계열 판정 지연) 참조.
@@ -37,6 +45,17 @@ final class AXTrustProber {
     /// untrusted의 pid당 재프로브 횟수 상한 — 도그푸딩 조절값. 재장전이 앱 활성화 단위라
     /// 빈도는 이미 사용자 페이스로 바운드되어 있고, 이 상수는 총량만 자른다.
     nonisolated static let reProbeAttemptCap = 3
+    /// 런타임 강등 임계 — 슬라이딩 창(`demotionWindow`) 안에서 auto가 라우팅한 실행의
+    /// `.axUnavailable`이 이 횟수에 닿으면 trusted를 untrusted로 강등한다. 도그푸딩 조절값.
+    ///
+    /// 결정 문언의 "연속 N회"를 창으로 근사한 것이다(사용자 확정 — 세션 3): 신호가
+    /// execute(키 입력 1건)를 통째로 접어 키 입력당 최대 1건이고, 표적 실패(트리 수면·요소
+    /// 핸들 무효화)는 지속 상태라 타이핑 페이스의 창 안 3회는 실질적으로 연속 3회다 —
+    /// 실행 경로에 성공 보고 seam을 새로 뚫지 않는 쪽을 택했다
+    /// (`20260813_auto-trusted-runtime-demotion-and-observability.md`).
+    nonisolated static let demotionThreshold = 3
+    /// 위 강등 창의 길이(초) — 도그푸딩 조절값.
+    nonisolated static let demotionWindow: TimeInterval = 10
     /// 콜드 형태 실패의 유계 재시도 횟수 (결정 문언 "~200ms×1–2회"의 상한 쪽).
     nonisolated static let coldRetryCount = 2
     /// 재시도 간 지연 — PR-A 실측(콜드 웜업 재시도 2~3회/+10~23ms)과 Electron 트리 기상
@@ -74,6 +93,17 @@ final class AXTrustProber {
         /// 이 앱에 `AXManualAccessibility` 기상 쓰기를 이미 했는가 — **pid당 1회**이며
         /// 재프로브에도 승계된다 (`20260813_electron-tree-wake-on-probe-failure.md`).
         var wokeTree = false
+        /// auto가 라우팅한 실행의 `.axUnavailable` 슬라이딩 창 — trusted에서만 굴러가고
+        /// (`noteAutoAXUnavailable`), 임계 도달이 곧 런타임 강등이다. `FailureBurstCounter`를
+        /// 창·임계만 바꿔 그대로 재사용한다(시간 주입 순수 타입 — 결정 문언의 "재사용 모양").
+        /// 엔트리 필드라 pid 수명(종료 회수·클리어)을 공짜로 상속한다.
+        var axUnavailableBurst = FailureBurstCounter(
+            window: AXTrustProber.demotionWindow, threshold: AXTrustProber.demotionThreshold)
+
+        /// pid 수명 **종단**인가 — 거부 목록("즉시 untrusted·재시도 없음")과 런타임 강등
+        /// ("재승격은 앱 재실행뿐"). 재장전(`noteActivation`)과 프로브 상향 덮어쓰기
+        /// (`update`)가 같은 판정을 봐야 한쪽만 고치는 조용한 회귀가 없다.
+        var isTerminal: Bool { failedLayer == .denyList || failedLayer == .runtime }
     }
 
     private var entries: [pid_t: Entry] = [:]
@@ -94,7 +124,9 @@ final class AXTrustProber {
     private let notificationCenter: NotificationCenter
     /// 옵저버 해제를 nonisolated `deinit`에서 하므로 격리 밖에서 읽혀야 한다
     /// (`FrontmostAppGate`와 같은 이유·같은 단언: 접근이 init/deinit 두 곳뿐이다).
-    private nonisolated(unsafe) var observerTokens: [NSObjectProtocol] = []
+    /// `@ObservationIgnored`도 게이트와 같다 — 매크로가 접근자를 감싸면 nonisolated
+    /// `deinit`에서의 접근이 깨진다. 관찰할 값도 아니다.
+    @ObservationIgnored private nonisolated(unsafe) var observerTokens: [NSObjectProtocol] = []
 
     init(
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
@@ -128,7 +160,8 @@ final class AXTrustProber {
             })
         // 종료 회수가 있어야 "수명 = 앱 실행 1회" 문언이 코드에서 성립한다 — 지우지 않으면
         // 실제 수명이 "pid 값"이 되어, pid 되감기(99999 순환)가 낡은 판정을 무관한 새 앱에
-        // 승계시킨다. trusted 승계는 세션 3 강등 전까지 회복 간선이 없어 특히 위험하다.
+        // 승계시킨다. trusted 승계가 특히 위험하다 — 회복 간선이 런타임 강등
+        // (`noteAutoAXUnavailable`)뿐인데, 승계받은 앱이 auto가 아니면 그 간선도 닿지 않는다.
         observerTokens.append(
             notificationCenter.addObserver(
                 forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
@@ -257,7 +290,8 @@ final class AXTrustProber {
     ///
     /// **단조성 가드가 여기 있다**: 프로브 결과는 `pending → trusted/untrusted`와
     /// `untrusted → trusted`만 만들 수 있고, trusted를 끌어내리는 간선은 이 진입점에 없다 —
-    /// 강등은 런타임 증거 전용으로 세션 3이 **별도 진입점**으로 얹는다(플립플롭 금지).
+    /// 강등은 런타임 증거 전용의 별도 진입점 `noteAutoAXUnavailable`이 담당한다(플립플롭
+    /// 금지 — 그쪽은 반대로 trusted에서만 내려간다).
     /// 실제 전이에만 판정 전이 `.info` 1줄(번들 ID + 판정 + 탈락 계층)을 남긴다 — 릴리스에서
     /// 생존해 `log show --info`로 사후 회수되는 판정 데이터다. **창 본문은 신호 타입이 Bool뿐이라
     /// 실릴 수 없다** (`20260813_auto-trusted-runtime-demotion-and-observability.md`).
@@ -268,10 +302,10 @@ final class AXTrustProber {
         guard verdict != .pending else { return }
         var entry = entries[processID] ?? Entry()
         guard entry.verdict != .trusted else { return }
-        // 거부 목록 판정은 pid 수명 **종단**이다 — "즉시 untrusted·재시도 없음" 문언 그대로.
-        // 이 가드가 없으면, 판정보다 먼저 enqueue돼 있던(어긋난 짝의) 프로브가 나중에 착지해
-        // untrusted → trusted 상향 간선으로 목록 판정을 덮을 수 있다.
-        guard entry.failedLayer != .denyList else { return }
+        // 종단 판정(`Entry.isTerminal`)은 프로브가 덮지 못한다 — 이 가드가 없으면, 판정보다
+        // 먼저 enqueue돼 있던(어긋난 짝의) 프로브가 나중에 착지해 untrusted → trusted 상향
+        // 간선으로 종단 판정을 덮을 수 있다.
+        guard !entry.isTerminal else { return }
         let transitioned = entry.verdict != verdict
         entry.verdict = verdict
         entry.failedLayer = failedLayer
@@ -290,11 +324,45 @@ final class AXTrustProber {
         }
     }
 
+    /// **런타임 강등 진입점** — auto가 라우팅한 실행의 `.axUnavailable` 신호가 게시 큐 →
+    /// main 홉으로 착지하는 자리다. `update`(프로브 전용 — 단조성 가드가 trusted 하강을
+    /// 막는다)를 우회하지 않고 **나란히** 서 있는 별도 간선이며, trusted를 끌어내리는 유일한
+    /// 경로다. 창 안 임계 도달이면 untrusted로 강등하고, 실패한 그 액션은 이미 접혔으므로
+    /// (재실행 없음 — "쓰기 후 폴백 금지"와 무충돌) 다음 키의 콜백 접기가 untrusted를 읽는
+    /// 것이 효과의 전부다 (`20260813_auto-trusted-runtime-demotion-and-observability.md`).
+    ///
+    /// 엔트리가 없으면 만들지 않고 버린다 — 이 신호는 항상 trusted 엔트리가 있던 시점에
+    /// 출발하므로 부재는 종료 회수·클리어의 증거이고, 되살리면 회수가 무의미해진다
+    /// (`completeProbe`와 같은 방어). trusted가 아니어도 버린다 — pending·untrusted는
+    /// keyboard로 도는 중이라 그 신호 자체가 낡은 홉이다. 종료·클리어 뒤 trusted 재수립
+    /// 사이로 낡은 보고가 끼어드는 창은 원리적으로 남지만, 시각이 게시 큐 캡처 값이라
+    /// 슬라이딩 창이 낡은 시각을 자연 만료시킨다.
+    ///
+    /// 강등은 pid 수명 sticky다 — 재승격은 앱 재실행(= 엔트리 백지 + 재프로브)뿐이고,
+    /// `noteActivation`의 재장전 제외와 `update`의 종단 가드가 `.runtime`을 함께 제외해
+    /// 그 문언을 코드로 만든다. 강등 `.info` 1줄이 판정 전이(번들 ID + 판정 + 탈락 계층)와
+    /// 강등 이벤트 관측을 겸한다 — `update` 전이 로그와 중복되지 않는다(이 전이는 이
+    /// 진입점만 만든다).
+    func noteAutoAXUnavailable(processID: pid_t, bundleID: String?, at failedAt: TimeInterval) {
+        guard var entry = entries[processID], entry.verdict == .trusted else { return }
+        guard entry.axUnavailableBurst.record(at: failedAt) else {
+            entries[processID] = entry
+            return
+        }
+        entry.verdict = .untrusted
+        entry.failedLayer = .runtime
+        entries[processID] = entry
+        Logger.eventTap.info(
+            "auto 판정 강등 — untrusted (탈락: \(Self.layerLabel(.runtime), privacy: .public), 창 \(Self.demotionWindow, format: .fixed(precision: 0), privacy: .public)s 안 .axUnavailable ×\(Self.demotionThreshold, privacy: .public) — 다음 액션부터 keyboard) [\(bundleID ?? "앱 미상", privacy: .public)]"
+        )
+    }
+
     /// 앱 활성화 — untrusted의 재프로브 자격만 재장전한다 (즉시 프로브 아님 — 프로브
-    /// 진입점은 `.replace` 디스패치 하나다). 거부 목록 탈락은 정적이라 재장전 대상이 아니다.
+    /// 진입점은 `.replace` 디스패치 하나다). 종단 판정(`Entry.isTerminal` — 거부 목록은
+    /// 정적이고, 런타임 강등은 "재승격은 앱 재실행 = 재프로브뿐")은 재장전 대상이 아니다.
     func noteActivation(processID: pid_t?) {
         guard let processID, var entry = entries[processID],
-            entry.verdict == .untrusted, entry.failedLayer != .denyList
+            entry.verdict == .untrusted, !entry.isTerminal
         else { return }
         entry.reArmed = true
         entries[processID] = entry
@@ -435,6 +503,7 @@ final class AXTrustProber {
         case .denyList: return "거부 목록"
         case .element: return "요소 실증"
         case .readWrite: return "읽기·쓰기 실증"
+        case .runtime: return "런타임 강등"
         case nil: return "없음"
         }
     }

@@ -250,6 +250,49 @@ struct ExecutionWiringTests {
         }
     }
 
+    /// 런타임 강등의 관통 — auto trusted 앱에서 `.axUnavailable` 신호가 창 안 임계에 닿으면
+    /// **다음 키의 접힌 전략이 keyboard**가 된다 (실패한 그 키는 이미 나갔다 — 재실행 없음).
+    /// 배선이 끊기면 트리 수면·핸들 무효화 앱이 릴리스에서 무로그 죽은 키로 영구화된다.
+    @Test(
+        "auto발 .axUnavailable 임계 도달이 다음 키부터 keyboard로 접는다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func runtimeDemotionFoldsNextKeyToKeyboard() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var contexts: [DispatchContext] = []
+            let auto = ResolvedProfile(AppProfile(strategy: .auto))
+            let gate = Self.gate(frontmost: "com.tinyspeck.slackmacgap")
+            let prober = Self.prober()
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: gate,
+                focusedElement: FocusedElementResolver(
+                    notificationCenter: NotificationCenter(), frontmostProcessID: 99_999),
+                axTrustProber: prober,
+                dispatchActions: { _, context in contexts.append(context) },
+                profileProvider: { _ in auto })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+            prober.update(
+                verdict: .trusted, failedLayer: nil, for: 99_999,
+                bundleID: "com.tinyspeck.slackmacgap")
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .accessibility, "강등 전에는 AX다")
+
+            // 실행 경로의 신호가 게시 큐 → main 홉으로 착지한 모양 그대로 진입점을 부른다
+            // (프로덕션 sink는 XCTest에서 만들어지지 않는다 — seam 호출은 어댑터 테스트 몫).
+            for tick in 0..<AXTrustProber.demotionThreshold {
+                prober.noteAutoAXUnavailable(
+                    processID: 99_999, bundleID: "com.tinyspeck.slackmacgap",
+                    at: TimeInterval(tick))
+            }
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .keyboard, "강등 뒤 다음 키는 keyboard다")
+            #expect(contexts.last?.profile.strategy == .auto, "원본 프로파일은 그대로다")
+        }
+    }
+
     /// 프로브 트리거는 `.replace` 디스패치 **뒤**의 신호 한 번이다 — auto 앱만 당기고,
     /// in-flight 중 연타는 중복 enqueue가 없다. 배선이 끊기면 프로브가 영원히 돌지 않아
     /// auto 전체가 keyboard 고정이 되는 조용한 고장이다.

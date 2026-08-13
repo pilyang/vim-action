@@ -93,6 +93,17 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// `keyboardActionSink`이고, 그것만이 컨트롤러에 닿을 수 있다.
     private let reportExecutionFailure: @Sendable (TimeInterval) -> Void
 
+    /// auto 유래 `.axUnavailable` 보고 seam — 게시 직렬 큐에서 `AXTrustProber`의 런타임 강등
+    /// 진입점(`noteAutoAXUnavailable`)으로 가는 경로다(홉은 컨트롤러 클로저 몫). **시각을
+    /// 인자로 싣는 것은 `reportExecutionFailure`와 같은 계약이다** — 강등 카운터가 슬라이딩
+    /// 창이라, 홉 착지 시각으로 세면 메인 스톨 뒤 뭉쳐 착지한 보고들이 창에 몰려 거짓
+    /// 강등한다. pid는 판정 캐시의 키(리졸버 출처의 `processID`), bundleID는 강등 로그의
+    /// 라벨이다.
+    ///
+    /// 기본값 no-op은 다른 주입들과 같은 XCTest 무해화다 — 유일한 실배선은 컨트롤러의
+    /// `keyboardActionSink`다.
+    private let reportAutoAXUnavailable: @Sendable (pid_t, String?, TimeInterval) -> Void
+
     /// 실패 시각 캡처 seam. 주입 이유는 `pasteWise`와 같다 — 실시계를 읽으면 폭주 창(1초)
     /// 판정을 테스트가 실제로 기다려야 한다.
     private let now: @Sendable () -> TimeInterval
@@ -118,6 +129,9 @@ nonisolated struct KeyboardAdapter: Sendable {
         writer: AXWriter = AXWriter(),
         axElement: @escaping @Sendable (pid_t) -> AXUIElement? = AXRead.focusedElement(ofProcess:),
         reportExecutionFailure: @escaping @Sendable (TimeInterval) -> Void = { _ in },
+        reportAutoAXUnavailable: @escaping @Sendable (pid_t, String?, TimeInterval) -> Void = {
+            _, _, _ in
+        },
         now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     ) {
         self.executor = executor
@@ -132,6 +146,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         self.writer = writer
         self.axElement = axElement
         self.reportExecutionFailure = reportExecutionFailure
+        self.reportAutoAXUnavailable = reportAutoAXUnavailable
         self.now = now
     }
 
@@ -342,11 +357,27 @@ nonisolated struct KeyboardAdapter: Sendable {
                 confirmVisual(action, update: visual, path: .accessibility)
                 continue
             case .axUnavailable:
-                #if DEBUG
-                Logger.eventTap.debug(
-                    "AX 경로 스킵 — 포커스 요소·읽기 없음, execute 잔여도 접는다: \(String(describing: action), privacy: .public)"
-                )
-                #endif
+                // auto가 이 실행을 AX로 보냈다면(원본 auto — mapping이 `.axUnavailable`을
+                // 내려면 접힌 값 accessibility는 보장돼 있다) 이 스킵은 판정 반증의 신호이자
+                // 릴리스에서 사후 회수돼야 하는 관측 데이터다(관측 ② — 기본값 전환 게이트의
+                // 판정 데이터). 상시 `.info`의 출처 라벨("auto 라우팅")이 명시 accessibility의
+                // 스킵과 사후에도 갈리게 한다 — 그쪽은 사용자 지시라 강등할 판정이 없고
+                // 현행 DEBUG 요약 그대로다(어느 쪽에서도 섞임 금지 문언). execute를 통째로
+                // 접으므로 키 입력당 최대 1건 — 이 한 줄이 곧 요약이라 `AXWriteEffects`
+                // 버킷을 늘리지 않는다. 시각은 게시 큐에서 캡처한다(`reportExecutionFailure`
+                // 선례 — 홉 착지 시각으로 세면 뭉침 착지가 거짓 강등).
+                if profile.strategy == .auto, let processID {
+                    Logger.eventTap.info(
+                        "AX 경로 스킵(요소·읽기 없음) — auto 라우팅, execute 잔여 접힘 [\(bundleID ?? "앱 미상", privacy: .public)]: \(String(describing: action), privacy: .public)"
+                    )
+                    reportAutoAXUnavailable(processID, bundleID, now())
+                } else {
+                    #if DEBUG
+                    Logger.eventTap.debug(
+                        "AX 경로 스킵 — 포커스 요소·읽기 없음, execute 잔여도 접는다: \(String(describing: action), privacy: .public)"
+                    )
+                    #endif
+                }
                 return
             case .hybrid(let range, let mapped, let pacedGroups):
                 // 하이브리드도 위임 그룹을 게시하므로 치환은 `.groups`와 같은 자리·같은

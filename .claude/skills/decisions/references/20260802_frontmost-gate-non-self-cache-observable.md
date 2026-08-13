@@ -1,5 +1,7 @@
 # 비자신 앱 캐시는 게이트가 소유하고, 게이트가 `@Observable`이 된다
 
+> Superseded (부분) by [20260814_menu-verdict-pid-from-gate-non-self-pair.md](20260814_menu-verdict-pid-from-gate-non-self-pair.md) — 캐시 갱신이 "동등성 early-return 뒤"라는 문언(짝 확장으로 가드 **앞** + 자체 동등성 검사로 이동) / 게이트 소유·`@Observable`·판정 비사용은 유효.
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-02

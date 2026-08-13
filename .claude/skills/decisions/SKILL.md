@@ -62,7 +62,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-02 | Package.resolved 커밋 | Yams가 첫 외부 의존 — CI·로컬 버전 고정(파싱 테스트가 Yams 해석에 의존) | [20260802_package-resolved-committed.md](references/20260802_package-resolved-committed.md) |
 | 08-02 | 설정 리로드는 메뉴바 수동 트리거 | 파일 감시 폐기 — 'Reload Config' 클릭, 실패는 클릭 자리에서 가시화, 자동 감시는 재개 조건부 | [20260802_config-reload-manual-menubar-trigger.md](references/20260802_config-reload-manual-menubar-trigger.md) |
 | 08-02 | 메뉴바 최전면 앱 편의 기능 2종 | bundle id 복사 + 프로파일 scaffold 생성·열기 — non-self 앱 캐시 전제, 기존 파일 무수정 | [20260802_menubar-frontmost-app-conveniences.md](references/20260802_menubar-frontmost-app-conveniences.md) |
-| 08-02 | 비자신 캐시는 게이트 소유 + `@Observable` | 캐시·순수 파생을 `FrontmostAppGate`에, 판정은 계속 최전면 — 자기 활성화는 Preferences 경로에서 실측 | [20260802_frontmost-gate-non-self-cache-observable.md](references/20260802_frontmost-gate-non-self-cache-observable.md) |
+| 08-02 | 비자신 캐시는 게이트 소유 + `@Observable` | 캐시·순수 파생을 `FrontmostAppGate`에, 판정은 계속 최전면 — 자기 활성화는 Preferences 경로에서 실측 (갱신 위치는 20260814 짝 확장으로 부분 supersede) | [20260802_frontmost-gate-non-self-cache-observable.md](references/20260802_frontmost-gate-non-self-cache-observable.md) |
 | 08-02 | ConfigError 가시화·적용 의미론 | 메뉴 상태 라인 상시 + 리로드 실패만 NSAlert, 최초 로드는 부분 적용·이후 실패는 직전 유지 | [20260802_config-error-visibility-and-apply-semantics.md](references/20260802_config-error-visibility-and-apply-semantics.md) |
 | 08-02 | App Icon은 Icon Composer `.icon` | legacy는 macOS 26이 회색 컨테이너에 강제 합성(실측) — appiconset 제거, 소스 벡터는 stroke가 아닌 외곽선 fill이어야 함 (26.5 전제는 20260812 배포 타깃 결정으로 부분 supersede) | [20260802_app-icon-icon-composer.md](references/20260802_app-icon-icon-composer.md) |
 | 08-02 | 설정 창 열린 동안만 Dock 아이콘 | `.regular` 승격(앱 메뉴 동반 수용) — 열림=`onAppear`(창이 key가 안 됨, 실측)·닫힘=`willClose` (닫힘 판정 술어는 20260812 창 동일성으로 부분 supersede) | [20260802_dock-icon-while-settings-open.md](references/20260802_dock-icon-while-settings-open.md) |
@@ -262,6 +262,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-13 | AX Visual `.selection` 편집 위임 가드 | `Cmd-X`/`Cmd-C` 위임 직전 선택 재검증 1회(기존 술어 재사용) — 앱의 범위 재정규화 위 파괴 경로 봉쇄, "다음 Visual 액션 검증"이 파괴 단계 앞에서만 비던 구멍 | [20260813_visual-selection-edit-pre-delegation-guard.md](references/20260813_visual-selection-edit-pre-delegation-guard.md) |
 | 08-13 | `.illegalArgument`·`.cannotComplete` 재심사 종결 | 관측 전용·경합 스킵 유지 — 세션 0 전수 실측 재현 불가(~550+121회·~580회 전부 0건), 관측 로그는 유지 | [20260813_illegalargument-cannotcomplete-observation-kept.md](references/20260813_illegalargument-cannotcomplete-observation-kept.md) |
 | 08-13 | Electron 트리 기상 — 요소 실증 실패 시 1회 | `AXManualAccessibility=true` + 유계 재시도, 첫 vim 키 앱에만(비례성) — 기존 "Slack·VS Code 미노출"은 수면 상태 측정(순환 반증), 기상 Slack은 왕복 10/10 "AX 신뢰 가능" | [20260813_electron-tree-wake-on-probe-failure.md](references/20260813_electron-tree-wake-on-probe-failure.md) |
+| 08-14 | 메뉴 판정 pid는 게이트 비자신 짝 | `lastNonSelfProcessID` — 번들과 한 짝 갱신(가드 앞·시드 단일 조회), 메뉴 열림의 자기 pid 오표시 봉쇄, 디스패치 경로는 계속 리졸버 pid | [20260814_menu-verdict-pid-from-gate-non-self-pair.md](references/20260814_menu-verdict-pid-from-gate-non-self-pair.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 

@@ -1,6 +1,6 @@
 # 전략 디스패치
 
-- **Last updated**: 2026-08-13 (M5 D2-설계 세션 — auto 프로브(비동기 캐시·pid 수명·기상·강등)·거짓말 감지 계층·거부 목록·force-text 구현 형태·`.edit(.selection)` 위임 가드 확정. 구현은 PR-D2)
+- **Last updated**: 2026-08-14 (M5 PR-D2 구현 세션 3 — 런타임 강등(`noteAutoAXUnavailable`, 슬라이딩 창 10s/3)·auto발 `.axUnavailable` 관측 `.info`·메뉴바 판정 표시(게이트 비자신 짝 pid) 구현 반영. 남은 구현: force-text 치환·`.edit(.selection)` 위임 가드(세션 4)·기본값 전환(세션 5))
 
 ## 현재 구조
 
@@ -39,9 +39,9 @@ flowchart TD
 2. **요소 실증** — 포커스 요소 존재 + `AXSelectedTextRange` 속성 노출. **리졸버 family 값은 재사용하지 않는다**(폴백이 `.textArea` 허용 방향) — 같은 검사를 default-deny 방향으로 재실행하되, 신호 수집은 리졸버가 이미 하는 속성 목록 패스에 얹을 수 있다(값이 아니라 패스의 재사용). **실패 시 그 앱에 `AXManualAccessibility=true`를 1회 쓰고 유계 재시도**(~200ms×1–2) — Electron 트리 기상. 실측(2026-08-13): 기상 상태의 Slack은 포커스 `AXTextArea` + 읽기 전부 success + 쓰기 왕복 10/10(수렴 p50 10.6ms)로, 기존 "미노출" 실측은 전부 수면 상태 측정이었다 ([20260813_electron-tree-wake-on-probe-failure.md](../../decisions/references/20260813_electron-tree-wake-on-probe-failure.md)).
 3. **읽기·쓰기 가능성 실증** — `selectedRange` 값·`characterCount`·`StringForRange` 창 읽기 + **`AXUIElementIsAttributeSettable(selectedTextRange)`**(무돌연변이 쓰기 축). **값을 바꾸는 쓰기 왕복은 없다** — 진짜 적용 검증은 값 변경이 필요해 캐럿·활성 선택·IME·타이핑 레이스가 전부 프로브 위험이 된다. visible 정합 검사도 없다(짧은 문서 오탐 실측, 소비자는 `provenViewport`가 하류에서 가드).
 
-**판정 수명과 강등**: pending(캐시 부재)·untrusted = key-mapping(완전 기능 — auto는 점진 강화), trusted = accessibility와 동일 라우팅. **프로브는 trusted 방향으로만 캐시를 움직이고, 반증은 런타임 증거뿐이다**: auto가 라우팅한 액션의 `.axUnavailable`이 연속 N회(잠정 3 — 도그푸딩 조절값)면 untrusted로 강등(pid 수명 sticky — 왕복 없음). 실패한 액션은 현행대로 접고 **다음 액션부터** keyboard라 "쓰기 후 폴백 금지"와 충돌하지 않는다. 되읽어 검증 불일치는 강등 신호가 아니다(정상 앱의 사용자 개입 49건 실측 — 관측 버킷만) ([20260813_auto-trusted-runtime-demotion-and-observability.md](../../decisions/references/20260813_auto-trusted-runtime-demotion-and-observability.md)). untrusted는 앱 활성화에서 재장전된다. **트리거는 그 앱의 첫 `.replace` 디스패치**(콜백은 플래그만 세우고 프로브는 큐에서) — vim 키를 안 쓰는 앱은 왕복 0건이고, 기상 개입도 그 앱들에 한정된다. 마스터 토글 off·config.yaml off 앱은 프로브를 돌리지 않고, 설정 리로드는 판정 캐시를 비운다. keyboard로 진입한 Visual 세션 중 판정 착지는 세션 경로 pin이 이미 막는다(진입 시점 고정 — 아래 Visual 문단).
+**판정 수명과 강등**: pending(캐시 부재)·untrusted = key-mapping(완전 기능 — auto는 점진 강화), trusted = accessibility와 동일 라우팅. **프로브는 trusted 방향으로만 캐시를 움직이고, 반증은 런타임 증거뿐이다**: auto가 라우팅한 실행의 `.axUnavailable`이 **슬라이딩 창 안 임계**(10초 안 3회 — 도그푸딩 조절값 상수, `FailureBurstCounter` 재사용. 결정 문언 "연속 N회"의 창 근사 — 신호가 execute당 최대 1건이고 표적 실패는 지속 상태라 실질 동일, 성공 리셋 seam을 새로 뚫지 않는다·사용자 확정)에 닿으면 untrusted(`.runtime`)로 강등한다(pid 수명 sticky — 왕복 없음). 진입점은 `update`(프로브 전용·단조성 가드)와 **나란한 별도 간선 `noteAutoAXUnavailable`**(신호는 어댑터 `.axUnavailable` 분기 → 게시 큐 시각 캡처 → main hop — `reportFailure` 선례 동형)이고, 강등은 **종단**이다 — 활성화 재장전과 늦게 착지한 프로브의 상향 덮어쓰기 모두 거부 목록과 같은 가드(`Entry.isTerminal`)가 막는다. 실패한 액션은 현행대로 접고 **다음 액션부터** keyboard라 "쓰기 후 폴백 금지"와 충돌하지 않는다. 되읽어 검증 불일치는 강등 신호가 아니다(정상 앱의 사용자 개입 49건 실측 — 관측 버킷만) ([20260813_auto-trusted-runtime-demotion-and-observability.md](../../decisions/references/20260813_auto-trusted-runtime-demotion-and-observability.md)). untrusted(비종단)는 앱 활성화에서 재장전된다. **트리거는 그 앱의 첫 `.replace` 디스패치**(콜백은 플래그만 세우고 프로브는 큐에서) — vim 키를 안 쓰는 앱은 왕복 0건이고, 기상 개입도 그 앱들에 한정된다. 마스터 토글 off·config.yaml off 앱은 프로브를 돌리지 않고, 설정 리로드는 판정 캐시를 비운다. keyboard로 진입한 Visual 세션 중 판정 착지는 세션 경로 pin이 이미 막는다(진입 시점 고정 — 아래 Visual 문단). **AX로 pin된 Visual 세션 × 강등의 교차는 미결 질문**(아래) — pin이 세션 수명이라 강등 뒤에도 확장·전환이 재진입 전까지 `.skipped`(DEBUG 전용)로 남는다.
 
-**관측**: 판정 전이(번들 ID + 판정 + 탈락 계층)·auto발 `.axUnavailable` 요약(전략 출처 라벨 — 명시 accessibility와 구분)·강등 이벤트가 **릴리스에서 생존하는 `.info`** 다(`log show --info` 사후 회수 — 기본값 전환 게이트와 거부 목록 성장의 판정 데이터). 메뉴바가 최전면 앱의 현재 판정("현재 앱: AX / 키보드 / 판정 중")을 표시한다.
+**관측**: 판정 전이(번들 ID + 판정 + 탈락 계층)·auto발 `.axUnavailable` 요약(어댑터 `.axUnavailable` 분기에서 **auto 유래일 때만** 상시 `.info` — 출처 라벨 포함. 명시 accessibility의 같은 스킵은 현행 DEBUG 그대로라 어느 쪽에서도 섞이지 않는다·사용자 확정)·강등 이벤트(강등 `.info` 1줄이 판정 전이와 강등 이벤트 관측을 겸한다)가 **릴리스에서 생존하는 `.info`** 다(`log show --info` 사후 회수 — 기본값 전환 게이트와 거부 목록 성장의 판정 데이터). 메뉴바가 최전면 앱의 현재 판정을 표시한다 — "Frontmost:" 줄 아래 `Strategy: AX / Keyboard / probing…` 1줄(`strategyStatusText(declared:verdict:)` 순수 함수 — 접기는 pending·untrusted를 못 가른다), **pid는 게이트 비자신 (bundleID, pid) 짝**(메뉴 열림의 자기 pid 오표시 봉쇄 — [20260814_menu-verdict-pid-from-gate-non-self-pair.md](../../decisions/references/20260814_menu-verdict-pid-from-gate-non-self-pair.md)), 프로버는 `@Observable`(게이트와 같은 근거 — 발화는 실제 전이에만).
 
 **선택 보고 진실성 축은 프로브가 원리적으로 못 본다**(프로브 시점에 살아 있는 선택이 없다 — Notion 블록 경계 `[0,0)` 실측이 이 축) — 검출자는 런타임 Visual 자가 검증과, **AX 세션의 `.edit(op, .selection)` 위임 직전 선택 재검증 1회**(기존 자가 검증 술어 재사용, 불일치 = 정직한 스킵)다. 앱이 우리가 쓴 범위를 재정규화한 위의 맨 `Cmd-X`가 앱의 선택을 자르는 파괴 경로를 닫는다 ([20260813_visual-selection-edit-pre-delegation-guard.md](../../decisions/references/20260813_visual-selection-edit-pre-delegation-guard.md)).
 
@@ -214,6 +214,7 @@ AX 실행 계획의 판정은 **`usesAXWrite(action:family:profile:)` 한 곳**�
 
 - 일회성 Accessibility → Keyboard 다운그레이드 수정 키 (kindaVim의 `fn` 방식) — 채택 여부와 키 선택.
 - 기상 상태의 Slack에서 keyboard 혼용 정확화(디스패치 경로 읽기)도 살아나는가 — "Slack은 읽기 실패 상시 폴백" 전제가 수면 상태 측정이었음이 실측됐다(D2 세션 0 추가 실측). auto 도그푸딩에서 함께 관측 후 판단.
+- **AX로 pin된 Visual 세션 × 런타임 강등의 교차** (세션 3 리뷰 발견): 강등돼도 pin이 세션 수명이라 그 세션의 확장·전환은 재진입(`Esc` → `v`) 전까지 `.skipped`(DEBUG 전용)로 남는다 — "다음 액션부터 keyboard"가 이 모서리에서는 성립하지 않는다. 강등 전 `.axUnavailable` `.info` ×3 + 강등 `.info`가 로그에 남아 사후 진단은 되고, 무상태 폴백 금지·pin 수명 결정과 충돌 없이 낙하시킬 경로가 없어 코드 수정은 보류(pin 해제 + 무상태 낙하는 AX가 쓴 선택 위의 파괴 방향). 후보: 강등 후 pin 세션 스킵의 `.info` 승격(관측 확장 — 결정 문언 밖) / 현행 수용. auto 도그푸딩에서 실빈도 관측 후 판단.
 
 ## 관련
 
