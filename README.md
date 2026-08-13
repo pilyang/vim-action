@@ -155,7 +155,7 @@ VimActionTests/          # App unit tests
 docs/                    # User documentation (keybinding vocabulary)
 ```
 
-Bug reports and feature requests are welcome in [Issues](https://github.com/pilyang/vim-action/issues).
+Bug reports and feature requests are welcome in [Issues](https://github.com/pilyang/vim-action/issues); for pull requests, please open an issue first — [CONTRIBUTING.md](CONTRIBUTING.md) explains the workflow. VimAction is maintained by a solo developer working with an AI coding agent (Claude Code); a human reviews, tests, and decides everything that ships.
 
 ## Related projects
 

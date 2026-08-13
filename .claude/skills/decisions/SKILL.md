@@ -85,6 +85,13 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-12 | 배포 타깃은 macOS 14.0 | 26.5는 Xcode 생성 기본값 오입 — 코드 무변경 하한 14.0 확정(13.0은 `@Observable`·`openSettings`로 불가), CI 하한 게이트(오버라이드 빌드+pbxproj 단언), cask는 릴리스 후 `:sonoma`+arm64 가드 | [20260812_deployment-target-macos-14.md](references/20260812_deployment-target-macos-14.md) |
 | 08-12 | README 데모 미디어 재생성 파이프라인 | `docs/assets/` 미디어는 `assets/readme/`(비추적) 소스+네이티브 Swift 스크립트로 재생성(ffmpeg 무의존) — lock 글리프는 SF Symbol 렌더, icon.png는 NSWorkspace 추출 | [20260812_readme-demo-media-native-render-pipeline.md](references/20260812_readme-demo-media-native-render-pipeline.md) |
 
+### 프로젝트 운영·커뮤니티
+
+| Date | Title | 요약 | Reference |
+|---|---|---|---|
+| 08-13 | 외부 기여는 이슈 우선 | 이슈 환영 + PR은 사전 논의 필수(오타·문서 예외), AI 관리 체제는 README·CONTRIBUTING에 명시, AI 생성 PR은 테스트·자기 설명 가능 시만 | [20260813_external-contribution-policy.md](references/20260813_external-contribution-policy.md) |
+| 08-13 | 이슈 분류는 vim/app × bug/feature | 템플릿 4종이 `area:vim`/`area:app` 자동 부착, 계열별 필수 필드 강제(드롭다운 기각), blank issue 허용 유지 | [20260813_issue-taxonomy-vim-app-split.md](references/20260813_issue-taxonomy-vim-app-split.md) |
+
 ### 이벤트 탭 — 진입·번역·수명
 
 | Date | Title | 요약 | Reference |

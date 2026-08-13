@@ -1,0 +1,51 @@
+name: Vim behavior bug
+description: A motion, action, or mode does the wrong thing — or nothing — somewhere you type
+labels: ["bug", "area:vim"]
+body:
+  - type: input
+    id: app
+    attributes:
+      label: Where did it happen?
+      description: The app — and the spot inside it, if relevant — where the keys misbehaved.
+      placeholder: e.g. Notion page, Slack message box, Safari address bar
+    validations:
+      required: true
+  - type: input
+    id: keys
+    attributes:
+      label: Key sequence
+      description: The exact keys you pressed, including the mode you were in.
+      placeholder: e.g. Normal mode, ci" with the caret inside quotes
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: What Vim would do.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: VimAction version (menu bar → About VimAction) and macOS version.
+      placeholder: e.g. VimAction 1.2.0, macOS 15.5
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: >
+        Your keyboard layout / input source (word motions are known to break under
+        Unicode Hex Input), a per-app profile if you use one for that app, a screen
+        recording — anything that helps reproduce it.
+    validations:
+      required: false
