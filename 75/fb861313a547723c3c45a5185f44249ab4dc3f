@@ -1,0 +1,78 @@
+VimAction/AXTrustProber.swift
+  s_764b5b9488306b::t_210e890156e46d 350
+  s_764b5b9488306b::t_f0a255b3702cab 440-448,454,459,461,464,466,469
+  s_764b5b9488306b::t_da83641a3f4012 123
+  s_764b5b9488306b::t_e1780fb56d8afd 300-304
+  s_764b5b9488306b::t_ba5a615bceaf6b 140-142
+  s_764b5b9488306b::t_e2e47701ae821a 59-60,62-66
+  s_764b5b9488306b::t_c9f05c93da5814 432
+  s_764b5b9488306b::t_7cb7bb4b14e5e0 274,323,326,362
+  s_764b5b9488306b::t_46dc10c5983843 202
+  s_764b5b9488306b::t_dc809e35f0a03a 95
+  s_764b5b9488306b::t_83241066f189ba 397,403-411
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_764b5b9488306b::t_f42159d83cd119 217
+  s_764b5b9488306b::t_d016f17dc38144 46
+  s_764b5b9488306b::t_981a78de2c11f2 44
+  s_764b5b9488306b::t_730b47fdaf8535 71
+  s_764b5b9488306b::t_683ce6b36fed37 39
+  s_764b5b9488306b::t_7719a47106c683 3
+  s_764b5b9488306b::t_d4bd292f4ed545 38
+VimActionTests/AXTrustProberTests.swift
+  s_764b5b9488306b::t_14958680332396 112,119,129-130,143,149-150,156,162-175,190,195,197,201-205,208
+  s_764b5b9488306b::t_a88abb8c2249f7 23
+.claude/skills/decisions/references/20260813_auto-trusted-runtime-demotion-and-observability.md
+  s_764b5b9488306b::t_40304e5156c46c 1-2
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_764b5b9488306b::t_b168572ce6a72a 3
+  s_764b5b9488306b::t_448adfa45d05d0 50
+.claude/skills/decisions/references/20260813_electron-tree-wake-on-probe-failure.md
+  s_764b5b9488306b::t_87adce883823c9 1-2
+VimActionTests/ExecutionWiringTests.swift
+  s_764b5b9488306b::t_6ebaf87acd08db 204
+VimAction/AXTrustVerdict.swift
+  s_764b5b9488306b::t_e6a2504a2dbbab 57
+  s_764b5b9488306b::t_25f242431ea4c0 76,81-86
+.claude/skills/decisions/references/20260814_probe-wake-on-cold-form-and-backoff.md
+  s_764b5b9488306b::t_a79b647d635c23 1-30
+.claude/skills/decisions/references/20260808_ax-illegal-argument-observation-log-level.md
+  s_764b5b9488306b::t_d658c3fa7b3b32 1-2
+.claude/skills/decisions/references/20260814_visual-guard-mismatch-log-info.md
+  s_764b5b9488306b::t_3ef38e52525756 1-2
+.claude/skills/decisions/SKILL.md
+  s_764b5b9488306b::t_56ef401339c0cf 224
+  s_764b5b9488306b::t_33a0b6f921cf2b 261
+  s_764b5b9488306b::t_d2d19555393e5d 256
+  s_764b5b9488306b::t_b2e0d79f92c6ef 263-265
+.claude/skills/decisions/references/20260814_observation-notice-promotion-and-probe-completion-log.md
+  s_764b5b9488306b::t_748d1442bc7b79 1-30
+VimAction/KeyboardAdapter.swift
+  s_764b5b9488306b::t_598849e8beaf90 374
+  s_764b5b9488306b::t_1776b6d15894e8 367
+  s_764b5b9488306b::t_96f3fa52137715 972,977
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_764b5b9488306b::t_6798e117227bcf 6
+  s_764b5b9488306b::t_8588b84ce63278 107
+  s_764b5b9488306b::t_3465bba1e65e5a 82
+  s_764b5b9488306b::t_6b1305be108292 88
+VimAction/AXWriteEffects.swift
+  s_764b5b9488306b::t_18dc06a675826a 131
+  s_764b5b9488306b::t_db604203dd1d07 123
+  s_764b5b9488306b::t_11fb3c09034bf8 144-148,151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "75fb861313a547723c3c45a5185f44249ab4dc3f",
+  "prompts": {},
+  "sessions": {
+    "s_764b5b9488306b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6deb9e8c-537d-4d3c-b17a-17ef716bd5bf",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
