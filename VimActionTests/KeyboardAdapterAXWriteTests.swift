@@ -125,7 +125,7 @@ struct KeyboardAdapterAXWriteTests {
         #expect(posted.isEmpty, "AX 경로는 합성 이벤트를 내지 않는다")
     }
 
-    /// **기본 전략은 keyboard** — 미지정 프로파일은 동작 diff 0이다.
+    /// **`.empty` 센티널은 keyboard** — 전략 무관심 호출자의 동작 diff 0이다 (번들 기본은 auto — 접기 전 pending도 keyboard라 diff 0은 유지).
     @Test("strategy 미지정이면 쓰기 seam은 불리지 않는다")
     func defaultStrategyDelegates() {
         nonisolated(unsafe) var writes = 0
@@ -487,7 +487,7 @@ struct KeyboardAdapterHybridEditTests {
         #expect(downStrokes(posted).map(\.code) == [copyStroke.code, Int64(kVK_LeftArrow)])
     }
 
-    /// **기본 전략은 keyboard** — 미지정 프로파일의 편집은 동작 diff 0이다.
+    /// **`.empty` 센티널은 keyboard** — 전략 무관심 호출자의 편집은 동작 diff 0이다.
     /// 쓰기 seam 무호출이 위임의 증거다(내용 비교가 아니다 — 같은 바이트 회귀는 안 잡힌다).
     @Test("strategy 미지정이면 편집도 쓰기 seam을 부르지 않는다")
     func defaultStrategyDelegatesEdit() {
@@ -1214,7 +1214,7 @@ struct KeyboardAdapterHybridInsertionTests {
         #expect(posted.isEmpty)
     }
 
-    /// **기본 전략은 keyboard** — 미지정 프로파일의 삽입은 동작 diff 0이다.
+    /// **`.empty` 센티널은 keyboard** — 전략 무관심 호출자의 삽입은 동작 diff 0이다.
     @Test("strategy 미지정이면 삽입도 쓰기 seam을 부르지 않는다")
     func defaultStrategyDelegatesInsertion() {
         nonisolated(unsafe) var writes = 0

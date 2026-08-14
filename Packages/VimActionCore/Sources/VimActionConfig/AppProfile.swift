@@ -11,9 +11,11 @@ public struct AppProfile: Hashable, Sendable {
     ///
     /// **단일 상수인 것이 계약이다.** 기본값이 실제로는 두 곳이라 — 파서 기본값(파일은 있는데
     /// 필드 없음)과 앱측 프로파일 부재 경로(`ResolvedProfile.noProfile`) — 한쪽만 바꾸면 두
-    /// 경우의 동작이 갈린다. `keyboard` → `auto` 전환은 PR-D2 마지막 단계의 별도 커밋이며
-    /// 도그푸딩 게이트 뒤다 (`20260813_bundled-default-strategy-auto-flip-gated.md`).
-    public static let defaultStrategy: ProfileStrategy = .keyboard
+    /// 경우의 동작이 갈린다. `keyboard` → `auto` 전환은 도그푸딩 게이트 통과(2026-08-14 —
+    /// 판정 상태 기계 전 간선 실전 발화: Slack 탈락→보호·Notion 거부 목록·재프로브 회복·
+    /// TextEdit trusted→AX·무사고) 뒤의 이 커밋이며, 문제 시 이 커밋만 철회한다
+    /// (`20260813_bundled-default-strategy-auto-flip-gated.md`).
+    public static let defaultStrategy: ProfileStrategy = .auto
 
     /// 표시용 이름.
     public let name: String?

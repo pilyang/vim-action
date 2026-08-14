@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-08-13 (M5 D2 설계 — `strategy` 어휘에 `auto` 추가, `keyboard_family` 필드 신설, 번들 기본 전략 전환 계획. 구현은 PR-D2)
+- **Last updated**: 2026-08-14 (M5 D2 — 번들 기본 전략 `keyboard` → `auto` 전환 완료, 도그푸딩 게이트 통과 뒤 별도 커밋)
 
 ## 현재 구조
 
@@ -33,14 +33,14 @@ apps:                              # bundle-id → bool 맵 (목록이 아니라
   com.exafunction.windsurf: true   # 여기 없는 앱은 없는 것 — 기본값 판단은 앱 게이트 몫
 ```
 
-**profiles/\<bundle-id\>.yaml** — 필드 여섯(`name`·`strategy`·`keyboard_family`·`scroll`·`motions`·`actions`), `enabled` 없음 (`keyboard_family`와 `strategy: auto`는 D2 설계 확정 — 구현은 PR-D2):
+**profiles/\<bundle-id\>.yaml** — 필드 여섯(`name`·`strategy`·`keyboard_family`·`scroll`·`motions`·`actions`), `enabled` 없음:
 
 ```yaml
 name: Notion                      # 선택 — 표시용
 strategy: accessibility           # 선택 — accessibility|keyboard|auto. auto = 프로브 판정
                                   #   (strategy-dispatch.md의 auto 프로브 섹션).
-                                  #   미지정 = 번들 기본(defaultStrategy 단일 상수 — D2 마지막
-                                  #   단계에서 keyboard → auto 전환, 도그푸딩 게이트)
+                                  #   미지정 = 번들 기본 auto(defaultStrategy 단일 상수 —
+                                  #   2026-08-14 도그푸딩 게이트 통과 후 전환 완료)
 keyboard_family: force_text       # 선택 — key_mapping(기본)|force_text. keyboard 실행의
                                   #   요소 걸러내기를 우회(항상 TextArea 시퀀스) — 명시 전용,
                                   #   자동 감지는 절대 선택하지 않는다
