@@ -14,9 +14,8 @@ private let ghosttyOnly: Set<String> = ["com.mitchellh.ghostty"]
 private let selfID = "dev.pilyang.VimAction"
 
 /// 격리된 `NotificationCenter`를 주입해 라이브 `NSWorkspace` 구독을 피한다 — 실제 최전면
-/// 앱(= 테스트를 돌린 터미널)이 판정에 새어 들면 머신 상태 의존 실패가 된다. **pid 시드도
-/// 명시 주입한다** — 생략하면 기본 인수가 실제 최전면 앱의 pid를 읽어, 시드 짝이
-/// "주입한 번들 + 터미널 pid"라는 머신 의존 어긋난 짝이 된다.
+/// 앱(= 테스트를 돌린 터미널)이 판정에 새어 들면 머신 상태 의존 실패가 된다. 시드 기본값은
+/// inert(nil)라 pid를 생략해도 머신 상태를 읽지 않는다 — 여기서는 단언에 쓸 값을 넣는다.
 @MainActor
 private func makeGate(
     frontmost: String?, frontmostPID: pid_t? = nil, disabled: Set<String> = ghosttyOnly

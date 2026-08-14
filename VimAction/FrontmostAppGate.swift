@@ -56,13 +56,12 @@ final class FrontmostAppGate {
     /// 게이트 동작을 검증하는 테스트는 자체 게이트를 명시 주입한다.
     ///
     /// 프로덕션 분기가 `frontmostApplication`을 **한 번만 읽어** 두 시드를 뽑는 것도
-    /// 계약이다 — 기본 인수 둘이 각자 읽으면 그 사이 앱 전환이 시드의 라벨과 pid를 가른다
-    /// (비자신 짝 계약은 시드에도 적용된다).
+    /// 계약이다 — 두 번 읽으면 그 사이 앱 전환이 시드의 라벨과 pid를 가른다
+    /// (비자신 짝 계약은 시드에도 적용된다). 시드의 라이브 읽기는 **여기가 유일하다** —
+    /// init 기본값은 inert(nil)라 시드를 일부만 주입한 테스트가 머신 상태를 읽지 않는다.
     static func forCurrentEnvironment() -> FrontmostAppGate {
         guard !isRunningUnderXCTest() else {
-            return FrontmostAppGate(
-                notificationCenter: NotificationCenter(), frontmostBundleID: nil,
-                frontmostProcessID: nil)
+            return FrontmostAppGate(notificationCenter: NotificationCenter())
         }
         let app = NSWorkspace.shared.frontmostApplication
         return FrontmostAppGate(
@@ -122,22 +121,19 @@ final class FrontmostAppGate {
     /// "자기 자신" 케이스가 머신 상태에 의존한다.
     private let selfBundleID: String?
 
-    /// `frontmostBundleID` 시드는 `@autoclosure` — 테스트가 `NSWorkspace` 조회 없이
-    /// 값을 넣는다. 격리된 `NotificationCenter`를 함께 주입하면 라이브 구독도 피한다.
+    /// 시드 기본값은 **inert(nil)** 다 — 라이브 `NSWorkspace` 읽기는 `forCurrentEnvironment()`의
+    /// 프로덕션 분기 한 곳뿐이다. 기본값이 라이브면 시드를 일부만 주입한 테스트가 실제
+    /// 최전면 앱을 읽어 "합성 번들 + 머신 pid"라는 어긋난 짝이 된다 (실재했던 함정).
     init(
         notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
-        frontmostBundleID: @autoclosure () -> String? = NSWorkspace.shared.frontmostApplication?
-            .bundleIdentifier,
-        frontmostProcessID: @autoclosure () -> pid_t? = NSWorkspace.shared.frontmostApplication?
-            .processIdentifier,
+        frontmostBundleID: String? = nil,
+        frontmostProcessID: pid_t? = nil,
         disabledBundleIDs: Set<String> = [],
         selfBundleID: String? = Bundle.main.bundleIdentifier
     ) {
         self.notificationCenter = notificationCenter
         self.disabledBundleIDs = disabledBundleIDs
         self.selfBundleID = selfBundleID
-        // 등록이 시드보다 **먼저인 것이 계약이다**: 순서가 뒤집히면 그 사이에 일어난 앱
-        // 전환의 알림이 유실돼 캐시가 낡은 값으로 굳는다 (게이트가 조용히 어긋난다).
         observerToken = notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] notification in
@@ -152,10 +148,9 @@ final class FrontmostAppGate {
         // 시드가 필요한 이유: 이 앱은 LSUIElement라 실행이 최전면을 바꾸지 않는다.
         // disable 앱이 최전면인 채로 앱을 켜거나 TCC를 재부여하면(로컬 개발에서 흔하다)
         // 다음 앱 전환까지 알림이 오지 않아, nil 시드는 그동안 게이트를 열어 둔다.
-        let seed = frontmostBundleID()
-        self.frontmostBundleID = seed
+        self.frontmostBundleID = frontmostBundleID
         let target = Self.nonSelfTarget(
-            bundleID: seed, processID: frontmostProcessID(), selfBundleID: selfBundleID,
+            bundleID: frontmostBundleID, processID: frontmostProcessID, selfBundleID: selfBundleID,
             previous: (nil, nil))
         lastNonSelfBundleID = target.bundleID
         lastNonSelfProcessID = target.processID
