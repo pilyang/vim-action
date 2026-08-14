@@ -18,14 +18,20 @@ nonisolated func profileScaffoldYAML(bundleID: String) -> String {
     # Everything below is commented out, so this file changes nothing until you
     # edit it. Uncomment what you need, then use 'Reload Config' in the menu bar.
     #
-    # All four fields are optional:
-    #   name    display name
-    #   scroll  half_page_lines / full_page_lines (valid 1...200). When set, the value
-    #           wins over the AX-measured viewport; when absent, the app reads the
-    #           viewport and falls back to 15/30 where that read fails.
-    #   motions per-motion key sequence override, or disabled
-    #   actions open_line / paste / undo / redo: the action's own key, or disabled
-    #           (scroll takes disabled only — its keys come from the line_down/line_up motions)
+    # All fields are optional:
+    #   name             display name
+    #   scroll           half_page_lines / full_page_lines (valid 1...200). When set, the value
+    #                    wins over the AX-measured viewport; when absent, the app reads the
+    #                    viewport and falls back to 15/30 where that read fails.
+    #   motions          per-motion key sequence override, or disabled
+    #   actions          open_line / paste / undo / redo: the action's own key, or disabled
+    #                    (scroll takes disabled only — its keys come from the line_down/line_up motions)
+    #   strategy         which execution path the app uses — auto (default: probe the app,
+    #                    Accessibility editing where it proves trustworthy, key synthesis
+    #                    otherwise) / accessibility / keyboard
+    #   keyboard_family  key_mapping (default) / force_text — force_text bypasses element
+    #                    detection and its safety filter; explicit last resort
+    #                    (see docs/CONFIGURATION.md for both fields)
     #
     # Key token notation: [modifier-]key — modifiers are cmd/opt/ctrl/shift (any order),
     # keys are left/right/up/down/return/escape/tab/home/end/page_up/page_down. All lowercase.
