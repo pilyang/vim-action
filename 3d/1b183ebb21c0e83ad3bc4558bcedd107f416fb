@@ -1,0 +1,19 @@
+CLAUDE.md
+  s_764b5b9488306b::t_a548aeb0ca1943 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "3d1b183ebb21c0e83ad3bc4558bcedd107f416fb",
+  "prompts": {},
+  "sessions": {
+    "s_764b5b9488306b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6deb9e8c-537d-4d3c-b17a-17ef716bd5bf",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
