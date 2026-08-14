@@ -1,0 +1,19 @@
+VimAction/MenuBarIndicator.swift
+  s_8d58d9cd0070d9::t_89f06305b767a7 18,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7548047eeb53812cdd90fe58f012e1cf72852766",
+  "prompts": {},
+  "sessions": {
+    "s_8d58d9cd0070d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6d21d5bf-344e-4092-8094-9ee1a49a59b1",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
