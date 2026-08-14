@@ -120,7 +120,7 @@ nonisolated struct AXWriteEffects {
     /// execute 끝에서 1회 — 클래스마다 최대 한 줄이다.
     func logSummary() {
         if let bucket = verifyMismatch {
-            Logger.eventTap.info(
+            Logger.eventTap.notice(
                 "AX 되읽어 검증 불일치 — 무동작 스킵 ×\(bucket.count, privacy: .public) [\(self.bundleID ?? "앱 미상", privacy: .public)]: \(String(describing: bucket.first), privacy: .public)"
             )
         }
@@ -128,7 +128,7 @@ nonisolated struct AXWriteEffects {
             guard let bucket = buckets[row.outcome] else { continue }
             #if !DEBUG
             // 스킵 2종 요약은 관례대로 DEBUG 빌드 전용이다 — 기존 미지원·레이아웃·프로파일
-            // 버킷과 같은 편이며, 릴리스에서 살아남아야 하는 것은 error와 관측 `.info`뿐이다.
+            // 버킷과 같은 편이며, 릴리스에서 살아남아야 하는 것은 error와 관측 `.notice`뿐이다.
             if row.level == .debug { continue }
             #endif
             Logger.eventTap.log(
@@ -141,13 +141,14 @@ nonisolated struct AXWriteEffects {
     /// 요약 표 — **클래스별 로그 레벨이 곧 계약이다.** `.success`가 없는 것도 계약이다(성공은
     /// 로그를 남기지 않는다).
     ///
-    /// `.illegalArgument`만 `.info`이고 `#if DEBUG` 밖인 것이 관례에서 벗어난 자리다: 이 로그는
-    /// 도그푸딩 중 켜 둔 stream이 아니라 **사후에** 읽히는 판정 데이터라
-    /// (`log show --info`), `.debug`로 두면 승격 재심사가 볼 것이 남지 않는다
-    /// (`20260808_ax-illegal-argument-observation-log-level.md`).
+    /// `.illegalArgument`만 `.default`이고 `#if DEBUG` 밖인 것이 관례에서 벗어난 자리다: 이 로그는
+    /// 도그푸딩 중 켜 둔 stream이 아니라 **사후에** 읽히는 판정 데이터라 디스크에 영속돼야
+    /// 하고(`.info`는 macOS가 메모리에만 두다 버린다 —
+    /// `20260814_observation-notice-promotion-and-probe-completion-log.md`), `.debug`로 두면
+    /// 승격 재심사가 볼 것이 남지 않는다 (`20260808_ax-illegal-argument-observation-log-level.md`).
     private static let summaryRows: [(outcome: AXWriteOutcome, level: OSLogType, label: String)] = [
         (.failure, .error, "AX 쓰기 실패 — 보고됨"),
-        (.illegalArgument, .info, "AX 쓰기 거부(illegalArgument) — 관측 전용"),
+        (.illegalArgument, .default, "AX 쓰기 거부(illegalArgument) — 관측 전용"),
         (.unsupportedSkip, .debug, "AX 미지원 스킵"),
         (.contentionSkip, .debug, "AX 경합 스킵"),
         (.apiDisabled, .error, "AX 권한 회수(apiDisabled) — 쓰기 불가"),

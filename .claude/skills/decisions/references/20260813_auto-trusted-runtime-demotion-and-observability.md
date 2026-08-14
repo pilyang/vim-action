@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260814_observation-notice-promotion-and-probe-completion-log.md](20260814_observation-notice-promotion-and-probe-completion-log.md) — 관측 로그 레벨(`.info`)·"릴리스 생존 = 사후 회수" 전제 / 강등 규칙·관측 포인트 구성·메뉴바 표시는 유효
+
 # auto trusted의 런타임 강등 + 관측 포인트·메뉴바 표시
 
 - **결정일**: 2026-08-13

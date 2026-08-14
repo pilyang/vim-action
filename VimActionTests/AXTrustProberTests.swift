@@ -20,7 +20,7 @@ private func makeProber(
 ) -> AXTrustProber {
     AXTrustProber(
         notificationCenter: NotificationCenter(), collectSignals: collect, wakeTree: wake,
-        coldRetryPause: {}, schedule: schedule)
+        coldRetryPause: { _ in }, schedule: schedule)
 }
 
 /// 전 계층 통과 신호 — trusted의 유일한 모양.
@@ -109,14 +109,14 @@ struct RunProbeTests {
                 collects += 1
                 return trustedSignals
             },
-            wake: { _ in wakes += 1 }, retryPause: {})
+            wake: { _ in wakes += 1 }, retryPause: { _ in })
         #expect(collects == 1)
         #expect(wakes == 0)
         #expect(run.wokeTree == false)
         #expect(classifyAXTrustProbe(run.signals).verdict == .trusted)
     }
 
-    @Test("요소 실증 실패는 기상 1회 + 유계 재시도")
+    @Test("요소 실증 실패는 기상 1회 + 연장된 유계 재시도")
     func elementFailureWakesOnceAndRetries() {
         var collects = 0
         var wakes = 0
@@ -126,8 +126,8 @@ struct RunProbeTests {
                 collects += 1
                 return elementFailureSignals
             },
-            wake: { _ in wakes += 1 }, retryPause: {})
-        #expect(collects == 1 + AXTrustProber.coldRetryCount, "수집은 1 + 재시도 상한")
+            wake: { _ in wakes += 1 }, retryPause: { _ in })
+        #expect(collects == 1 + AXTrustProber.postWakeRetryCount, "기상을 쓴 실행은 연장 예산")
         #expect(wakes == 1, "기상은 재시도가 몇 번이든 1회다")
         #expect(run.wokeTree, "기상 사실이 결과에 실려 pid당 1회 부기가 된다")
         #expect(classifyAXTrustProbe(run.signals).failedLayer == .element)
@@ -140,28 +140,39 @@ struct RunProbeTests {
         let run = AXTrustProber.runProbe(
             processID: 1, alreadyWokeTree: false,
             collect: { _ in script.removeFirst() },
-            wake: { _ in wakes += 1 }, retryPause: {})
+            wake: { _ in wakes += 1 }, retryPause: { _ in })
         #expect(script.isEmpty, "수집 2회 — 성공한 재시도에서 멈춘다")
         #expect(wakes == 1)
         #expect(classifyAXTrustProbe(run.signals).verdict == .trusted)
     }
 
-    @Test("읽기 실패(요소는 실증됨)는 재시도하되 기상은 없다")
-    func readFailureRetriesWithoutWake() {
+    @Test("읽기 콜드 실패(요소는 실증됨)도 기상이 걸린다 — 반콜드 형태")
+    func readFailureAlsoWakes() {
         var collects = 0
         var wakes = 0
         let coldReads = AXTrustProbeSignals(
             focusedElementFound: true, exposesSelectedTextRange: true, readsSucceeded: false,
             selectedTextRangeSettable: true)
-        _ = AXTrustProber.runProbe(
+        let run = AXTrustProber.runProbe(
             processID: 1, alreadyWokeTree: false,
             collect: { _ in
                 collects += 1
                 return coldReads
             },
-            wake: { _ in wakes += 1 }, retryPause: {})
-        #expect(collects == 1 + AXTrustProber.coldRetryCount, "콜드 웜업 재시도는 산다")
-        #expect(wakes == 0, "기상은 요소 실증 실패에만 걸린다")
+            wake: { _ in wakes += 1 }, retryPause: { _ in })
+        #expect(collects == 1 + AXTrustProber.postWakeRetryCount, "기상을 쓴 실행은 연장 예산")
+        #expect(wakes == 1, "기상 트리거는 콜드 형태 실패 전반 — Chromium auto-disable의 반콜드")
+        #expect(run.wokeTree)
+    }
+
+    @Test("재시도 대기는 지수 백오프 — 인덱스가 순서대로 오른다")
+    func retryPausesBackOff() {
+        nonisolated(unsafe) var pauses: [Int] = []
+        _ = AXTrustProber.runProbe(
+            processID: 1, alreadyWokeTree: false,
+            collect: { _ in elementFailureSignals },
+            wake: { _ in }, retryPause: { pauses.append($0) })
+        #expect(pauses == Array(0..<AXTrustProber.postWakeRetryCount), "n번째 대기 = 기저 << n")
     }
 
     @Test("settable=false 단독은 확정 답변 — 재시도 없음")
@@ -176,20 +187,25 @@ struct RunProbeTests {
                 collects += 1
                 return readOnly
             },
-            wake: { _ in }, retryPause: {})
+            wake: { _ in }, retryPause: { _ in })
         #expect(collects == 1)
         #expect(classifyAXTrustProbe(run.signals).failedLayer == .readWrite)
     }
 
-    @Test("이미 깨운 앱은 다시 깨우지 않는다 — pid당 1회의 나머지 절반")
+    @Test("이미 깨운 앱은 다시 깨우지 않는다 — pid당 1회의 나머지 절반, 예산도 연장 없음")
     func alreadyWokenAppIsNotWokenAgain() {
+        var collects = 0
         var wakes = 0
         let run = AXTrustProber.runProbe(
             processID: 1, alreadyWokeTree: true,
-            collect: { _ in elementFailureSignals },
-            wake: { _ in wakes += 1 }, retryPause: {})
+            collect: { _ in
+                collects += 1
+                return elementFailureSignals
+            },
+            wake: { _ in wakes += 1 }, retryPause: { _ in })
         #expect(wakes == 0)
         #expect(run.wokeTree == false, "이번 실행이 깨운 것이 아니다")
+        #expect(collects == 1 + AXTrustProber.coldRetryCount, "연장은 기상을 쓴 실행에만")
     }
 }
 

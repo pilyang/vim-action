@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260814_observation-notice-promotion-and-probe-completion-log.md](20260814_observation-notice-promotion-and-probe-completion-log.md) — 레벨(`.info`) / "상시(릴리스 생존) 관측 + 읽기 실패는 DEBUG" 결정은 유효
+
 # Visual `.selection` 위임 가드의 불일치 스킵 로그는 상시 `.info`
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

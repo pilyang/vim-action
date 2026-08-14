@@ -56,10 +56,14 @@ final class AXTrustProber {
     nonisolated static let demotionThreshold = 3
     /// 위 강등 창의 길이(초) — 도그푸딩 조절값.
     nonisolated static let demotionWindow: TimeInterval = 10
-    /// 콜드 형태 실패의 유계 재시도 횟수 (결정 문언 "~200ms×1–2회"의 상한 쪽).
+    /// 콜드 형태 실패의 유계 재시도 횟수 — 이번 실행이 기상을 쓰지 **않은** 경우(이미 깨운
+    /// 앱의 재프로브)의 상한. PR-A 실측(콜드 웜업 재시도 2~3회/+10~23ms) 기준.
     nonisolated static let coldRetryCount = 2
-    /// 재시도 간 지연 — PR-A 실측(콜드 웜업 재시도 2~3회/+10~23ms)과 Electron 트리 기상
-    /// 소요를 덮는 잠정값.
+    /// 기상을 쓴 실행의 재시도 상한 — Chromium은 기상(접근성 활성화) 뒤 트리 빌드에 수 초가
+    /// 걸려(도그푸딩 실측: 웜 트리는 50ms 예산에 0.1~2.6ms, 콜드는 ~450ms 예산 전패) 백오프로
+    /// 최대 ~3s를 덮는다 (`20260814_probe-wake-on-cold-form-and-backoff.md`).
+    nonisolated static let postWakeRetryCount = 4
+    /// 재시도 백오프의 기저 지연 — n번째 대기는 `coldRetryDelay << n`이다 (200·400·800·1600ms).
     nonisolated static let coldRetryDelay: TimeInterval = 0.2
     /// Electron 트리 기상 속성. SDK 상수가 없어 문자열이다
     /// (`20260813_electron-tree-wake-on-probe-failure.md`).
@@ -88,7 +92,7 @@ final class AXTrustProber {
         /// 프로브가 큐에 있거나 실행 중 — 같은 앱의 연타 `.replace`가 프로브를 중복
         /// enqueue하지 않게 한다.
         var inFlight = false
-        /// 거부 목록 override `.info`를 이미 남겼는가 — pid당 1회.
+        /// 거부 목록 override `.notice`를 이미 남겼는가 — pid당 1회.
         var overrideLogged = false
         /// 이 앱에 `AXManualAccessibility` 기상 쓰기를 이미 했는가 — **pid당 1회**이며
         /// 재프로브에도 승계된다 (`20260813_electron-tree-wake-on-probe-failure.md`).
@@ -116,7 +120,7 @@ final class AXTrustProber {
 
     private let collectSignals: @Sendable (pid_t) -> AXTrustProbeSignals
     private let wakeTree: @Sendable (pid_t) -> Void
-    private let coldRetryPause: @Sendable () -> Void
+    private let coldRetryPause: @Sendable (Int) -> Void
     /// 프로브 작업을 전용 큐에 얹는 자리 — 테스트는 캡처 실행기를 넣어 enqueue를 동기로
     /// 관찰한다 (얹힌 클로저는 완료 진입점 `completeProbe`를 직접 부르는 것과 등가다).
     private let schedule: @Sendable (@escaping @Sendable () -> Void) -> Void
@@ -133,8 +137,9 @@ final class AXTrustProber {
         collectSignals: @escaping @Sendable (pid_t) -> AXTrustProbeSignals = AXTrustProber
             .collectViaAccessibility,
         wakeTree: @escaping @Sendable (pid_t) -> Void = AXTrustProber.wakeViaAccessibility,
-        coldRetryPause: @escaping @Sendable () -> Void = {
-            Thread.sleep(forTimeInterval: AXTrustProber.coldRetryDelay)
+        coldRetryPause: @escaping @Sendable (Int) -> Void = { attempt in
+            Thread.sleep(
+                forTimeInterval: AXTrustProber.coldRetryDelay * TimeInterval(1 << attempt))
         },
         schedule: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = {
             AXTrustProber.probeQueue.async(execute: $0)
@@ -194,7 +199,7 @@ final class AXTrustProber {
     nonisolated enum ProbeDecision: Hashable, Sendable {
         /// 아무것도 하지 않는다.
         case none
-        /// 명시 `accessibility`가 거부 목록을 이겼다 — `.info` 1회만 남긴다.
+        /// 명시 `accessibility`가 거부 목록을 이겼다 — `.notice` 1회만 남긴다.
         case logDenyListOverride
         /// 거부 목록 — AX 접촉 없이 즉시 untrusted (재시도 없음).
         case applyDenyListVerdict
@@ -266,7 +271,7 @@ final class AXTrustProber {
             entries[processID] = entry
             // 이 조합의 도그푸딩 실사례가 아직 없다 — 이 로그가 첫 관측 데이터다
             // (`20260813_ax-trust-deny-list-code-constant.md`).
-            Logger.eventTap.info(
+            Logger.eventTap.notice(
                 "AX 신뢰 거부 목록 override — 명시 accessibility가 이긴다 [\(bundleID, privacy: .public)]"
             )
         case .applyDenyListVerdict:
@@ -292,9 +297,11 @@ final class AXTrustProber {
     /// `untrusted → trusted`만 만들 수 있고, trusted를 끌어내리는 간선은 이 진입점에 없다 —
     /// 강등은 런타임 증거 전용의 별도 진입점 `noteAutoAXUnavailable`이 담당한다(플립플롭
     /// 금지 — 그쪽은 반대로 trusted에서만 내려간다).
-    /// 실제 전이에만 판정 전이 `.info` 1줄(번들 ID + 판정 + 탈락 계층)을 남긴다 — 릴리스에서
-    /// 생존해 `log show --info`로 사후 회수되는 판정 데이터다. **창 본문은 신호 타입이 Bool뿐이라
-    /// 실릴 수 없다** (`20260813_auto-trusted-runtime-demotion-and-observability.md`).
+    /// 실제 전이에만 판정 전이 `.notice` 1줄(번들 ID + 판정 + 탈락 계층)을 남긴다 — default
+    /// 레벨이라 릴리스에서 생존하고 **디스크에 영속**돼 `log show`로 사후 회수된다 (`.info`는
+    /// macOS가 메모리에만 두다 버려 도그푸딩 하루치가 증발했다 —
+    /// `20260814_observation-notice-promotion-and-probe-completion-log.md`). **창 본문은 신호
+    /// 타입이 Bool뿐이라 실릴 수 없다** (`20260813_auto-trusted-runtime-demotion-and-observability.md`).
     func update(
         verdict: AXTrustVerdict, failedLayer: AXTrustProbeLayer?, for processID: pid_t,
         bundleID: String?
@@ -313,10 +320,10 @@ final class AXTrustProber {
         guard transitioned else { return }
         switch verdict {
         case .trusted:
-            Logger.eventTap.info(
+            Logger.eventTap.notice(
                 "auto 판정 전이 — trusted [\(bundleID ?? "앱 미상", privacy: .public)]")
         case .untrusted:
-            Logger.eventTap.info(
+            Logger.eventTap.notice(
                 "auto 판정 전이 — untrusted (탈락: \(Self.layerLabel(failedLayer), privacy: .public)) [\(bundleID ?? "앱 미상", privacy: .public)]"
             )
         case .pending:
@@ -340,7 +347,7 @@ final class AXTrustProber {
     ///
     /// 강등은 pid 수명 sticky다 — 재승격은 앱 재실행(= 엔트리 백지 + 재프로브)뿐이고,
     /// `noteActivation`의 재장전 제외와 `update`의 종단 가드가 `.runtime`을 함께 제외해
-    /// 그 문언을 코드로 만든다. 강등 `.info` 1줄이 판정 전이(번들 ID + 판정 + 탈락 계층)와
+    /// 그 문언을 코드로 만든다. 강등 `.notice` 1줄이 판정 전이(번들 ID + 판정 + 탈락 계층)와
     /// 강등 이벤트 관측을 겸한다 — `update` 전이 로그와 중복되지 않는다(이 전이는 이
     /// 진입점만 만든다).
     func noteAutoAXUnavailable(processID: pid_t, bundleID: String?, at failedAt: TimeInterval) {
@@ -352,7 +359,7 @@ final class AXTrustProber {
         entry.verdict = .untrusted
         entry.failedLayer = .runtime
         entries[processID] = entry
-        Logger.eventTap.info(
+        Logger.eventTap.notice(
             "auto 판정 강등 — untrusted (탈락: \(Self.layerLabel(.runtime), privacy: .public), 창 \(Self.demotionWindow, format: .fixed(precision: 0), privacy: .public)s 안 .axUnavailable ×\(Self.demotionThreshold, privacy: .public) — 다음 액션부터 keyboard) [\(bundleID ?? "앱 미상", privacy: .public)]"
         )
     }
@@ -387,12 +394,21 @@ final class AXTrustProber {
     /// 회수의 증거다) 결과를 버린다 — 죽은 pid의 판정을 되살리면 종료 회수가 무의미해진다.
     func completeProbe(
         processID: pid_t, bundleID: String, wokeTree: Bool, verdict: AXTrustVerdict,
-        failedLayer: AXTrustProbeLayer?, generation: Int
+        failedLayer: AXTrustProbeLayer?, signals: AXTrustProbeSignals? = nil, generation: Int
     ) {
         guard generation == probeGeneration, var entry = entries[processID] else { return }
         entry.inFlight = false
         entry.wokeTree = entry.wokeTree || wokeTree
         entries[processID] = entry
+        // untrusted 완료는 신호 Bool 4종까지 남긴다 — untrusted → untrusted 재프로브는
+        // `update`의 전이 가드에 걸려 무로그라, 이 줄이 없으면 "왜 계속 떨어지는가"가
+        // 릴리스에서 보이지 않는다 (도그푸딩 실측 —
+        // `20260814_observation-notice-promotion-and-probe-completion-log.md`).
+        if verdict == .untrusted, let signals {
+            Logger.eventTap.notice(
+                "auto 프로브 완료 — untrusted (요소 \(signals.focusedElementFound, privacy: .public), 노출 \(signals.exposesSelectedTextRange, privacy: .public), 읽기 \(signals.readsSucceeded, privacy: .public), settable \(signals.selectedTextRangeSettable, privacy: .public), 기상 \(entry.wokeTree, privacy: .public), 재프로브 \(entry.reProbeCount, privacy: .public)/\(Self.reProbeAttemptCap, privacy: .public)) [\(bundleID, privacy: .public)]"
+            )
+        }
         update(verdict: verdict, failedLayer: failedLayer, for: processID, bundleID: bundleID)
     }
 
@@ -413,7 +429,7 @@ final class AXTrustProber {
                     self?.completeProbe(
                         processID: processID, bundleID: bundleID, wokeTree: run.wokeTree,
                         verdict: verdict.verdict, failedLayer: verdict.failedLayer,
-                        generation: generation)
+                        signals: run.signals, generation: generation)
                 }
             }
         }
@@ -421,29 +437,36 @@ final class AXTrustProber {
 
     /// 프로브 1회의 **동기 오케스트레이션** — seam만 부르는 함수라 큐 없이 단독 테스트한다.
     ///
-    /// 수집 → 콜드 형태 실패(`isColdFormFailure`)면 유계 재시도(~200ms × 최대 2회) —
-    /// settable=false 단독은 확정 답변이라 재시도하지 않는다. 재시도 전, 탈락이 **요소
-    /// 실증(계층 2)** 이고 이 앱을 아직 깨운 적 없으면 `AXManualAccessibility=true` 기상을
-    /// **1회** 쓴다 (`20260813_electron-tree-wake-on-probe-failure.md`) — 비-Electron 앱에는
-    /// 무해한 에러다. 판정은 마지막 수집의 신호로 낸다.
+    /// 수집 → 콜드 형태 실패(`isColdFormFailure`)면 유계 재시도 — settable=false 단독은
+    /// 확정 답변이라 재시도하지 않는다. 재시도 전, 이 앱을 아직 깨운 적 없으면
+    /// `AXManualAccessibility=true` 기상을 **1회** 쓴다 — 트리거는 콜드 형태 실패 **전반**이다
+    /// (요소 실증 탈락뿐 아니라 읽기 콜드도): Chromium auto-disable은 "요소는 보이는데 읽기만
+    /// 콜드"인 반콜드 형태로 나타나고(도그푸딩 실측 — Slack 프로브 2회 연속 이 형태로 탈락),
+    /// 그때 기상이 안 나가면 프로브가 매번 웜업 레이스에 진다. 비-Electron 앱에는 무해한
+    /// 에러다. 기상을 쓴 실행은 재시도 예산을 `postWakeRetryCount`로 연장하고 대기는 지수
+    /// 백오프다 — 기상이 시작시킨 트리 빌드(수 초)를 기다리는 값이다
+    /// (`20260814_probe-wake-on-cold-form-and-backoff.md`). 판정은 마지막 수집의 신호로 낸다.
     nonisolated static func runProbe(
         processID: pid_t,
         alreadyWokeTree: Bool,
         collect: (pid_t) -> AXTrustProbeSignals,
         wake: (pid_t) -> Void,
-        retryPause: () -> Void
+        retryPause: (Int) -> Void
     ) -> (signals: AXTrustProbeSignals, wokeTree: Bool) {
         var signals = collect(processID)
         var wokeTree = false
         var retriesLeft = coldRetryCount
+        var attempt = 0
         while signals.isColdFormFailure, retriesLeft > 0 {
-            if signals.failsElementAttestation, !alreadyWokeTree, !wokeTree {
+            if !alreadyWokeTree, !wokeTree {
                 wake(processID)
                 wokeTree = true
+                retriesLeft = postWakeRetryCount
             }
-            retryPause()
+            retryPause(attempt)
             signals = collect(processID)
             retriesLeft -= 1
+            attempt += 1
         }
         return (signals, wokeTree)
     }

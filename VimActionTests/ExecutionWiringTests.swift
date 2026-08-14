@@ -201,7 +201,7 @@ struct ExecutionWiringTests {
     ) -> AXTrustProber {
         AXTrustProber(
             notificationCenter: NotificationCenter(), collectSignals: { _ in AXTrustProbeSignals() },
-            wakeTree: { _ in }, coldRetryPause: {}, schedule: schedule)
+            wakeTree: { _ in }, coldRetryPause: { _ in }, schedule: schedule)
     }
 
     /// 전략은 프로파일과 달리 **접혀서** 실린다 — 실행 계층은 `.auto`를 모르고, 접기 시점이

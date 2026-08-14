@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260814_probe-wake-on-cold-form-and-backoff.md](20260814_probe-wake-on-cold-form-and-backoff.md) — 기상 트리거(요소 실증 실패 한정)·재시도 문언(~200ms×1–2회) / 기상 채택·명시 쓰기 근거·Slack 기상 실측은 유효
+
 # Electron AX 트리 기상 — 프로브의 요소 실증 실패 시 1회
 
 - **결정일**: 2026-08-13

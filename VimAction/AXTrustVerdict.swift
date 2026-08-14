@@ -54,7 +54,7 @@ nonisolated enum AXTrustProbeLayer: Hashable, Sendable, CaseIterable {
 /// 프로브가 한 번의 수집에서 모은 신호 — **Bool만 싣는다.**
 ///
 /// 창 읽기(`AXStringForRange`)의 본문을 여기 싣지 않는 것이 계약이다: 판정 전이 로그는
-/// 릴리스에서 생존하는 `.info`인데, 신호가 Bool뿐이면 창 본문이 로그로 새는 경로가
+/// 릴리스에서 생존·영속하는 `.notice`인데, 신호가 Bool뿐이면 창 본문이 로그로 새는 경로가
 /// 타입 수준에서 막힌다.
 ///
 /// 계층 2의 신호를 **리졸버 family 값에서 가져오지 않는 것도 계약이다** — family의 실패
@@ -73,15 +73,17 @@ nonisolated struct AXTrustProbeSignals: Hashable, Sendable {
     /// 읽기 전용이지만 선택 가능한 뷰(Mail 본문·PDF·콘솔류)를 무돌연변이로 가른다.
     var selectedTextRangeSettable = false
 
-    /// 계층 2 탈락인가 — Electron 트리 기상(`AXManualAccessibility`)의 발동 조건이다
-    /// (`20260813_electron-tree-wake-on-probe-failure.md`).
+    /// 계층 2 탈락인가 — 탈락 계층 라벨(`.element`)의 근거다.
     var failsElementAttestation: Bool {
         !focusedElementFound || !exposesSelectedTextRange
     }
 
-    /// 콜드 형태 실패인가 — 유계 재시도(~200ms×2)의 대상이다. 요소 없음·미노출·읽기 실패는
-    /// 잠든 트리·콜드 웜업에서 일시적일 수 있지만(PR-A 실측: 재시도 2~3회), **settable=false
-    /// 단독은 확정 답변**이라 재시도하지 않는다.
+    /// 콜드 형태 실패인가 — 유계 재시도와 Electron 트리 기상(`AXManualAccessibility`)의 발동
+    /// 조건이다. 요소 없음·미노출·읽기 실패는 잠든 트리·콜드 웜업에서 일시적일 수 있지만
+    /// (PR-A 실측: 재시도 2~3회. Chromium auto-disable은 "요소는 보이는데 읽기만 콜드"인
+    /// 반콜드 형태로도 나타난다 — 도그푸딩 실측,
+    /// `20260814_probe-wake-on-cold-form-and-backoff.md`), **settable=false 단독은 확정
+    /// 답변**이라 재시도하지 않는다.
     var isColdFormFailure: Bool {
         failsElementAttestation || !readsSucceeded
     }

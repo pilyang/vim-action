@@ -364,14 +364,14 @@ nonisolated struct KeyboardAdapter: Sendable {
                 // auto가 이 실행을 AX로 보냈다면(원본 auto — mapping이 `.axUnavailable`을
                 // 내려면 접힌 값 accessibility는 보장돼 있다) 이 스킵은 판정 반증의 신호이자
                 // 릴리스에서 사후 회수돼야 하는 관측 데이터다(관측 ② — 기본값 전환 게이트의
-                // 판정 데이터). 상시 `.info`의 출처 라벨("auto 라우팅")이 명시 accessibility의
+                // 판정 데이터). 상시 `.notice`의 출처 라벨("auto 라우팅")이 명시 accessibility의
                 // 스킵과 사후에도 갈리게 한다 — 그쪽은 사용자 지시라 강등할 판정이 없고
                 // 현행 DEBUG 요약 그대로다(어느 쪽에서도 섞임 금지 문언). execute를 통째로
                 // 접으므로 키 입력당 최대 1건 — 이 한 줄이 곧 요약이라 `AXWriteEffects`
                 // 버킷을 늘리지 않는다. 시각은 게시 큐에서 캡처한다(`reportExecutionFailure`
                 // 선례 — 홉 착지 시각으로 세면 뭉침 착지가 거짓 강등).
                 if profile.strategy == .auto, let processID {
-                    Logger.eventTap.info(
+                    Logger.eventTap.notice(
                         "AX 경로 스킵(요소·읽기 없음) — auto 라우팅, execute 잔여 접힘 [\(bundleID ?? "앱 미상", privacy: .public)]: \(String(describing: action), privacy: .public)"
                     )
                     reportAutoAXUnavailable(processID, bundleID, now())
@@ -969,12 +969,12 @@ nonisolated struct KeyboardAdapter: Sendable {
                     return .skipped
                 }
                 // 불일치·상태 부재는 `validated`가 상태를 폐기한다(pin은 유지 — 이후 확장·
-                // 전환도 스킵, `sessionPath` doc). 상시 `.info`인 것은 이 빈도가 "직전 가드로
+                // 전환도 스킵, `sessionPath` doc). 상시 `.notice`인 것은 이 빈도가 "직전 가드로
                 // 충분한가 vs 수렴 폴링 재검토"의 판정 데이터라서다 — 도그푸딩은 릴리스
                 // 빌드라 DEBUG로는 회수가 불가하다(되읽어 검증 불일치 버킷과 같은 규칙).
                 guard visualAnchor.validated(against: focused, processID: text.processID) != nil
                 else {
-                    Logger.eventTap.info(
+                    Logger.eventTap.notice(
                         "AX Visual 편집 스킵 — 위임 직전 재검증 불일치 [\(bundleID ?? "앱 미상", privacy: .public)]: \(String(describing: action), privacy: .public), 읽은 선택 [\(focused.selection.location, privacy: .public), \(focused.selection.upperBound, privacy: .public))"
                     )
                     return .skipped
