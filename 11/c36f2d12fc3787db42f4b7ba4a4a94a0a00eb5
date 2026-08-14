@@ -1,0 +1,21 @@
+VimAction/ProfileScaffold.swift
+  s_764b5b9488306b::t_4a2dc0df0a3a84 21-34
+VimAction/BundledConfig/notion.id.yaml
+  s_764b5b9488306b::t_369cf46db81a25 2-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "11c36f2d12fc3787db42f4b7ba4a4a94a0a00eb5",
+  "prompts": {},
+  "sessions": {
+    "s_764b5b9488306b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6deb9e8c-537d-4d3c-b17a-17ef716bd5bf",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
