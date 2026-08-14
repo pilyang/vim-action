@@ -263,6 +263,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-13 | `.illegalArgument`·`.cannotComplete` 재심사 종결 | 관측 전용·경합 스킵 유지 — 세션 0 전수 실측 재현 불가(~550+121회·~580회 전부 0건), 관측 로그는 유지 | [20260813_illegalargument-cannotcomplete-observation-kept.md](references/20260813_illegalargument-cannotcomplete-observation-kept.md) |
 | 08-13 | Electron 트리 기상 — 요소 실증 실패 시 1회 | `AXManualAccessibility=true` + 유계 재시도, 첫 vim 키 앱에만(비례성) — 기존 "Slack·VS Code 미노출"은 수면 상태 측정(순환 반증), 기상 Slack은 왕복 10/10 "AX 신뢰 가능" | [20260813_electron-tree-wake-on-probe-failure.md](references/20260813_electron-tree-wake-on-probe-failure.md) |
 | 08-14 | 메뉴 판정 pid는 게이트 비자신 짝 | `lastNonSelfProcessID` — 번들과 한 짝 갱신(가드 앞·시드 단일 조회), 메뉴 열림의 자기 pid 오표시 봉쇄, 디스패치 경로는 계속 리졸버 pid | [20260814_menu-verdict-pid-from-gate-non-self-pair.md](references/20260814_menu-verdict-pid-from-gate-non-self-pair.md) |
+| 08-14 | Visual 가드 불일치 로그는 상시 `.info` | 재검토 조건("가드 불일치가 잦으면 수렴 폴링 재검토")의 판정 데이터 — 릴리스 도그푸딩에서 회수 가능해야 해 illegalArgument 전례 적용, 읽기 실패 스킵은 DEBUG 유지 | [20260814_visual-guard-mismatch-log-info.md](references/20260814_visual-guard-mismatch-log-info.md) |
 
 ### 수용 엣지 — 도그푸딩 실측 (대부분 M4 프로파일·M5 AX가 해소 예정)
 

@@ -51,6 +51,9 @@ private func makeAXAdapter(
     axText: FocusedText?,
     element: AXUIElement? = AXUIElementCreateApplication(99_999),
     clipboard: PasteWise? = .charwise,
+    // `.selection` 편집의 wise 기억을 관측하는 테스트만 자기 리졸버를 주입한다 —
+    // `noteSelectionWise`가 없으면 `recordSelectionEdit`이 기록 없이 돌아오기 때문이다.
+    pasteWise: PasteWiseResolver? = nil,
     visualAnchor: VisualAnchorTracker = VisualAnchorTracker(),
     writeError: @escaping @Sendable () -> AXError = { .success },
     readback: (@Sendable () -> NSRange?)? = nil,
@@ -63,7 +66,8 @@ private func makeAXAdapter(
     let landed = LandedRange()
     return KeyboardAdapter(
         executor: ActionExecutor(postEvent: posted),
-        pasteWise: PasteWiseResolver(readClipboard: { clipboard }, readChangeCount: { 0 }),
+        pasteWise: pasteWise
+            ?? PasteWiseResolver(readClipboard: { clipboard }, readChangeCount: { 0 }),
         reader: FocusedTextReader { _ in nil },
         visualAnchor: visualAnchor,
         viewportReader: ViewportReader { _ in nil },
@@ -1543,5 +1547,225 @@ struct KeyboardAdapterVisualAXTests {
         #expect(calls.map(\.range) == [NSRange(location: 1, length: 4)])
         #expect(tracker.current?.wise == .charwise)
         #expect(tracker.current?.anchor == 1)
+    }
+}
+
+/// force-text × AX — 치환은 keyboard 실행 쪽에만 닿고 `usesAXWrite`·AX 분기의 계열 판정은
+/// **원본 계열**을 유지한다는 결정의 회귀 고정
+/// (`20260813_force-text-keyboard-family-substitution.md`). 결정이 명시한 두 경로 —
+/// AX 강등(`.nonText`·`.unresolved` → keyboard 낙하)과 `unproven` 위임의 재진입 —
+/// 각각에서 force_text 적용을 단언한다. keyboard 단독 축은 `KeyboardAdapterForceTextTests`.
+struct KeyboardAdapterForceTextAXTests {
+    private let axForceText = ResolvedProfile(
+        AppProfile(strategy: .accessibility, keyboardFamily: .forceText))
+
+    /// **강등 경로 회귀**: 원본 계열이 AX를 강등시키고(쓰기 seam 무호출 — 치환이 AX 판정으로
+    /// 새면 비텍스트 요소에 AX 쓰기가 나간다), 낙하한 keyboard 실행은 치환값을 본다
+    /// (치환이 없으면 걸러내기 게이트가 편집을 통째로 삼킨다 — 옛 코드에서 실패하는 축).
+    @Test(
+        "AX 강등 경로: 쓰기 없음 + 편집은 TextArea 시퀀스로 게시",
+        arguments: [ElementFamily.nonText, .unresolved])
+    func demotionAppliesForceText(_ family: ElementFamily) {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: axText, onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.edit(.delete, .line(count: 1))], family: family, profile: axForceText,
+            processID: anyPID)
+
+        #expect(writes == 0, "usesAXWrite는 원본 계열을 본다 — AX로 새면 안 된다")
+        #expect(!posted.isEmpty, "낙하한 keyboard 실행에는 치환이 적용된다")
+    }
+
+    /// **`unproven` 위임 경로 회귀**: 창이 답하지 못해 낙하한 keyboard 실행도 치환을 본다 —
+    /// 원본 `.textField`의 openLine은 걸러지지만(`Return` = submit 게이트) force_text는
+    /// 그 role 보고 자체를 믿지 않는다.
+    @Test("unproven 위임 경로: 쓰기 없이 openLine이 게시된다")
+    func unprovenDelegationAppliesForceText() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // 창이 문서 일부라 줄 끝을 증명할 수 없다 (`unprovenDelegates`와 같은 픽스처).
+        let truncated = FocusedText(
+            selection: NSRange(location: 102, length: 0), characterCount: 999,
+            window: "cdef", windowRange: NSRange(location: 100, length: 4))
+        let adapter = makeAXAdapter(
+            axText: truncated, onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.openLine(above: false)], family: .textField, profile: axForceText,
+            processID: anyPID)
+
+        #expect(writes == 0, "증명 실패는 위임이다 — 접두 쓰기가 없다")
+        #expect(
+            posted.contains {
+                $0.getIntegerValueField(.keyboardEventKeycode) == Int64(kVK_Return)
+            }, "치환이 없으면 .textField 게이트가 openLine을 통째로 삼킨다")
+    }
+
+    /// **하이브리드 위임분 진입점 회귀**: 접두는 AX(원본 `.textField`가 AX 판정을 통과),
+    /// 위임분 `Return`은 치환값 덕에 선다 — 두 값이 갈리는 유일한 하이브리드 자리다.
+    @Test("하이브리드 경로: TextField 보고 + force_text의 o는 접두 쓰기 + Return")
+    func hybridDelegatedEntryAppliesForceText() {
+        nonisolated(unsafe) var writes: [AXCall] = []
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: focusedText("foo.bar  baz", caret: 0),
+            onWrite: { writes.append($0) }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.openLine(above: false)], family: .textField, profile: axForceText,
+            processID: anyPID)
+
+        #expect(writes.map(\.range) == [NSRange(location: 12, length: 0)], "논리 줄 끝 접두")
+        #expect(
+            posted.contains {
+                $0.getIntegerValueField(.keyboardEventKeycode) == Int64(kVK_Return)
+            }, "위임분이 nil이면 접두 쓰기 자체가 없어야 한다 — 게시가 곧 치환의 증거")
+    }
+
+    /// 대조군: 원본이 `.textArea`인 곳에서 force_text는 AX 경로를 바꾸지 않는다 —
+    /// 치환은 값이 같아 무해하고, AX 캐럿 쓰기가 그대로 나간다.
+    @Test("force_text는 정상 AX 경로를 바꾸지 않는다")
+    func forceTextKeepsAXPathIntact() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAXAdapter(
+            axText: axText, onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.move(.wordForward)], family: .textArea, profile: axForceText, processID: anyPID)
+
+        #expect(writes == 1)
+        #expect(posted.isEmpty)
+    }
+}
+
+/// AX로 pin된 Visual 세션의 `.edit(op, .selection)` 위임 직전 재검증 가드
+/// (`20260813_visual-selection-edit-pre-delegation-guard.md`) — 앱이 우리가 쓴 범위를
+/// 재정규화·클램프한 위의 맨 `Cmd-X`가 **앱의 선택**을 자르는 파괴 경로를 닫는다.
+/// 술어는 기존 자가 검증(앵커 쪽 끝 + pid + 비어 있지 않음) 재사용이다.
+struct KeyboardAdapterVisualSelectionEditGuardTests {
+    /// 불일치 = 정직한 스킵 — 게시·쓰기·wise 기억이 전부 없고, 상태는 폐기되되 pin은 산다.
+    @Test("재검증 불일치는 스킵이다 — 부수효과 없음, 상태 폐기, pin 유지")
+    func mismatchSkipsDelegation() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var changeCountReads = 0
+        let tracker = axSession(anchor: 4)
+        // 세션 wise를 note해 둬야 기억 경로가 관측 가능하다 — note 없는 `.selection` 편집은
+        // 어차피 기록하지 않아 아래 단언이 공회전이 된다 (`recordSelectionEdit` 계약).
+        let pasteWise = PasteWiseResolver(
+            readClipboard: { .charwise },
+            readChangeCount: {
+                changeCountReads += 1
+                return 0
+            })
+        pasteWise.noteSelectionWise(.charwise)
+        // 화면 선택 [5, 8) — 앵커 쪽 끝(4)과 불일치.
+        let adapter = makeAXAdapter(
+            axText: focusedText("foo.bar  baz", caret: 5, length: 3),
+            pasteWise: pasteWise, visualAnchor: tracker,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute([.edit(.delete, .selection)], profile: axProfile, processID: anyPID)
+
+        #expect(posted.isEmpty, "맨 Cmd-X는 앱의 선택을 자른다 — 스킵이 답이다")
+        #expect(writes == 0)
+        #expect(changeCountReads == 0, "스킵된 편집은 wise 기억도 남기지 않는다")
+        #expect(tracker.current == nil, "불일치는 상태 폐기다 — 기존 자가 검증 계약")
+        #expect(tracker.sessionPath == .accessibility, "pin은 상태 폐기보다 오래 산다")
+    }
+
+    /// 읽기 실패는 폐기 트리거가 아니다 — 그 액션만 스킵하고 상태는 남는다. execute 잔여를
+    /// 접는 `.axUnavailable`이 아닌 것도 결정 문언이다("불일치·읽기 실패 = 정직한 스킵").
+    @Test("재검증 읽기 실패는 스킵이되 상태와 execute 잔여를 유지한다")
+    func readFailureSkipsButKeepsState() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = axSession(anchor: 4)
+        let adapter = makeAXAdapter(
+            axText: nil, visualAnchor: tracker,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.edit(.delete, .selection), .move(.lineDown)], profile: axProfile,
+            processID: anyPID)
+
+        #expect(writes == 0)
+        #expect(tracker.current != nil, "읽기 실패는 폐기 트리거가 아니다")
+        #expect(!posted.isEmpty, "스킵은 액션 1건 — 뒤따르는 위임 모션(j)은 그대로 나간다")
+    }
+
+    /// 일치 = 현행 그대로 위임 — `Cmd-X`가 나가고 세션 wise가 소비된다.
+    @Test("재검증 일치는 현행 위임 그대로다")
+    func matchDelegatesAsBefore() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        nonisolated(unsafe) var changeCountReads = 0
+        let tracker = axSession(anchor: 4)
+        // 대조군 겸이다 — 불일치 테스트의 "기억 없음" 단언이 유효한 관측 수단임을
+        // 같은 배선의 이 테스트가 기억 1건으로 증명한다.
+        let pasteWise = PasteWiseResolver(
+            readClipboard: { .charwise },
+            readChangeCount: {
+                changeCountReads += 1
+                return 0
+            })
+        pasteWise.noteSelectionWise(.charwise)
+        let adapter = makeAXAdapter(
+            axText: focusedText("foo.bar  baz", caret: 4, length: 3),
+            pasteWise: pasteWise, visualAnchor: tracker,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute([.edit(.delete, .selection)], profile: axProfile, processID: anyPID)
+
+        #expect(
+            posted.map { $0.getIntegerValueField(.keyboardEventKeycode) }
+                == [Int64(kVK_ANSI_X), Int64(kVK_ANSI_X)], "Cmd-X 1타 위임")
+        #expect(posted.allSatisfy { $0.flags.contains(.maskCommand) })
+        #expect(writes == 0, "`.selection` 편집은 AX 쓰기가 아니라 위임이다")
+        #expect(changeCountReads == 1, "게시가 확정된 편집만 wise를 기억한다")
+        #expect(tracker.current != nil)
+    }
+
+    /// keyboard 세션은 가드 밖이다 — 게시된 키가 만든 선택은 기존 위험 등급 그대로,
+    /// 검증 없이 위임한다 (결정 문언 "keyboard 세션은 현행 유지").
+    @Test("keyboard 세션의 selection 편집은 가드를 지나지 않는다")
+    func keyboardSessionBypassesGuard() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        // 가드가 발동했다면 스킵됐을 불일치 픽스처 — 그런데도 게시돼야 한다.
+        let adapter = makeAXAdapter(
+            axText: focusedText("foo.bar  baz", caret: 5, length: 3),
+            visualAnchor: VisualAnchorTracker(),
+            collecting: { posted.append($0) })
+
+        adapter.execute([.edit(.delete, .selection)], profile: axProfile, processID: anyPID)
+
+        #expect(!posted.isEmpty, "keyboard 세션은 현행 그대로 위임한다")
+    }
+
+    /// 런타임 강등 교차: 실효 전략이 keyboard로 접혀도 pin된 세션의 화면 선택은 여전히
+    /// AX가 쓴 범위다 — 가드 기준은 `sessionPath`이지 실효 전략이 아니다
+    /// (pin 세션 스킵 중 유일한 파괴 축이 여기서 닫힌다 — architecture 미결 질문 보완).
+    @Test("런타임 강등 뒤에도 pin 세션의 selection 편집은 가드를 거친다")
+    func demotedPinnedSessionStillGuarded() {
+        nonisolated(unsafe) var writes = 0
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let tracker = axSession(anchor: 4)
+        let autoProfile = ResolvedProfile(AppProfile(strategy: .auto))
+        let adapter = makeAXAdapter(
+            axText: focusedText("foo.bar  baz", caret: 5, length: 3),
+            visualAnchor: tracker,
+            onWrite: { _ in writes += 1 }, collecting: { posted.append($0) })
+
+        adapter.execute(
+            [.edit(.delete, .selection)], profile: autoProfile, effectiveStrategy: .keyboard,
+            processID: anyPID)
+
+        #expect(posted.isEmpty, "가드 기준은 sessionPath이지 실효 전략이 아니다")
+        #expect(writes == 0)
+        #expect(tracker.sessionPath == .accessibility)
     }
 }

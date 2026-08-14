@@ -39,7 +39,8 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
     /// 순수 열거값이고 `ConfigAction`이 이미 그대로 통과한다.
     let strategy: ProfileStrategy
     /// keyboard 실행의 요소 계열 — `.forceText`면 걸러내기를 우회한다. 같은 이유로 앱측 타입을
-    /// 다시 선언하지 않는다. **소비처는 PR-D2 세션 4가 만든다**(치환은 keyboard 실행 쪽만).
+    /// 다시 선언하지 않는다. 소비처는 `KeyboardAdapter.mapping`의 실효 계열 치환 **한 곳**이다
+    /// (치환은 keyboard 실행 쪽만 — `usesAXWrite`·AX 분기는 원본 계열을 본다).
     let keyboardFamily: KeyboardFamily
     /// 스크롤 줄 수 재정의 — 명시값은 AX 뷰포트 정확값보다 **우선**하며 그 extent는 읽기
     /// 자체가 생략된다. `nil`이면 AX 뷰포트를 시도하고, 그것도 실패하면 `CommandKeyMapper`의

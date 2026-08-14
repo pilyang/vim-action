@@ -65,8 +65,11 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// **AX 쓰기 경로 전용 창 읽기 seam** — 같은 프리미티브(`FocusedText`)를 읽지만 둘이 다르다:
     /// pid가 아니라 **요소**를 받고(쓰기와 같은 핸들 — `AXWindowSnapshot` doc), 반경이 4096이다.
     ///
-    /// 소비자는 `mapping`의 AX 실행 계획 분기 한 곳이고, 전략이 accessibility가 아니면 아예
-    /// 묻지 않는다 — keyboard 전략 앱은 이 경로로 인한 AX 왕복이 0건이다.
+    /// 소비자는 둘이다: `mapping`의 AX 실행 계획 분기(전략이 accessibility가 아니면 아예
+    /// 묻지 않는다 — keyboard 전략 앱은 이 경로로 인한 AX 왕복이 0건이다)와, **AX로 pin된
+    /// Visual 세션의 `.edit(_, .selection)` 위임 직전 가드**. 후자는 `sessionPath` 기준이라
+    /// **런타임 강등 뒤에도** 그 액션 1건에 한해 묻는다 — pin된 화면 선택이 AX가 쓴 범위라
+    /// 위험이 전략과 무관하게 그대로다 (`20260813_visual-selection-edit-pre-delegation-guard.md`).
     private let axWindow: @Sendable (AXUIElement) -> FocusedText?
 
     /// **되읽어 검증 전용 재읽기 seam** — 선택 범위만 읽는다. `axWindow`와 갈린 이유가
@@ -322,8 +325,9 @@ nonisolated struct KeyboardAdapter: Sendable {
             let groups: [[KeyStroke]]
             let paced: Bool
             switch mapping(
-                for: action, family: family, profile: profile, strategy: strategy, text: text,
-                axText: axText, viewport: viewport, layout: layout) {
+                for: action, family: family, profile: profile, strategy: strategy,
+                bundleID: bundleID, text: text, axText: axText, viewport: viewport,
+                layout: layout) {
             case .ax(let range, let visual):
                 // ① 순서 봉인 (위 `sealOrder` 주석).
                 guard sealOrder(before: action) else { return }
@@ -846,8 +850,8 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 프리미티브라 `text`와 리더도 수명(execute당 1회)도 다르다.
     private func mapping(
         for action: VimAction, family: ElementFamily, profile: ResolvedProfile,
-        strategy: ProfileStrategy, text: FocusedTextSnapshot, axText: AXWindowSnapshot,
-        viewport: ViewportSnapshot, layout: LayoutSnapshot
+        strategy: ProfileStrategy, bundleID: String?, text: FocusedTextSnapshot,
+        axText: AXWindowSnapshot, viewport: ViewportSnapshot, layout: LayoutSnapshot
     ) -> Mapping {
         // 새 Visual 세션의 시작은 옛 세션 wise를 **게이트보다 앞에서** 잊는다 — note는
         // 게시 확정에 게이팅되므로, 걸러진 begin(`.nonText`·`.unresolved`) 뒤의
@@ -871,6 +875,16 @@ nonisolated struct KeyboardAdapter: Sendable {
             profile.actionOverrides[configAction] == .disabled {
             return .disabledByProfile
         }
+        // force-text의 실효 계열 — 치환은 **keyboard 실행 쪽에만** 닿는다: 아래 걸러내기
+        // 게이트·매퍼 호출·하이브리드 위임분 진입점이 이 값을 보고, `usesAXWrite`와 AX
+        // 분기의 계열 판정은 **원본 `family`를 유지**한다 — 치환이 AX로 새면 비텍스트
+        // 요소에 AX 범위 쓰기가 나가고 `.unresolved` 창(위험 어휘 보류)이 뚫린다.
+        // AX 강등(`.nonText`·`.unresolved` → keyboard)·`unproven` 위임의 keyboard 낙하는
+        // 같은 mapping 호출 안의 순차 낙하라 이 값을 자연히 승계한다 — force-text는
+        // "이 앱의 role 보고를 믿지 말라"는 사용자 지시라 keyboard 실행이 어느 경로로
+        // 오든 일관 적용이다 (`20260813_force-text-keyboard-family-substitution.md`).
+        let effectiveFamily =
+            profile.keyboardFamily == .forceText ? ElementFamily.textArea : family
         // 비텍스트 걸러내기는 **여기 한 곳**이다 — 매퍼가 아니라 어댑터인 이유가 셋 있고,
         // 셋 다 "게이트가 부수효과보다 앞이어야 한다"로 모인다
         // (`20260801_non-text-filter-keeps-motion-and-scroll.md`):
@@ -879,7 +893,7 @@ nonisolated struct KeyboardAdapter: Sendable {
         //      않을 편집을 기억하면 뒤따르는 `p`의 wise가 오염된다.
         //   ③ 아래 `.paste`는 매퍼 호출 전에 클립보드를 읽는다 — 순서가 반대면 걸러내기가
         //      "클립보드에 텍스트 없음"(`.skipped`)으로 잘못 집계돼 스킵 2종 구분이 무너진다.
-        guard Self.survivesFilterGate(action, family: family) else { return .unsupported }
+        guard Self.survivesFilterGate(action, family: effectiveFamily) else { return .unsupported }
         // 비-QWERTY 레이아웃 게이트 — ANSI **문자** 키코드를 합성하는 액션만 본다. 매퍼는
         // ANSI 상수를 논리 키코드로 내고 대상 앱은 활성 레이아웃으로 재해석하므로, 치환
         // 없이는 AZERTY에서 `u`의 `Cmd-Z`가 `Cmd-W`(창 닫기 — 데이터 손실)가 된다.
@@ -929,10 +943,49 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
 
         case .edit(let op, let range):
+            // **AX로 pin된 Visual 세션의 `.selection` 편집은 위임 직전 선택 재검증 1회**를
+            // 거친다 (M5 PR-D2). Visual의 AX 범위 쓰기는 뒤에 게시가 없어 실질 방어선이
+            // "다음 Visual 액션 읽기의 자가 검증"인데, `.edit(op, .selection)`은 Visual 매퍼
+            // 액션이 아니라 읽기 없이 맨 `Cmd-X`/`Cmd-C`로 나간다 — 방어선이 정확히 파괴
+            // 단계 앞에서만 비어 있었다. 앱이 우리가 쓴 범위를 재정규화·클램프한 위의
+            // `Cmd-X`는 **앱의 선택**(우리 의도보다 크거나 다른 범위)을 자른다
+            // (`20260813_visual-selection-edit-pre-delegation-guard.md`).
+            //
+            // 가드 기준은 `sessionPath`이지 실효 전략이 아니다 — 런타임 강등 뒤에도 pin된
+            // 세션의 화면 선택은 AX가 쓴 범위라 위험이 그대로다(pin 세션 스킵 중 유일한
+            // 파괴 축이 여기서 닫힌다). keyboard 세션(게시된 키가 만든 선택 — 기존 위험
+            // 등급)은 가드 밖·현행 그대로다. 아래 `recordEditWise`(`.groups` 확정 시)보다
+            // 앞이라 스킵된 편집은 wise 기억도 남기지 않는다.
+            if case .selection = range, visualAnchor.sessionPath == .accessibility {
+                // 읽기 실패는 폐기 트리거가 아니다 — 그 액션만 정직한 스킵이고 상태는
+                // 남는다(`anchorContext`와 같은 규칙). `.axUnavailable`로 접지 않는 것은
+                // 결정 문언이다("불일치·읽기 실패 = 정직한 스킵").
+                guard let focused = axText.value() else {
+                    #if DEBUG
+                    Logger.eventTap.debug(
+                        "AX Visual 편집 스킵 — 위임 직전 재검증의 읽기 실패: \(String(describing: action), privacy: .public)"
+                    )
+                    #endif
+                    return .skipped
+                }
+                // 불일치·상태 부재는 `validated`가 상태를 폐기한다(pin은 유지 — 이후 확장·
+                // 전환도 스킵, `sessionPath` doc). 상시 `.info`인 것은 이 빈도가 "직전 가드로
+                // 충분한가 vs 수렴 폴링 재검토"의 판정 데이터라서다 — 도그푸딩은 릴리스
+                // 빌드라 DEBUG로는 회수가 불가하다(되읽어 검증 불일치 버킷과 같은 규칙).
+                guard visualAnchor.validated(against: focused, processID: text.processID) != nil
+                else {
+                    Logger.eventTap.info(
+                        "AX Visual 편집 스킵 — 위임 직전 재검증 불일치 [\(bundleID ?? "앱 미상", privacy: .public)]: \(String(describing: action), privacy: .public), 읽은 선택 [\(focused.selection.location, privacy: .public), \(focused.selection.upperBound, privacy: .public))"
+                    )
+                    return .skipped
+                }
+            }
             // **읽기의 첫 소비 지점**이다 (M5 PR-B — 둘째는 Visual 세션 분기).
             // 게이트 뒤·부수효과 앞이라
             // `recordEdit`·클립보드 오염 없이 빠져나가고, 범위가 묻지 않으면
             // AX 왕복도 없다(읽기는 lazy이므로 `value()`를 부르지 않으면 호출 0건이다).
+            // 단 하나의 예외가 위 가드다 — `.selection` + AX pin 세션은 가드가 먼저 확대 창을
+            // 읽었고(액션당 memo라 왕복은 그래도 1회), 강등 뒤에도 그 조합만은 왕복이 있다.
             //
             // 읽기 실패·타임아웃·pid 없음은 전부 `nil`이라 매퍼가 무상태 시퀀스를 낸다 —
             // 정확화만 포기하고 실행은 한다. 스킵도, 실행 실패 보고도 아니다.
@@ -983,7 +1036,7 @@ nonisolated struct KeyboardAdapter: Sendable {
                 let focused =
                     axFocused ?? (EditKeyMapper.consultsFocusedText(range) ? text.value() : nil)
                 result = Self.classifyEdit(
-                    op: op, range: range, family: family, profile: profile, text: focused)
+                    op: op, range: range, family: effectiveFamily, profile: profile, text: focused)
                 if case .skipped = result {
                     // 미지원이 아니라 "지원하지만 이번 입력에는 게시할 것이 없다"이므로 `.skipped`다
                     // (`p`의 빈 클립보드와 같은 편) — `op`·`range`·액션을 다 아는 이 자리에서
@@ -1020,7 +1073,7 @@ nonisolated struct KeyboardAdapter: Sendable {
             }
             let context = anchorContext(for: action, text: text)
             let (result, update) = Self.classifyVisual(
-                action: action, family: family, profile: profile, anchor: context)
+                action: action, family: effectiveFamily, profile: profile, anchor: context)
             if case .skipped = result {
                 // 미지원이 아니라 "지원하지만 게시할 것이 없다" — 편집의 읽기 증명 무효와
                 // 같은 편이다. 세션 1에서는 도달하지 않는다: 첫 소비자는 `V` 세션의 범위
@@ -1049,7 +1102,7 @@ nonisolated struct KeyboardAdapter: Sendable {
                 if case .at(let offset) = FocusedTextOffsets.openLineInsertion(
                     above: above, in: focused),
                     let delegated = CommandKeyMapper.openLineDelegatedStrokes(
-                        above: above, family: family, profile: profile) {
+                        above: above, family: effectiveFamily, profile: profile) {
                     return .hybrid(
                         NSRange(location: offset, length: 0), [delegated], paced: false)
                 }
@@ -1058,16 +1111,16 @@ nonisolated struct KeyboardAdapter: Sendable {
                 // 오면 같은 보수 방향(위임)으로 흡수된다.
             }
             return Self.classify(
-                CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
+                CommandKeyMapper.keyStrokes(for: action, family: effectiveFamily, profile: profile)
             ) {
-                CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+                CommandKeyMapper.keyStrokes(for: action, family: effectiveFamily, profile: .empty)
             }
 
         case .undo, .redo:
             return Self.classify(
-                CommandKeyMapper.keyStrokes(for: action, family: family, profile: profile)
+                CommandKeyMapper.keyStrokes(for: action, family: effectiveFamily, profile: profile)
             ) {
-                CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+                CommandKeyMapper.keyStrokes(for: action, family: effectiveFamily, profile: .empty)
             }
 
         case .scroll(let extent, _):
@@ -1086,9 +1139,9 @@ nonisolated struct KeyboardAdapter: Sendable {
             #endif
             return Self.classify(
                 CommandKeyMapper.keyStrokes(
-                    for: action, family: family, profile: profile, viewportLines: lines)
+                    for: action, family: effectiveFamily, profile: profile, viewportLines: lines)
             ) {
-                CommandKeyMapper.keyStrokes(for: action, family: family, profile: .empty)
+                CommandKeyMapper.keyStrokes(for: action, family: effectiveFamily, profile: .empty)
             }
 
         case .paste(let before, let count):
@@ -1109,7 +1162,8 @@ nonisolated struct KeyboardAdapter: Sendable {
                 switch FocusedTextOffsets.pasteInsertion(before: before, wise: wise, in: focused) {
                 case .at(let offset):
                     if let groups = CommandKeyMapper.pasteDelegatedGroups(
-                        count: count, appendsLine: false, family: family, profile: profile) {
+                        count: count, appendsLine: false, family: effectiveFamily, profile: profile)
+                    {
                         return .hybrid(
                             NSRange(location: offset, length: 0), groups, paced: true)
                     }
@@ -1120,7 +1174,8 @@ nonisolated struct KeyboardAdapter: Sendable {
                     // 위임분이 `nil`이면(단일행 필드 — `Return`이 submit) 아래 위임으로 낙하해
                     // 현행 동작(`P` 퇴행) 그대로다.
                     if let groups = CommandKeyMapper.pasteDelegatedGroups(
-                        count: count, appendsLine: true, family: family, profile: profile) {
+                        count: count, appendsLine: true, family: effectiveFamily, profile: profile)
+                    {
                         return .hybrid(
                             NSRange(location: offset, length: 0), groups, paced: true)
                     }
@@ -1147,12 +1202,13 @@ nonisolated struct KeyboardAdapter: Sendable {
             // Visual 정확화 그룹과 같은 약점·같은 대응). 후속 `Cmd-V` 그룹은 1타라 자연히
             // 일반 경로다.
             if let groups = CommandKeyMapper.pasteStrokeGroups(
-                before: before, count: count, wise: wise, family: family, profile: profile,
-                text: focused) {
+                before: before, count: count, wise: wise, family: effectiveFamily,
+                profile: profile, text: focused) {
                 return .groups(groups, paced: true)
             }
             return CommandKeyMapper.pasteStrokeGroups(
-                before: before, count: count, wise: wise, family: family, profile: .empty) != nil
+                before: before, count: count, wise: wise, family: effectiveFamily,
+                profile: .empty) != nil
                 ? .disabledByProfile : .unsupported
 
         @unknown default:

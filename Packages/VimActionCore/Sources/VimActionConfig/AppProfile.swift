@@ -95,7 +95,7 @@ public enum ProfileStrategy: String, Hashable, Sendable, CaseIterable {
 ///
 /// 치환의 적용 범위는 **keyboard 실행 쪽뿐**이다(걸러내기 게이트·매퍼 호출·매퍼 내부 `.nonText`
 /// 봉쇄·하이브리드 위임분이 같은 치환값을 본다). AX 분기의 계열 판정은 원본 계열을 유지한다.
-/// 구현은 PR-D2 세션 4 몫이라 **지금은 소비처가 없다** — 이 세션은 스키마·패스스루까지다.
+/// 치환 자리는 `KeyboardAdapter.mapping` 진입부 **한 곳**이다.
 public enum KeyboardFamily: String, Hashable, Sendable, CaseIterable {
     /// 요소 계열을 인식해 시퀀스를 고르고 위험 어휘를 걸러낸다 — 기본값이자 선호 폴백.
     case keyMapping = "key_mapping"

@@ -970,6 +970,58 @@ struct KeyboardAdapterElementFamilyTests {
     }
 }
 
+/// force-text 계열 — `keyboard_family: force_text` 프로파일은 keyboard 실행의 실효 계열을
+/// `.textArea`로 치환한다(요소 감지 우회 — "이 앱의 role 보고를 믿지 말라"는 사용자 지시,
+/// `20260813_force-text-keyboard-family-substitution.md`). 걸러내기 게이트·매퍼 호출·
+/// 하이브리드 위임분이 같은 치환값을 본다는 계약의 keyboard 단독 축이다 — AX 쪽
+/// (`usesAXWrite`는 원본 계열)은 `KeyboardAdapterForceTextAXTests`가 고정한다.
+struct KeyboardAdapterForceTextTests {
+    private let forceText = ResolvedProfile(AppProfile(keyboardFamily: .forceText))
+
+    /// 걸러내기 게이트가 치환값을 본다 — 비텍스트·미확정 보고에서도 편집이 TextArea
+    /// 시퀀스 그대로 나간다 (`.unresolved` 창도 사용자 지시가 뚫는다 — 문언 그대로).
+    @Test(
+        "force-text: 비텍스트·미확정 계열에서도 편집이 게시된다",
+        arguments: [ElementFamily.nonText, .unresolved])
+    func forceTextPostsEditsOnNonText(_ family: ElementFamily) {
+        nonisolated(unsafe) var fromForceText: [CGEvent] = []
+        nonisolated(unsafe) var fromTextArea: [CGEvent] = []
+        makeAdapter { fromForceText.append($0) }
+            .execute([.edit(.delete, .line(count: 1))], family: family, profile: forceText)
+        makeAdapter { fromTextArea.append($0) }
+            .execute([.edit(.delete, .line(count: 1))], family: .textArea)
+
+        #expect(!fromForceText.isEmpty)
+        #expect(keyCodes(of: fromForceText) == keyCodes(of: fromTextArea), "항상 TextArea 시퀀스")
+    }
+
+    /// `.textField`의 openLine 걸러내기(`Return` = submit)도 치환이 우회한다 — force-text는
+    /// 그 role 보고 자체를 믿지 않는다.
+    @Test("force-text: TextField 보고에서도 o가 게시된다")
+    func forceTextPostsOpenLineOnTextField() {
+        nonisolated(unsafe) var fromForceText: [CGEvent] = []
+        nonisolated(unsafe) var fromTextArea: [CGEvent] = []
+        makeAdapter { fromForceText.append($0) }
+            .execute([.openLine(above: false)], family: .textField, profile: forceText)
+        makeAdapter { fromTextArea.append($0) }
+            .execute([.openLine(above: false)], family: .textArea)
+
+        #expect(!fromForceText.isEmpty)
+        #expect(keyCodes(of: fromForceText) == keyCodes(of: fromTextArea))
+    }
+
+    /// 명시 `key_mapping`(기본값과 동일)은 현행 그대로다 — 치환은 `force_text`에만 발동한다.
+    @Test("기본 key_mapping은 비텍스트 걸러내기를 유지한다")
+    func keyMappingKeepsFilterGate() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let profile = ResolvedProfile(AppProfile(keyboardFamily: .keyMapping))
+        makeAdapter { posted.append($0) }
+            .execute([.edit(.delete, .line(count: 1))], family: .nonText, profile: profile)
+
+        #expect(posted.isEmpty)
+    }
+}
+
 /// 비-QWERTY 레이아웃 게이트 — ANSI 문자 키코드를 합성하는 액션(`Cmd-Z/X/C/V`)은 보류하고,
 /// 화살표·Return만 쓰는 액션은 통과한다 (`20260801` 레이아웃 가드 결정).
 struct KeyboardAdapterLayoutGateTests {
