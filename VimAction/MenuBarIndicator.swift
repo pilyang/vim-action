@@ -15,8 +15,10 @@ enum MenuBarIndicator: Equatable {
     /// 탭이 서 있지 않다 (미허용·고장·종료).
     case inactive
     /// 가로채기 마스터 토글 off.
+    case interceptionOff
     /// 대상 앱(비자신 캐시 `lastNonSelfBundleID`)이 `config.yaml`의 disable 목록에 있다.
     case appDisabled
+    /// OS Secure Event Input이 키 배달을 억제 중이다.
     case secureInput
     /// 위 어느 것도 아니라 모드가 실제로 살아 있다.
     case mode(Mode)
