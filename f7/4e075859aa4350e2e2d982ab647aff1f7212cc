@@ -1,0 +1,60 @@
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_8a05d97dc52c59::t_e963dfd9e30248 6
+  s_8a05d97dc52c59::t_8f8f63c6cb3caf 41-42
+  s_8a05d97dc52c59::t_388af38eefddda 60
+  s_8a05d97dc52c59::t_3b56b61d0522f7 82,86
+VimAction/ResolvedProfile.swift
+  s_8a05d97dc52c59::t_b8886c51299757 42-43
+.claude/skills/decisions/references/20260814_visual-guard-mismatch-log-info.md
+  s_8a05d97dc52c59::t_4a5d63cf8f13c2 1-26
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_8a05d97dc52c59::t_26f18bec16790a 50
+  s_8a05d97dc52c59::t_71af03fc561975 3
+VimAction/KeyboardAdapter.swift
+  s_8a05d97dc52c59::t_406e51d691693e 946-982
+  s_8a05d97dc52c59::t_a3b5348cbb18e6 328-330
+  s_8a05d97dc52c59::t_021d9ed4ab5ee3 1166
+  s_8a05d97dc52c59::t_080a8763b3b350 853-854
+  s_8a05d97dc52c59::t_9b451031939e4f 878-885,887
+  s_8a05d97dc52c59::t_5e29980cc3c785 68-72
+  s_8a05d97dc52c59::t_abee51b83812ff 1178
+  s_8a05d97dc52c59::t_94121ce9af0ec0 1206,1211
+  s_8a05d97dc52c59::t_25957dbcdac5b0 886,896,1039,1076,1105,1114,1116,1121,1123,1142,1144,1165,1177,1205,1210
+  s_8a05d97dc52c59::t_f5a1888cd02357 987-988
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_8a05d97dc52c59::t_8f155fabb6f348 217
+  s_8a05d97dc52c59::t_2595d8a293c59b 46
+  s_8a05d97dc52c59::t_57793aec7b40f9 42
+  s_8a05d97dc52c59::t_508e4cf2a6ac91 3
+  s_8a05d97dc52c59::t_e6e384b460ce96 112
+  s_8a05d97dc52c59::t_3b238bacbb0e13 99
+.claude/skills/plans/SKILL.md
+  s_8a05d97dc52c59::t_9697cc717425bb 52
+VimActionTests/KeyboardAdapterAXWriteTests.swift
+  s_8a05d97dc52c59::t_8ef32fa9f33f28 1708-1712,1715-1719
+  s_8a05d97dc52c59::t_3a58514a7117e8 54-56,69-70
+  s_8a05d97dc52c59::t_2ee028cff6537f 1552-1656,1666-1668,1670-1707,1713-1714,1720-1771
+  s_8a05d97dc52c59::t_e6f9b269a4e222 1657-1665,1669
+VimActionTests/KeyboardAdapterTests.swift
+  s_8a05d97dc52c59::t_54396dcd38f5d5 973-1024
+.claude/skills/decisions/SKILL.md
+  s_8a05d97dc52c59::t_fabed099a250a9 263
+Packages/VimActionCore/Sources/VimActionConfig/AppProfile.swift
+  s_8a05d97dc52c59::t_051e4354d146f3 98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "f74e075859aa4350e2e2d982ab647aff1f7212cc",
+  "prompts": {},
+  "sessions": {
+    "s_8a05d97dc52c59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11e3430d-c48c-4d2f-a736-f684dbdc1d0d",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
