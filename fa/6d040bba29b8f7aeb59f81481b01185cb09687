@@ -1,0 +1,29 @@
+.claude/skills/architecture/references/profiles-and-config.md
+  s_764b5b9488306b::t_74555b4708859b 3
+  s_764b5b9488306b::t_8a99e82f6b1281 36,42-43
+Packages/VimActionCore/Sources/VimActionConfig/AppProfile.swift
+  s_764b5b9488306b::t_6ff1e1af227089 14-18
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_764b5b9488306b::t_1447564704db5b 3
+VimActionTests/KeyboardAdapterAXWriteTests.swift
+  s_764b5b9488306b::t_1d2f651d330381 128,490,1217
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_764b5b9488306b::t_2b50ef33654bce 82
+  s_764b5b9488306b::t_bb5232c49a096d 87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fa6d040bba29b8f7aeb59f81481b01185cb09687",
+  "prompts": {},
+  "sessions": {
+    "s_764b5b9488306b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6deb9e8c-537d-4d3c-b17a-17ef716bd5bf",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
