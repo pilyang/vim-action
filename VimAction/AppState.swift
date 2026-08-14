@@ -192,27 +192,25 @@ final class AppState {
         alert.runModal()
     }
 
-    /// 메뉴바 글리프 — 탭이 안 돌면 비활성(square.dashed), 토글 off면 square.slash,
-    /// Secure Input 억제 중이면 lock.square, 그 외 모드 글리프 (PRD §7.7 최소 구현).
-    /// 우선순위: 탭 고장 > 토글 off > Secure Input — 고장이면 토글과 무관하게 가로채기
-    /// 불가능하고, 사용자가 끈 상태(off)는 OS의 일시 억제 표시보다 우선한다.
-    var menuBarGlyph: String {
-        switch eventTap.status {
-        case .running, .secureInput:
-            guard eventTap.isInterceptionEnabled else { return "square.slash" }
-            return eventTap.status == .secureInput ? "lock.square" : eventTap.mode.menuBarGlyph
-        default:
-            return "square.dashed"
-        }
+    /// 메뉴바가 표시하는 상태 — 우선순위 사다리는 `MenuBarIndicator.resolve` 하나가
+    /// 소유하고, 아래 셋은 그 결과의 파생일 뿐이다.
+    ///
+    /// 앱별 disable 여부는 **비자신 캐시 축**으로 묻는다 — 아이콘 클릭이 VimAction을
+    /// 최전면으로 만들어도 표시가 흔들리지 않고 메뉴 체크마크와 항상 일치한다.
+    var menuBarIndicator: MenuBarIndicator {
+        .resolve(
+            status: eventTap.status,
+            isInterceptionEnabled: eventTap.isInterceptionEnabled,
+            isTargetAppDisabled: frontmostAppGate.isTargetAppDisabled,
+            mode: eventTap.mode)
     }
 
+    /// 메뉴바 글리프 (PRD §7.7 최소 구현).
+    var menuBarGlyph: String { menuBarIndicator.glyph }
+
     /// Visual-line일 때만 참 — 메뉴바 라벨이 커스텀 "Vl" 글리프로 wise를
-    /// 구분한다 (fill 축은 "차단 여부"라 wise에 재사용할 수 없음). 모드 글리프가
-    /// 실제로 표시되는 조건에서만 참이 되도록 `menuBarGlyph`와 같은 우선순위를 따른다.
-    var menuBarShowsVisualLineGlyph: Bool {
-        eventTap.status == .running && eventTap.isInterceptionEnabled
-            && eventTap.mode == .visualLine
-    }
+    /// 구분한다 (fill 축은 "차단 여부"라 wise에 재사용할 수 없음).
+    var menuBarShowsVisualLineGlyph: Bool { menuBarIndicator.showsVisualLineGlyph }
 
     /// 메뉴바 라벨이 그리는 최종 글리프 이미지. 모든 상태 글리프를 같은 심볼
     /// 설정으로 렌더해 크기를 통일한다 — SF Symbol은 SwiftUI 폰트 유래 크기,
@@ -224,17 +222,7 @@ final class AppState {
     }
 
     /// VoiceOver 등 사람이 읽는 메뉴바 상태 문구.
-    var menuBarAccessibilityLabel: String {
-        switch eventTap.status {
-        case .running, .secureInput:
-            guard eventTap.isInterceptionEnabled else { return "VimAction — disabled" }
-            return eventTap.status == .secureInput
-                ? "VimAction — paused for secure input"
-                : "VimAction — \(eventTap.mode.displayName) mode"
-        default:
-            return "VimAction — inactive"
-        }
-    }
+    var menuBarAccessibilityLabel: String { menuBarIndicator.accessibilityLabel }
 }
 
 extension Mode {
