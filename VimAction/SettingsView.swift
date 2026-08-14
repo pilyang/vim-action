@@ -265,12 +265,15 @@ private enum AboutLinks {
 
 /// "Event Tap" 행 문구를 (설치 상태, 가로채기 토글)에서 파생한다. `.running`은 탭
 /// 설치·헬스가 정상이라는 뜻일 뿐 가로채기 여부와 무관하므로, off일 땐 "Disabled"로
-/// 표시해야 실제 상태와 어긋나지 않는다 (AppState.menuBarGlyph의 파생과 같은 우선순위).
+/// 표시해야 실제 상태와 어긋나지 않는다 (`MenuBarIndicator.resolve`와 같은 우선순위).
 /// status를 인자로 받는 순수 함수라 단위 테스트가 전 분기를 커버할 수 있다.
+///
+/// **앱별 disabled는 여기 들어오지 않는다** — 이 행은 탭 설치·헬스라는 전역 상태를 말하고,
+/// 앱별 off는 Apps 탭의 off 앱 목록과 메뉴바 글리프가 보여준다.
 func eventTapStatusText(status: EventTapController.Status, interceptionEnabled: Bool) -> String {
     switch status {
     // .secureInput도 토글 off면 "Disabled" — 사용자가 끈 상태가 OS 일시 억제 표시보다
-    // 우선한다 (AppState.menuBarGlyph와 같은 우선순위).
+    // 우선한다 (`MenuBarIndicator.resolve`와 같은 우선순위).
     case .running, .secureInput:
         interceptionEnabled ? status.displayName : "Disabled"
     default: status.displayName

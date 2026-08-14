@@ -153,4 +153,29 @@ struct FrontmostAppNonSelfCacheTests {
         #expect(gate.lastNonSelfBundleID == "com.mitchellh.ghostty")
         #expect(!gate.isFrontmostAppDisabled, "판정은 최전면(자기 자신)만 본다")
     }
+
+    /// 표시 축과 판정 축이 **동시에 갈리는** 자리를 못 박는다 — 메뉴바 아이콘을 클릭해
+    /// VimAction이 최전면이 된 순간이 그 자리다. 표시가 판정 축을 보면 이때
+    /// 인디케이터가 사라져 메뉴의 'Disable for This App' 체크마크와 어긋난다.
+    @Test("자기 자신이 최전면이어도 표시 축은 대상 앱의 disable을 유지한다")
+    func targetAxisHoldsWhileGateAxisReleases() {
+        let gate = makeGate(frontmost: "com.mitchellh.ghostty")
+        #expect(gate.isTargetAppDisabled)
+
+        gate.update(bundleID: selfID)
+        #expect(gate.isTargetAppDisabled, "표시는 비자신 캐시(=대상 앱)를 본다")
+        #expect(!gate.isFrontmostAppDisabled, "판정은 최전면(자기 자신)을 본다")
+
+        // 진짜로 다른 앱에 가면 둘 다 풀린다.
+        gate.update(bundleID: "com.apple.TextEdit")
+        #expect(!gate.isTargetAppDisabled)
+        #expect(!gate.isFrontmostAppDisabled)
+    }
+
+    /// 대상 앱을 모르면 표시하지 않는다 — 순수 판정의 nil 통과 규칙이 표시 축에도 그대로다.
+    @Test("대상 앱 미확인은 표시 축에도 걸리지 않는다")
+    func unknownTargetIsNotDisabled() {
+        #expect(!makeGate(frontmost: nil).isTargetAppDisabled)
+        #expect(!makeGate(frontmost: selfID).isTargetAppDisabled)
+    }
 }

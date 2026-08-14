@@ -76,6 +76,17 @@ final class FrontmostAppGate {
         Self.isDisabled(frontmostBundleID, disabledBundleIDs: disabledBundleIDs)
     }
 
+    /// 메뉴바 글리프용 — **표시 축**은 비자신 캐시다 (판정 축은 위의 `isFrontmostAppDisabled`).
+    /// 두 축이 갈리는 이유는 각자 답하는 질문이 다르기 때문이다: 게이트는 "지금 이 키를
+    /// 삼켜도 되는가"(반드시 실제 최전면), 표시는 "사용자가 방금까지 쓰던 앱은 무엇인가".
+    ///
+    /// 메뉴바 아이콘을 클릭하면 VimAction 자신이 최전면이 된다 — 표시를 판정 축에 걸면
+    /// 누르는 순간 인디케이터가 사라져 "눌렀더니 상태가 바뀌었다"로 읽히고, 바로 아래
+    /// 메뉴의 'Disable for This App' 체크마크(같은 비자신 캐시)와도 어긋난다.
+    var isTargetAppDisabled: Bool {
+        Self.isDisabled(lastNonSelfBundleID, disabledBundleIDs: disabledBundleIDs)
+    }
+
     /// 옵저버 해제를 `deinit`(nonisolated)에서 하므로 두 저장 프로퍼티 모두 격리 밖에서
     /// 읽혀야 한다. `NotificationCenter`는 `Sendable`이라 `let`만으로 되고, 토큰은
     /// `var`+비-`Sendable`이라 `nonisolated(unsafe)`가 필요하다 — 접근이 init과 deinit

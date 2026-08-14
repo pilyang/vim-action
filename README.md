@@ -56,6 +56,7 @@ The menu bar icon shows the current mode and state:
 | <img src="docs/assets/menubar-insert.png" width="28" alt="Outlined square with an i"> | Insert — every key passes through unchanged |
 | <img src="docs/assets/menubar-normal.png" width="28" alt="Filled square with an n"> | Normal — keys are interpreted as Vim commands |
 | <img src="docs/assets/menubar-visual.png" width="28" alt="Filled square with a v"> <img src="docs/assets/menubar-visual-line.png" width="28" alt="Filled square with Vl"> | Visual / Visual Line |
+| <img src="docs/assets/menubar-app-disabled.png" width="28" alt="Outlined square with a minus"> | Turned off for the app you are in — every key passes through (menu bar → "Disable for This App") |
 | <img src="docs/assets/menubar-paused.png" width="28" alt="Slashed square"> | Interception paused (menu bar toggle) |
 | <img src="docs/assets/menubar-inactive.png" width="28" alt="Dashed square"> | Not running — usually the Accessibility permission is missing |
 | <img src="docs/assets/menubar-secure-input.png" width="28" alt="Square with a lock"> | Secure input active while the tap is down — keys aren't reaching VimAction |
