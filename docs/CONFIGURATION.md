@@ -26,7 +26,7 @@ apps:
 
 ## Profiles — `profiles/<bundle-id>.yaml`
 
-A profile fine-tunes VimAction inside one app: remap or disable individual motions and actions, or pin scroll distances. Most apps don't need one — profiles exist for the exceptions, and the bundled Slack and Notion profiles are the canonical examples.
+A profile fine-tunes VimAction inside one app: remap or disable individual motions and actions, pin scroll distances, or pin which execution path the app uses. Most apps don't need one — profiles exist for the exceptions, and the bundled Slack and Notion profiles are the canonical examples.
 
 The file is named after the app's bundle id, one file per app. **Open/Create Profile** in the menu bar creates a fully commented scaffold for the frontmost app, so you don't have to start from scratch.
 
@@ -38,6 +38,8 @@ All fields are optional:
 | `scroll` | How many lines `Ctrl-d`/`Ctrl-u` and `Ctrl-f`/`Ctrl-b` scroll |
 | `motions` | Per-motion key sequence override, or `disabled` |
 | `actions` | Replace an action's own key, or `disabled` |
+| `strategy` | Which execution path this app uses — `auto` (default), `accessibility`, or `keyboard` |
+| `keyboard_family` | Last resort for apps that misreport what kind of element has focus |
 
 ### Worked example — Slack
 
@@ -117,6 +119,39 @@ scroll:
 ```
 
 Integers from 1 to 200. When absent, VimAction measures the app's visible viewport via Accessibility and falls back to 15/30 where that read fails. When set, the value always wins — which doubles as the workaround for apps that misreport their viewport (Notion reports the whole document as visible; the bundled profile pins 12/24).
+
+### `strategy` — which execution path the app uses
+
+```yaml
+strategy: keyboard   # auto (default) | accessibility | keyboard
+```
+
+VimAction can carry out an action two ways: writing through the **Accessibility API** (the app's own text ranges, so motions and edit ranges land where Vim would) or **synthesizing keys** (the app's native editing shortcuts, e.g. `w` → `Option-Right`). This field picks between them.
+
+| Value | Meaning |
+|-------|---------|
+| `auto` | **Default.** A probe decides per app: apps that pass run their edits through the Accessibility API, everything else — including the moment before the probe has answered — synthesizes keys. |
+| `accessibility` | Always use the Accessibility API. The app is never probed, so nothing routes edits away when it fails. |
+| `keyboard` | Always synthesize keys — the path every app took before automatic detection. |
+
+The probe runs the first time a Vim key actually does something in an app, checks that the focused element exposes a text selection and can deliver it, and caches its verdict for as long as that app is running — quitting and relaunching the app probes again, and so does **Reload Config**. An app that passes but then starts failing at runtime is demoted back to key synthesis for the rest of its run. A few apps whose Accessibility layer reports text it cannot actually deliver are never trusted under `auto`; they are pinned to key synthesis in code (Notion is the current entry), and an explicit `strategy: accessibility` overrides that.
+
+> **`accessibility` forces, it doesn't prefer.** It removes the fallback that `auto` guarantees, so in an app that reports a text element but doesn't answer Accessibility reads, motions and edits do nothing at all — the keys are intercepted and the screen never moves, with nothing to say why. `auto` already picks the Accessibility path wherever it holds up, so set this only for an app you have checked by hand.
+
+### `keyboard_family` — bypass element detection (last resort)
+
+```yaml
+keyboard_family: force_text   # key_mapping (default) | force_text
+```
+
+Before synthesizing keys, VimAction asks what kind of element has focus: it picks sequences to match, and in non-text UI it holds edits back entirely — only motions and scrolling are sent. `force_text` drops that detection and always sends the text-area sequences.
+
+| Value | Meaning |
+|-------|---------|
+| `key_mapping` | **Default.** Match sequences to the focused element, and hold edits back outside text. |
+| `force_text` | Always treat the focused element as a text area. |
+
+> **`force_text` can be destructive.** The element check is the only thing keeping editing keys out of non-text UI: without it, `dd` in a file list sends the select-and-cut sequence to the file list itself. It is never chosen automatically — only an explicit profile turns it on — and it exists for one case: an app that really is a text editor but reports its element kind wrongly, leaving edits blocked under `key_mapping`. It applies to key synthesis only; the Accessibility path judges the element on its own.
 
 ## How errors are handled
 

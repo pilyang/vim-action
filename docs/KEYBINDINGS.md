@@ -2,7 +2,7 @@
 
 System-wide Vim keybindings for macOS. This document is the reference for what VimAction supports today and what is planned — it describes the *vocabulary* (which keys mean what), not the implementation, and not the implementation order.
 
-> **Development status note.** VimAction is under active development. Everything marked ✅ below is interpreted by the engine **and executed end-to-end** inside apps. Execution delegates to each app's native editing commands (and Accessibility APIs where enabled), so the exact result of an action can still vary between apps.
+> **Development status note.** VimAction is under active development. Everything marked ✅ below is interpreted by the engine **and executed end-to-end** inside apps. Execution either delegates to each app's native editing commands or runs through the Accessibility API where the app supports it, so the exact result of an action can still vary between apps.
 
 > **Status legend**
 >

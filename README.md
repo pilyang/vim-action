@@ -86,7 +86,7 @@ The full vocabulary — including what is planned and what is deliberately out o
 Configuration is plain YAML in **`~/.config/vim-action/`** — seeded with commented defaults on first launch, and never overwritten after that. The files are yours (dotfiles-friendly).
 
 - **`config.yaml`** — per-app on/off map. Terminals (Terminal, iTerm2, Ghostty) and editors with their own Vim plugins (VS Code, Cursor, Windsurf) are **off by default**: double interpretation breaks both sides.
-- **`profiles/<bundle-id>.yaml`** — optional per-app tuning: remap or disable individual motions and actions, or adjust scroll distances. The bundled Slack and Notion profiles double as annotated examples. Most apps should not need a profile.
+- **`profiles/<bundle-id>.yaml`** — optional per-app tuning: remap or disable individual motions and actions, adjust scroll distances, or pin which execution path the app uses. The bundled Slack and Notion profiles double as annotated examples. Most apps should not need a profile.
 
 The classic case is Slack, where `Return` sends the message — so `o`/`O` would post a half-written message instead of opening a line. The bundled profile swaps in `Shift-Return` as the newline key, and `o`/`O` just work:
 
@@ -126,12 +126,12 @@ Keys enter through a single `CGEventTap` and are normalized into layout-independ
   <sub>Both sides of the translation, caught by a keystroke visualizer — the key you press, then what the focused app receives.</sub>
 </p>
 
-**Where this is heading.** Reading is only half of it. Performing the edits through the Accessibility API too — rather than synthesizing keys for them — is implemented and gets closer to Vim-exact results in apps that support it, but it stays off by default. Automatic per-app detection is the next step, and until it ships the manual switch stays undocumented: an app that doesn't expose its focused element would simply stop responding to motions, with nothing on screen to say why.
+**Two ways to execute, picked per app.** Reading is only half of it: where an app's Accessibility support holds up, VimAction performs the edits through that API too — selecting the exact range and letting the app apply it — which gets closer to Vim-exact results than synthesized shortcuts can. A trust probe makes that call automatically, the first time you use Vim keys in an app, and apps whose Accessibility layer claims text it can't actually deliver are filtered out by the probe's checks, a small built-in deny list, and a runtime demotion when Accessibility edits start failing. Apps that don't clear the bar stay on key synthesis, which remains fully functional — the difference is only in how exact the result is.
 
 ## Known limitations
 
 - **The Unicode Hex Input keyboard layout breaks word motions.** That input source reserves `Option` for hex code entry, so `Option`-based combinations don't exist in it at all — not even typed by hand. VimAction reaches word-level motions through them, so `w`, `b`, `e`, `iw`, `^`, and `vb` do nothing while it is the active input source. This is a macOS limitation rather than something VimAction can detect or work around. Workaround: switch to a standard layout (ABC, US, or any non-hex layout) while using VimAction.
-- **Some apps don't expose their text to the Accessibility API** — Slack and VS Code among them. VimAction still works there, but without exact offsets to read a few edits stay approximate rather than Vim-exact; for example `x` at the end of a line joins it with the next instead of stopping.
+- **Some apps don't expose their text reliably to the Accessibility API** — Slack and VS Code among them. VimAction detects that per app and keeps them on key synthesis, so everything still works; but without exact offsets to read, a few edits stay approximate rather than Vim-exact — for example `x` at the end of a line joins it with the next instead of stopping.
 - **Keystroke visualizers show VimAction's output too.** Tools like KeyCastr watch the same event stream that apps receive, so alongside the key you press they also display the shortcuts VimAction synthesizes from it — `w` shows up as `w` followed by `⌥→`. The synthesized events are real keyboard events by design; that is exactly what makes them work everywhere.
 
 ## Development
