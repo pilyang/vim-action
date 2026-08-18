@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260818_hidden-input-geometry-signal.md](20260818_hidden-input-geometry-signal.md) — 프로브 신호 3종 전제(요소 기하 축 추가) / 값 변경 왕복 제외·visible 정합 제외·선택 진실성 런타임 검출은 유효
+
 # AX 거짓말 감지 — 거부 목록 + 읽기·settable 실증, 값 변경 왕복 없음
 
 - **결정일**: 2026-08-13

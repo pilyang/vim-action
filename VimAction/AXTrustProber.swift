@@ -75,10 +75,27 @@ final class AXTrustProber {
     /// 강도). schedule만 무해화하면 되는 이유는 이 타입의 AX 접촉이 전부 schedule 안에
     /// 있어서다. 기본 전략이 auto로 뒤집혀도(세션 5) 실제 pid를 주입한 배선 테스트가 라이브
     /// 프로브 큐·기상 쓰기를 타지 않는다. 프로브 동작을 검증하는 테스트는 seam을 명시 주입한다.
+    ///
+    /// 브라우저 집합도 여기서만 라이브 조회한다 — 생성자 기본값은 빈 집합(inert)이라 부분
+    /// 주입 테스트가 개발 머신의 브라우저 목록을 물려받지 않는다(`FrontmostAppGate` 시드와
+    /// 같은 규칙).
     static func forCurrentEnvironment() -> AXTrustProber {
         isRunningUnderXCTest()
             ? AXTrustProber(notificationCenter: NotificationCenter(), schedule: { _ in })
-            : AXTrustProber()
+            : AXTrustProber(browserBundleIDs: browsersViaLaunchServices())
+    }
+
+    /// 계층 1 ⓑ의 브라우저 집합 — **LaunchServices에 https URL 핸들러로 등록된 앱**의 번들
+    /// ID. 정적 목록이 아닌 이유는 브라우저가 앱이 아니라 클래스라서다(신제품마다 등재는
+    /// 끝이 없고, https 핸들러 등록은 브라우저의 정의 그 자체다). 앱 시작 시 1회 계산한다 —
+    /// 실행 중 새로 설치된 브라우저는 다음 실행부터 잡히고, 그때까지의 동작은 D2 이전과 같다.
+    /// 오탐(https 핸들러를 등록하는 유틸리티 — Hammerspoon·iTerm 실측)은 그 앱이 keyboard로
+    /// 도는 것뿐이라 안전 방향이다 (`20260818_browser-class-auto-untrusted.md`).
+    nonisolated static func browsersViaLaunchServices() -> Set<String> {
+        guard let probeURL = URL(string: "https://example.com") else { return [] }
+        return Set(
+            NSWorkspace.shared.urlsForApplications(toOpen: probeURL)
+                .compactMap { Bundle(url: $0)?.bundleIdentifier })
     }
 
     /// pid 하나의 판정과 트리거 부기. 수명 = pid (엔트리를 지우는 것은 `clearVerdicts`뿐).
@@ -104,10 +121,12 @@ final class AXTrustProber {
         var axUnavailableBurst = FailureBurstCounter(
             window: AXTrustProber.demotionWindow, threshold: AXTrustProber.demotionThreshold)
 
-        /// pid 수명 **종단**인가 — 거부 목록("즉시 untrusted·재시도 없음")과 런타임 강등
-        /// ("재승격은 앱 재실행뿐"). 재장전(`noteActivation`)과 프로브 상향 덮어쓰기
-        /// (`update`)가 같은 판정을 봐야 한쪽만 고치는 조용한 회귀가 없다.
-        var isTerminal: Bool { failedLayer == .denyList || failedLayer == .runtime }
+        /// pid 수명 **종단**인가 — 계층 1(거부 목록·브라우저 클래스: "즉시 untrusted·재시도
+        /// 없음")과 런타임 강등("재승격은 앱 재실행뿐"). 재장전(`noteActivation`)과 프로브 상향
+        /// 덮어쓰기(`update`)가 같은 판정을 봐야 한쪽만 고치는 조용한 회귀가 없다.
+        var isTerminal: Bool {
+            failedLayer == .denyList || failedLayer == .browser || failedLayer == .runtime
+        }
     }
 
     private var entries: [pid_t: Entry] = [:]
@@ -120,6 +139,9 @@ final class AXTrustProber {
 
     private let collectSignals: @Sendable (pid_t) -> AXTrustProbeSignals
     private let wakeTree: @Sendable (pid_t) -> Void
+    /// 계층 1 ⓑ — 브라우저 클래스 집합. 생성 시 1회 주입되는 값이라 프로브 큐와 무관하고,
+    /// 기본값은 빈 집합(inert)이다 — 라이브 조회는 `forCurrentEnvironment()`뿐이다.
+    private let browserBundleIDs: Set<String>
     private let coldRetryPause: @Sendable (Int) -> Void
     /// 프로브 작업을 전용 큐에 얹는 자리 — 테스트는 캡처 실행기를 넣어 enqueue를 동기로
     /// 관찰한다 (얹힌 클로저는 완료 진입점 `completeProbe`를 직접 부르는 것과 등가다).
@@ -143,9 +165,11 @@ final class AXTrustProber {
         },
         schedule: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = {
             AXTrustProber.probeQueue.async(execute: $0)
-        }
+        },
+        browserBundleIDs: Set<String> = []
     ) {
         self.notificationCenter = notificationCenter
+        self.browserBundleIDs = browserBundleIDs
         self.collectSignals = collectSignals
         self.wakeTree = wakeTree
         self.coldRetryPause = coldRetryPause
@@ -199,9 +223,10 @@ final class AXTrustProber {
     nonisolated enum ProbeDecision: Hashable, Sendable {
         /// 아무것도 하지 않는다.
         case none
-        /// 명시 `accessibility`가 거부 목록을 이겼다 — `.notice` 1회만 남긴다.
+        /// 명시 `accessibility`가 계층 1(거부 목록·브라우저 클래스)을 이겼다 — `.notice` 1회만
+        /// 남긴다.
         case logDenyListOverride
-        /// 거부 목록 — AX 접촉 없이 즉시 untrusted (재시도 없음).
+        /// 계층 1 — AX 접촉 없이 즉시 untrusted (재시도 없음). 어느 축인지는 호출자가 안다.
         case applyDenyListVerdict
         /// 프로브를 큐에 얹는다.
         case probe
@@ -211,9 +236,10 @@ final class AXTrustProber {
     /// 표로 테스트한다).
     ///
     /// 우선순위가 결정 문언 그대로다: 명시 전략은 프로브 대상이 아니고(판정도 안 본다 —
-    /// `effectiveStrategy`), 명시 `accessibility` + 거부 목록 조합만 override 관측을 남긴다.
-    /// auto에서는 거부 목록 → pending → untrusted(재장전·상한) → trusted(sticky) 순으로
-    /// 갈린다 (`20260813_ax-trust-deny-list-code-constant.md`).
+    /// `effectiveStrategy`), 명시 `accessibility` + 계층 1 조합만 override 관측을 남긴다.
+    /// auto에서는 계층 1 → pending → untrusted(재장전·상한) → trusted(sticky) 순으로
+    /// 갈린다 (`20260813_ax-trust-deny-list-code-constant.md`). `isDenyListed`는 계층 1
+    /// 두 축(거부 목록·브라우저 클래스)의 합이다 — 이 함수는 어느 축인지 가르지 않는다.
     nonisolated static func probeDecision(
         declaredStrategy: ProfileStrategy,
         isDenyListed: Bool,
@@ -255,9 +281,13 @@ final class AXTrustProber {
     {
         guard let processID, let bundleID else { return }
         var entry = entries[processID] ?? Entry()
+        // 계층 1 두 축 — 거부 목록이 먼저(관측 라벨의 우선순위일 뿐, 효과는 같다).
+        let layerOne: AXTrustProbeLayer? =
+            axTrustDenyList.contains(bundleID)
+            ? .denyList : browserBundleIDs.contains(bundleID) ? .browser : nil
         let decision = Self.probeDecision(
             declaredStrategy: declaredStrategy,
-            isDenyListed: axTrustDenyList.contains(bundleID),
+            isDenyListed: layerOne != nil,
             verdict: entry.verdict,
             reArmed: entry.reArmed,
             reProbeCount: entry.reProbeCount,
@@ -272,11 +302,13 @@ final class AXTrustProber {
             // 이 조합의 도그푸딩 실사례가 아직 없다 — 이 로그가 첫 관측 데이터다
             // (`20260813_ax-trust-deny-list-code-constant.md`).
             Logger.eventTap.notice(
-                "AX 신뢰 거부 목록 override — 명시 accessibility가 이긴다 [\(bundleID, privacy: .public)]"
+                "AX 신뢰 계층 1 override — 명시 accessibility가 이긴다 (\(Self.layerLabel(layerOne), privacy: .public)) [\(bundleID, privacy: .public)]"
             )
         case .applyDenyListVerdict:
             // 엔트리 저장은 `update`가 한다 — 이 분기는 entry를 바꾸지 않아 따로 쓸 것이 없다.
-            update(verdict: .untrusted, failedLayer: .denyList, for: processID, bundleID: bundleID)
+            update(
+                verdict: .untrusted, failedLayer: layerOne ?? .denyList, for: processID,
+                bundleID: bundleID)
         case .probe:
             if entry.verdict == .untrusted {
                 entry.reArmed = false
@@ -400,13 +432,13 @@ final class AXTrustProber {
         entry.inFlight = false
         entry.wokeTree = entry.wokeTree || wokeTree
         entries[processID] = entry
-        // untrusted 완료는 신호 Bool 4종까지 남긴다 — untrusted → untrusted 재프로브는
+        // untrusted 완료는 신호 Bool 5종까지 남긴다 — untrusted → untrusted 재프로브는
         // `update`의 전이 가드에 걸려 무로그라, 이 줄이 없으면 "왜 계속 떨어지는가"가
         // 릴리스에서 보이지 않는다 (도그푸딩 실측 —
         // `20260814_observation-notice-promotion-and-probe-completion-log.md`).
         if verdict == .untrusted, let signals {
             Logger.eventTap.notice(
-                "auto 프로브 완료 — untrusted (요소 \(signals.focusedElementFound, privacy: .public), 노출 \(signals.exposesSelectedTextRange, privacy: .public), 읽기 \(signals.readsSucceeded, privacy: .public), settable \(signals.selectedTextRangeSettable, privacy: .public), 기상 \(entry.wokeTree, privacy: .public), 재프로브 \(entry.reProbeCount, privacy: .public)/\(Self.reProbeAttemptCap, privacy: .public)) [\(bundleID, privacy: .public)]"
+                "auto 프로브 완료 — untrusted (요소 \(signals.focusedElementFound, privacy: .public), 노출 \(signals.exposesSelectedTextRange, privacy: .public), 기하 \(signals.hasVisibleExtent, privacy: .public), 읽기 \(signals.readsSucceeded, privacy: .public), settable \(signals.selectedTextRangeSettable, privacy: .public), 기상 \(entry.wokeTree, privacy: .public), 재프로브 \(entry.reProbeCount, privacy: .public)/\(Self.reProbeAttemptCap, privacy: .public)) [\(bundleID, privacy: .public)]"
             )
         }
         update(verdict: verdict, failedLayer: failedLayer, for: processID, bundleID: bundleID)
@@ -477,7 +509,9 @@ final class AXTrustProber {
     /// 프리미티브**다: 요소는 `AXRead.focusedElement`(50ms 상속), 읽기 3종은 AX 쓰기 경로가
     /// 쓰는 `FocusedTextReader.read`(반경 4096) 그대로, 쓰기 축은 값을 바꾸지 않는
     /// settable 질의뿐이다. **값을 바꾸는 쓰기는 어떤 형태로도 없다**
-    /// (`20260813_ax-lie-detection-read-attestation-settable.md`).
+    /// (`20260813_ax-lie-detection-read-attestation-settable.md`). 여기에 요소 기하(`AXSize`
+    /// 1회)가 얹힌다 — 실행 경로가 소비하는 값은 아니지만 실행 경로·안전망이 원리적으로 못
+    /// 보는 숨은 입력을 프로브 시점에 가른다 (`20260818_hidden-input-geometry-signal.md`).
     ///
     /// 계층 2는 리졸버와 같은 속성 이름 목록 검사를 **다시** 한다 — 재사용이 금지된 것은
     /// 폴백 방향이 반대(허용)인 family **값**이고, 프로브는 앱당 몇 회뿐이라 패스 재사용의
@@ -495,6 +529,16 @@ final class AXTrustProber {
             return signals
         }
         signals.exposesSelectedTextRange = true
+        // 기하는 `AXSize` 1회 — 숨은 입력(Docs의 1pt contenteditable)은 뒤의 읽기·settable을
+        // 전부 통과하므로 이 한 줄이 그 클래스를 가르는 전부다.
+        if let size = AXRead.copyValue(element, kAXSizeAttribute),
+            CFGetTypeID(size) == AXValueGetTypeID()
+        {
+            var value = CGSize.zero
+            if AXValueGetValue(size as! AXValue, .cgSize, &value) {
+                signals.hasVisibleExtent = AXTrustProbeSignals.extentIsVisible(value)
+            }
+        }
         signals.readsSucceeded =
             FocusedTextReader.read(element, radius: FocusedTextReader.axWindowRadius) != nil
         signals.selectedTextRangeSettable = AXRead.isAttributeSettable(
@@ -524,7 +568,9 @@ final class AXTrustProber {
     private nonisolated static func layerLabel(_ layer: AXTrustProbeLayer?) -> String {
         switch layer {
         case .denyList: return "거부 목록"
+        case .browser: return "브라우저 클래스"
         case .element: return "요소 실증"
+        case .geometry: return "요소 기하"
         case .readWrite: return "읽기·쓰기 실증"
         case .runtime: return "런타임 강등"
         case nil: return "없음"

@@ -16,17 +16,18 @@ import VimActionConfig
 private func makeProber(
     collect: @escaping @Sendable (pid_t) -> AXTrustProbeSignals = { _ in AXTrustProbeSignals() },
     wake: @escaping @Sendable (pid_t) -> Void = { _ in },
-    schedule: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = { _ in }
+    schedule: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = { _ in },
+    browsers: Set<String> = []
 ) -> AXTrustProber {
     AXTrustProber(
         notificationCenter: NotificationCenter(), collectSignals: collect, wakeTree: wake,
-        coldRetryPause: { _ in }, schedule: schedule)
+        coldRetryPause: { _ in }, schedule: schedule, browserBundleIDs: browsers)
 }
 
 /// 전 계층 통과 신호 — trusted의 유일한 모양.
 private let trustedSignals = AXTrustProbeSignals(
-    focusedElementFound: true, exposesSelectedTextRange: true, readsSucceeded: true,
-    selectedTextRangeSettable: true)
+    focusedElementFound: true, exposesSelectedTextRange: true, hasVisibleExtent: true,
+    readsSucceeded: true, selectedTextRangeSettable: true)
 
 /// 요소 실증(계층 2) 탈락 신호 — 기상·재시도가 걸리는 모양.
 private let elementFailureSignals = AXTrustProbeSignals()
@@ -151,8 +152,8 @@ struct RunProbeTests {
         var collects = 0
         var wakes = 0
         let coldReads = AXTrustProbeSignals(
-            focusedElementFound: true, exposesSelectedTextRange: true, readsSucceeded: false,
-            selectedTextRangeSettable: true)
+            focusedElementFound: true, exposesSelectedTextRange: true, hasVisibleExtent: true,
+            readsSucceeded: false, selectedTextRangeSettable: true)
         let run = AXTrustProber.runProbe(
             processID: 1, alreadyWokeTree: false,
             collect: { _ in
@@ -179,8 +180,8 @@ struct RunProbeTests {
     func settableFalseDoesNotRetry() {
         var collects = 0
         let readOnly = AXTrustProbeSignals(
-            focusedElementFound: true, exposesSelectedTextRange: true, readsSucceeded: true,
-            selectedTextRangeSettable: false)
+            focusedElementFound: true, exposesSelectedTextRange: true, hasVisibleExtent: true,
+            readsSucceeded: true, selectedTextRangeSettable: false)
         let run = AXTrustProber.runProbe(
             processID: 1, alreadyWokeTree: false,
             collect: { _ in
@@ -190,6 +191,26 @@ struct RunProbeTests {
             wake: { _ in }, retryPause: { _ in })
         #expect(collects == 1)
         #expect(classifyAXTrustProbe(run.signals).failedLayer == .readWrite)
+    }
+
+    @Test("숨은 입력(기하 탈락) 단독도 확정 답변 — 재시도·기상 없음")
+    func hiddenInputDoesNotRetryOrWake() {
+        var collects = 0
+        var wakes = 0
+        // Docs 실측 모양: 요소·노출·읽기·settable 전부 통과, 짧은 변만 1pt.
+        let hiddenInput = AXTrustProbeSignals(
+            focusedElementFound: true, exposesSelectedTextRange: true, hasVisibleExtent: false,
+            readsSucceeded: true, selectedTextRangeSettable: true)
+        let run = AXTrustProber.runProbe(
+            processID: 1, alreadyWokeTree: false,
+            collect: { _ in
+                collects += 1
+                return hiddenInput
+            },
+            wake: { _ in wakes += 1 }, retryPause: { _ in })
+        #expect(collects == 1)
+        #expect(wakes == 0)
+        #expect(classifyAXTrustProbe(run.signals).failedLayer == .geometry)
     }
 
     @Test("이미 깨운 앱은 다시 깨우지 않는다 — pid당 1회의 나머지 절반, 예산도 연장 없음")
@@ -277,6 +298,50 @@ struct AXTrustProberCacheTests {
             processID: 7, bundleID: "notion.id", declaredStrategy: .accessibility)
         #expect(enqueued == 0)
         #expect(prober.verdict(for: 7) == .pending, "판정 캐시는 무접촉 — override는 관측만 남긴다")
+    }
+
+    @Test("브라우저 클래스 auto는 거부 목록과 같은 종단 — AX 무접촉·재장전 없음")
+    func browserAppIsImmediatelyUntrustedAndTerminal() {
+        nonisolated(unsafe) var enqueued = 0
+        let prober = makeProber(schedule: { _ in enqueued += 1 }, browsers: ["com.example.browser"])
+        prober.noteReplaceDispatch(
+            processID: 7, bundleID: "com.example.browser", declaredStrategy: .auto)
+        #expect(enqueued == 0, "프로브 없음 — 계층 1은 AX 무접촉이다")
+        #expect(prober.verdict(for: 7) == .untrusted)
+
+        prober.noteActivation(processID: 7)
+        prober.noteReplaceDispatch(
+            processID: 7, bundleID: "com.example.browser", declaredStrategy: .auto)
+        #expect(enqueued == 0, "재장전 대상이 아니다 — 브라우저는 클래스라 재시도가 무의미하다")
+
+        // 늦게 착지한 프로브 결과도 종단을 못 덮는다(거부 목록과 같은 가드).
+        prober.update(verdict: .trusted, failedLayer: nil, for: 7, bundleID: "com.example.browser")
+        #expect(prober.verdict(for: 7) == .untrusted)
+    }
+
+    @Test("명시 accessibility는 브라우저 클래스도 이긴다 — 프로브도 판정도 없다")
+    func explicitAccessibilityBeatsBrowserClass() {
+        nonisolated(unsafe) var enqueued = 0
+        let prober = makeProber(schedule: { _ in enqueued += 1 }, browsers: ["com.example.browser"])
+        prober.noteReplaceDispatch(
+            processID: 7, bundleID: "com.example.browser", declaredStrategy: .accessibility)
+        #expect(enqueued == 0)
+        #expect(prober.verdict(for: 7) == .pending, "override는 관측만 남긴다 — 사용자 지시 우선")
+    }
+
+    @Test("브라우저 집합은 주입값이 전부 — 기본은 빈 집합(inert)이라 머신 상태가 새지 않는다")
+    func browserSetIsInjectedNotLive() {
+        nonisolated(unsafe) var enqueued = 0
+        let prober = makeProber(schedule: { _ in enqueued += 1 })
+        // Safari는 모든 macOS에 있는 실제 브라우저지만, 주입하지 않았으니 보통 앱처럼 프로브된다.
+        prober.noteReplaceDispatch(processID: 7, bundleID: "com.apple.Safari", declaredStrategy: .auto)
+        #expect(enqueued == 1)
+    }
+
+    @Test("LaunchServices 조회는 Safari를 브라우저로 안다 — 프로덕션 집합의 최소 실증")
+    func launchServicesFindsSafari() {
+        // 라이브 조회지만 읽기 전용·TCC 무관이다. Safari는 macOS 시스템 앱이라 항상 등록돼 있다.
+        #expect(AXTrustProber.browsersViaLaunchServices().contains("com.apple.Safari"))
     }
 
     @Test("완료가 판정을 싣고 in-flight를 푼다 — trusted는 sticky")

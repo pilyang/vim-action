@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260818_browser-class-auto-untrusted.md](20260818_browser-class-auto-untrusted.md) — 계층 1이 정적 번들 ID 목록 하나라는 전제 / 등재 기준·명시 override·YAML 비노출은 유효
+
 # AX 신뢰 거부 목록 — 코드 상수, 초기값 notion.id, 명시 전략이 이긴다
 
 - **결정일**: 2026-08-13
