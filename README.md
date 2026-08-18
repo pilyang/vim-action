@@ -105,6 +105,15 @@ The menu bar menu covers the common flows without hand-editing: toggle VimAction
 
 Every configurable field — motion and action names, key token notation, scroll distances, and how errors are handled — is documented in **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)**.
 
+> **If an app feels flaky, pin it to key synthesis.** VimAction picks an execution path per app (see [How it works](#how-it-works)), and an app whose Accessibility layer promises more text than it delivers can swallow a keypress — the key is intercepted and the screen doesn't move. It reads like a VimAction bug; it is the wrong path for that app. Repeated failures demote the app automatically, so the symptom is usually intermittent — a few keys lost, then normal again. If one app keeps doing it, take the choice away from it:
+>
+> ```yaml
+> # profiles/<bundle-id>.yaml
+> strategy: keyboard
+> ```
+>
+> Key synthesis is the path every app used before automatic detection — nothing stops working; a few edits are just approximate instead of Vim-exact. The menu bar's **Strategy:** line shows which path the app you are in is on right now (`AX`, `Keyboard`, or `probing…`), and an [issue report](https://github.com/pilyang/vim-action/issues) is how that app gets a better default for everyone.
+
 ## Privacy & safety
 
 An app that intercepts every keystroke has to earn trust. VimAction is built accordingly:
@@ -132,6 +141,7 @@ Keys enter through a single `CGEventTap` and are normalized into layout-independ
 
 - **The Unicode Hex Input keyboard layout breaks word motions.** That input source reserves `Option` for hex code entry, so `Option`-based combinations don't exist in it at all — not even typed by hand. VimAction reaches word-level motions through them, so `w`, `b`, `e`, `iw`, `^`, and `vb` do nothing while it is the active input source. This is a macOS limitation rather than something VimAction can detect or work around. Workaround: switch to a standard layout (ABC, US, or any non-hex layout) while using VimAction.
 - **Some apps don't expose their text reliably to the Accessibility API** — Slack among them, and web browsers are treated that way by design. VimAction detects that per app and keeps them on key synthesis, so everything still works; but without exact offsets to read, a few edits stay approximate rather than Vim-exact — for example `x` at the end of a line joins it with the next instead of stopping.
+- **That detection can misjudge an app.** Under the default `auto` strategy, an app that clears the trust probe but then fails to apply Accessibility edits swallows those keys until VimAction demotes it back to key synthesis — so the symptom is intermittent: a few keys lost, then normal again. If one app keeps doing it, pin it with `strategy: keyboard` (see [Per-app configuration](#per-app-configuration)).
 - **Keystroke visualizers show VimAction's output too.** Tools like KeyCastr watch the same event stream that apps receive, so alongside the key you press they also display the shortcuts VimAction synthesizes from it — `w` shows up as `w` followed by `⌥→`. The synthesized events are real keyboard events by design; that is exactly what makes them work everywhere.
 
 ## Development
