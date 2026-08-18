@@ -1,0 +1,39 @@
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_7725569711d870::t_7650892b54ee17 3,38,40-41,45
+VimActionTests/AXTrustProberTests.swift
+  s_7725569711d870::t_7ac4944614f0af 19-20,24,29-30,155-156,183-184,196-215,303-345
+  s_7725569711d870::t_c9fbf854cfc0a2 346
+.claude/skills/decisions/SKILL.md
+  s_7725569711d870::t_9956b9bb230666 258,260,269-270
+VimAction/AXTrustVerdict.swift
+  s_7725569711d870::t_8bf05ed8dcbb66 6
+  s_7725569711d870::t_1fba241e95a40f 30-33,45,48-52,55-59,82-85,98-107,112-113,125-127,132
+VimActionTests/AXTrustVerdictTests.swift
+  s_7725569711d870::t_7ac4944614f0af 1,84-87,96,101-102,110-111,117-148,157,159-178,188,193,198,203,208-213
+.claude/skills/decisions/references/20260818_browser-class-auto-untrusted.md
+  s_7725569711d870::t_9956b9bb230666 1-33
+.claude/skills/decisions/references/20260813_ax-trust-deny-list-code-constant.md
+  s_7725569711d870::t_9956b9bb230666 1-2
+.claude/skills/decisions/references/20260818_hidden-input-geometry-signal.md
+  s_7725569711d870::t_9956b9bb230666 1-32
+.claude/skills/decisions/references/20260813_ax-lie-detection-read-attestation-settable.md
+  s_7725569711d870::t_9956b9bb230666 1-2
+VimAction/AXTrustProber.swift
+  s_7725569711d870::t_8bf05ed8dcbb66 78-81,85-98,124-129,142-144,168-169,172,226-227,229,239-242,284-287,290,305,309-311,435,441,512-514,532-541,571,573
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e5110450edfc962d106b4ddaaf4b599bfb6b2782",
+  "prompts": {},
+  "sessions": {
+    "s_7725569711d870": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cca145f9-a7b0-45f1-88b6-eda00252f70b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
