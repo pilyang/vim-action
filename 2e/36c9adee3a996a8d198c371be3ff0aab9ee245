@@ -1,0 +1,19 @@
+.claude/skills/plans/references/20260802_m5-ax-adapter.md
+  s_7725569711d870::t_2cc0a7f4dee385 95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "2e36c9adee3a996a8d198c371be3ff0aab9ee245",
+  "prompts": {},
+  "sessions": {
+    "s_7725569711d870": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cca145f9-a7b0-45f1-88b6-eda00252f70b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
