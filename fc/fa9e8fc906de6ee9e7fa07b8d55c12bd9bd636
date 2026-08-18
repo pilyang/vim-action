@@ -1,0 +1,31 @@
+.claude/skills/plans/references/20260818_update-release-notes.md
+  s_7725569711d870::t_63877d1c9360ba 1-30
+.github/workflows/ci.yml
+  s_7725569711d870::t_63877d1c9360ba 21,29,46
+.claude/skills/plans/references/20260818_normal-mode-exit-key-allowlist.md
+  s_7725569711d870::t_63877d1c9360ba 1-29
+.claude/skills/plans/references/20260818_support-s-substitute.md
+  s_7725569711d870::t_63877d1c9360ba 1-28
+.claude/skills/plans/references/20260818_support-uppercase-y.md
+  s_7725569711d870::t_63877d1c9360ba 1-28
+.claude/skills/plans/SKILL.md
+  s_7725569711d870::t_63877d1c9360ba 53-56
+.github/workflows/release.yml
+  s_7725569711d870::t_63877d1c9360ba 43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fcfa9e8fc906de6ee9e7fa07b8d55c12bd9bd636",
+  "prompts": {},
+  "sessions": {
+    "s_7725569711d870": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cca145f9-a7b0-45f1-88b6-eda00252f70b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
