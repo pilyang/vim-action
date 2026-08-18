@@ -1,0 +1,47 @@
+VimACtion/VimACtionApp.swift
+  s_2dd898ad8c3c11::t_9ddd8620d3f38e 1-17
+VimACtion.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+  s_df4d941d2d4c0d::t_507fad0a7da4da 1-7
+VimACtion/Assets.xcassets/AccentColor.colorset/Contents.json
+  s_df4d941d2d4c0d::t_62a07406f3695b 1-11
+VimACtion/Assets.xcassets/Contents.json
+  s_df4d941d2d4c0d::t_480ca07cb83342 1-6
+VimACtionTests/VimACtionTests.swift
+  s_8a504299d6c24d::t_5582dfa8836d77 1-19
+VimACtionUITests/VimACtionUITests.swift
+  s_df4d941d2d4c0d::t_3aeb1a594d5f6d 1-43
+VimACtionUITests/VimACtionUITestsLaunchTests.swift
+  s_df4d941d2d4c0d::t_23030e6d21e80f 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "d188953af2ef4c68a88b80e0c0253cf2bc1efa1f",
+  "prompts": {},
+  "sessions": {
+    "s_2dd898ad8c3c11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b33d1b0-2959-4934-8663-a8291cc8679f",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_8a504299d6c24d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02b4052a-0c75-4e32-8f30-4ce5297a6387",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_df4d941d2d4c0d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9562d398-757e-4098-84ad-242735e4fca5",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
