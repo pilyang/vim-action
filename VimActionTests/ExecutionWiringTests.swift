@@ -193,6 +193,170 @@ struct ExecutionWiringTests {
         }
     }
 
+    /// 프로브 seam 전부 no-op·드롭인 프로버 — 배선 테스트는 트리거·판정 캐시 배선만 보고,
+    /// 프로브 본체는 `AXTrustProberTests` 몫이다. `schedule` 기본 드롭이 라이브 AX 접촉을
+    /// 원천 차단한다.
+    private static func prober(
+        schedule: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = { _ in }
+    ) -> AXTrustProber {
+        AXTrustProber(
+            notificationCenter: NotificationCenter(), collectSignals: { _ in AXTrustProbeSignals() },
+            wakeTree: { _ in }, coldRetryPause: { _ in }, schedule: schedule)
+    }
+
+    /// 전략은 프로파일과 달리 **접혀서** 실린다 — 실행 계층은 `.auto`를 모르고, 접기 시점이
+    /// 콜백 1회라 한 버스트 안에서 라우팅이 갈리지 않는다. 판정 소스는 프로버의 pid 키
+    /// 캐시다 — 배선이 끊기면 trusted 판정이 나도 auto 앱이 영원히 keyboard로 돌아,
+    /// 프로브 전체가 조용히 장식이 된다.
+    @Test(
+        "디스패치 페이로드에 접힌 실효 전략이 실린다 — 판정 소스는 프로버 캐시",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func replaceCarriesEffectiveStrategy() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var contexts: [DispatchContext] = []
+            let auto = ResolvedProfile(AppProfile(strategy: .auto))
+            let ax = ResolvedProfile(AppProfile(strategy: .accessibility))
+            let gate = Self.gate(frontmost: "com.tinyspeck.slackmacgap")
+            let prober = Self.prober()
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: gate,
+                focusedElement: FocusedElementResolver(
+                    notificationCenter: NotificationCenter(), frontmostProcessID: 99_999),
+                axTrustProber: prober,
+                dispatchActions: { _, context in contexts.append(context) },
+                profileProvider: { bundleID in
+                    bundleID == "com.apple.TextEdit" ? ax : auto
+                })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .keyboard, "판정 없는 auto는 keyboard다")
+            #expect(contexts.last?.profile.strategy == .auto, "프로파일에는 원본이 남는다")
+
+            // 프로브가 trusted를 실었다 — 같은 앱의 다음 키부터 accessibility로 접힌다.
+            prober.update(
+                verdict: .trusted, failedLayer: nil, for: 99_999,
+                bundleID: "com.tinyspeck.slackmacgap")
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .accessibility, "trusted auto는 AX다")
+            #expect(contexts.last?.profile.strategy == .auto, "원본 프로파일은 그대로다")
+
+            gate.update(bundleID: "com.apple.TextEdit")
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .accessibility, "명시 전략은 그대로다")
+        }
+    }
+
+    /// 런타임 강등의 관통 — auto trusted 앱에서 `.axUnavailable` 신호가 창 안 임계에 닿으면
+    /// **다음 키의 접힌 전략이 keyboard**가 된다 (실패한 그 키는 이미 나갔다 — 재실행 없음).
+    /// 배선이 끊기면 트리 수면·핸들 무효화 앱이 릴리스에서 무로그 죽은 키로 영구화된다.
+    @Test(
+        "auto발 .axUnavailable 임계 도달이 다음 키부터 keyboard로 접는다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func runtimeDemotionFoldsNextKeyToKeyboard() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var contexts: [DispatchContext] = []
+            let auto = ResolvedProfile(AppProfile(strategy: .auto))
+            let gate = Self.gate(frontmost: "com.tinyspeck.slackmacgap")
+            let prober = Self.prober()
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: gate,
+                focusedElement: FocusedElementResolver(
+                    notificationCenter: NotificationCenter(), frontmostProcessID: 99_999),
+                axTrustProber: prober,
+                dispatchActions: { _, context in contexts.append(context) },
+                profileProvider: { _ in auto })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+            prober.update(
+                verdict: .trusted, failedLayer: nil, for: 99_999,
+                bundleID: "com.tinyspeck.slackmacgap")
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .accessibility, "강등 전에는 AX다")
+
+            // 실행 경로의 신호가 게시 큐 → main 홉으로 착지한 모양 그대로 진입점을 부른다
+            // (프로덕션 sink는 XCTest에서 만들어지지 않는다 — seam 호출은 어댑터 테스트 몫).
+            for tick in 0..<AXTrustProber.demotionThreshold {
+                prober.noteAutoAXUnavailable(
+                    processID: 99_999, bundleID: "com.tinyspeck.slackmacgap",
+                    at: TimeInterval(tick))
+            }
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(contexts.last?.effectiveStrategy == .keyboard, "강등 뒤 다음 키는 keyboard다")
+            #expect(contexts.last?.profile.strategy == .auto, "원본 프로파일은 그대로다")
+        }
+    }
+
+    /// 프로브 트리거는 `.replace` 디스패치 **뒤**의 신호 한 번이다 — auto 앱만 당기고,
+    /// in-flight 중 연타는 중복 enqueue가 없다. 배선이 끊기면 프로브가 영원히 돌지 않아
+    /// auto 전체가 keyboard 고정이 되는 조용한 고장이다.
+    @Test(
+        "auto 앱의 replace만 프로브 트리거를 당긴다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func replaceTriggersProbeForAutoAppsOnly() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var enqueued = 0
+            let auto = ResolvedProfile(AppProfile(strategy: .auto))
+            let gate = Self.gate(frontmost: "com.apple.TextEdit")
+            let prober = Self.prober(schedule: { _ in enqueued += 1 })
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: gate,
+                focusedElement: FocusedElementResolver(
+                    notificationCenter: NotificationCenter(), frontmostProcessID: 99_999),
+                axTrustProber: prober,
+                dispatchActions: { _, _ in },
+                profileProvider: { bundleID in
+                    bundleID == "com.tinyspeck.slackmacgap" ? auto : .empty
+                })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(enqueued == 0, "auto가 아닌 앱은 프로브 대상이 아니다")
+
+            gate.update(bundleID: "com.tinyspeck.slackmacgap")
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(enqueued == 1, "첫 replace가 당기고, in-flight 중 연타는 중복이 없다")
+        }
+    }
+
+    /// 마스터 토글 off는 `.replace` 자체가 없어 프로브도 없다 — "토글 off 앱은 프로브를
+    /// 돌리지 않는다"는 결정이 별도 게이트 코드가 아니라 트리거 위치로 성립함을 고정한다
+    /// (게이트 중 무디스패치는 `gatedMotionKeyIsNotDispatched`가 같은 방식으로 덮는다).
+    @Test(
+        "토글 off 중에는 프로브 트리거도 당겨지지 않는다",
+        .enabled("keycode↔문자 기대값이 QWERTY 계열 레이아웃에서만 성립한다") {
+            await isQwertyLayout()
+        }
+    )
+    func toggleOffDoesNotTriggerProbe() throws {
+        try withTemporaryDefaults { defaults in
+            nonisolated(unsafe) var enqueued = 0
+            let auto = ResolvedProfile(AppProfile(strategy: .auto))
+            let controller = EventTapController(
+                defaults: defaults, frontmostAppGate: Self.gate(frontmost: "com.example.app"),
+                focusedElement: FocusedElementResolver(
+                    notificationCenter: NotificationCenter(), frontmostProcessID: 99_999),
+                axTrustProber: Self.prober(schedule: { _ in enqueued += 1 }),
+                dispatchActions: { _, _ in },
+                profileProvider: { _ in auto })
+            _ = controller.handleKeyDown(try keyDown(kVK_Escape))  // Normal 진입
+            controller.isInterceptionEnabled = false
+
+            _ = controller.handleKeyDown(try keyDown(kVK_ANSI_H))
+            #expect(enqueued == 0, "off 중에는 replace가 없고, 따라서 프로브도 없다")
+        }
+    }
+
     /// bundle id도 같은 자리에서 **프로파일 조회와 같은 값**으로 실린다 — AX 쓰기 요약 로그가
     /// 앱을 특정하는 유일한 수단이라, 배선이 끊기면 `.illegalArgument` 관측 로그가 "앱 미상"만
     /// 쌓아 D1 종료 시 보고 승격 재심사가 판정 데이터를 잃는다(조용한 고장).

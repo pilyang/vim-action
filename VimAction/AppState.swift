@@ -8,6 +8,7 @@ import Foundation
 import Observation
 import os
 import Sparkle
+import VimActionConfig
 import VimEngine
 
 /// 앱 셸이 관찰하는 UI 상태와 전역 컴포넌트(권한 모니터, 이벤트 탭, 설정 스토어)의 소유자.
@@ -24,6 +25,9 @@ final class AppState {
     /// 게이트를 AppState가 직접 만들어 컨트롤러에 주입한다 — 설정 로드·리로드 때
     /// disable 집합을 푸시할 핸들이 필요해서다 (컨트롤러는 설정 계층을 모른다).
     private let frontmostAppGate: FrontmostAppGate
+    /// auto 전략 프로브 — 게이트와 같은 이유로 AppState가 만들어 주입한다: 설정 리로드가
+    /// 판정 캐시를 비울 핸들이 필요하다 (`20260813_auto-probe-async-cached-verdict-pid-lifetime.md`).
+    private let axTrustProber: AXTrustProber
     /// 설정 창이 열린 동안만 Dock 아이콘을 노출한다. 열림은 `SettingsView.onAppear`가
     /// 알려주고 닫힘은 컨트롤러가 창 알림으로 스스로 잡으므로, `bootstrap`이 아니라 여기
     /// 생성 시점이 배선의 전부다.
@@ -48,11 +52,16 @@ final class AppState {
     init() {
         let gate = FrontmostAppGate.forCurrentEnvironment()
         let store = ConfigStore()
+        let prober = AXTrustProber.forCurrentEnvironment()
         frontmostAppGate = gate
         configStore = store
+        axTrustProber = prober
         let eventTap = EventTapController(
             frontmostAppGate: gate,
+            axTrustProber: prober,
             profileProvider: { [weak store] bundleID in
+                // 스토어가 사라진 뒤(= 앱 해체) 오는 조회다 — "프로파일 부재"가 아니라 "설정
+                // 계층 없음"이라 번들 기본 전략이 아니라 `.empty`가 맞다.
                 store?.resolvedProfile(for: bundleID) ?? .empty
             })
         self.eventTap = eventTap
@@ -131,6 +140,10 @@ final class AppState {
     func reloadConfig() -> Bool {
         let succeeded = configStore.reload()
         frontmostAppGate.update(disabledBundleIDs: configStore.disabledBundleIDs)
+        // 리로드 성공 여부와 무관하게 비운다 — 실패(직전 유효 설정 유지)에서도 사용자가
+        // 설정을 바꾸려던 시점이라 낡은 판정을 계속 신뢰할 근거가 없고, pending=keyboard는
+        // 완전 기능이라 비우는 방향이 항상 안전하다.
+        axTrustProber.clearVerdicts()
         return succeeded
     }
 
@@ -140,6 +153,19 @@ final class AppState {
 
     /// 메뉴 항목 제목이 'Open Profile'인지 'Create Profile'인지.
     func hasProfile(for bundleID: String) -> Bool { configStore.hasProfile(for: bundleID) }
+
+    /// 메뉴 "Strategy:" 줄 — 비자신 최전면 앱의 (선언 전략, 판정)을 표시 문구로 접는다
+    /// (`20260813_auto-trusted-runtime-demotion-and-observability.md`의 메뉴바 표시).
+    ///
+    /// pid는 게이트의 비자신 짝(`lastNonSelfProcessID`)에서 온다 — 호출자(메뉴)가 넘기는
+    /// `bundleID`와 같은 알림에서 한 짝으로 갱신된 값이라 라벨과 판정이 다른 앱을 가리키지
+    /// 않는다. 판정 캐시(`AXTrustProber`)와 게이트가 둘 다 `@Observable`이라 앱 전환·판정
+    /// 전이가 메뉴 본문을 재평가시킨다.
+    func strategyStatusLine(for bundleID: String) -> String {
+        strategyStatusText(
+            declared: configStore.resolvedProfile(for: bundleID).strategy,
+            verdict: axTrustProber.verdict(for: frontmostAppGate.lastNonSelfProcessID))
+    }
 
     /// 메뉴 '프로파일 열기' — 없으면 주석뿐인 scaffold를 만든 뒤 연다.
     /// 두 실패 모두 폴백이 있다: 클릭이 조용한 무동작이 되면 안 된다.
@@ -223,6 +249,29 @@ final class AppState {
 
     /// VoiceOver 등 사람이 읽는 메뉴바 상태 문구.
     var menuBarAccessibilityLabel: String { menuBarIndicator.accessibilityLabel }
+}
+
+/// 메뉴 "Strategy:" 줄의 표시 문구 — (선언 전략, 판정) → 3상태. `configStatusText`와 같은
+/// 부류의 순수 자유 함수라 표로 테스트한다.
+///
+/// `effectiveStrategy(_:verdict:)`를 재사용하지 않는 것이 요점이다: 그 접기는 pending과
+/// untrusted를 둘 다 keyboard로 접어 "판정 중"을 표현할 수 없다 — 표시가 셋으로 갈리는
+/// 유일한 자리는 auto다 (명시 전략은 판정을 보지 않는다는 접기 규칙 그대로).
+nonisolated func strategyStatusText(
+    declared: ProfileStrategy, verdict: AXTrustVerdict
+) -> String {
+    switch declared {
+    case .accessibility:
+        return "Strategy: AX"
+    case .keyboard:
+        return "Strategy: Keyboard"
+    case .auto:
+        switch verdict {
+        case .pending: return "Strategy: probing…"
+        case .trusted: return "Strategy: AX"
+        case .untrusted: return "Strategy: Keyboard"
+        }
+    }
 }
 
 extension Mode {

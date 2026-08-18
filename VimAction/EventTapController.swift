@@ -148,6 +148,12 @@ final class EventTapController {
     /// 통과시키지만, 요소 계열은 엔진이 낸 액션을 어댑터가 걸러낼지에만 쓰인다.
     @ObservationIgnored private let focusedElement: FocusedElementResolver
 
+    /// auto 전략 프로브 협력자 — 게이트·리졸버와 나란한 자리이고 규칙도 같다: **콜백은
+    /// 판정 캐시만 읽고**(딕셔너리 조회 1회), 프로브의 AX 접촉은 전부 전용 큐 위다.
+    /// 콜백이 하는 나머지 하나는 `.replace` 디스패치 뒤 트리거 신호(`noteReplaceDispatch` —
+    /// 플래그 부기 + enqueue뿐)다 (`20260813_auto-probe-async-cached-verdict-pid-lifetime.md`).
+    @ObservationIgnored private let axTrustProber: AXTrustProber
+
     /// 실행 시퀀스의 유일한 출구. 기본값(`keyboardActionSink`)이 게시 직렬 큐와
     /// `KeyboardAdapter`를 캡처하므로 큐의 수명은 이 프로퍼티(= 컨트롤러)와 같다.
     ///
@@ -171,6 +177,16 @@ final class EventTapController {
                 // 게시 큐에서 캡처해 실어 보낸다 (`AXWriteEffects.apply` 주석의 거짓 트립).
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated { self?.reportExecutionFailure(at: failedAt) }
+                }
+            },
+            reportAutoAXUnavailable: { [weak self] processID, bundleID, failedAt in
+                // 강등 카운터·판정 캐시는 프로버의 MainActor 계약이다 — `reportFailure`와
+                // 같은 모양으로 홉만 얹고, 시각·pid·번들 ID는 게시 큐에서 캡처돼 온다.
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        self?.axTrustProber.noteAutoAXUnavailable(
+                            processID: processID, bundleID: bundleID, at: failedAt)
+                    }
                 }
             })
 
@@ -204,13 +220,20 @@ final class EventTapController {
     /// `reportFailure`는 어댑터가 AX 쓰기 실패를 돌려보내는 통로다 — **실패 시각을 인자로
     /// 받는다**(게시 큐 캡처). 컨트롤러의 카운터는 MainActor 계약이라 클로저 쪽이 홉을 지고,
     /// 이 sink는 그것을 어댑터에 꽂아 주기만 한다.
+    ///
+    /// `reportAutoAXUnavailable`은 auto 유래 `.axUnavailable`이 프로버의 런타임 강등
+    /// 진입점으로 돌아가는 통로다 — 시각(게시 큐 캡처)·홉의 규칙이 `reportFailure`와 같고,
+    /// 착지점만 컨트롤러 카운터가 아니라 `axTrustProber`다.
     private static func keyboardActionSink(
         abort: ExecutionAbortLatch,
-        reportFailure: @escaping @Sendable (TimeInterval) -> Void
+        reportFailure: @escaping @Sendable (TimeInterval) -> Void,
+        reportAutoAXUnavailable: @escaping @Sendable (pid_t, String?, TimeInterval) -> Void
     ) -> @Sendable ([VimAction], DispatchContext) -> Void {
         guard !isRunningUnderXCTest() else { return { _, _ in } }
         let queue = DispatchQueue(label: "dev.pilyang.VimAction.execution", qos: .userInitiated)
-        let adapter = KeyboardAdapter(reportExecutionFailure: reportFailure)
+        let adapter = KeyboardAdapter(
+            reportExecutionFailure: reportFailure,
+            reportAutoAXUnavailable: reportAutoAXUnavailable)
         return { actions, context in
             // `beginRun`은 **큐 밖**(탭 콜백 스레드)이어야 한다 — 큐 안이면 이미 도는 버스트가
             // 끝난 뒤에야 세대가 올라가 아무것도 끊지 못한다. 비용은 잠금 1회 + 증가 1회라
@@ -219,6 +242,7 @@ final class EventTapController {
             queue.async {
                 adapter.execute(
                     actions, family: context.family, profile: context.profile,
+                    effectiveStrategy: context.effectiveStrategy,
                     processID: context.processID, bundleID: context.bundleID,
                     isCurrent: { abort.isCurrent(run) })
             }
@@ -300,12 +324,14 @@ final class EventTapController {
         defaults: UserDefaults = .standard,
         frontmostAppGate: FrontmostAppGate? = nil,
         focusedElement: FocusedElementResolver? = nil,
+        axTrustProber: AXTrustProber? = nil,
         dispatchActions: (@Sendable ([VimAction], DispatchContext) -> Void)? = nil,
         profileProvider: ((String?) -> ResolvedProfile)? = nil
     ) {
         self.defaults = defaults
         self.frontmostAppGate = frontmostAppGate ?? .forCurrentEnvironment()
         self.focusedElement = focusedElement ?? .forCurrentEnvironment()
+        self.axTrustProber = axTrustProber ?? .forCurrentEnvironment()
         self.profileProvider = profileProvider
         self.executionAbort = ExecutionAbortLatch()
         // 프로덕션 sink 생성은 `dispatchActions`(lazy)로 미뤄져 있다 — 실패 보고 클로저가
@@ -802,13 +828,27 @@ final class EventTapController {
             // bundleID는 지역에 묶어 프로파일 조회와 컨텍스트가 **같은 값**을 쓰게 한다 —
             // 두 번 읽으면 그 사이 앱 전환이 로그 라벨과 프로파일을 어긋나게 할 수 있다.
             let bundleID = frontmostAppGate.frontmostBundleID
+            // provider 미주입(설정 계층이 없는 테스트)만 `.empty`다 — 프로덕션에서 프로파일
+            // 파일이 없는 앱은 `ConfigStore`가 `.noProfile`로 답한다.
             let profile = profileProvider?(bundleID) ?? .empty
+            // 전략은 **여기서 접는다** — 실행 계층은 `.auto`를 모른다. pid는 리졸버의 것을
+            // 컨텍스트와 같은 값으로 쓴다 — 판정을 pid에 묶고 소비 시 같은 출처로 조회해야
+            // 번들 ID(게이트)와 pid(리졸버)가 별개 옵저버라 생기는 앱 전환 어긋남 창이 닫힌다
+            // (`20260813_auto-probe-async-cached-verdict-pid-lifetime.md`).
+            let processID = focusedElement.observedProcessID
+            let effective = effectiveStrategy(
+                profile.strategy, verdict: axTrustProber.verdict(for: processID))
             dispatchActions(
                 output.actions,
                 DispatchContext(
                     family: focusedElement.family,
-                    processID: focusedElement.observedProcessID, bundleID: bundleID,
-                    profile: profile))
+                    processID: processID, bundleID: bundleID,
+                    profile: profile, effectiveStrategy: effective))
+            // 트리거는 디스패치 **뒤**다 — 이 키는 방금 접은 판정(pending이면 keyboard)으로
+            // 이미 나갔고, 프로브가 바꾸는 것은 다음 키부터다 (첫 몇 키의 keyboard 실행은
+            // 결정된 수용 비용).
+            axTrustProber.noteReplaceDispatch(
+                processID: processID, bundleID: bundleID, declaredStrategy: profile.strategy)
             return nil
         }
     }

@@ -93,6 +93,22 @@ struct ResolvedProfileTests {
         #expect(profile.actionOverrides == [.openLine: .disabled])
     }
 
+    /// 전략은 **선언된 그대로** 실린다 — 접기는 콜백의 몫이고, 여기 원본이 남아야 auto 유래
+    /// 실행을 명시 `accessibility`와 구분하는 관측이 선다.
+    @Test("전략 어휘 셋이 모두 그대로 전달된다")
+    func carriesEveryStrategy() {
+        for strategy in ProfileStrategy.allCases {
+            #expect(ResolvedProfile(AppProfile(strategy: strategy)).strategy == strategy)
+        }
+    }
+
+    @Test("keyboard_family가 그대로 전달된다")
+    func carriesKeyboardFamily() {
+        #expect(ResolvedProfile(AppProfile()).keyboardFamily == .keyMapping)
+        #expect(
+            ResolvedProfile(AppProfile(keyboardFamily: .forceText)).keyboardFamily == .forceText)
+    }
+
     /// 매퍼가 보는 창구는 이름 붙인 프로퍼티다 — 여기서 `ConfigAction`이 실행 계층으로
     /// 새지 않는다. disable이 `nil`로 접히는 것도 계약이다(어댑터가 앞에서 걸러낸다).
     @Test("액션 자신의 키 재정의는 이름 붙인 프로퍼티로 노출된다")
@@ -116,7 +132,18 @@ struct ResolvedProfileTests {
         #expect(ResolvedProfile.empty.newLineStrokes == nil)
         #expect(ResolvedProfile.empty.halfPageLines == nil)
         #expect(ResolvedProfile.empty.fullPageLines == nil)
-        // 기본 전략이 keyboard인 것이 "프로파일 없는 앱은 동작 diff 0"의 지점이다.
+        // `.empty`는 builtIn 재조회 센티널이라 번들 기본 전략을 **따라가지 않는다** — 여기가
+        // `defaultStrategy`를 따라 움직이면 "재정의 없음"이 전략까지 뜻하게 된다.
         #expect(ResolvedProfile.empty.strategy == .keyboard)
+    }
+
+    /// 프로파일 파일이 없는 앱의 값. 파서 기본값과 **같은 상수**를 소비해야 "파일 없음"과
+    /// "파일은 있는데 필드 없음"의 동작이 갈리지 않는다.
+    @Test(".noProfile은 번들 기본 전략을 든다")
+    func noProfileCarriesBundledDefault() {
+        #expect(ResolvedProfile.noProfile.strategy == AppProfile.defaultStrategy)
+        #expect(ResolvedProfile.noProfile.keyboardFamily == .keyMapping)
+        #expect(ResolvedProfile.noProfile.motionOverrides.isEmpty)
+        #expect(ResolvedProfile.noProfile.actionOverrides.isEmpty)
     }
 }

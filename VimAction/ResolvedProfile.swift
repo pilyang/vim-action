@@ -30,12 +30,18 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
     }
 
     let name: String?
-    /// 이 앱의 실행 전략 — 어댑터의 AX 실행 계획 판정이 유일한 소비자다.
+    /// 이 앱에 **사용자가 선언한** 전략 — 실행 판정이 보는 값은 이것이 아니라 판정과 함께
+    /// 접은 실효 전략(`DispatchContext.effectiveStrategy`)이다. 여기 원본이 남는 이유는
+    /// `.auto` 유래인지가 관측(전략 출처 라벨)의 재료이기 때문이다.
     ///
     /// **`ProfileStrategy`를 앱측 타입으로 다시 선언하지 않는다.** `Override`가 다시 선언된
     /// 것은 `ConfigKeyStroke`를 `KeyStroke`로 번역해야 해서였는데, 전략은 번역할 것이 없는
     /// 순수 열거값이고 `ConfigAction`이 이미 그대로 통과한다.
     let strategy: ProfileStrategy
+    /// keyboard 실행의 요소 계열 — `.forceText`면 걸러내기를 우회한다. 같은 이유로 앱측 타입을
+    /// 다시 선언하지 않는다. 소비처는 `KeyboardAdapter.mapping`의 실효 계열 치환 **한 곳**이다
+    /// (치환은 keyboard 실행 쪽만 — `usesAXWrite`·AX 분기는 원본 계열을 본다).
+    let keyboardFamily: KeyboardFamily
     /// 스크롤 줄 수 재정의 — 명시값은 AX 뷰포트 정확값보다 **우선**하며 그 extent는 읽기
     /// 자체가 생략된다. `nil`이면 AX 뷰포트를 시도하고, 그것도 실패하면 `CommandKeyMapper`의
     /// 코드 상수(15/30)다 (`20260806_scroll-line-count-priority-ladder.md`).
@@ -44,13 +50,23 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
     let motionOverrides: [Motion: Override]
     let actionOverrides: [ConfigAction: Override]
 
-    /// 프로파일 없음 — 모든 매퍼가 내장 테이블 그대로 동작한다.
+    /// 재정의 없음 — 모든 매퍼가 내장 테이블 그대로 동작한다. 매퍼 기본값이자, 어댑터가
+    /// "이 스킵이 프로파일 때문인가"를 가르는 **builtIn 재조회 센티널**이다.
+    ///
+    /// **번들 기본 전략(`AppProfile.defaultStrategy`)을 따르지 않는다** — 그 축은 프로파일
+    /// 부재를 뜻하는 `noProfile`이 맡는다. 여기 실린 `.keyboard`는 "전략 미지정"이 아니라
+    /// "이 값은 전략을 말하지 않는다"에 가깝고, 매퍼는 전략을 보지 않으므로 무해하다.
     static let empty = ResolvedProfile()
+
+    /// 프로파일 **파일이 없는** 앱 — 빈 프로파일 파일과 같은 값이다. `AppProfile()`을 통과시켜
+    /// 파서 기본값과 **같은 상수**에서 전략을 받는다(기본값이 두 곳으로 갈리지 않는다 —
+    /// `20260813_bundled-default-strategy-auto-flip-gated.md`).
+    static let noProfile = ResolvedProfile(AppProfile())
 
     private init() {
         name = nil
-        // 미지정 = keyboard — 프로파일 없는 앱이 기존과 동작 diff 0인 지점이다.
         strategy = .keyboard
+        keyboardFamily = .keyMapping
         halfPageLines = nil
         fullPageLines = nil
         motionOverrides = [:]
@@ -60,6 +76,7 @@ nonisolated struct ResolvedProfile: Equatable, Sendable {
     init(_ profile: AppProfile) {
         name = profile.name
         strategy = profile.strategy
+        keyboardFamily = profile.keyboardFamily
         halfPageLines = profile.halfPageLines
         fullPageLines = profile.fullPageLines
         // append 전용 모션(a/A)의 base 상속은 `motionOverride(for:)` 안에 있다 — 패키지

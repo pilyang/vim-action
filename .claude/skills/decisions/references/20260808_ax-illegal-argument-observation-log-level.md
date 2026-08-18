@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260814_observation-notice-promotion-and-probe-completion-log.md](20260814_observation-notice-promotion-and-probe-completion-log.md) — 레벨(`.info`)·`log show --info` 회수 전제(macOS는 info를 영속하지 않음이 실측됨) / "관측 전용 버킷, 항상 컴파일, 강등 없음" 결정은 유효
+
 # `.illegalArgument` 관측 로그는 항상 컴파일 + `.info` — 요약 버킷 관례에서 이탈
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

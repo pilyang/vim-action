@@ -1,16 +1,28 @@
 import VimEngine
 
-/// `profiles/<bundle-id>.yaml` — 특수 앱의 동작 고도화 전용. 필드 다섯, `enabled` 없음
+/// `profiles/<bundle-id>.yaml` — 특수 앱의 동작 고도화 전용. 필드 여섯, `enabled` 없음
 /// (앱별 on/off는 `config.yaml`이 단일 소유한다).
 ///
-/// **`strategy`를 뺀 모든 필드가 옵셔널이거나 빈 컬렉션이다** — 스크롤 기본값 15/30 같은 코드
-/// 상수는 앱이 갖고, 이 계층은 "값 없음"만 표현한다. `strategy`만 기본값을 드는 것은 "미지정 =
-/// keyboard"가 값 없음이 아니라 **결정된 기본 전략**이기 때문이다(keyboard-first 관례).
+/// **`strategy`·`keyboardFamily`를 뺀 모든 필드가 옵셔널이거나 빈 컬렉션이다** — 스크롤 기본값
+/// 15/30 같은 코드 상수는 앱이 갖고, 이 계층은 "값 없음"만 표현한다. 둘만 기본값을 드는 것은
+/// "미지정"이 값 없음이 아니라 **결정된 기본 동작**이기 때문이다.
 public struct AppProfile: Hashable, Sendable {
+    /// 번들 기본 전략 — 프로파일이 **없거나** `strategy`를 안 쓴 앱이 무엇으로 도는가.
+    ///
+    /// **단일 상수인 것이 계약이다.** 기본값이 실제로는 두 곳이라 — 파서 기본값(파일은 있는데
+    /// 필드 없음)과 앱측 프로파일 부재 경로(`ResolvedProfile.noProfile`) — 한쪽만 바꾸면 두
+    /// 경우의 동작이 갈린다. `keyboard` → `auto` 전환은 도그푸딩 게이트 통과(2026-08-14 —
+    /// 판정 상태 기계 전 간선 실전 발화: Slack 탈락→보호·Notion 거부 목록·재프로브 회복·
+    /// TextEdit trusted→AX·무사고) 뒤의 이 커밋이며, 문제 시 이 커밋만 철회한다
+    /// (`20260813_bundled-default-strategy-auto-flip-gated.md`).
+    public static let defaultStrategy: ProfileStrategy = .auto
+
     /// 표시용 이름.
     public let name: String?
-    /// 이 앱의 실행 전략. 미지정이면 `.keyboard`라 동작 diff가 0이다.
+    /// 이 앱의 실행 전략. 미지정이면 `defaultStrategy`다.
     public let strategy: ProfileStrategy
+    /// keyboard 실행의 요소 계열. 미지정이면 `.keyMapping`이라 동작 diff가 0이다.
+    public let keyboardFamily: KeyboardFamily
     /// 뷰포트에 맞춘 스크롤 줄 수 재정의 (유효 1...200).
     public let halfPageLines: Int?
     public let fullPageLines: Int?
@@ -22,7 +34,8 @@ public struct AppProfile: Hashable, Sendable {
 
     public init(
         name: String? = nil,
-        strategy: ProfileStrategy = .keyboard,
+        strategy: ProfileStrategy = defaultStrategy,
+        keyboardFamily: KeyboardFamily = .keyMapping,
         halfPageLines: Int? = nil,
         fullPageLines: Int? = nil,
         motions: [Motion: ConfigOverride] = [:],
@@ -30,6 +43,7 @@ public struct AppProfile: Hashable, Sendable {
     ) {
         self.name = name
         self.strategy = strategy
+        self.keyboardFamily = keyboardFamily
         self.halfPageLines = halfPageLines
         self.fullPageLines = fullPageLines
         self.motions = motions
@@ -59,15 +73,36 @@ public enum ConfigOverride: Hashable, Sendable {
 
 /// `strategy:` 값 — 이 앱의 액션을 무엇으로 실행하는가.
 ///
-/// **`auto`는 아직 없다** — PR-E에서 추가 예정이며, 그때까지 `auto`는 미지 값으로 취급돼 항목
-/// 단위 warn+무시된다(파일은 생존한다). 어휘 자체는 `20260712_ax-keyboard-strategy-dispatch.md`
-/// 에서 이미 정해졌고 이것은 그 부분 구현이다
-/// (`20260808_strategy-field-minimal-parsing-d1.md`).
+/// 어휘는 `20260712_ax-keyboard-strategy-dispatch.md`에서 정해졌고, `auto`는 PR-D2에서
+/// 정식 파싱으로 들어왔다 (`20260813_auto-parsing-in-d2.md`).
 public enum ProfileStrategy: String, Hashable, Sendable, CaseIterable {
     /// AX 범위/캐럿 쓰기로 실행한다. 지원하지 않는 액션은 keyboard로 위임된다(위임 표).
     case accessibility
-    /// 합성 키 이벤트로 실행한다 — **기본값**이다.
+    /// 합성 키 이벤트로 실행한다.
     case keyboard
+    /// 프로브 판정에 맡긴다 — trusted면 accessibility, pending·untrusted면 keyboard다.
+    ///
+    /// **실행 계층에는 이 값이 도달하지 않는다**: 콜백이 판정과 함께 실효 전략으로 접어
+    /// (`effectiveStrategy(_:verdict:)`) `DispatchContext`에 싣고, 어댑터는 접힌 값만 본다.
+    /// 판정 계층·수명은 architecture `strategy-dispatch.md`의 auto 프로브 섹션이 SSOT다.
+    case auto
+}
+
+/// `keyboard_family:` 값 — keyboard 실행이 요소를 인식하는가, 우회하는가.
+///
+/// **자동 감지로는 절대 선택되지 않는 명시 전용 축이다** — force-text는 비텍스트 UI에서 편집을
+/// 봉쇄하는 걸러내기 층을 버리는 수단이라(Finder에서 `dd`가 파일을 지우는 것을 막는 층),
+/// 리졸버 오보 1건이 파괴적 시퀀스로 승격된다
+/// (`20260813_force-text-keyboard-family-substitution.md`).
+///
+/// 치환의 적용 범위는 **keyboard 실행 쪽뿐**이다(걸러내기 게이트·매퍼 호출·매퍼 내부 `.nonText`
+/// 봉쇄·하이브리드 위임분이 같은 치환값을 본다). AX 분기의 계열 판정은 원본 계열을 유지한다.
+/// 치환 자리는 `KeyboardAdapter.mapping` 진입부 **한 곳**이다.
+public enum KeyboardFamily: String, Hashable, Sendable, CaseIterable {
+    /// 요소 계열을 인식해 시퀀스를 고르고 위험 어휘를 걸러낸다 — 기본값이자 선호 폴백.
+    case keyMapping = "key_mapping"
+    /// 요소 감지를 우회하고 항상 TextArea 시퀀스를 낸다 — 최후 수단.
+    case forceText = "force_text"
 }
 
 /// `actions:` 어휘 v1 5종 — `VimAction` 케이스 파생.

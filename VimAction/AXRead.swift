@@ -27,8 +27,7 @@ nonisolated enum AXRead {
     /// **쓰기 경로(`AXWriter`)도 요소는 반드시 여기서 받는다** — 그래서 위 타임아웃이
     /// 읽기·쓰기 양쪽에 같은 상수로 상속되고, 요소를 만드는 자리가 이 함수 하나로 남는다.
     static func focusedElement(ofProcess processID: pid_t) -> AXUIElement? {
-        let application = AXUIElementCreateApplication(processID)
-        AXUIElementSetMessagingTimeout(application, messagingTimeout)
+        let application = applicationElement(ofProcess: processID)
         var value: CFTypeRef?
         guard
             AXUIElementCopyAttributeValue(
@@ -40,6 +39,26 @@ nonisolated enum AXRead {
         let element = (value as! AXUIElement)
         AXUIElementSetMessagingTimeout(element, messagingTimeout)
         return element
+    }
+
+    /// 앱 수준 요소 — 생성과 타임아웃 설정을 한 자리로 묶는다. `focusedElement`가 내부에서
+    /// 쓰고, auto 프로브의 Electron 트리 기상(`AXManualAccessibility` 쓰기)이 대상 요소를
+    /// 여기서 받아 50ms 상수가 그 경로에도 상속된다.
+    static func applicationElement(ofProcess processID: pid_t) -> AXUIElement {
+        let application = AXUIElementCreateApplication(processID)
+        AXUIElementSetMessagingTimeout(application, messagingTimeout)
+        return application
+    }
+
+    /// `AXUIElementIsAttributeSettable` — 값을 바꾸지 않는 쓰기 가능성 질의. 에러는 전부
+    /// `false`로 접는다(default-deny — 프로브 판정에서 "모름"과 "불가"는 같은 편이다).
+    static func isAttributeSettable(_ element: AXUIElement, _ attribute: String) -> Bool {
+        var settable = DarwinBoolean(false)
+        guard AXUIElementIsAttributeSettable(element, attribute as CFString, &settable) == .success
+        else {
+            return false
+        }
+        return settable.boolValue
     }
 
     /// 속성 값 조회 — 실패는 전부 `nil` 하나다. 호출자가 에러코드로 갈라야 할 이유가

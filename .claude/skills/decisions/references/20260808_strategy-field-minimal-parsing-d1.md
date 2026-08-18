@@ -1,5 +1,7 @@
 # `strategy` 필드 최소 파싱을 PR-D1a로 선행 — `auto`는 미지값 warn+무시
 
+> Superseded (부분) by [20260813_auto-parsing-in-d2.md](20260813_auto-parsing-in-d2.md) · [20260813_bundled-default-strategy-auto-flip-gated.md](20260813_bundled-default-strategy-auto-flip-gated.md) — "`auto`는 PR-E에서 추가" 배정과 "기본값 keyboard"가 뒤집힘 / D1a 최소 파싱 형태·어휘 밖 값 warn+무시 규칙은 유효
+
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->
 
 - **결정일**: 2026-08-08 (M5 D1-설계 세션, 결정 ⑤)
