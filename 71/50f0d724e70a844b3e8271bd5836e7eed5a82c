@@ -1,0 +1,30 @@
+docs/CONFIGURATION.md
+  s_7725569711d870::t_ef067e99882063 137
+README.md
+  s_95734c7246b408::t_24944b8a85d4b4 129
+  s_95734c7246b408::t_3a13d4d75ff128 134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7150f0d724e70a844b3e8271bd5836e7eed5a82c",
+  "prompts": {},
+  "sessions": {
+    "s_7725569711d870": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cca145f9-a7b0-45f1-88b6-eda00252f70b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_95734c7246b408": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79099518-688c-4c29-b2ce-d5cc426596a2",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
