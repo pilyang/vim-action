@@ -1,0 +1,22 @@
+docs/CONFIGURATION.md
+  s_4bac61cbbc0fa9::t_76e9db1602c4ea 139-140
+README.md
+  s_4bac61cbbc0fa9::t_b0417e9f8c1d67 115
+  s_4bac61cbbc0fa9::t_a7a98ace1061ec 108-114,116,144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "77d7f898de8201cd28391a17b7255cd4776c961a",
+  "prompts": {},
+  "sessions": {
+    "s_4bac61cbbc0fa9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c1891e50-1aee-4002-bb21-6f364ac6eff5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
