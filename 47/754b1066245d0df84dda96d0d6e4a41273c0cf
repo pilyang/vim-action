@@ -1,0 +1,80 @@
+.claude/skills/architecture/references/ax-adapter.md
+  s_8192a86481d047::t_80c97426e77562 3
+  s_8192a86481d047::t_755cef562f7c3a 74
+  s_8192a86481d047::t_b5f9759595b6ec 78
+  s_8192a86481d047::t_1296d068b0a993 107
+  s_8192a86481d047::t_e22c7c08b409d8 1-2,4-55,57-73,75-77,79-106,108-115
+  s_8192a86481d047::t_df4fd39413fa9d 56
+.claude/skills/architecture/references/system-overview.md
+  s_8192a86481d047::t_4dde40313810f2 3,21,32-45,61
+.claude/skills/architecture/references/reentrancy-and-safety.md
+  s_8192a86481d047::t_a2411853c9e47c 7,24,28-30,32-34,36-37,43,49,51,53-56,61-66,68-73,77,79,84-85
+  s_8192a86481d047::t_55bddc0e7d4332 27
+  s_8192a86481d047::t_c73b291fcd8abc 45
+  s_8192a86481d047::t_24925618e79e1d 47
+  s_8192a86481d047::t_edd8397e98bc1e 26
+  s_8192a86481d047::t_067e987301f23a 57
+  s_8192a86481d047::t_36d8cf82e8250f 3
+  s_8192a86481d047::t_eeec24c2f37936 44
+  s_8192a86481d047::t_377eb555ef9960 46
+.claude/skills/architecture/SKILL.md
+  s_8192a86481d047::t_4a279cf6d95df2 28-30
+  s_8192a86481d047::t_bb96ba47c6c115 38,40-47
+.claude/skills/architecture/references/app-shell.md
+  s_8192a86481d047::t_2da7fa2a9cd9c6 23
+  s_8192a86481d047::t_6e95fa969820b1 31
+  s_8192a86481d047::t_25317f5194e4a8 1-22,24-30,32-53
+.claude/skills/architecture/references/auto-strategy-probe.md
+  s_8192a86481d047::t_a8640e2b664a42 24
+  s_8192a86481d047::t_a3fec0d5bd3b08 1-23,25-60
+.claude/skills/architecture/references/strategy-dispatch.md
+  s_8192a86481d047::t_1303727aac7e3e 45
+  s_8192a86481d047::t_b9dc9ea15c1434 50
+  s_8192a86481d047::t_91ccb87a47588d 3,7,9,11-20,30,41,43,47-49,56-59,70-71
+  s_8192a86481d047::t_325b4f2f2d984d 52
+.claude/skills/architecture/references/keyboard-adapter.md
+  s_8192a86481d047::t_b9010174494123 93
+  s_8192a86481d047::t_e92f1976a87f13 97
+  s_8192a86481d047::t_1f28d1e6030350 103
+  s_8192a86481d047::t_4f3c05e2fe3085 70
+  s_8192a86481d047::t_c354011068aee0 87
+  s_8192a86481d047::t_bd28ce1a7fb326 28
+  s_8192a86481d047::t_fa0a6098afe385 84
+  s_8192a86481d047::t_0b03ec3dabb0cf 38
+  s_8192a86481d047::t_e93c4e70c2f543 82
+  s_8192a86481d047::t_87749c39e04ed6 1-2,4-27,29-37,39-69,71-75,77,79-81,83,85,88-92,94-96,98-102,104-126
+  s_8192a86481d047::t_f369b83310ee5c 76
+  s_8192a86481d047::t_9c646df81f0f30 86
+  s_8192a86481d047::t_56721ef94e2960 3
+  s_8192a86481d047::t_62a9a82ac18e9d 78
+.claude/skills/architecture/references/profiles-and-config.md
+  s_8192a86481d047::t_f57a2d0cca30cb 101
+  s_8192a86481d047::t_95ad64f213b7bf 41
+  s_8192a86481d047::t_bdc9f890c3e6e5 88
+  s_8192a86481d047::t_62254e98f94f4e 82
+  s_8192a86481d047::t_850d2d6599f75a 90
+.claude/skills/architecture/references/focus-and-dispatch-reads.md
+  s_8192a86481d047::t_c19900613294b1 32
+  s_8192a86481d047::t_2b3a3eee43c942 1-2,4-21,23-27,29-31,34,36-57
+  s_8192a86481d047::t_aac42113ac3e90 35
+  s_8192a86481d047::t_c4572f138fcc23 3
+  s_8192a86481d047::t_630c8243533e9e 33
+  s_8192a86481d047::t_1ed838836e823a 22
+  s_8192a86481d047::t_9e43e5ea119cb1 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "47754b1066245d0df84dda96d0d6e4a41273c0cf",
+  "prompts": {},
+  "sessions": {
+    "s_8192a86481d047": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9dd4ec51-1feb-47cf-9c77-d041b84a31a4",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
