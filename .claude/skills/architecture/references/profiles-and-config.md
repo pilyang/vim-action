@@ -38,7 +38,7 @@ apps:                              # bundle-id → bool 맵 (목록이 아니라
 ```yaml
 name: Notion                      # 선택 — 표시용
 strategy: accessibility           # 선택 — accessibility|keyboard|auto. auto = 프로브 판정
-                                  #   (strategy-dispatch.md의 auto 프로브 섹션).
+                                  #   (auto-strategy-probe.md).
                                   #   미지정 = 번들 기본 auto(defaultStrategy 단일 상수 —
                                   #   2026-08-14 도그푸딩 게이트 통과 후 전환 완료)
 keyboard_family: force_text       # 선택 — key_mapping(기본)|force_text. keyboard 실행의
@@ -79,15 +79,15 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 - **재정의·disable 전파**: 단일 조회 지점은 `MotionKeyMapper.keyStrokes(for:profile:)`(옵셔널 반환) — 편집·Visual은 물론 **명령 접두(paste 위치·o/O·scroll 반복)와 yank collapse까지** 전파되고, disabled는 nil 상향 전파로 복합 액션 통째 스킵. 어댑터 `Mapping.disabledByProfile`이 미지원과 별도 집계(분류는 `.empty` 재조회). `.edit`의 paste-wise 기억은 **게시 확정 뒤에만** 남는다. Visual 세션 메커니즘(진입·wise 전환·collapse)은 리터럴 유지. ([결정](../../decisions/references/20260802_profile-override-propagation-full-lookup.md))
 - **앱별 on/off** → `FrontmostAppGate`의 인스턴스 `disabledBundleIDs`(config `apps` 맵의 false 항목, `AppState`가 로드·리로드 때 푸시). 순수 판정은 `isDisabled(_:disabledBundleIDs:)`. **bootstrap에서 설정 로드가 탭 설치보다 먼저다** — 빈 게이트로 탭이 서는 창을 닫는다.
 - `scroll` 재정의 → `CommandKeyMapper.lineCount(for:profile:)` — 기본 15/30은 코드 상수 유지.
-- **Settings 창은 읽기 전용**: 설정 파일 상태는 **Apps 탭**(창의 기본 탭)의 `Configuration` 섹션이 전부 보여준다 — 상태·에러 목록·경고 수·off 앱·프로파일 목록 + config.yaml/폴더 열기 버튼. 표시와 파일 열기만 하고, **실행 중인 앱 목록이나 앱별 토글은 두지 않는다**(그 플로우는 메뉴바 토글이 덮는다). 탭 구성은 [system-overview.md](system-overview.md).
+- **Settings 창은 읽기 전용**: 설정 파일 상태는 **Apps 탭**(창의 기본 탭)의 `Configuration` 섹션이 전부 보여준다 — 상태·에러 목록·경고 수·off 앱·프로파일 목록 + config.yaml/폴더 열기 버튼. 표시와 파일 열기만 하고, **실행 중인 앱 목록이나 앱별 토글은 두지 않는다**(그 플로우는 메뉴바 토글이 덮는다). 탭 구성은 [app-shell.md](app-shell.md).
 - **UI가 파일을 쓰는 경로는 메뉴바 토글 하나뿐이다**(`ConfigStore.setAppEnabled`). **재직렬화는 여전히 금지**(Yams dump가 주석·서식을 파괴한다)이고, 허용된 것은 **라인 단위 편집**뿐이다 — 순수 함수 `settingAppEnabled(in:bundleID:enabled:)`(`AppEnableEditor.swift`)가 값 토큰 교체 / 한 줄 삽입 / 파일 끝 `apps:` 블록 추가만 하고, 들여쓰기·후행 주석·후행 개행 유무를 보존한다. 안전 계약 3종이 이 경로의 전제다 ([결정](../../decisions/references/20260809_config-yaml-line-edit-writes.md)):
   - **에러 상태에서는 쓰지 않는다** — 마지막 로드에 `ConfigError`가 있으면(직전 유효 설정으로 도는 중) 스토어가 거부하고, 메뉴 토글은 그 상태에서 `.disabled`다.
   - **애매하면 `nil` = 손대지 않음** — 최상위 `apps:` 중복, 항목 중복, `apps: {}` flow 형태, 인용이 필요한 bundle id(`[A-Za-z0-9._-]` 화이트리스트), 원본이 이미 파싱 불가. **그리고 반환 직전에 결과를 `GlobalConfigParser`로 파싱해 "에러 없음 + apps 맵 == 원본 + 이 항목"을 증명한 뒤에만 돌려준다** — 중복 키가 생기면 config.yaml이 통째로 무효가 되어 off 해둔 앱이 전부 켜지기 때문이다.
   - **실패는 파일 열기로 폴백** — 어느 단계에서 막히든 NSAlert(`NSApp.activate` 선행) + `openConfigFile()`. 토글 클릭이 조용한 무동작이 되지 않는다.
   - 재활성화는 줄 삭제가 아니라 **값 교체**(`false`→`true`)다 — 그 줄의 후행 주석이 살아남는다. 쓰기는 `ConfigSeeder.FileSystem.writeFile` seam만 쓰고 **`seeder.seed()`는 거치지 않는다**(그건 "기존 파일 절대 무수정" 경로라 목적이 정반대).
-- 메뉴바 메뉴: **미허용 시 최상단 권한 경고 행**([system-overview.md](system-overview.md)) + **설정 상태 라인 상시**(`configStatusText`) + **'Reload Config'**(실패 시에만 NSAlert — `NSApp.activate` 선행, 시작 시 에러는 팝업 없음) + **'Open config.yaml'** + **최전면 앱 항목 3종** — `Frontmost: <bundle-id>` 표시 줄 + **'Disable for This App' 토글** + 'Copy Bundle ID'(`Clipboard.write`) + 'Open/Create Profile'(파일 유무에 따라 제목이 바뀐다).
+- 메뉴바 메뉴: **미허용 시 최상단 권한 경고 행**([app-shell.md](app-shell.md)) + **설정 상태 라인 상시**(`configStatusText`) + **'Reload Config'**(실패 시에만 NSAlert — `NSApp.activate` 선행, 시작 시 에러는 팝업 없음) + **'Open config.yaml'** + **최전면 앱 항목 3종** — `Frontmost: <bundle-id>` 표시 줄 + **'Disable for This App' 토글** + 'Copy Bundle ID'(`Clipboard.write`) + 'Open/Create Profile'(파일 유무에 따라 제목이 바뀐다).
   - 토글은 **끄는 쪽이 체크된다** — 기본이 on이고 사용자가 하는 일은 쓰지 않을 앱을 골라 끄는 것이라, 체크마크가 "내가 손대 둔 앱"을 뜻해야 읽힌다(`apps:` 맵과 같은 방향). `isOn`은 `disabledBundleIDs` 파생 + `AppState.setAppEnabled` 커스텀 `Binding`이고, 성공하면 기존 `reloadConfig()`가 게이트 푸시까지 잇는다 — 쓰기만으로는 반영되지 않는다.
-  - **대상은 `FrontmostAppGate.lastNonSelfBundleID`(비자신 캐시)다** — 메뉴 조작·`NSApp.activate`·Preferences 창이 VimAction 자신을 최전면으로 만들어도 대상 앱이 유지된다. 순수 파생은 `nonSelfBundleID(_:selfBundleID:previous:)`이고 nil·자기 자신은 직전 값을 유지한다("대상 없음"이 아니라 "지금은 알 수 없다"). **게이트 판정은 이 캐시를 보지 않는다** — 판정은 계속 `frontmostBundleID`다.
+  - **대상은 `FrontmostAppGate.lastNonSelfBundleID`(비자신 캐시)다** — 메뉴 조작·`NSApp.activate`·Preferences 창이 VimAction 자신을 최전면으로 만들어도 대상 앱이 유지된다. 순수 파생은 `nonSelfTarget(bundleID:processID:selfBundleID:previous:)`이고 **(bundleID, pid) 짝을 함께 갱신**하며, nil·자기 자신은 직전 값을 유지한다("대상 없음"이 아니라 "지금은 알 수 없다"). pid 짝(`lastNonSelfProcessID`)은 메뉴바의 auto 판정 표시가 소비한다([auto-strategy-probe.md](auto-strategy-probe.md), [20260814_menu-verdict-pid-from-gate-non-self-pair.md](../../decisions/references/20260814_menu-verdict-pid-from-gate-non-self-pair.md)). **게이트 판정은 이 캐시를 보지 않는다** — 판정은 계속 `frontmostBundleID`다.
   - **메뉴바 글리프의 disabled 표시도 같은 캐시를 본다** — `minus.square` 인디케이터(우선순위와 근거는 [reentrancy-and-safety.md](reentrancy-and-safety.md) 완화책 ⑤)의 판정은 `lastNonSelfBundleID`이고, 그래서 아이콘을 눌러 VimAction이 최전면이 돼도 표시가 흔들리지 않고 바로 아래 'Disable for This App' 체크마크와 **항상 일치한다**. 표시 축(비자신 캐시)과 판정 축(최전면)의 분리가 여기까지 적용된다 ([결정](../../decisions/references/20260814_menubar-disabled-app-indicator.md)).
   - 메뉴와 글리프가 캐시 변화를 그리려면 관찰이 필요해 **`FrontmostAppGate`가 `@Observable`이다**. 핫 패스가 무거워지지는 않는다(읽기는 추적 스코프 없을 때 즉시 반환하는 `access`뿐, 발화는 두 `update`의 동등성 가드로 실제 전이에만). `deinit`이 만지는 `observerToken`에는 `@ObservationIgnored`가 필수다.
   - scaffold 쓰기는 `ConfigStore.prepareProfileFile(for:)` 하나이고 **시딩과 같은 `ConfigSeeder.seed` 경로를 탄다** — 기존 파일은 시더가 `.skippedExisting`으로 지키므로 "절대 무수정"이 재구현되지 않는다. 템플릿(`profileScaffoldYAML`)은 **전부 주석이라 생성만으로는 동작이 바뀌지 않고**, 생성 후 자동 리로드도 하지 않는다. bundle id가 파일 경로가 되는 유일한 지점이라 `/`·선행 `.`·빈 문자열은 거부한다.
@@ -98,7 +98,7 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 
 - UserDefaults 잔류: `interceptionEnabled`(마스터 토글 — 킬스위치가 전용 스레드에서 직접 영속하는 안전 경로라 파일 IO에 의존시키지 않는다), `normalModeEscapeEnabled`(기존 Settings UI 토글 유지).
 - YAML: 앱별 on/off, 프로파일 전부.
-- **어느 쪽도 아닌 셋째 칸이 있다 — 시스템이 소유하는 상태.** 로그인 시 자동 시작은 `SMAppService.mainApp.status`가 SSOT이고 앱은 값을 저장하지 않는다(사용자가 시스템 설정에서 통지 없이 바꾸므로 미러는 반드시 어긋난다 — [system-overview.md](system-overview.md)). Sparkle 자동 확인도 같은 성격으로, 값의 영속은 Sparkle이 소유한다.
+- **어느 쪽도 아닌 셋째 칸이 있다 — 시스템이 소유하는 상태.** 로그인 시 자동 시작은 `SMAppService.mainApp.status`가 SSOT이고 앱은 값을 저장하지 않는다(사용자가 시스템 설정에서 통지 없이 바꾸므로 미러는 반드시 어긋난다 — [app-shell.md](app-shell.md)). Sparkle 자동 확인도 같은 성격으로, 값의 영속은 Sparkle이 소유한다.
 
 ## 불변식·계약
 
