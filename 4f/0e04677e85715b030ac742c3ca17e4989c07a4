@@ -1,0 +1,27 @@
+README.md
+  s_49b131c6ddf0e5::t_cc5473184574fe 74
+Packages/VimActionCore/Tests/VimEngineTests/EditFixtures.swift
+  s_49b131c6ddf0e5::t_0956388c73ba5e 73-75,89-95,116-125,137-142,145-146
+  s_49b131c6ddf0e5::t_7c9f6f485245e8 143-144
+docs/KEYBINDINGS.md
+  s_49b131c6ddf0e5::t_cc5473184574fe 53
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_49b131c6ddf0e5::t_903dd08aa4aff9 206-215,464-470
+  s_49b131c6ddf0e5::t_163df82ce22f80 471-472
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "4f0e04677e85715b030ac742c3ca17e4989c07a4",
+  "prompts": {},
+  "sessions": {
+    "s_49b131c6ddf0e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f925f837-fd37-44d4-b420-6821ba8d79ae",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
