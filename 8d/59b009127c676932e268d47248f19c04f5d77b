@@ -1,0 +1,23 @@
+.claude/skills/decisions/references/20260830_line-end-shorthand-y.md
+  s_49b131c6ddf0e5::t_f2ff6eaa01604a 1-29
+.claude/skills/architecture/references/mode-engine.md
+  s_49b131c6ddf0e5::t_cf804fc8759e1c 3,26-27
+.claude/skills/decisions/SKILL.md
+  s_49b131c6ddf0e5::t_711ad894bb80f9 153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "8d59b009127c676932e268d47248f19c04f5d77b",
+  "prompts": {},
+  "sessions": {
+    "s_49b131c6ddf0e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f925f837-fd37-44d4-b420-6821ba8d79ae",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
