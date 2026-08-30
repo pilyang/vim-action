@@ -150,6 +150,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 07-31 | 카운트 클램프 1,000 하향 | 기준을 "일상 사용 상한"으로 전환 — 폭주 총량 1/10 안전 마진 | [20260731_count-clamp-lowered-to-1000.md](references/20260731_count-clamp-lowered-to-1000.md) |
 | 08-01 | D/C 어휘 추가 | d$/c$ 축약 즉시 완결 — 동일 출력, 3D는 invalid | [20260801_line-end-shorthand-d-c.md](references/20260801_line-end-shorthand-d-c.md) |
 | 08-01 | 스크롤 카운트 상한 33 | 스크롤만 수십 타 증폭이라 전용 상한 — 클램프 1,000 우회 차단 | [20260801_scroll-count-clamp-33.md](references/20260801_scroll-count-clamp-33.md) |
+| 08-30 | Y 어휘 추가 | y$ 축약(Neovim 기본) — D/C와 한 테이블, 3Y는 invalid(register 오염도 오해석), yy 기각 | [20260830_line-end-shorthand-y.md](references/20260830_line-end-shorthand-y.md) |
 
 ### 킬스위치·폭주 방어
 
