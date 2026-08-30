@@ -50,7 +50,7 @@ Motions move the cursor. Every motion accepts a `[count]` prefix (`3w` = three w
 | Key | Action | Status | Notes |
 |-----|--------|:------:|-------|
 | `x` | Delete character(s) under cursor | ✅ | `3x` deletes 3 characters as one edit |
-| `D` / `C` | Delete / change to end of line | ✅ | Shorthand for `d$` / `c$`; `C` finishes in Insert mode. A count (`3D`) is invalid — Vim's multi-line meaning is not supported |
+| `D` / `C` / `Y` | Delete / change / yank to end of line | ✅ | Shorthand for `d$` / `c$` / `y$`; `C` finishes in Insert mode. A count (`3D`, `3Y`) is invalid — Vim's multi-line meaning is not supported. `Y` follows Neovim (`y$`), not Vim's `yy` |
 | `p` / `P` | Paste after / before | ✅ | Uses the system clipboard; `3p` pastes 3 copies as one edit |
 | `u` | Undo | ✅ | Delegates to the app's native undo; `3u` undoes 3 times |
 | `Ctrl-r` | Redo | ✅ | Delegates to the app's native redo |

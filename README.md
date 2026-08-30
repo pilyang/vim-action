@@ -71,7 +71,7 @@ A taste of what works today:
 |------|--------------|
 | `h j k l` · `w b e` · `0 ^ $` · `gg G` | Motions — all accept counts (`3w`) |
 | `i a I A o O` | Enter Insert mode |
-| `x` · `D` `C` · `p P` · `u` · `Ctrl-r` | Delete, change, paste, undo, redo |
+| `x` · `D` `C` `Y` · `p P` · `u` · `Ctrl-r` | Delete, change, yank, paste, undo, redo |
 | `d` `c` `y` + motion / text object | Operators — `dw`, `3dd`, `diw`, `ci"`, `dG`, … |
 | `v` / `V` | Visual / Visual Line selection |
 | `Ctrl-d` `Ctrl-u` / `Ctrl-f` `Ctrl-b` | Scroll half / full page |
