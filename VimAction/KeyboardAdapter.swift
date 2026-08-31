@@ -569,11 +569,23 @@ nonisolated struct KeyboardAdapter: Sendable {
     /// 게시 직렬 큐를 막는 것이 곧 스로틀이며, 새 키는 탭 콜백에서 래치만 세우고 그 뒤에 쌓인다.
     private static let chunkInterval: TimeInterval = 0.002
 
-    /// 페이싱 다타 그룹(Visual 정확화·paste 접두)의 스트로크 간 간격 — 도그푸딩
-    /// 조절값이다 (Notion 실측: 5ms 충분 확인, 최솟값 미탐). `chunkInterval`과 달리 중단
-    /// 장치가 아니라 **대상 앱이 각 스트로크의 의미(collapse·이동 → Shift 확장·Cmd-V)를
-    /// 소화할 시간**이다.
+    /// 페이싱 다타 그룹(Visual 정확화·paste 접두·단일 청크 편집)의 스트로크 간 간격 —
+    /// 도그푸딩 조절값이다 (Notion 실측: 5ms 충분 확인, 최솟값 미탐). `chunkInterval`과 달리
+    /// 중단 장치가 아니라 **대상 앱이 각 스트로크의 의미(collapse·이동 → Shift 확장·
+    /// Cmd-V·Cmd-C)를 소화할 시간**이다.
     private static let pacedStrokeInterval: TimeInterval = 0.005
+
+    /// 편집 그룹 페이싱 판정 — **단일 청크에 담기는 편집 그룹만** 페이싱한다.
+    ///
+    /// 편집 그룹은 오퍼레이터(`Cmd-X`/`Cmd-C`)의 의미가 직전 선택 스트로크의 착지에,
+    /// yank collapse `←`가 다시 `Cmd-C`의 착지에 의존하는 형태다 — Notion 0간격 버스트에서
+    /// 선택이 착지하기 전에 오퍼레이터가 처리되면 "선택 없는 `Cmd-C`/`Cmd-X` = 블록 전체
+    /// 복사/잘라내기"라는 앱 자체 의미론이 발동한다 (`y$` 도그푸딩 실측 — 재앵커·paste
+    /// 접두와 같은 약점·같은 대응). 카운트 버스트(`500x` = 501타 단일 그룹)는 "카운트
+    /// 버스트 타이밍 현행 유지" 제약대로 페이싱 밖이다 — 경계는 청크 폭을 재사용한다.
+    static func editGroupPaced(strokeCount: Int) -> Bool {
+        strokeCount <= chunkStrokes
+    }
 
     /// 되읽어 검증의 폴링 간격 — 도그푸딩 조절값이다.
     ///
@@ -720,11 +732,13 @@ nonisolated struct KeyboardAdapter: Sendable {
         /// **원자 그룹**의 목록. 청크 경계는 그룹 사이에만 올 수 있다 — 대부분의 액션은
         /// 그룹 1개(액션 전체)이고, `.paste`만 카운트만큼 갈라져 온다.
         ///
-        /// `paced`는 **Visual 정확화 그룹과 `.paste`** 만 참이다 — 다타 그룹의 스트로크
-        /// 사이에 고정 간격을 둔다 (Notion 실측: 0간격 버스트는 재앵커의 Shift 확장도,
-        /// 붙여넣기 접두의 화살표도 소화하지 못했고, 이벤트당 5ms에서는 완전 정상 — 간격
-        /// 문제로 확정). 범위를 이 둘로 한정해야 스크롤(단일 화살표 그룹 — 뷰포트 유래면
-        /// 최대 200타)·폴백 카운트 반복(`500x`)·카운트 버스트가 타이밍까지 현행 그대로다.
+        /// `paced`는 **Visual 정확화 그룹·`.paste`·단일 청크 편집 그룹**만 참이다 — 다타
+        /// 그룹의 스트로크 사이에 고정 간격을 둔다 (Notion 실측: 0간격 버스트는 재앵커의
+        /// Shift 확장도, 붙여넣기 접두의 화살표도 소화하지 못했고, 선택이 착지하기 전의
+        /// `Cmd-C`는 블록 전체 복사가 됐다. 이벤트당 5ms에서는 완전 정상 — 간격 문제로
+        /// 확정). 편집이 청크 폭으로 잘리는 것은(`editGroupPaced`) 스크롤(단일 화살표
+        /// 그룹 — 뷰포트 유래면 최대 200타)·폴백 카운트 반복(`500x`)·카운트 버스트를
+        /// 타이밍까지 현행 그대로 두기 위해서다.
         /// 스크롤이 계속 무페이싱인 것은 드롭의 실패 방향이 "덜 스크롤"이라 무해해서다.
         case groups([[KeyStroke]], paced: Bool)
         /// **AX 쓰기 계획** — `AXSelectedTextRange`에 쓸 범위다(길이 0이면 캐럿).
@@ -1006,8 +1020,11 @@ nonisolated struct KeyboardAdapter: Sendable {
                     // `nil`(= `char_left` disable)이면 아래 위임으로 낙하해 기존 경로가
                     // `.disabledByProfile`로 정직하게 집계한다.
                     if let operatorKeys = EditKeyMapper.operatorStrokes(for: op, profile: profile) {
-                        // 위임분은 `[Cmd-X]` 또는 `[Cmd-C, ←]` 한 그룹이고, 현행 keyboard 편집이
-                        // 무페이싱이라 그대로 둔다 (`.paste`만 `paced: true`다).
+                        // 위임분은 `[Cmd-X]` 또는 `[Cmd-C, ←]` 한 그룹으로 무페이싱 유지 —
+                        // keyboard 편집 그룹의 페이싱(`editGroupPaced`)은 버스트에 취약한
+                        // 앱에서 선택 스트로크가 착지하기 전에 오퍼레이터가 처리되는 축인데,
+                        // 하이브리드의 선택은 AX 쓰기 + 되읽어 검증으로 이미 착지가 확인된
+                        // 상태라 그 축이 없다.
                         hybrid = .hybrid(span, [operatorKeys], paced: false)
                     }
                 case .invalid:
@@ -1240,7 +1257,9 @@ nonisolated struct KeyboardAdapter: Sendable {
     ) -> Mapping {
         if let strokes = EditKeyMapper.keyStrokes(
             for: op, range: range, family: family, profile: profile, text: text) {
-            return .groups([strokes], paced: false)
+            // 페이싱 사유·청크 폭 경계는 `editGroupPaced` 참고. `.selection`(`Cmd-X`/`Cmd-C`
+            // 1타)은 참이어도 게시 쪽 "2타 미만은 일반 경로" 규칙에 걸려 현행 그대로다.
+            return .groups([strokes], paced: Self.editGroupPaced(strokeCount: strokes.count))
         }
         // ① 텍스트 프로브 — **`builtIn`보다 앞**이다. 읽기 없이 답이 있었다면 `nil`을 만든 것은
         //    미지원도 프로파일도 아니라 정확화다.
