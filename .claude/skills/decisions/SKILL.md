@@ -198,6 +198,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-06 | 스크롤 줄 수 우선순위 사다리 | 프로파일 명시값 > AX 뷰포트 > 상수 15/30 (extent별 독립) — 명시 extent는 술어가 읽기 생략 | [20260806_scroll-line-count-priority-ladder.md](references/20260806_scroll-line-count-priority-ladder.md) |
 | 08-06 | 뷰포트 줄 수 클램프만·무페이싱 | `min(max(1,n),200)`(파서 상한 정렬·음수 트랩 가드), half=n/2·full=n−2(Vim 겹침), 스크롤 페이싱 없음 유지 | [20260806_scroll-viewport-clamp-no-pacing.md](references/20260806_scroll-viewport-clamp-no-pacing.md) |
 | 08-06 | 비-QWERTY 역조회 치환 | KeyTranslator가 z/x/c/v 키코드 역조회 캐시, 어댑터가 게시 직전 6/7/8/9 치환(QWERTY는 생략) — layoutBlocked는 역조회 실패 시 최후 방어선 | [20260806_non-qwerty-command-key-reverse-lookup.md](references/20260806_non-qwerty-command-key-reverse-lookup.md) |
+| 08-31 | 편집 그룹도 페이싱 — 단일 청크 한정 | Notion 버스트에서 선택 착지 전 Cmd-C가 블록 전체 복사(`y$` 실측, D/C는 파괴적) — ≤8타 편집 그룹만 5ms 페이싱, 카운트 버스트·하이브리드 위임분은 현행, 20260805 부분 supersede | [20260831_edit-group-stroke-pacing.md](references/20260831_edit-group-stroke-pacing.md) |
 
 ### 실행 계층 — Visual 시퀀스
 
