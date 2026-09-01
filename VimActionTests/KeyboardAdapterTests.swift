@@ -861,7 +861,7 @@ struct KeyboardAdapterEditPacingTests {
                 Int64(kVK_ANSI_C), Int64(kVK_ANSI_C),
                 Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
             ])
-        #expect(elapsed >= .milliseconds(9))
+        #expect(elapsed >= .milliseconds(10))
     }
 }
 
