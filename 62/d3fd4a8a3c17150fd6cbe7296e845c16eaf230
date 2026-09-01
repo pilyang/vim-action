@@ -1,0 +1,19 @@
+VimActionTests/KeyboardAdapterTests.swift
+  s_0533a8c85208cc::t_4e69018eb16418 864
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "62d3fd4a8a3c17150fd6cbe7296e845c16eaf230",
+  "prompts": {},
+  "sessions": {
+    "s_0533a8c85208cc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a5fcbca-b976-442c-b300-5fdd626f7c53",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
