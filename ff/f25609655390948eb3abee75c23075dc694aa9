@@ -1,0 +1,27 @@
+.claude/skills/architecture/references/keyboard-adapter.md
+  s_1287b9a4587c06::t_06d464b684eef0 3
+  s_1287b9a4587c06::t_a4e4d3cf6f490a 44
+  s_1287b9a4587c06::t_df9c0085723021 45
+.claude/skills/decisions/SKILL.md
+  s_1287b9a4587c06::t_9308f438bad07b 201
+.claude/skills/decisions/references/20260831_edit-group-stroke-pacing.md
+  s_1287b9a4587c06::t_a2c0cb82141a5e 1-59
+.claude/skills/decisions/references/20260805_visual-refined-group-stroke-pacing.md
+  s_1287b9a4587c06::t_9817d662e949e5 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "fff25609655390948eb3abee75c23075dc694aa9",
+  "prompts": {},
+  "sessions": {
+    "s_1287b9a4587c06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d711e82a-e1c7-4f70-8392-96700d3549c1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}

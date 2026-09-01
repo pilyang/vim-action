@@ -1,0 +1,25 @@
+VimAction/KeyboardAdapter.swift
+  s_1287b9a4587c06::t_60107a38c77521 572-575,578-588
+  s_1287b9a4587c06::t_14ad83f56f88d2 1023-1027
+  s_1287b9a4587c06::t_07fe8ba8813cbb 1260-1262
+  s_1287b9a4587c06::t_0cc4131e567648 735-741
+  s_1287b9a4587c06::t_34265db390664f 589
+VimActionTests/KeyboardAdapterTests.swift
+  s_1287b9a4587c06::t_59274fab8ed22a 831-867
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "5d2a962ac37ec1c1b18421790aba2bef71422c9d",
+  "prompts": {},
+  "sessions": {
+    "s_1287b9a4587c06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d711e82a-e1c7-4f70-8392-96700d3549c1",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
