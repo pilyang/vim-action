@@ -151,6 +151,68 @@ func lineEndShorthands(_ fixture: KeySequenceFixture) {
     expectFixture(fixture)
 }
 
+// `s`/`S`는 `cl`/`cc`의 축약 — 동일 출력이라 어댑터 추가 규칙이 없다.
+// D/C/Y와 달리 카운트는 유효하다: 3s = c3l, 3S = 3cc로 Vim 의미가 그대로
+// 표현돼 오해석의 여지가 없다.
+let substituteFixtures: [KeySequenceFixture] = [
+    KeySequenceFixture(
+        "s → change over charRight (cl 동일 출력), Insert 전이",
+        startMode: .normal,
+        steps: [step(.char("s"), .replace([.edit(.change, .motion(.charRight, count: 1))]))],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "3s → charRight ×3을 한 편집 단위로 (3x 규칙), Insert 전이",
+        startMode: .normal,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("s"), .replace([.edit(.change, .motion(.charRight, count: 3))])),
+        ],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "S → change over line (cc 동일 출력), Insert 전이",
+        startMode: .normal,
+        steps: [step(.char("S"), .replace([.edit(.change, .line(count: 1))]))],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "3S → 3줄 change (3cc 동일 출력), Insert 전이",
+        startMode: .normal,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("S"), .replace([.edit(.change, .line(count: 3))])),
+        ],
+        finalMode: .insert
+    ),
+    // 오퍼레이터 대기 중의 s/S는 화이트리스트 밖이다 — ds가 dl이나 dd로 새지 않는다.
+    KeySequenceFixture(
+        "ds → invalid no-op (s는 오퍼레이터 뒤에 못 온다) — 이후 w는 단일 모션",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("s"), .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "dS → invalid no-op (S는 오퍼레이터 뒤에 못 온다) — 이후 w는 단일 모션",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("S"), .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
+]
+
+@Test(arguments: substituteFixtures)
+func substitutes(_ fixture: KeySequenceFixture) {
+    expectFixture(fixture)
+}
+
 let deleteLineFixtures: [KeySequenceFixture] = [
     KeySequenceFixture(
         "dd → 현재 줄 삭제",

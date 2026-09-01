@@ -50,6 +50,7 @@ Motions move the cursor. Every motion accepts a `[count]` prefix (`3w` = three w
 | Key | Action | Status | Notes |
 |-----|--------|:------:|-------|
 | `x` | Delete character(s) under cursor | ✅ | `3x` deletes 3 characters as one edit |
+| `s` / `S` | Substitute character(s) / line(s) | ✅ | Shorthand for `cl` / `cc`; both finish in Insert mode. Counts are valid — `3s` substitutes 3 characters, `3S` 3 lines |
 | `D` / `C` / `Y` | Delete / change / yank to end of line | ✅ | Shorthand for `d$` / `c$` / `y$`; `C` finishes in Insert mode. A count (`3D`, `3C`, `3Y`) is invalid — Vim's multi-line meaning is not supported. `Y` follows Neovim (`y$`), not Vim's `yy` |
 | `p` / `P` | Paste after / before | ✅ | Uses the system clipboard; `3p` pastes 3 copies as one edit |
 | `u` | Undo | ✅ | Delegates to the app's native undo; `3u` undoes 3 times |
@@ -75,9 +76,9 @@ Reading a few examples:
 | `ci"` | Change inside the surrounding `"…"` quotes, then enter Insert |
 | `dgg` / `dG` | Delete whole lines from the cursor to the document start / end |
 
-An invalid sequence (e.g. `dq`) is discarded silently, like in Vim. `c` always finishes by entering Insert mode (`cc`, `c$`, `ciw`, …).
+An invalid sequence (e.g. `dq`) is discarded silently, like in Vim. `c` always finishes by entering Insert mode (`cc`, `c$`, `ciw`, `s`, `S`, …).
 
-> **Clipboard warning.** Delete and change (`x`, `D`, `C`, `d…`, `c…`, and their Visual-mode forms) cut through the **system clipboard** — the removed text overwrites whatever you had copied. This is by design: the clipboard acts as Vim's unnamed register, so `p` pastes what you last deleted.
+> **Clipboard warning.** Delete and change (`x`, `s`, `S`, `D`, `C`, `d…`, `c…`, and their Visual-mode forms) cut through the **system clipboard** — the removed text overwrites whatever you had copied. This is by design: the clipboard acts as Vim's unnamed register, so `p` pastes what you last deleted.
 
 #### Operator × Target support matrix
 
@@ -125,6 +126,8 @@ Enter with `v` (character-wise) or `V` (line-wise) from Normal mode. Motions ext
 | `v` / `V` | Switch char ↔ line, or exit if already in that kind | ✅ | The selection anchor is kept when switching |
 | `d` / `x` | Delete selection → Normal | ✅ | |
 | `c` | Change selection → Insert | ✅ | |
+| `s` | Change selection → Insert | ✅ | Same as `c` |
+| `S` | Change the selected **lines** → Insert | 🚧 | Visual Line only. In character-wise Visual it does nothing — press `V` first, then `S` |
 | `y` | Yank selection → Normal | ✅ | The selection highlight is cleared, like in Vim |
 | `Esc` | Clear selection → Normal | ✅ | |
 

@@ -136,6 +136,39 @@ let visualFixtures: [KeySequenceFixture] = [
         finalMode: .normal
     ),
     KeySequenceFixture(
+        "Visual-char에서 s → c와 동일 출력 (s≡c)",
+        startMode: .visualChar,
+        steps: [step(.char("s"), .replace([.edit(.change, .selection)]))],
+        finalMode: .insert
+    ),
+    // S는 Vim에서 선택이 덮은 줄들을 linewise로 change한다 — visualLine 세션은
+    // 이미 줄 단위라 c와 같은 출력이 정확하고, charwise 세션은 그 의미를 낼 어휘가
+    // 없어 미매핑(swallow)이다. charwise change로 내면 파괴적 편집의 오해석이 된다.
+    KeySequenceFixture(
+        "Visual-line에서 S → c와 동일 출력 (줄 단위 change)",
+        startMode: .visualLine,
+        steps: [step(.char("S"), .replace([.edit(.change, .selection)]))],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "Visual-char에서 S → 미매핑 swallow (선택 유지) — 이후 w는 선택 확장",
+        startMode: .visualChar,
+        steps: [
+            step(.char("S"), .swallow),
+            step(.char("w"), .replace([.extendSelection(.wordForward)])),
+        ],
+        finalMode: .visualChar
+    ),
+    KeySequenceFixture(
+        "V 후 S → 줄 선택 뒤 줄 change (charwise에서의 우회 경로)",
+        startMode: .normal,
+        steps: [
+            step(.char("V"), .replace([.beginSelection(linewise: true)])),
+            step(.char("S"), .replace([.edit(.change, .selection)])),
+        ],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
         "진입부터 완결까지: v → w 확장 → y 복사 → Normal",
         startMode: .normal,
         steps: [
