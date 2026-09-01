@@ -1,6 +1,6 @@
 # Keyboard 어댑터
 
-- **Last updated**: 2026-08-20 (문서 분할 — [strategy-dispatch.md](strategy-dispatch.md)에서 이관 + 심볼 표기 정정: `pasteStrokeGroups` 실명, 설정 어휘 `open_line`)
+- **Last updated**: 2026-08-31 (편집 그룹 페이싱 — 단일 청크 한정 `editGroupPaced` 추가)
 
 ## 현재 구조
 
@@ -40,6 +40,8 @@
 ### 편집 매퍼 — `EditKeyMapper`
 
 `(Operator, TextRange, ElementFamily, ResolvedProfile, FocusedText?) → [KeyStroke]?`. 모든 편집이 한 형태다: **범위를 Shift+모션으로 선택한 뒤 오퍼레이터 1타**(delete·change = `Cmd-X`, yank = `Cmd-C` + `←` collapse). 선택 스트로크는 모션 매핑 결과에 `.maskShift`를 얹어 만들므로 다타 조합도 그대로 성립하고, 모션별 특례는 `cw`→`ce` 하나뿐이다. linewise 반올림은 오퍼레이터별(delete/yank는 개행 포함, change는 줄 유지), 문서 끝에서는 빈 줄 1개가 남는다. `iw`의 무상태 시퀀스는 3타(`Opt-→,Opt-←` 후 `Shift-Opt-→`)이며, 읽기가 성공하면 아래 정확화 표가 갈라내고 남는 무상태 엣지는 2자 이상의 공백·구두점 런뿐이다. 수용 엣지: Notion의 `Shift-Cmd-↑/↓` 블록 이동 충돌(M4 프로파일 몫 — [20260727_notion-cmd-shift-vertical-conflict.md](../../decisions/references/20260727_notion-cmd-shift-vertical-conflict.md)), 소프트 랩 문단의 시각 줄 linewise(창 읽기로 해소 불가 — [20260803_soft-wrap-linewise-not-resolved-by-window-read.md](../../decisions/references/20260803_soft-wrap-linewise-not-resolved-by-window-read.md)). 문서 경계 포화 엣지 5종은 정확화 표로 전부 해소됐다. ([20260727_edit-keystroke-mapping-contract.md](../../decisions/references/20260727_edit-keystroke-mapping-contract.md), [20260727_linewise-newline-rounding.md](../../decisions/references/20260727_linewise-newline-rounding.md), [20260727_yank-collapse-to-range-start.md](../../decisions/references/20260727_yank-collapse-to-range-start.md), [20260727_inner-word-anchor-via-word-end.md](../../decisions/references/20260727_inner-word-anchor-via-word-end.md))
+
+**단일 청크(≤8타) 편집 그룹은 페이싱 대상**이다(`editGroupPaced` — 스트로크 사이 5ms) — 오퍼레이터(`Cmd-X`/`Cmd-C`)·yank collapse `←`의 의미가 선행 스트로크의 착지에 의존해, Notion 0간격 버스트에서 선택이 착지하기 전의 `Cmd-C`가 "선택 없는 `Cmd-C` = 블록 전체 복사"로 터졌다(`y$` 도그푸딩 실측 — `D`/`C`의 `Cmd-X`는 같은 축이 파괴적). 경계가 청크 폭인 것은 카운트 버스트(`500x` = 501타 단일 그룹)를 현행 무페이싱으로 남기기 위해서고, 하이브리드 위임분(`[Cmd-X]`/`[Cmd-C, ←]`)은 접두가 AX 쓰기 + 되읽어 검증이라 페이싱 밖이다 ([20260831_edit-group-stroke-pacing.md](../../decisions/references/20260831_edit-group-stroke-pacing.md)).
 
 **정확화 표** — 읽기가 증명하면 시퀀스가 갈리고, 증명하지 못하면 무상태 시퀀스가 그대로 나간다. 전부 캐럿(`selection.length == 0`)일 때만 발동한다(살아 있는 선택은 출발점 증명 불가).
 

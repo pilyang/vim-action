@@ -828,6 +828,43 @@ struct KeyboardAdapterAbortTests {
     }
 }
 
+/// 편집 그룹 페이싱 — **단일 청크(≤8타) 편집 그룹만** 스트로크 사이 간격을 두고 게시한다.
+///
+/// 오퍼레이터(`Cmd-X`/`Cmd-C`)의 의미가 직전 선택 스트로크의 착지에 의존하는데, Notion은
+/// 0간격 버스트에서 선택이 착지하기 전에 오퍼레이터를 처리해 "선택 없는 `Cmd-C` = 블록
+/// 전체 복사"가 됐다 (`y$` 도그푸딩 실측 — `20260831_edit-group-stroke-pacing.md`).
+struct KeyboardAdapterEditPacingTests {
+    /// 경계는 청크 폭(8) 재사용이다 — 카운트 버스트(`500x` = 501타 단일 그룹)는 "카운트
+    /// 버스트 타이밍 현행 유지" 제약대로 페이싱 밖에 남는다.
+    @Test(
+        "편집 그룹 페이싱 경계는 청크 폭이다",
+        arguments: [(2, true), (3, true), (8, true), (9, false), (501, false)])
+    func editGroupPacedBoundary(_ strokeCount: Int, _ paced: Bool) {
+        #expect(KeyboardAdapter.editGroupPaced(strokeCount: strokeCount) == paced)
+    }
+
+    /// 배선 검증 — 판정만 참이고 게시가 일반 경로면 죽은 코드다. 페이싱의 스트로크 간
+    /// sleep은 **보장 하한**이라 경과 시간의 하한 단언은 흔들리지 않는다 (느린 머신은 더
+    /// 오래 걸릴 뿐이다). `y$` = `[Shift-Cmd-→, Cmd-C, ←]` 3타 → 간격 2회 ≥ 10ms.
+    @Test("y$ 편집 그룹은 페이싱 게시된다")
+    func lineEndYankPostsPaced() {
+        nonisolated(unsafe) var posted: [CGEvent] = []
+        let adapter = makeAdapter { posted.append($0) }
+
+        let elapsed = ContinuousClock().measure {
+            adapter.execute([.edit(.yank, .motion(.lineEnd, count: 1))])
+        }
+
+        #expect(
+            keyCodes(of: posted) == [
+                Int64(kVK_RightArrow), Int64(kVK_RightArrow),
+                Int64(kVK_ANSI_C), Int64(kVK_ANSI_C),
+                Int64(kVK_LeftArrow), Int64(kVK_LeftArrow),
+            ])
+        #expect(elapsed >= .milliseconds(10))
+    }
+}
+
 /// 요소 계열 게이트 — 리졸버가 보고한 계열에 따라 어댑터가 무엇을 걸러내는가.
 ///
 /// 걸러내기는 시퀀스 다변화가 아니다: `.textField`는 `o`/`O`만, `.nonText`는 편집·Visual·명령
