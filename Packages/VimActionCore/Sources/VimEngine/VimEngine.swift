@@ -204,7 +204,7 @@ public struct VimEngine: Sendable {
         }
 
         // 줄 끝까지 축약(D/C/Y) — d$/c$/y$와 동일 출력이라 어댑터 추가 규칙이
-        // 없다. 카운트(3D/3Y)는 Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없어
+        // 없다. 카운트(3D/3C/3Y)는 Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없어
         // 줄 끝까지만 실행하는 오해석 대신 invalid다 (d3G와 같은 기준). C의
         // Insert 전이는 complete가 담당하고(c$와 동일), yank는 모드를 바꾸지
         // 않아 Normal이 유지된다.

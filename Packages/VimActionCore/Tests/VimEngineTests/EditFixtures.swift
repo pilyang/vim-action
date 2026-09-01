@@ -71,7 +71,7 @@ func deleteMotions(_ fixture: KeySequenceFixture) {
 }
 
 // `D`/`C`/`Y`는 d$/c$/y$의 축약 — 동일 출력이라 어댑터 추가 규칙이 없다.
-// 카운트(3D/3Y)는 Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없어 invalid다
+// 카운트(3D/3C/3Y)는 Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없어 invalid다
 // (d3G와 같은 기준).
 let lineEndShorthandFixtures: [KeySequenceFixture] = [
     KeySequenceFixture(
