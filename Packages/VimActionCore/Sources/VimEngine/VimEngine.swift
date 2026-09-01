@@ -203,6 +203,16 @@ public struct VimEngine: Sendable {
             return .swallow
         }
 
+        // 줄 끝까지 축약(D/C/Y) — d$/c$/y$와 동일 출력이라 어댑터 추가 규칙이
+        // 없다. 카운트(3D/3C/3Y)는 Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없어
+        // 줄 끝까지만 실행하는 오해석 대신 invalid다 (d3G와 같은 기준). C의
+        // Insert 전이는 complete가 담당하고(c$와 동일), yank는 모드를 바꾸지
+        // 않아 Normal이 유지된다.
+        if let op = Self.lineEndShorthands[key] {
+            guard current.count == nil else { return .swallow }
+            return complete(op, .motion(.lineEnd, count: 1))
+        }
+
         switch key {
         case .char("i"):
             mode = .insert
@@ -228,13 +238,6 @@ public struct VimEngine: Sendable {
             // 전용 케이스 없이 delete-over-motion 재사용 — 카운트는 반복이 아니라
             // 범위의 count로 담는다 (3x = 3문자를 한 편집 단위로).
             return .replace([.edit(.delete, .motion(.charRight, count: current.count ?? 1))])
-        case .char("D"), .char("C"):
-            // d$/c$의 축약 — 동일 출력이라 어댑터 추가 규칙이 없다. 카운트(3D)는
-            // Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없다 — 파괴적 편집이라
-            // 오해석 대신 invalid다 (d3G와 같은 기준). C의 Insert 전이는 complete가
-            // 담당한다 (c$와 동일).
-            guard current.count == nil else { return .swallow }
-            return complete(key == .char("D") ? .delete : .change, .motion(.lineEnd, count: 1))
         case .char("o"):
             // 새 줄 열기 — change/a/A와 같은 전이+출력 동시 패턴. 선행 카운트는
             // 버린다 (3i 원칙 — Vim 3o의 "입력 반복"은 표현 불가).
@@ -456,6 +459,15 @@ public struct VimEngine: Sendable {
         .char("d"): .delete,
         .char("c"): .change,
         .char("y"): .yank,
+    ]
+
+    /// 줄 끝까지 축약 키 — `d$`/`c$`/`y$`와 동일 출력으로 즉시 완결한다.
+    /// `visualOperatorKeys`와 달리 `operatorKeys`에서 파생하지 않는다: 오퍼레이터가
+    /// 늘 대문자 축약을 갖는다는 보장이 없어 파생은 사실이 아닌 결합이다.
+    private static let lineEndShorthands: [Key: VimAction.Operator] = [
+        .char("D"): .delete,
+        .char("C"): .change,
+        .char("Y"): .yank,
     ]
 
     /// 오퍼레이터 뒤 모션의 종류 — 출력 범위와 카운트 규칙이 kind별로 갈린다.

@@ -70,8 +70,9 @@ func deleteMotions(_ fixture: KeySequenceFixture) {
     expectFixture(fixture)
 }
 
-// `D`/`C`는 d$/c$의 축약 — 동일 출력이라 어댑터 추가 규칙이 없다. 카운트(3D)는
-// Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없어 invalid다 (d3G와 같은 기준).
+// `D`/`C`/`Y`는 d$/c$/y$의 축약 — 동일 출력이라 어댑터 추가 규칙이 없다.
+// 카운트(3D/3C/3Y)는 Vim 의미(줄 끝 + 아래 N-1줄)를 표현할 수 없어 invalid다
+// (d3G와 같은 기준).
 let lineEndShorthandFixtures: [KeySequenceFixture] = [
     KeySequenceFixture(
         "D → delete over lineEnd (d$ 동일 출력), Normal 유지",
@@ -84,6 +85,13 @@ let lineEndShorthandFixtures: [KeySequenceFixture] = [
         startMode: .normal,
         steps: [step(.char("C"), .replace([.edit(.change, .motion(.lineEnd, count: 1))]))],
         finalMode: .insert
+    ),
+    // yank는 complete가 모드를 바꾸지 않아 Normal이 유지된다 (D와 같고 C와 다름).
+    KeySequenceFixture(
+        "Y → yank over lineEnd (y$ 동일 출력), Normal 유지",
+        startMode: .normal,
+        steps: [step(.char("Y"), .replace([.edit(.yank, .motion(.lineEnd, count: 1))]))],
+        finalMode: .normal
     ),
     KeySequenceFixture(
         "3D → invalid no-op (절대 의미 표현 불가) — 이후 w는 단일 모션",
@@ -105,6 +113,16 @@ let lineEndShorthandFixtures: [KeySequenceFixture] = [
         ],
         finalMode: .normal
     ),
+    KeySequenceFixture(
+        "3Y → invalid no-op (클립보드 오염 대신 이연) — 이후 w는 단일 모션",
+        startMode: .normal,
+        steps: [
+            step(.char("3"), .swallow),
+            step(.char("Y"), .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
     // 오퍼레이터 대기 중의 D는 화이트리스트 밖이다 — dD가 dd나 d$로 새지 않는다.
     KeySequenceFixture(
         "dD → invalid no-op (D는 오퍼레이터 뒤에 못 온다) — 이후 w는 단일 모션",
@@ -112,6 +130,16 @@ let lineEndShorthandFixtures: [KeySequenceFixture] = [
         steps: [
             step(.char("d"), .swallow),
             step(.char("D"), .swallow),
+            step(.char("w"), .replace([.move(.wordForward)])),
+        ],
+        finalMode: .normal
+    ),
+    KeySequenceFixture(
+        "dY → invalid no-op (Y는 오퍼레이터 뒤에 못 온다) — 이후 w는 단일 모션",
+        startMode: .normal,
+        steps: [
+            step(.char("d"), .swallow),
+            step(.char("Y"), .swallow),
             step(.char("w"), .replace([.move(.wordForward)])),
         ],
         finalMode: .normal
