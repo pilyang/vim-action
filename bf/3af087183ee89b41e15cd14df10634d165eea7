@@ -1,0 +1,42 @@
+.claude/skills/decisions/references/20260901_visual-substitute-linewise-only.md
+  s_a70eecb2c2e3b1::t_164296df99cdeb 1-31
+.claude/skills/decisions/references/20260901_substitute-shorthand-s-S.md
+  s_a70eecb2c2e3b1::t_164296df99cdeb 1-33
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_a70eecb2c2e3b1::t_7e12ca911d17fb 241-249,358-366,521-522,524
+Packages/VimActionCore/Tests/VimEngineTests/EditFixtures.swift
+  s_a70eecb2c2e3b1::t_9f3b610ef1d4df 154-212
+  s_a70eecb2c2e3b1::t_ce51cf188d6f21 151-153
+.claude/skills/architecture/references/mode-engine.md
+  s_a70eecb2c2e3b1::t_5f2e859f4f3a99 3,27,30
+  s_a70eecb2c2e3b1::t_c0695a354581b4 26
+docs/KEYBINDINGS.md
+  s_a70eecb2c2e3b1::t_03e91ea76abf8a 81
+  s_a70eecb2c2e3b1::t_c19c2f8825480e 53,79,129-130
+README.md
+  s_a70eecb2c2e3b1::t_c19c2f8825480e 74
+.claude/skills/plans/references/20260818_support-s-substitute.md
+  s_a70eecb2c2e3b1::t_51e0f275fb2f7c 4,12-16,20-21,25,29
+.claude/skills/plans/SKILL.md
+  s_a70eecb2c2e3b1::t_51e0f275fb2f7c 54
+Packages/VimActionCore/Tests/VimEngineTests/VisualFixtures.swift
+  s_a70eecb2c2e3b1::t_9f3b610ef1d4df 138-170
+.claude/skills/decisions/SKILL.md
+  s_a70eecb2c2e3b1::t_896b62d8b2cf19 154-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "bf3af087183ee89b41e15cd14df10634d165eea7",
+  "prompts": {},
+  "sessions": {
+    "s_a70eecb2c2e3b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec8171ea-88b9-4824-83cd-8162e17067cf",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
