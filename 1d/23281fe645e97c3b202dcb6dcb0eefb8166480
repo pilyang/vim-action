@@ -1,0 +1,23 @@
+docs/KEYBINDINGS.md
+  s_0533a8c85208cc::t_6dddbf276c2fb5 53
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_0533a8c85208cc::t_f38aaf35db8880 207
+Packages/VimActionCore/Tests/VimEngineTests/EditFixtures.swift
+  s_0533a8c85208cc::t_b39419f96df681 74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "1d23281fe645e97c3b202dcb6dcb0eefb8166480",
+  "prompts": {},
+  "sessions": {
+    "s_0533a8c85208cc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1a5fcbca-b976-442c-b300-5fdd626f7c53",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
