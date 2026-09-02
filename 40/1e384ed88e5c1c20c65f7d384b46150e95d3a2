@@ -1,0 +1,35 @@
+.claude/skills/architecture/references/mode-engine.md
+  s_a70eecb2c2e3b1::t_723381268421c4 26,30
+  s_a70eecb2c2e3b1::t_530402f127a367 3
+.claude/skills/plans/SKILL.md
+  s_a70eecb2c2e3b1::t_e61afd03ac0ef5 54
+.claude/skills/decisions/references/20260902_visual-substitute-charwise-composed.md
+  s_a70eecb2c2e3b1::t_bd388a79c3a25b 1-28
+docs/KEYBINDINGS.md
+  s_a70eecb2c2e3b1::t_723381268421c4 130
+Packages/VimActionCore/Sources/VimEngine/VimEngine.swift
+  s_a70eecb2c2e3b1::t_2910918a6fba50 359-368,527
+Packages/VimActionCore/Tests/VimEngineTests/VisualFixtures.swift
+  s_a70eecb2c2e3b1::t_d0b1252fdbfa82 154,157-160,162
+  s_a70eecb2c2e3b1::t_5901a1221507b3 145-146
+.claude/skills/decisions/SKILL.md
+  s_a70eecb2c2e3b1::t_723381268421c4 155
+.claude/skills/plans/references/20260818_support-s-substitute.md
+  s_a70eecb2c2e3b1::t_eda2dd8224f6f0 4,13,15,17,21,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "401e384ed88e5c1c20c65f7d384b46150e95d3a2",
+  "prompts": {},
+  "sessions": {
+    "s_a70eecb2c2e3b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec8171ea-88b9-4824-83cd-8162e17067cf",
+        "model": "claude-fable-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
