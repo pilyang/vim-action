@@ -136,6 +136,41 @@ let visualFixtures: [KeySequenceFixture] = [
         finalMode: .normal
     ),
     KeySequenceFixture(
+        "Visual-char에서 s → c와 동일 출력 (s≡c)",
+        startMode: .visualChar,
+        steps: [step(.char("s"), .replace([.edit(.change, .selection)]))],
+        finalMode: .insert
+    ),
+    // S는 Vim에서 선택이 덮은 줄들을 linewise로 change한다 — visualLine 세션은
+    // 이미 줄 단위라 c와 같은 출력이 정확하고, charwise 세션은 줄 확장을 먼저
+    // 명시 출력해 V 후 c와 같은 액션열이 된다.
+    KeySequenceFixture(
+        "Visual-line에서 S → c와 동일 출력 (줄 단위 change)",
+        startMode: .visualLine,
+        steps: [step(.char("S"), .replace([.edit(.change, .selection)]))],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "Visual-char에서 S → 줄 확장 + 줄 change 합성 (V 후 c와 같은 액션열)",
+        startMode: .visualChar,
+        steps: [
+            step(
+                .char("S"),
+                .replace([.switchSelectionWise(linewise: true), .edit(.change, .selection)])
+            )
+        ],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
+        "V 후 S → 줄 선택 뒤 줄 change (charwise에서의 우회 경로)",
+        startMode: .normal,
+        steps: [
+            step(.char("V"), .replace([.beginSelection(linewise: true)])),
+            step(.char("S"), .replace([.edit(.change, .selection)])),
+        ],
+        finalMode: .insert
+    ),
+    KeySequenceFixture(
         "진입부터 완결까지: v → w 확장 → y 복사 → Normal",
         startMode: .normal,
         steps: [

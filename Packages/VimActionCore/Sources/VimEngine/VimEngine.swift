@@ -238,6 +238,15 @@ public struct VimEngine: Sendable {
             // 전용 케이스 없이 delete-over-motion 재사용 — 카운트는 반복이 아니라
             // 범위의 count로 담는다 (3x = 3문자를 한 편집 단위로).
             return .replace([.edit(.delete, .motion(.charRight, count: current.count ?? 1))])
+        case .char("s"):
+            // s ≡ cl — 글자를 지우고 Insert로 (전이는 complete가 담당). 카운트는
+            // 반복이 아니라 범위의 count다 (3x 규칙): Vim의 3s = c3l이라 의미가
+            // 그대로 표현돼 D/C/Y처럼 invalid로 이연할 이유가 없다.
+            return complete(.change, .motion(.charRight, count: current.count ?? 1))
+        case .char("S"):
+            // S ≡ cc — 줄 범위 change. 3S = 3cc로 카운트도 정확히 표현된다.
+            // 들여쓰기 보존(Vim autoindent)이 없는 것은 cc와 같은 편차다.
+            return complete(.change, .line(count: current.count ?? 1))
         case .char("o"):
             // 새 줄 열기 — change/a/A와 같은 전이+출력 동시 패턴. 선행 카운트는
             // 버린다 (3i 원칙 — Vim 3o의 "입력 반복"은 표현 불가).
@@ -346,7 +355,20 @@ public struct VimEngine: Sendable {
             break
         }
 
-        // 선택 동작 y d x c — 선택 범위로 즉시 완결. 선행 카운트는 버리고
+        // Visual S — Vim은 선택이 덮은 줄들을 linewise로 change한다. visualLine
+        // 세션은 이미 줄 단위라 `c`와 같은 출력이 정확하다. charwise 세션은 줄
+        // 확장을 먼저 명시 출력한다 — switchSelectionWise는 앵커 유지 재적용이라
+        // 선택이 덮은 줄 전체로 넓어지고, V 후 c와 같은 액션열이 된다 (Insert
+        // 전이는 change 완결의 규칙 그대로).
+        if key == .char("S") {
+            if mode == .visualLine {
+                return complete(.change, .selection)
+            }
+            mode = .insert
+            return .replace([.switchSelectionWise(linewise: true), .edit(.change, .selection)])
+        }
+
+        // 선택 동작 y d x c s — 선택 범위로 즉시 완결. 선행 카운트는 버리고
         // 실행한다 (Vim 동일): 피연산자가 이미 확정된 선택 범위라 카운트가
         // 결과를 바꿀 여지가 없다 — 오해석이 가능해 invalid인 d3G와 다른 기준.
         // y/d/x는 Normal 복귀, c는 complete가 Insert로 전이한다(기존 단일화 헬퍼).
@@ -501,9 +523,10 @@ public struct VimEngine: Sendable {
 
     /// Visual에서 선택 범위로 즉시 완결되는 오퍼레이터 키 — `operatorKeys`에서
     /// 파생해 두 테이블이 어긋날 수 없게 한다. `x`는 전용 케이스 없이 `d`와
-    /// 동일 출력이다 (PRD가 둘 다 "선택 삭제"로 정의).
+    /// 동일 출력이다 (PRD가 둘 다 "선택 삭제"로 정의). `s`도 같은 형태로 `c`와
+    /// 동일 출력이다 (Vim `v_s`) — 줄 단위인 `S`만 wise 전환이 얽혀 위 분기다.
     private static let visualOperatorKeys: [Key: VimAction.Operator] =
-        operatorKeys.merging([.char("x"): .delete]) { _, added in added }
+        operatorKeys.merging([.char("x"): .delete, .char("s"): .change]) { _, added in added }
 
     /// 스코프 접두(i/a) 뒤 quote 오브젝트 완결 키.
     private static let quoteObjectKeys: [Key: VimAction.TextObject.Quote] = [
