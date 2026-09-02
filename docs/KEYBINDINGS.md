@@ -127,7 +127,7 @@ Enter with `v` (character-wise) or `V` (line-wise) from Normal mode. Motions ext
 | `d` / `x` | Delete selection → Normal | ✅ | |
 | `c` | Change selection → Insert | ✅ | |
 | `s` | Change selection → Insert | ✅ | Same as `c` |
-| `S` | Change the selected **lines** → Insert | 🚧 | Visual Line only. In character-wise Visual it does nothing — press `V` first, then `S` |
+| `S` | Change the selected **lines** → Insert | ✅ | In character-wise Visual the selection expands to whole lines first, like pressing `V` then `c` |
 | `y` | Yank selection → Normal | ✅ | The selection highlight is cleared, like in Vim |
 | `Esc` | Clear selection → Normal | ✅ | |
 

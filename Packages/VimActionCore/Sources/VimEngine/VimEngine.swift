@@ -356,11 +356,16 @@ public struct VimEngine: Sendable {
         }
 
         // Visual S — Vim은 선택이 덮은 줄들을 linewise로 change한다. visualLine
-        // 세션은 이미 줄 단위라 `c`와 같은 출력이 정확하고, charwise 세션은 그
-        // 의미를 낼 어휘가 없어 미매핑(swallow)으로 둔다 — charwise change로 내는
-        // 것은 파괴적 편집의 오해석이다 (사용자는 V 후 S/c로 낼 수 있다).
-        if key == .char("S"), mode == .visualLine {
-            return complete(.change, .selection)
+        // 세션은 이미 줄 단위라 `c`와 같은 출력이 정확하다. charwise 세션은 줄
+        // 확장을 먼저 명시 출력한다 — switchSelectionWise는 앵커 유지 재적용이라
+        // 선택이 덮은 줄 전체로 넓어지고, V 후 c와 같은 액션열이 된다 (Insert
+        // 전이는 change 완결의 규칙 그대로).
+        if key == .char("S") {
+            if mode == .visualLine {
+                return complete(.change, .selection)
+            }
+            mode = .insert
+            return .replace([.switchSelectionWise(linewise: true), .edit(.change, .selection)])
         }
 
         // 선택 동작 y d x c s — 선택 범위로 즉시 완결. 선행 카운트는 버리고
@@ -519,7 +524,7 @@ public struct VimEngine: Sendable {
     /// Visual에서 선택 범위로 즉시 완결되는 오퍼레이터 키 — `operatorKeys`에서
     /// 파생해 두 테이블이 어긋날 수 없게 한다. `x`는 전용 케이스 없이 `d`와
     /// 동일 출력이다 (PRD가 둘 다 "선택 삭제"로 정의). `s`도 같은 형태로 `c`와
-    /// 동일 출력이다 (Vim `v_s`) — 줄 단위인 `S`만 mode를 봐야 해서 위 분기다.
+    /// 동일 출력이다 (Vim `v_s`) — 줄 단위인 `S`만 wise 전환이 얽혀 위 분기다.
     private static let visualOperatorKeys: [Key: VimAction.Operator] =
         operatorKeys.merging([.char("x"): .delete, .char("s"): .change]) { _, added in added }
 

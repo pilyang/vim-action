@@ -152,7 +152,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-01 | 스크롤 카운트 상한 33 | 스크롤만 수십 타 증폭이라 전용 상한 — 클램프 1,000 우회 차단 | [20260801_scroll-count-clamp-33.md](references/20260801_scroll-count-clamp-33.md) |
 | 08-30 | Y 어휘 추가 | y$ 축약(Neovim 기본) — D/C와 한 테이블, 3Y는 invalid(register 오염도 오해석), yy 기각 | [20260830_line-end-shorthand-y.md](references/20260830_line-end-shorthand-y.md) |
 | 09-01 | s/S 어휘 추가 | cl/cc 축약 — 동일 출력이라 어댑터 무변경, 카운트는 유효(3s=c3l·3S=3cc로 표현 가능, D/C/Y와 갈림) | [20260901_substitute-shorthand-s-S.md](references/20260901_substitute-shorthand-s-S.md) |
-| 09-01 | Visual S는 linewise 한정 | visualLine만 c와 동일 출력, charwise는 미매핑 이연 — 2액션 합성은 액션 간 페이싱 부재(20260831과 같은 축)로 파괴적 | [20260901_visual-substitute-linewise-only.md](references/20260901_visual-substitute-linewise-only.md) |
+| 09-02 | Visual S는 charwise도 합성 지원 | visualLine은 c와 동일 출력, charwise는 [switchWise, change] 2액션 합성(V 후 c와 동일) — 액션 간 2ms로 충분함을 Notion 도그푸딩으로 실증, 페이싱 규칙 미추가 | [20260902_visual-substitute-charwise-composed.md](references/20260902_visual-substitute-charwise-composed.md) |
 
 ### 킬스위치·폭주 방어
 
