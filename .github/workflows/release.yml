@@ -1,11 +1,15 @@
 # 릴리스 파이프라인 — tag(v*) push 트리거 (20260810_tag-push-release-pipeline).
 #
-# 흐름: 빌드(Developer ID 서명, 1단계에서 확정한 오버라이드 그대로) → DMG 패키징(create-dmg)
-# → 공증(notarytool, ASC API 키) + 스테이플 → generate_appcast(EdDSA 서명) → GitHub Release 업로드
+# 흐름: 릴리스 노트 추출(annotated tag 본문) → 빌드(Developer ID 서명, 1단계에서 확정한 오버라이드
+# 그대로) → DMG 패키징(create-dmg) → 공증(notarytool, ASC API 키) + 스테이플
+# → generate_appcast(EdDSA 서명 + 노트 임베드) → GitHub Release 업로드
 # → Homebrew cask bump (pilyang/homebrew-tap).
 #
 # 버전은 tag에서 파생한다: v1.2.3 → MARKETING_VERSION=1.2.3, CURRENT_PROJECT_VERSION=1.2.3
 # (CFBundleVersion이 Sparkle의 비교 대상 sparkle:version이 된다 — semver 증가가 곧 단조 증가).
+#
+# 릴리스 노트도 tag에서 파생한다: annotated tag 본문 하나가 원본이고, 앱 업데이트 다이얼로그
+# (appcast <description>)와 GitHub Release 본문이 모두 여기서 나온다 (작성 규칙은 CLAUDE.md).
 #
 # 필요한 GH Secrets 5종:
 #   MACOS_CERT_P12          — Developer ID Application 인증서+개인키 p12의 base64
@@ -44,6 +48,32 @@ jobs:
 
       - name: Derive version from tag
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      # 릴리스 노트의 원본은 annotated tag 본문이다 — 제목 줄은 릴리스 제목(--title)이 따로 쓴다.
+      # lightweight 태그에서는 %(contents:body)가 가리키는 커밋의 본문을 조용히 돌려주므로
+      # 객체 타입을 먼저 확인해야 커밋 메시지가 릴리스 노트로 둔갑하지 않는다 (v0.1.0이 실제로 그 상태).
+      # 여러 줄 값이라 $GITHUB_ENV로 넘기지 않고 최종 소비처인 파일로 바로 쓴다:
+      # dist/VimAction-$VERSION.md는 generate_appcast의 노트 규약(아카이브와 같은 basename)이자
+      # gh release create --notes-file의 입력이다. dist는 원래 Package DMG가 만들지만 여기서 먼저 필요하다.
+      # 빌드·공증에 ~50분이 걸리므로 판정은 그 앞에서 끝낸다.
+      - name: Extract release notes from tag
+        run: |
+          # cat-file은 없는 ref에서 죽으므로 감싼다 — 실패 사유를 우리 메시지로 내보내기 위해.
+          TAG_TYPE="$(git cat-file -t "$GITHUB_REF_NAME" 2>/dev/null || echo missing)"
+          if [ "$TAG_TYPE" != "tag" ]; then
+            echo "::error::$GITHUB_REF_NAME is not an annotated tag ($TAG_TYPE) — re-tag with 'git tag -a'"
+            exit 1
+          fi
+          # 명령 치환이 후행 개행을 지우므로 이것이 곧 trim이다.
+          NOTES="$(git tag -l --format='%(contents:body)' "$GITHUB_REF_NAME")"
+          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "::error::annotated tag $GITHUB_REF_NAME has an empty body — the body is the release notes"
+            exit 1
+          fi
+          mkdir -p dist
+          printf '%s\n' "$NOTES" > "dist/VimAction-$VERSION.md"
+          echo "--- release notes ---"
+          cat "dist/VimAction-$VERSION.md"
 
       # 임시 키체인에만 인증서를 넣는다 — 러너 login 키체인 오염 방지, 종료 시 삭제.
       - name: Import signing certificate
@@ -159,6 +189,12 @@ jobs:
 
       # 도구는 앱이 링크하는 것과 같은 버전의 Sparkle 배포 tarball에서 가져오고,
       # 다이제스트 검증을 통과해야만 실행한다.
+      #
+      # appcast는 매번 새 DMG 하나뿐인 dist에서 생성되므로 아이템이 1개다 — 여러 버전을 건너뛴
+      # 사용자는 업데이트 다이얼로그에서 최신 버전 노트만 본다 (전체 히스토리는 아래 Version History 링크).
+      # 피드 서명은 opt-in(앱 Info.plist에 SURequireSignedFeed 없음)이라 <description>은 서명 대상이 아니다 —
+      # 오타는 appcast.xml을 고쳐 `gh release upload <tag> appcast.xml --clobber`로 정정할 수 있지만,
+      # 그 순간 태그 본문(원본)과 어긋나므로 예외 경로다.
       - name: Generate appcast
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
@@ -170,9 +206,15 @@ jobs:
           tar -xJf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
           KEY_FILE="$RUNNER_TEMP/eddsa_private_key"
           printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$KEY_FILE"
+          # --embed-release-notes는 필수다. 빼면 dist/VimAction-$VERSION.md가 <description>에
+          # 인라인되는 대신 sparkle:releaseNotesLink로 나가는데, 그 URL은 --download-url-prefix가 아니라
+          # 앱 Info.plist의 SUFeedURL 기준(releases/latest/download/VimAction-$VERSION.md)으로 만들어지고
+          # 그 자산은 업로드하지 않으므로 404가 된다.
           "$RUNNER_TEMP/sparkle/bin/generate_appcast" \
             --ed-key-file "$KEY_FILE" \
             --download-url-prefix "https://github.com/pilyang/vim-action/releases/download/$GITHUB_REF_NAME/" \
+            --embed-release-notes \
+            --full-release-notes-url "https://github.com/pilyang/vim-action/releases" \
             -o dist/appcast.xml \
             dist
           rm "$KEY_FILE"
@@ -183,11 +225,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # --notes-file 본문이 맨 위에 오고 그 아래로 --generate-notes의 "What's Changed"가 붙는다
+          # (body가 있으면 GitHub이 자동 생성 노트 앞에 prepend). 태그 본문 = 사람이 쓴 요약,
+          # 자동 생성 = PR 전수 목록으로 역할이 갈린다.
+          # --notes-from-tag는 --generate-notes와 배타적이고 제목 줄까지 끌어오므로 쓰지 않는다.
           gh release create "$GITHUB_REF_NAME" \
             "dist/VimAction-$VERSION.dmg" \
             "dist/appcast.xml" \
             --verify-tag \
             --title "VimAction $VERSION" \
+            --notes-file "dist/VimAction-$VERSION.md" \
             --generate-notes
 
       # tap 레포(pilyang/homebrew-tap)의 cask version·sha256을 교체해 푸시한다.

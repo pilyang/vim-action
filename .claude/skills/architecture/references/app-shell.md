@@ -1,6 +1,6 @@
 # 앱 셸
 
-- **Last updated**: 2026-08-20 (문서 분할 — [system-overview.md](system-overview.md)의 "관련" 섹션에서 이관, 내용 변경 없음)
+- **Last updated**: 2026-09-04 (릴리스 노트 노출 배선 반영)
 
 ## 현재 구조
 
@@ -29,6 +29,8 @@
 ### 자동 업데이트 — Sparkle 2.x
 
 앱 타깃의 첫 원격 SPM 의존, 2.9.5 고정. `SPUStandardUpdaterController`는 `AppState`가 소유하되 **생성만 하고**(`startingUpdater: false`) 시동은 `bootstrap()`의 XCTest 가드 뒤에서만 — 테스트·프리뷰는 appcast 조회를 하지 않는다(init 무IO 관례). 피드·공개키는 부분 Info.plist(`VimAction/Info.plist`, `GENERATE_INFOPLIST_FILE`과 병합)가 소유한다: `SUFeedURL`은 GitHub Releases 고정 URL, `SUPublicEDKey`는 EdDSA 공개키(개인키는 로그인 키체인 — 레포 커밋 금지). UI는 공용 확인 버튼(메뉴바 메뉴 + About 탭, `canCheckForUpdates` KVO를 Combine으로 구독)과 General 탭 자동 확인 토글(값 영속은 Sparkle 소유)이고, 확인 이후 플로우는 전부 Sparkle 표준 UI다. 자동 확인 기본값은 Sparkle 표준 동의 프롬프트에 맡긴다 ([20260810_sparkle-auto-update.md](../../decisions/references/20260810_sparkle-auto-update.md), [20260810_appcast-hosting-github-releases.md](../../decisions/references/20260810_appcast-hosting-github-releases.md), [20260811_sparkle-updater-ui-and-consent.md](../../decisions/references/20260811_sparkle-updater-ui-and-consent.md)).
+
+업데이트 다이얼로그에 뜨는 변경사항은 appcast 아이템에 인라인된 `<description sparkle:format="markdown">`이고, 그 원문은 **릴리스 태그의 annotated tag 본문**이다 — 릴리스 워크플로가 빌드 전에 본문을 뽑아 DMG와 같은 basename의 `.md`로 두면 `generate_appcast --embed-release-notes`가 임베드한다(링크 방식은 URL이 `SUFeedURL` 기준으로 만들어져 깨진다). "You're up to date" 알림의 **Version History** 버튼은 `--full-release-notes-url`이 심는 `sparkle:fullReleaseNotesLink`(GitHub Releases 목록)에서 온다. appcast는 릴리스마다 아이템 1개라 여러 버전을 건너뛴 사용자는 최신 버전 노트만 본다. 노트 작성 규칙은 `CLAUDE.md`의 커밋·릴리스 태그 컨벤션이 소유한다.
 
 ### 권한과 온보딩
 
