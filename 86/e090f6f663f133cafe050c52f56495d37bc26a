@@ -1,0 +1,33 @@
+.claude/skills/architecture/references/app-shell.md
+  s_590f1c1da5e159::t_6af2ef360bc506 3
+  s_590f1c1da5e159::t_7ff5374e548f9b 33-34
+.claude/skills/plans/references/20260818_update-release-notes.md
+  s_590f1c1da5e159::t_3568d0388ebbd8 4,12-15,19,23,25-27,31
+CLAUDE.md
+  s_590f1c1da5e159::t_11121566a739e7 44-45
+.claude/skills/plans/SKILL.md
+  s_590f1c1da5e159::t_193d7fa7a3bcc4 54
+.github/workflows/release.yml
+  s_590f1c1da5e159::t_791282fc5a2277 3-5,11-12
+  s_590f1c1da5e159::t_35af796a923928 52-77
+  s_590f1c1da5e159::t_08e9d33e9b883d 209-212,216-217
+  s_590f1c1da5e159::t_c94511be0186bd 228-231,237
+  s_590f1c1da5e159::t_4fe8449387499d 192-197
+  s_590f1c1da5e159::t_6bfcc1b7083692 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "86e090f6f663f133cafe050c52f56495d37bc26a",
+  "prompts": {},
+  "sessions": {
+    "s_590f1c1da5e159": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6595a4d2-7eb9-468b-bd45-7d34812301c8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
