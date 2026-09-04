@@ -1,0 +1,22 @@
+.claude/skills/plans/SKILL.md
+  s_590f1c1da5e159::t_db88dcc22944e3 54
+.claude/skills/plans/references/20260818_update-release-notes.md
+  s_590f1c1da5e159::t_173de402fbd67f 16,20,24
+  s_590f1c1da5e159::t_f5f0f89c3bf874 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "031f5fb19cd32a451b3c207727d8c5cfe576334e",
+  "prompts": {},
+  "sessions": {
+    "s_590f1c1da5e159": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6595a4d2-7eb9-468b-bd45-7d34812301c8",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
