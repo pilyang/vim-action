@@ -1,7 +1,7 @@
 # 온스크린 모드 인디케이터 (HUD)
 
 - **생성일**: 2026-09-06
-- **갱신일**: 2026-09-07 (PR 3 구현·도그푸딩 완료, PR 오픈 — 번호는 아래)
+- **갱신일**: 2026-09-07 (PR 3 구현·도그푸딩 완료, PR #68 오픈)
 
 ## 목표
 
@@ -13,14 +13,14 @@
 - [x] 구현 가능성 스파이크 (2026-09-06, 실기기·2디스플레이): AX 기하 가용성 실측 + 비활성화 NSPanel 오버레이 프로토타입 검증. 결과는 아래 "진행 중 컨텍스트".
 - [x] **PR 1 머지 완료** ([PR #66](https://github.com/pilyang/vim-action/pull/66) → main `48cbd28`, 2026-09-06; Opus 워커 위임 + 감독 리뷰 + 독립 검증): 비활성화 패널·순수 레이아웃(테스트 10건)·전용 큐 기하 리더·모드 전환 훅. 실기기 도그푸딩(Developer ID Release 설치): TextEdit Esc/i/v, Chrome Esc, Slack Esc 전부 라벨 표시·최전면 불변·보조 디스플레이 정렬 확인. architecture reference [mode-indicator-overlay.md](../../architecture/references/mode-indicator-overlay.md) 추가.
 - [x] **PR 2 머지 완료** ([PR #67](https://github.com/pilyang/vim-action/pull/67) → main `4040fe4`, 2026-09-06, 브랜치 `feat/mode-indicator-persistent-badge`, Opus 워커 위임 + 감독 리뷰 + 독립 검증): 비-Insert 상시 배지(flash보다 한 단 작고 한 층 아래)·재앵커 트리거 5종(모드 전환 / 포커스·앱 활성화·창 이동·리사이즈 / 디스플레이 재구성 / 사다리 관찰 루프 / 토글)이 단일 reconcile로 합류, 순수 판정 2종(`presentation`·`needsGeometryRead`) 표 테스트, `visibleFrame` 클램프(화면 선택은 `frame`), 강조색 luminance 기반 글씨색, General > Behavior 토글(`onScreenModeIndicatorEnabled`, 기본 on). 실기기 도그푸딩: 창 이동(−900,+262)·리사이즈 추종, Chrome 전환 재앵커, disabled 앱(Terminal)에서 숨김, 복귀 시 재표시, Insert 무배지, VISUAL 배지 — 전부 확인. architecture 4종 갱신(profiles-and-config의 키 반영 포함).
-- [x] **PR 3 구현·도그푸딩 완료** (브랜치 `feat/mode-indicator-caret-and-border`, Fable 워커 위임 + 감독 리뷰 + 독립 검증, PR 번호는 인덱스 참조): flash 앵커가 캐럿부터(읽기 순서 `(loc,1)` → `(loc-1,1)` → 텍스트 마커, 유효성 규칙은 순수 계층 `isUsableCaret` 한 벌, flash 요청 때만 캐럿 읽기), 상시 표시 스타일 `onScreenModeIndicatorStyle`(배지 / 화면 테두리 — 앵커가 속한 디스플레이의 `visibleFrame` + 오른쪽 위 라벨, General 토글 아래 Picker). 실기기 도그푸딩(Developer ID Release, 2디스플레이): TextEdit·Notes는 `(loc,1)`, Safari 주소창은 `(loc-1,1)`(끝 캐럿이 필드 밖이라 첫 변형 기각), Slack·Notion은 마커 — 전부 flash가 캐럿 바로 아래(±1px); Chrome·Arc는 요소 모서리 폴백; 테두리 스타일은 창이 있는 디스플레이만 두르고 Insert에서 사라짐. architecture 3종 갱신.
+- [x] **PR 3 구현·도그푸딩 완료** (브랜치 `feat/mode-indicator-caret-and-border`, Fable 워커 위임 + 감독 리뷰 + 독립 검증, [PR #68](https://github.com/pilyang/vim-action/pull/68)): flash 앵커가 캐럿부터(읽기 순서 `(loc,1)` → `(loc-1,1)` → 텍스트 마커, 유효성 규칙은 순수 계층 `isUsableCaret` 한 벌, flash 요청 때만 캐럿 읽기), 상시 표시 스타일 `onScreenModeIndicatorStyle`(배지 / 화면 테두리 — 앵커가 속한 디스플레이의 `visibleFrame` + 오른쪽 위 라벨, General 토글 아래 Picker). 실기기 도그푸딩(Developer ID Release, 2디스플레이): TextEdit·Notes는 `(loc,1)`, Safari 주소창은 `(loc-1,1)`(끝 캐럿이 필드 밖이라 첫 변형 기각), Slack·Notion은 마커 — 전부 flash가 캐럿 바로 아래(±1px); Chrome·Arc는 요소 모서리 폴백; 테두리 스타일은 창이 있는 디스플레이만 두르고 Insert에서 사라짐. architecture 3종 갱신.
 - [x] 방향 확정(2026-09-06, 권장안 채택) + decisions 4건 기록: 표시 정책 / 앵커 사다리·이벤트 기반 갱신(실측표 포함) / Chromium 스크린리더 모드 강제 안 함 / 설정은 UserDefaults·기본 on.
 
 ## 남은 것
 
 <!-- 다음에 할 것이 맨 위. 인계 단위(세션/마일스톤 수준)로 — 함수 단위 세부 todo는 세션 내 TodoList의 몫. -->
 
-- [ ] PR 3 머지 확인 (CI 3잡 required) — 머지되면 `/Applications`의 도그푸딩 빌드(1.0 (1))를 정식 릴리스로 되돌릴지 결정.
+- [ ] [PR #68](https://github.com/pilyang/vim-action/pull/68) 머지 확인 (CI 3잡 required) — 머지되면 `/Applications`의 도그푸딩 빌드(1.0 (1))를 정식 릴리스로 되돌릴지 결정.
 - [ ] **후속 — 인디케이터 외양 커스텀(색상·투명도).** 모드 라벨 알약(flash·배지)의 **색상**과 **투명도**를 사용자가 고를 수 있게 한다. 시점은 PR 3(캐럿 위치 지정) **이후**, 또는 작업 크기가 작으면 PR 3에 **함께**. 이러면서 설정 항목이 늘어나면(on/off·스타일·색상·투명도) 설정 창에 별도 **Visual 탭**을 두는 것도 함께 검토 — 탭 구성은 [20260809_settings-window-three-tabs.md](../../decisions/references/20260809_settings-window-three-tabs.md)의 결정이라 바꾸면 decisions로 기록하고 app-shell reference를 갱신한다. 색상 커스텀에서도 라벨 텍스트는 항상 동반(색만으로 구분하지 않음 — PRD NFR)하고, 글씨색은 PR 2의 luminance 파생을 사용자 색에 그대로 적용한다. 설정 소유권은 UserDefaults([20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md)).
 - [ ] 마무리: 로드맵 Stage 4 항목 체크, 플랜 완료 처리.
 - [ ] 후속 검토(별도 PR 후보, 작음): **자기 pid 경로의 토큰.** `reconcile`의 자기 pid 가드는 토큰을 올리지 않아, 다른 앱을 향해 이미 떠 있던 읽기가 그 경로가 배지를 감춘 뒤 착지해 다시 그릴 수 있다(PR 2부터, PR 3 리뷰에서 발견, ~50ms 창). 한 줄 `token &+= 1`로 닫히지만 밀린 flash가 복귀 시점으로 미뤄지는 부작용을 같이 판단해야 한다.
