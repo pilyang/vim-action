@@ -298,6 +298,19 @@ final class EventTapController {
     /// 의존하면 설치 실패 후 재설치 경로에서 순서가 뒤집힌다.
     @ObservationIgnored var onTapInstalled: (() -> Void)?
 
+    /// 모드가 실제로 바뀔 때마다 불린다 — 온스크린 인디케이터의 트리거다. `mode`가
+    /// `@Observable`이라 SwiftUI는 알아서 갱신되지만, 오버레이는 뷰가 아니라 협력자라
+    /// 밀어 줄 훅이 필요하다 (`onTapInstalled`와 같은 배선).
+    ///
+    /// **탭 콜백의 동기 구간에서 불린다** — 훅이 하는 일은 큐 적재까지이고 AX·창 작업은
+    /// 그 뒤로 밀려야 한다 (콜백 경량 불변식).
+    @ObservationIgnored var onModeChange: (() -> Void)?
+
+    /// 인디케이터 기하 읽기의 pid 출처. **디스패치 경로(`DispatchContext.processID`)와 같은
+    /// 곳이다** — 최전면 게이트(`FrontmostAppGate`)가 아니라 리졸버가 관측 중인 앱이라,
+    /// 오버레이가 겨누는 요소와 키가 실제로 나가는 요소가 갈라질 수 없다.
+    var observedProcessID: pid_t? { focusedElement.observedProcessID }
+
     /// 탭 워치독 — 콜백 재활성화가 못 덮는 실패 모드(완전 정지/장기 스톨은 `tapDisabledBy*`
     /// 통지 자체가 유실됨) 대응으로 탭 활성 여부를 백그라운드에서 주기 폴링한다.
     /// 복구 시점은 정지/스톨이 풀린 뒤다 — 스톨 "중"에는 재활성화를 보류한다 (스톨 게이트).
@@ -360,7 +373,16 @@ final class EventTapController {
 
     private func resetEngine() {
         engine = VimEngine(configuration: configuration)
-        if mode != .insert { mode = .insert }
+        updateMode(.insert)
+    }
+
+    /// `mode` 대입의 **유일한 자리**. 등가 가드가 여기 하나로 모여 있어야 `@Observable`
+    /// 과발화(Insert 타이핑 내내 매 keyDown마다 메뉴바 무효화)와 인디케이터 과발화가 같은
+    /// 판정을 공유한다 — 대입 지점이 갈리면 한쪽만 고쳐도 컴파일이 통과한다.
+    private func updateMode(_ newMode: Mode) {
+        guard mode != newMode else { return }
+        mode = newMode
+        onModeChange?()
     }
 
     /// Accessibility 권한이 있을 때만 탭을 설치한다 (권한 없으면 설치 거부 — 불변식).
@@ -796,9 +818,10 @@ final class EventTapController {
             return Unmanaged.passUnretained(event)
         }
         let output = engine.handle(key)
-        // 등가 가드: @Observable은 등가 비교 없이 대입만으로 발화하므로, 무조건 대입이면
-        // Insert 타이핑 내내 매 keyDown마다 메뉴바 SwiftUI 무효화가 콜백 경로에서 돈다.
-        if mode != engine.mode { mode = engine.mode }
+        // 등가 가드는 `updateMode` 안이다: @Observable은 등가 비교 없이 대입만으로 발화하므로,
+        // 무조건 대입이면 Insert 타이핑 내내 매 keyDown마다 메뉴바 SwiftUI 무효화와
+        // 인디케이터 트리거가 콜백 경로에서 돈다.
+        updateMode(engine.mode)
 
         // 로그는 swallow/replace만 — passthrough(Insert 타이핑)까지 남기면 키로거가 된다.
         switch output.decision {

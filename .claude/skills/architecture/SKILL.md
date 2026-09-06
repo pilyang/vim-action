@@ -45,3 +45,4 @@ description: VimAction 프로젝트의 현재 아키텍처·구조(최종 상태
 | 재진입과 안전장치 | 합성 이벤트 마커 불변식(무한 루프 방지), 단일 ActionExecutor, 킬스위치·중단 래치·원자 그룹 | [reentrancy-and-safety.md](references/reentrancy-and-safety.md) |
 | 프로파일과 설정 | YAML(Yams) 설정 시딩·스키마, 앱별 프로파일, 수동 리로드, UserDefaults 경계 | [profiles-and-config.md](references/profiles-and-config.md) |
 | 앱 셸 | 메뉴바·설정 창 3탭·Dock 아이콘 수명·로그인 자동 시작·Sparkle·온보딩 push | [app-shell.md](references/app-shell.md) |
+| 온스크린 모드 인디케이터 | 모드 전환 시 오버레이 라벨 — 콜백 훅·전용 읽기 큐·앵커 사다리(요소→창)·순수 레이아웃·비활성화 패널·메뉴바 표시 사다리 재사용 | [mode-indicator-overlay.md](references/mode-indicator-overlay.md) |
