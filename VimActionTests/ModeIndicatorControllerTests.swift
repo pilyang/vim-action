@@ -10,7 +10,7 @@ import VimEngine
 
 @testable import VimAction
 
-/// 온스크린 인디케이터의 **표시 판정**(순수 계층)과 **토글 영속**. 패널도 AX도 만들지
+/// 온스크린 인디케이터의 **표시 판정**(순수 계층)과 **토글·스타일 영속**. 패널도 AX도 만들지
 /// 않는다 — 판정은 순수 함수라 값만 오가고, 컨트롤러 테스트는 트리거를 부르지 않는다.
 struct ModeIndicatorPresentationTests {
     private func inputs(
@@ -20,10 +20,11 @@ struct ModeIndicatorPresentationTests {
     }
 
     private func presentation(
-        _ mode: Mode, _ indicator: MenuBarIndicator, pid: pid_t? = 42, isEnabled: Bool = true
+        _ mode: Mode, _ indicator: MenuBarIndicator, pid: pid_t? = 42, isEnabled: Bool = true,
+        style: ModeIndicatorPresentationStyle = .badge
     ) -> ModeIndicatorController.Presentation? {
         ModeIndicatorController.presentation(
-            isEnabled: isEnabled, inputs: inputs(mode, indicator, pid: pid))
+            isEnabled: isEnabled, style: style, inputs: inputs(mode, indicator, pid: pid))
     }
 
     @Test("비-Insert 모드는 라벨 + 상시 배지")
@@ -68,15 +69,27 @@ struct ModeIndicatorPresentationTests {
     func missingProcessShowsNothing() {
         #expect(presentation(.normal, .mode(.normal), pid: nil) == nil)
     }
+
+    /// 스타일이 판정 결과에 실려야 `desired != current`가 스타일 변경을 잡는다.
+    @Test("판정 결과가 스타일을 싣는다")
+    func presentationCarriesStyle() {
+        #expect(presentation(.normal, .mode(.normal), style: .badge)?.style == .badge)
+        #expect(
+            presentation(.normal, .mode(.normal), style: .screenBorder)?.style == .screenBorder)
+    }
 }
 
 /// 읽기를 띄울지 말지 — 조율의 핵심 판정이다. 틀려도 증상이 조용하다(모자라면 배지가 낡은
 /// 자리에 남고, 넘치면 전환마다 AX 왕복이 곱해진다)는 것이 표로 고정하는 이유다.
 struct ModeIndicatorReadCoalescingTests {
     private let normal = ModeIndicatorController.Presentation(
-        label: "NORMAL", showsBadge: true, processID: 42)
+        label: "NORMAL", showsBadge: true, processID: 42, style: .badge)
     private let insert = ModeIndicatorController.Presentation(
-        label: "INSERT", showsBadge: false, processID: 42)
+        label: "INSERT", showsBadge: false, processID: 42, style: .badge)
+    private let normalBorder = ModeIndicatorController.Presentation(
+        label: "NORMAL", showsBadge: true, processID: 42, style: .screenBorder)
+    private let insertBorder = ModeIndicatorController.Presentation(
+        label: "INSERT", showsBadge: false, processID: 42, style: .screenBorder)
 
     private func needsRead(
         desired: ModeIndicatorController.Presentation,
@@ -143,6 +156,19 @@ struct ModeIndicatorReadCoalescingTests {
         #expect(needsRead(desired: normal, current: insert))
         #expect(needsRead(desired: normal, current: nil))
     }
+
+    /// 스타일 변경은 라벨·pid가 같아도 다른 상태다 — 새 형태로 그리려면 앵커를 다시 읽어야 한다.
+    @Test("상시 표시가 떠 있는 채로 스타일이 바뀌면 읽는다")
+    func styleSwitchWithBadgeShowingReads() {
+        #expect(needsRead(desired: normalBorder, current: normal))
+        #expect(needsRead(desired: normal, current: normalBorder))
+    }
+
+    /// Insert는 상시 표시가 없으니 형태가 바뀌어도 읽을 것이 없다.
+    @Test("Insert에서 스타일 변경은 읽지 않는다")
+    func styleSwitchInInsertDoesNotRead() {
+        #expect(needsRead(desired: insertBorder, current: insert) == false)
+    }
 }
 
 @MainActor
@@ -186,6 +212,63 @@ struct ModeIndicatorToggleTests {
             controller.isEnabled = false
             controller.isEnabled = true
             #expect(controller.isEnabled)
+        }
+    }
+}
+
+/// 상시 표시 스타일의 영속 — 토글과 같은 소유 모델이고 같은 단언 함정을 지킨다.
+@MainActor
+struct ModeIndicatorStyleTests {
+    @Test("미설정 키 → 제품 기본값 배지")
+    func defaultsToBadgeWhenKeyAbsent() {
+        withTemporaryDefaults { defaults in
+            #expect(ModeIndicatorController(defaults: defaults).style == .badge)
+        }
+    }
+
+    @Test("저장된 화면 테두리는 init에서 로드된다")
+    func storedScreenBorderLoadsAtInit() {
+        withTemporaryDefaults { defaults in
+            defaults.set(
+                ModeIndicatorPresentationStyle.screenBorder.rawValue,
+                forKey: PreferenceKeys.onScreenModeIndicatorStyle)
+            #expect(ModeIndicatorController(defaults: defaults).style == .screenBorder)
+        }
+    }
+
+    /// 스타일이 늘거나 이름이 바뀌어도 저장된 값 때문에 아무것도 안 뜨는 일은 없어야 한다.
+    @Test("모르는 raw 값은 기본값으로 접힌다")
+    func unknownRawValueFallsBackToBadge() {
+        withTemporaryDefaults { defaults in
+            defaults.set("neon", forKey: PreferenceKeys.onScreenModeIndicatorStyle)
+            #expect(ModeIndicatorController(defaults: defaults).style == .badge)
+        }
+    }
+
+    @Test("스타일 영속: didSet 저장 → 새 컨트롤러 init 로드")
+    func stylePersistsAcrossControllers() {
+        withTemporaryDefaults { defaults in
+            let first = ModeIndicatorController(defaults: defaults)
+            first.style = .screenBorder
+            // 존재 확인이 먼저 — 이것 없이는 영속을 통째로 지워도 "기본값 배지"로 통과한다.
+            #expect(defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorStyle) != nil)
+            #expect(
+                defaults.string(forKey: PreferenceKeys.onScreenModeIndicatorStyle)
+                    == ModeIndicatorPresentationStyle.screenBorder.rawValue)
+
+            let second = ModeIndicatorController(defaults: defaults)
+            #expect(second.style == .screenBorder)
+        }
+    }
+
+    /// 토글과 같은 근거 — 입력이 밀린 적 없으면 화면에도 AX에도 닿지 않는다.
+    @Test("입력이 밀린 적 없으면 스타일 변경은 무해하다")
+    func changingStyleWithoutInputsIsHarmless() {
+        withTemporaryDefaults { defaults in
+            let controller = ModeIndicatorController(defaults: defaults)
+            controller.style = .screenBorder
+            controller.style = .badge
+            #expect(controller.style == .badge)
         }
     }
 }

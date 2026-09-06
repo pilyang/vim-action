@@ -124,8 +124,18 @@ private struct GeneralTab: View {
                 .foregroundStyle(.secondary)
                 // 값·영속·표시 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 위 토글과 동일 모델.
                 Toggle("Show on-screen mode indicator", isOn: $modeIndicator.isEnabled)
+                Text("A label flashes near the caret (or the focused field) whenever the mode changes.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                // 상시 표시의 형태 — 토글과 같은 소유 모델(컨트롤러 프로퍼티 didSet). 표시 문구는
+                // 탭의 다른 항목처럼 뷰에 둔다. 인디케이터가 꺼져 있으면 고를 이유가 없어 비활성.
+                Picker("Indicator style", selection: $modeIndicator.style) {
+                    Text("Badge near the focused field").tag(ModeIndicatorPresentationStyle.badge)
+                    Text("Screen border").tag(ModeIndicatorPresentationStyle.screenBorder)
+                }
+                .disabled(!modeIndicator.isEnabled)
                 Text(
-                    "A label appears next to the focused text field when the mode changes, and a small badge stays while you're in Normal or Visual mode."
+                    "While you're in Normal or Visual mode, a small badge stays next to the field — or a colored frame surrounds the screen with the mode label in its top-right corner."
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)

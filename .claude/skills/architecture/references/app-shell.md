@@ -1,6 +1,6 @@
 # 앱 셸
 
-- **Last updated**: 2026-09-04 (릴리스 노트 노출 배선 반영)
+- **Last updated**: 2026-09-06 (General 탭 인디케이터 스타일 Picker)
 
 ## 현재 구조
 
@@ -20,7 +20,7 @@
 
 ### 설정 창 — `TabView` 3탭, 460×560 고정
 
-**General**(권한 상태 + Behavior[로그인 시 자동 시작·Normal 탈출·온스크린 모드 인디케이터] + Updates 토글 + 접힌 `DisclosureGroup` "Diagnostics") / **Apps**(설정 파일 상태 — [profiles-and-config.md](profiles-and-config.md)) / **About**(버전 + 업데이트 확인 + 링크). 탭 순서는 General이 먼저지만 **기본 선택은 Apps**이고, 권한 섹션은 미허용이면 General 최상단·허용되면 아래쪽(Behavior·Updates 뒤)에 한 줄로 자리를 옮긴다. 높이를 명시하지 않으면 greedy한 grouped `Form` 때문에 창이 임의 높이로 굳는다 ([20260809_settings-window-three-tabs.md](../../decisions/references/20260809_settings-window-three-tabs.md)).
+**General**(권한 상태 + Behavior[로그인 시 자동 시작·Normal 탈출·온스크린 모드 인디케이터 토글과 그 바로 아래 "Indicator style" Picker(배지 / 화면 테두리 — 토글이 꺼지면 `.disabled`, [mode-indicator-overlay.md](mode-indicator-overlay.md))] + Updates 토글 + 접힌 `DisclosureGroup` "Diagnostics") / **Apps**(설정 파일 상태 — [profiles-and-config.md](profiles-and-config.md)) / **About**(버전 + 업데이트 확인 + 링크). 탭 순서는 General이 먼저지만 **기본 선택은 Apps**이고, 권한 섹션은 미허용이면 General 최상단·허용되면 아래쪽(Behavior·Updates 뒤)에 한 줄로 자리를 옮긴다. 높이를 명시하지 않으면 greedy한 grouped `Form` 때문에 창이 임의 높이로 굳는다 ([20260809_settings-window-three-tabs.md](../../decisions/references/20260809_settings-window-three-tabs.md)).
 
 ### 로그인 시 자동 시작 — `SMAppService.mainApp`
 
