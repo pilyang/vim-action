@@ -32,6 +32,9 @@ final class AppState {
     /// 알려주고 닫힘은 컨트롤러가 창 알림으로 스스로 잡으므로, `bootstrap`이 아니라 여기
     /// 생성 시점이 배선의 전부다.
     let dockIcon = DockIconController.forCurrentEnvironment()
+    /// 온스크린 모드 인디케이터. 배선은 `bootstrap()`의 XCTest 가드 뒤 훅 하나가 전부라
+    /// 테스트에서는 아무 일도 하지 않고, 오버레이 패널도 첫 표시에서야 만들어진다.
+    private let modeIndicator = ModeIndicatorController()
     /// 로그인 시 자동 시작 토글의 소유자. 상태를 저장하지 않고 시스템 등록 상태를 그대로
     /// 비추므로, 배선은 생성과 창 열림 훅의 `refresh()`가 전부다 (bootstrap에 할 일 없음).
     let launchAtLogin = LaunchAtLoginController()
@@ -103,6 +106,14 @@ final class AppState {
         killSwitch.startIfPermitted()
         if !permissionMonitor.isTrusted {
             permissionMonitor.startPollingUntilGranted()
+        }
+        // 온스크린 인디케이터 — 모드 전환마다 밀어 준다. 표시 여부는 메뉴바와 **같은
+        // 사다리**(`menuBarIndicator`)가 정하므로 두 표시가 어긋날 자리가 없다.
+        eventTap.onModeChange = { [weak self] in
+            guard let self else { return }
+            modeIndicator.modeDidChange(
+                mode: eventTap.mode, indicator: menuBarIndicator,
+                processID: eventTap.observedProcessID)
         }
         // 업데이트 확인 시동 — 입력 파이프라인과 무관한 부수 기능이라 핵심(설정·탭) 뒤에 온다.
         // Info.plist의 SUFeedURL·SUPublicEDKey를 읽고, 자동 확인이 동의된 상태면 스케줄러가 돈다.
@@ -295,6 +306,17 @@ extension Mode {
         case .insert: "Insert"
         case .visualChar: "Visual"
         case .visualLine: "Visual Line"
+        }
+    }
+
+    /// 온스크린 인디케이터 알약에 찍히는 라벨. `displayName`과 갈리는 이유는 폭이다 —
+    /// 요소 옆에 뜨는 알약이라 "Visual Line"은 입력칸을 가릴 만큼 길다.
+    var overlayLabel: String {
+        switch self {
+        case .normal: "NORMAL"
+        case .insert: "INSERT"
+        case .visualChar: "VISUAL"
+        case .visualLine: "V-LINE"
         }
     }
 }
