@@ -1,0 +1,19 @@
+.claude/skills/plans/SKILL.md
+  s_092985fccd9750::t_288b38698ccfbd 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "f020af7b3214619278fa180e85c4f3e8299974ca",
+  "prompts": {},
+  "sessions": {
+    "s_092985fccd9750": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5a495d1a-662b-4860-8013-80adb0cf37d0",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
