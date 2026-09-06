@@ -1,0 +1,75 @@
+VimAction/Preferences.swift
+  s_a390d84b3944b2::t_5dcc9c54adb3bb 9-11,19-21,26-29
+VimActionTests/ModeIndicatorControllerTests.swift
+  s_a390d84b3944b2::t_59acd4e7e3bcf1 6,190-192,199-200,207,214-217,219-220,227-232
+  s_a390d84b3944b2::t_1b53e99d196f13 61
+  s_a390d84b3944b2::t_f4d9b95192a718 193-198,201-206,208-213,218,221-226,233-234
+  s_a390d84b3944b2::t_0f339f01f127fe 1-5,7-60,62-72,148-189,235-236
+  s_a390d84b3944b2::t_e8297bf49bffa2 73-147
+.claude/skills/architecture/references/profiles-and-config.md
+  s_a390d84b3944b2::t_5b6a20f1bf60e1 99
+.claude/skills/architecture/references/app-shell.md
+  s_a390d84b3944b2::t_5b6a20f1bf60e1 23
+VimAction/AppState.swift
+  s_a390d84b3944b2::t_0911e85617a46f 346-348,377
+  s_a390d84b3944b2::t_199bc3bcdd6072 126,134-135,152-156
+  s_a390d84b3944b2::t_efdc4b22dbbcf6 35-39,52-55,116-119,122-125,128-133,136-138,146-151,157,159-182,372-376
+  s_092985fccd9750::t_b4185f4bc033e6 158,378
+VimAction/MenuBarIndicator.swift
+  s_a390d84b3944b2::t_ada8f97286b92d 11-13,17
+.claude/skills/architecture/references/mode-indicator-overlay.md
+  s_a390d84b3944b2::t_93167ab39e722b 7,11-19,24-27,29,31-39,43,45-46,50,53-55,57-63,73,75-76
+  s_a390d84b3944b2::t_d172d1e4a8b207 47-48,56
+VimActionTests/ModeIndicatorLayoutTests.swift
+  s_a390d84b3944b2::t_209b54312796a5 19-32,119,136-154,156,158-160,170,178,186,188
+.claude/skills/architecture/references/focus-and-dispatch-reads.md
+  s_a390d84b3944b2::t_5b6a20f1bf60e1 3
+  s_a390d84b3944b2::t_6bf14fc3f764ed 15-16
+VimAction/ModeIndicatorLayout.swift
+  s_a390d84b3944b2::t_35f97bd44da4f2 21-38,113,116-121,123-124,129,131-132,140-141,143
+VimAction/SettingsView.swift
+  s_a390d84b3944b2::t_90b170d62ce56a 95,125-128
+  s_092985fccd9750::t_e90d168a22b89e 129-131
+VimAction/ModeIndicatorPanel.swift
+  s_a390d84b3944b2::t_cdba114775d982 54,85-88
+  s_a390d84b3944b2::t_c5de7674f5343a 153-162
+  s_a390d84b3944b2::t_d67dcfcf386d7d 8-51,53,56,65-72,76-78,90,110-113,116,122-123,126-127,134,138-139,146-147,175,182,207-219,227-231
+  s_a390d84b3944b2::t_82c1513e8f3710 93,148-152,163-174
+VimAction/FocusedElementResolver.swift
+  s_a390d84b3944b2::t_8c495d28fa5303 84-90,110-114,269-282,295,301-305,312-315,318-321
+VimAction/ModeIndicatorController.swift
+  s_a390d84b3944b2::t_199bc3bcdd6072 107
+  s_a390d84b3944b2::t_79e04d49b87bd0 8,11,13-18,20,31-33,35-47,50-52,56,59-60,62-71,92-106,108-116,125-130,132-187,189-192,195-197,205,211-219,224-225,242,245-246,254-267,273-274,277-289,291-292
+  s_a390d84b3944b2::t_f2a2b4985a623c 34,48,120
+  s_a390d84b3944b2::t_c5de7674f5343a 198-204
+  s_a390d84b3944b2::t_cb8197b38957fd 293
+  s_a390d84b3944b2::t_852eb9e3b30bf2 72-91,117-119,121-124,131,206-210,227,230,244
+  s_a390d84b3944b2::t_29d9e17b6ccd25 268-272
+VimAction/EventTapController.swift
+  s_a390d84b3944b2::t_135575d8331e05 317-325
+  s_a390d84b3944b2::t_ada8f97286b92d 20-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "aefd13138528512c7bcc4a8099dbfa4971f122ad",
+  "prompts": {},
+  "sessions": {
+    "s_092985fccd9750": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5a495d1a-662b-4860-8013-80adb0cf37d0",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    },
+    "s_a390d84b3944b2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d96ef88a-874a-4600-a4d2-048394e9c54f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
