@@ -1,0 +1,21 @@
+.claude/skills/plans/SKILL.md
+  s_092985fccd9750::t_563346a11220de 54
+.claude/skills/plans/references/20260906_onscreen-mode-indicator.md
+  s_092985fccd9750::t_85ed215342e927 4,15,22,24-25,62,64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "d683a781b23d4b2651826ce2f5b47175b63b0e38",
+  "prompts": {},
+  "sessions": {
+    "s_092985fccd9750": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5a495d1a-662b-4860-8013-80adb0cf37d0",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
