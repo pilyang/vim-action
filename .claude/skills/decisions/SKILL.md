@@ -94,6 +94,15 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-13 | 외부 기여는 이슈 우선 | 이슈 환영 + PR은 사전 논의 필수(오타·문서 예외), AI 관리 체제는 README·CONTRIBUTING에 명시, AI 생성 PR은 테스트·자기 설명 가능 시만 | [20260813_external-contribution-policy.md](references/20260813_external-contribution-policy.md) |
 | 08-13 | 이슈 분류는 vim/app × bug/feature | 템플릿 4종이 `area:vim`/`area:app` 자동 부착, 계열별 필수 필드 강제(드롭다운 기각), blank issue 허용 유지 | [20260813_issue-taxonomy-vim-app-split.md](references/20260813_issue-taxonomy-vim-app-split.md) |
 
+### 앱 셸 — 온스크린 모드 인디케이터
+
+| Date | Title | 요약 | Reference |
+|---|---|---|---|
+| 09-06 | 인디케이터 표시 정책 — 순간 표시 + 비-Insert 상시 배지 | 모든 전환에 캐럿 근처 ~1초 라벨, Normal·Visual·V-LINE 동안 요소 모서리 소형 배지, Insert 무표시 — 메뉴바 사다리 `.mode`일 때만, 텍스트 라벨 필수, 화면 테두리는 선택 스타일 | [20260906_mode-indicator-hybrid-display-policy.md](references/20260906_mode-indicator-hybrid-display-policy.md) |
+| 09-06 | 앵커 사다리 — 캐럿→요소→창, 이벤트 기반 갱신 | 순간 표시는 캐럿부터·상시 배지는 요소부터, 키마다 재배치·폴링 없음(20260725 재검토 트리거 회피), AX는 메인 밖 50ms·pid만, 캐럿은 `(loc,1)`→`(loc-1,1)`→텍스트 마커 — 앱 계열별 실측표 포함 | [20260906_mode-indicator-anchor-ladder-event-driven.md](references/20260906_mode-indicator-anchor-ladder-event-driven.md) |
+| 09-06 | Chromium 스크린리더 모드 강제 안 함 | `AXEnhancedUserInterface`를 켜면 Chrome·Arc 캐럿이 나옴을 실측했으나 브라우저 전역 완전 모드 비용이 비례하지 않음 — 캐럿 없음 수용·요소 폴백, Electron `AXManualAccessibility` 기상은 유지 | [20260906_no-forced-chromium-screen-reader-mode.md](references/20260906_no-forced-chromium-screen-reader-mode.md) |
+| 09-06 | 인디케이터 설정은 UserDefaults | on/off·스타일은 Settings General 토글(20260801 경계 기준), config.yaml 비노출, 기본 on — PRD 초안의 YAML 스타일 항목 대체 | [20260906_mode-indicator-settings-in-userdefaults.md](references/20260906_mode-indicator-settings-in-userdefaults.md) |
+
 ### 이벤트 탭 — 진입·번역·수명
 
 | Date | Title | 요약 | Reference |
