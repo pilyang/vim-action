@@ -1,7 +1,7 @@
 # 온스크린 모드 인디케이터 (HUD)
 
 - **생성일**: 2026-09-06
-- **갱신일**: 2026-09-06 (PR 1 구현·도그푸딩 완료, PR 오픈)
+- **갱신일**: 2026-09-06 (PR 1 머지, PR 2 워커 위임 시작)
 
 ## 목표
 
@@ -11,15 +11,14 @@
 
 - [x] 세 가지 표시안(캐럿 근처 / 포커스 요소 근처 / 화면 테두리)과 표시 정책(항시 vs 전환 시) 조사·보고 — 세 안은 배타적이 아니라 **앵커 정밀도 사다리**(캐럿 → 요소 → 창·화면 → 메뉴바)로 묶는 설계를 권장. 권장 조합: 모든 모드 전환 시 캐럿 근처 순간 표시(~1초 페이드) + Normal·Visual 동안 요소 모서리 상시 배지 + Insert는 무표시. 화면 테두리는 선택 스타일.
 - [x] 구현 가능성 스파이크 (2026-09-06, 실기기·2디스플레이): AX 기하 가용성 실측 + 비활성화 NSPanel 오버레이 프로토타입 검증. 결과는 아래 "진행 중 컨텍스트".
-- [x] **PR 1 구현 완료** ([PR #66](https://github.com/pilyang/vim-action/pull/66), 브랜치 `feat/mode-indicator-overlay`, Opus 워커 위임 + 감독 리뷰 + 독립 검증): 비활성화 패널·순수 레이아웃(테스트 10건)·전용 큐 기하 리더·모드 전환 훅. 실기기 도그푸딩(Developer ID Release 설치): TextEdit Esc/i/v, Chrome Esc, Slack Esc 전부 라벨 표시·최전면 불변·보조 디스플레이 정렬 확인. architecture reference [mode-indicator-overlay.md](../../architecture/references/mode-indicator-overlay.md) 추가.
+- [x] **PR 1 머지 완료** ([PR #66](https://github.com/pilyang/vim-action/pull/66) → main `48cbd28`, 2026-09-06; Opus 워커 위임 + 감독 리뷰 + 독립 검증): 비활성화 패널·순수 레이아웃(테스트 10건)·전용 큐 기하 리더·모드 전환 훅. 실기기 도그푸딩(Developer ID Release 설치): TextEdit Esc/i/v, Chrome Esc, Slack Esc 전부 라벨 표시·최전면 불변·보조 디스플레이 정렬 확인. architecture reference [mode-indicator-overlay.md](../../architecture/references/mode-indicator-overlay.md) 추가.
 - [x] 방향 확정(2026-09-06, 권장안 채택) + decisions 4건 기록: 표시 정책 / 앵커 사다리·이벤트 기반 갱신(실측표 포함) / Chromium 스크린리더 모드 강제 안 함 / 설정은 UserDefaults·기본 on.
 
 ## 남은 것
 
 <!-- 다음에 할 것이 맨 위. 인계 단위(세션/마일스톤 수준)로 — 함수 단위 세부 todo는 세션 내 TodoList의 몫. -->
 
-- [ ] [PR #66](https://github.com/pilyang/vim-action/pull/66) 머지 확인 (CI 3잡 required).
-- [ ] **PR 2 — 상시 배지 + 재앵커 + Settings 토글.** Insert 외 모드 동안 요소 오른쪽 위 소형 배지, Insert 진입·사다리 상태 변화(토글 off·disabled 앱·Secure Input·탭 고장)에서 숨김. 재앵커 트리거: 포커스 요소 변경·앱 활성화(리졸버 기존 경로) + 리졸버 `AXObserver`에 `kAXWindowMoved`/`kAXWindowResized` 추가(대상 앱 종료·창 없음이면 숨김). Settings General 탭 토글(`Preferences` 키, 기본 on) — 영속 테스트는 `object(forKey:) != nil` 선행. 검증: 앱 전환 뒤 즉시 새 앱 요소로 붙는지, 창 드래그·리사이즈 추종, disabled 앱에서 사라짐.
+- [ ] **PR 2 — 상시 배지 + 재앵커 + Settings 토글** (진행 중 — Opus 워커, worktree `feat/mode-indicator-persistent-badge`, 브리프는 감독 세션 scratchpad `pr2-brief.md`). Insert 외 모드 동안 요소 오른쪽 위 소형 배지, Insert 진입·사다리 상태 변화(토글 off·disabled 앱·Secure Input·탭 고장)에서 숨김. 재앵커 트리거: 포커스 요소 변경·앱 활성화(리졸버 기존 경로) + 리졸버 `AXObserver`에 `kAXWindowMoved`/`kAXWindowResized` 추가(대상 앱 종료·창 없음이면 숨김). Settings General 탭 토글(`Preferences` 키, 기본 on) — 영속 테스트는 `object(forKey:) != nil` 선행. 검증: 앱 전환 뒤 즉시 새 앱 요소로 붙는지, 창 드래그·리사이즈 추종, disabled 앱에서 사라짐.
 - [ ] **PR 3 — 캐럿 정밀도 + 화면 테두리 스타일.** 순간 표시 앵커를 캐럿부터 시작: `AXBoundsForRange (loc,1)` → 문서 끝 `(loc-1,1)` → `AXSelectedTextMarkerRange`+`AXBoundsForTextMarkerRange`, 마커 결과가 요소 rect와 같으면 무효. 스타일 선택(배지 / 화면 테두리 — 포커스 창이 있는 `NSScreen` frame 패널 + 모서리 라벨). 검증: 실측표 앱들(TextEdit·Notes·Safari·Slack·Notion은 캐럿 아래, Chrome·Arc는 요소 모서리 폴백).
 - [ ] 마무리: profiles-and-config reference에 UserDefaults 키 반영(PR 2), 로드맵 Stage 4 항목 체크, 플랜 완료 처리.
 
