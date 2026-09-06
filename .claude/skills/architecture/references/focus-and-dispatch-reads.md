@@ -1,6 +1,6 @@
 # 포커스 리졸버와 디스패치 경로 AX 읽기
 
-- **Last updated**: 2026-08-20 (문서 분할 — [strategy-dispatch.md](strategy-dispatch.md)에서 이관 + 파생 질의 수를 코드 실제(22종 — Visual 선택 질의 8종 포함)로 갱신)
+- **Last updated**: 2026-09-06 (리졸버 `AXObserver`에 창 이동·리사이즈 알림과 인디케이터 기하 훅 추가) / 2026-08-20 (문서 분할 — [strategy-dispatch.md](strategy-dispatch.md)에서 이관 + 파생 질의 수를 코드 실제(22종 — Visual 선택 질의 8종 포함)로 갱신)
 
 ## 현재 구조
 
@@ -11,6 +11,8 @@
 갱신 트리거는 둘이다: `NSWorkspace` 앱 활성화 알림(옵저버를 새 앱으로 갈아탄다)과 `AXObserver`의 `kAXFocusedUIElementChangedNotification`(런루프 소스는 메인) — 후자가 앱 내부 포커스 이동까지 잡아 캐시만으로 충분함이 확인됐다 ([20260801_cache-only-callback-confirmed-sufficient.md](../../decisions/references/20260801_cache-only-callback-confirmed-sufficient.md)). **AX 호출은 전용 직렬 큐 위에서만** 하고 메인 스레드는 AX를 호출하지 않는다 — 탭 생존을 지키는 것은 타임아웃 값이 아니라 이 배치다. 타임아웃은 **50ms**(콜드 앱 최초 접촉을 흡수하는 값 — [20260802_ax-read-timeout-50ms-supersedes-3ms.md](../../decisions/references/20260802_ax-read-timeout-50ms-supersedes-3ms.md)). 큐로 넘기는 값은 `pid_t` 하나뿐이라 비-`Sendable` `AXUIElement`가 격리를 건너지 않는다. 앱 전환 순간 캐시는 **즉시 리셋**되고(이전 앱 계열이 남으면 편집기 진입 직후 편집이 통째로 죽는다) 늦게 착지한 읽기는 토큰 비교로 폐기된다 ([20260801_focused-role-cache-shape.md](../../decisions/references/20260801_focused-role-cache-shape.md)). 리셋이 채우는 값은 폴백이 아니라 `.unresolved`이며, 읽을 앱이 없을 때(pid `nil`)만 폴백이 곧 최종 판정이다.
 
 **계열 판정은 role이 아니라 `AXSelectedTextRange` 노출 여부**다 — `AXUIElementCopyAttributeNames` 목록에 있는가로 보며, 값 조회는 판별자가 못 된다(비텍스트 요소도 `.success`를 돌려준다). role은 텍스트 판정 뒤 TextArea/TextField를 가르는 데만 쓴다(role 화이트리스트는 실측 붕괴로 기각 — [20260801_element-family-classification-table.md](../../decisions/references/20260801_element-family-classification-table.md)). 어느 단계에서 실패하든 **폴백은 `.textArea`** — 걸러내기는 확실한 보고에만 발동한다 ([20260801_resolver-fallback-defaults-to-text-area.md](../../decisions/references/20260801_resolver-fallback-defaults-to-text-area.md)). `selectedRange`는 캐싱하지 않는다 — 키마다 변해 캐시가 원리적으로 불가하며, 아래 디스패치 경로 읽기가 담당한다.
+
+**같은 `AXObserver`가 온스크린 인디케이터용 알림 2종을 더 받는다** — `kAXWindowMovedNotification`·`kAXWindowResizedNotification`을 **앱 요소에** 걸면 그 앱의 모든 창에 대해 배달되므로 창마다 재등록할 필요가 없다. 등록은 포커스 요소 등록 **뒤**이고 실패해도 계속한다(`.notice` 로그): 계열 등록은 키 디스패치가 의존하는 것이라 장식용 오버레이 때문에 잃으면 안 된다. C 콜백은 **알림 이름으로 갈린다** — 창 이동·리사이즈는 기하만 바꾸므로 `onFocusGeometryChanged` 훅만 부르고 계열은 다시 읽지 않으며(창 드래그마다 읽기 큐에 AX 왕복이 얹히면 그 큐가 먹이는 계열 캐시가 밀린다), **모르는 이름의 기본값은 "둘 다"** 다(나중에 알림을 추가한 사람이 계열 갱신을 조용히 잃지 않는다). 훅 자체는 앱 활성화 알림 클로저에서도 **무조건** 불린다 — `attach(to:)`는 pid가 같으면 조기 반환하므로, 같은 앱으로 돌아왔는데 그동안 창이 움직인 경우가 그 자리에서만 덮인다. 소비자는 [mode-indicator-overlay.md](mode-indicator-overlay.md)이고, 리졸버는 "기하가 변했다"만 알릴 뿐 무엇을 그릴지는 모른다.
 
 ### 디스패치 경로 AX 읽기
 

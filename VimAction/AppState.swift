@@ -32,9 +32,11 @@ final class AppState {
     /// 알려주고 닫힘은 컨트롤러가 창 알림으로 스스로 잡으므로, `bootstrap`이 아니라 여기
     /// 생성 시점이 배선의 전부다.
     let dockIcon = DockIconController.forCurrentEnvironment()
-    /// 온스크린 모드 인디케이터. 배선은 `bootstrap()`의 XCTest 가드 뒤 훅 하나가 전부라
-    /// 테스트에서는 아무 일도 하지 않고, 오버레이 패널도 첫 표시에서야 만들어진다.
-    private let modeIndicator = ModeIndicatorController()
+    /// 온스크린 모드 인디케이터. 배선이 전부 `bootstrap()`의 XCTest 가드 뒤라 테스트에서는
+    /// 아무 일도 하지 않고(입력이 밀린 적 없으면 판정이 통째로 막힌다), 오버레이 패널도 첫
+    /// 표시에서야 만들어진다. `private`이 아닌 것은 Settings General 탭이 토글을 바인딩하기
+    /// 때문이다.
+    let modeIndicator = ModeIndicatorController()
     /// 로그인 시 자동 시작 토글의 소유자. 상태를 저장하지 않고 시스템 등록 상태를 그대로
     /// 비추므로, 배선은 생성과 창 열림 훅의 `refresh()`가 전부다 (bootstrap에 할 일 없음).
     let launchAtLogin = LaunchAtLoginController()
@@ -46,6 +48,10 @@ final class AppState {
 
     /// 메뉴바·설정 UI가 쓰는 업데이트 핸들 — 수동 확인 트리거와 자동 확인 설정의 진입점.
     var updater: SPUUpdater { updaterController.updater }
+
+    /// 디스플레이 재구성 구독 (⑤). 앱과 생명주기가 같아 해제 경로는 없지만, 토큰을 버리면
+    /// 알림 센터가 죽은 옵저버를 들고 남는다.
+    @ObservationIgnored private var screenParametersObserver: NSObjectProtocol?
 
     /// 런치 시 설정 창을 한 번 밀어 올려야 하는가 — 메뉴바 라벨(`MenuBarLabel`)이 소비한다.
     /// `openSettings`는 SwiftUI 환경 액션이라 뷰 밖에서 호출할 수 없어서, `bootstrap()`은
@@ -107,19 +113,71 @@ final class AppState {
         if !permissionMonitor.isTrusted {
             permissionMonitor.startPollingUntilGranted()
         }
-        // 온스크린 인디케이터 — 모드 전환마다 밀어 준다. 표시 여부는 메뉴바와 **같은
-        // 사다리**(`menuBarIndicator`)가 정하므로 두 표시가 어긋날 자리가 없다.
+        // 온스크린 인디케이터 — 트리거 다섯을 여기서 전부 배선한다. 표시 여부는 메뉴바와
+        // **같은 사다리**(`menuBarIndicator`)가 정하므로 두 표시가 어긋날 자리가 없다.
+        //
+        // ① 모드 전환 (탭 콜백 동기 구간에서 불린다 — 훅이 하는 일은 큐 적재까지다).
         eventTap.onModeChange = { [weak self] in
             guard let self else { return }
-            modeIndicator.modeDidChange(
-                mode: eventTap.mode, indicator: menuBarIndicator,
-                processID: eventTap.observedProcessID)
+            modeIndicator.modeDidChange(indicatorInputs)
         }
+        // ② 포커스 요소 변경·앱 활성화·창 이동·리사이즈 (리졸버가 메인에서 알린다).
+        eventTap.onFocusGeometryChanged = { [weak self] in
+            self?.reanchorIndicator()
+        }
+        // ⑤ 디스플레이 재구성 — 해상도 변경·언독·디스플레이 재배치. 1초짜리 순간 표시에는
+        // 없던 트리거다: 상시 배지는 그 사건들을 넘겨 살아남는데 좌표만 낡는다.
+        screenParametersObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // queue: .main 배달이라 항상 메인 스레드다 — assumeIsolated의 근거.
+            MainActor.assumeIsolated { self?.reanchorIndicator() }
+        }
+        // ③ 사다리 변화 — 아래 재무장 루프가 유일한 트리거다.
+        trackIndicatorLadder()
         // 업데이트 확인 시동 — 입력 파이프라인과 무관한 부수 기능이라 핵심(설정·탭) 뒤에 온다.
         // Info.plist의 SUFeedURL·SUPublicEDKey를 읽고, 자동 확인이 동의된 상태면 스케줄러가 돈다.
         updaterController.startUpdater()
         needsOnboardingPresentation = shouldPresentOnboarding(
             isTrusted: permissionMonitor.isTrusted, defaults: .standard)
+    }
+
+    /// 인디케이터 트리거 넷이 함께 미는 상태 한 묶음 — **사다리 입력을 읽는 유일한 자리다.**
+    /// 컨트롤러가 사다리를 스스로 조회하지 않으므로 표시 판정이 순수 함수 하나로 남는다.
+    private var indicatorInputs: ModeIndicatorController.Inputs {
+        .init(
+            mode: eventTap.mode, indicator: menuBarIndicator,
+            processID: eventTap.observedProcessID)
+    }
+
+    /// ②·⑤의 공통 진입 — 앵커가 움직였을 수 있다.
+    private func reanchorIndicator() {
+        modeIndicator.anchorDidChange(indicatorInputs)
+    }
+
+    /// ③ 사다리 변화 트리거 — 탭 고장·마스터 off·킬스위치·앱별 disabled·Secure Input·설정
+    /// 리로드에는 훅이 없는데, 이 전부의 결과가 `menuBarIndicator` 하나로 접힌다. 그래서
+    /// **그것을 관찰하고 바뀔 때마다 재무장한다**.
+    ///
+    /// 관찰 블록이 **부수효과 없이 값만 만드는 것이 계약이다**: 컨트롤러 메서드를 그 안에서
+    /// 부르면 컨트롤러의 내부 상태(읽기 진행 플래그 등)까지 추적돼, 읽기가 끝날 때마다 루프가
+    /// 스스로를 다시 깨운다.
+    ///
+    /// `onChange`는 **willSet에서** 불리므로 거기서 상태를 읽으면 옛 값이고, 킬스위치 경로면
+    /// 메인 밖일 수도 있다 — 그래서 홉만 걸고 재무장이 현재 값을 다시 읽는다. onChange와
+    /// 재무장 사이의 전이는 추적이 없어 유실되지만, 재무장이 매번 **현재 상태로 수렴**시키므로
+    /// 문제가 되지 않는다 (그래서 `reconcile`은 직전 이벤트가 아니라 자기 현재 표시와만
+    /// 비교해야 한다).
+    private func trackIndicatorLadder() {
+        let inputs = withObservationTracking {
+            indicatorInputs
+        } onChange: { [weak self] in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.trackIndicatorLadder() }
+            }
+        }
+        modeIndicator.stateDidChange(inputs)
     }
 
     /// 설정 창이 화면에 올라왔다 — 그것이 온보딩이었다면 여기서 마무리한다. 값이 아니라 키의
@@ -285,7 +343,9 @@ nonisolated func strategyStatusText(
     }
 }
 
-extension Mode {
+/// `nonisolated` — 넷 다 순수 파생이고, 메뉴바 사다리(`MenuBarIndicator`)와 오버레이
+/// 표시 판정이 격리 밖에서 읽는다.
+nonisolated extension Mode {
     /// 메뉴바 아이템에 표시할 SF Symbol 이름. macOS 표현은 앱 레이어에만 둔다
     /// (엔진 `Mode`는 플랫폼을 모른다). fill은 "키 차단 여부" 축이다 — 차단
     /// 모드(Normal/Visual)는 fill, 통과 모드(Insert)는 미채움. Visual-line은
@@ -308,6 +368,13 @@ extension Mode {
         case .visualLine: "Visual Line"
         }
     }
+
+    /// 이 모드일 때 상시 배지를 남기는가. **Insert만 아니다** — Insert는 기본 상태이자
+    /// "그냥 타이핑하면 되는" 상태라 표시가 있으면 소음이고, 배지가 "지금 위험한 모드다"를
+    /// 뜻하려면 기본 상태에는 없어야 한다 (`20260906_mode-indicator-hybrid-display-policy.md`
+    /// 결정 2). 순간 표시는 이것과 무관하게 전 모드에서 뜬다 — `i`·`a`·`Esc` 전부가 확인돼야
+    /// 전환 피드백이 완성된다.
+    var showsPersistentBadge: Bool { self != .insert }
 
     /// 온스크린 인디케이터 알약에 찍히는 라벨. `displayName`과 갈리는 이유는 폭이다 —
     /// 요소 옆에 뜨는 알약이라 "Visual Line"은 입력칸을 가릴 만큼 길다.

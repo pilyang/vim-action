@@ -8,10 +8,13 @@ import VimEngine
 /// 메뉴바가 지금 표시하는 것 — 우선순위 사다리의 결과 하나. 글리프·접근성 문구·커스텀
 /// 이미지 사용 여부가 전부 여기서 파생된다.
 ///
+/// `nonisolated`인 것은 이 타입이 순수 값이기 때문이다 — 오버레이의 표시 판정이 사다리 결과를
+/// 격리 밖에서 비교한다 (`ModeIndicatorController.presentation`).
+///
 /// 사다리를 값 하나로 모아 두는 이유는 드리프트 방지다: 파생 셋이 각자 우선순위를
 /// 재구현하면 한 곳만 고쳐도 컴파일이 통과하고, 그때 생기는 고장은 조용하다
 /// (예: Visual-line의 커스텀 "Vl" 이미지가 가로채지 않는 상태에서 동결된 채 남는다).
-enum MenuBarIndicator: Equatable {
+nonisolated enum MenuBarIndicator: Equatable {
     /// 탭이 서 있지 않다 (미허용·고장·종료).
     case inactive
     /// 가로채기 마스터 토글 off.
