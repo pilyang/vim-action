@@ -17,7 +17,10 @@ import VimEngine
 @MainActor
 @Observable
 final class EventTapController {
-    enum Status: Equatable {
+    /// `nonisolated` — 순수 값이라 격리를 상속할 이유가 없고, 상속하면 `Equatable` 준수까지
+    /// 메인 격리라 사다리를 값으로 다루는 순수 계층(`MenuBarIndicator`·인디케이터 판정)이
+    /// 비교조차 하지 못한다.
+    nonisolated enum Status: Equatable {
         /// Accessibility 미허용 — 불변식에 따라 설치 거부 상태.
         case waitingForPermission
         /// 탭 설치·헬스 정상. 가로채기 on/off는 이 상태가 아니라 `isInterceptionEnabled`가
@@ -310,6 +313,15 @@ final class EventTapController {
     /// 곳이다** — 최전면 게이트(`FrontmostAppGate`)가 아니라 리졸버가 관측 중인 앱이라,
     /// 오버레이가 겨누는 요소와 키가 실제로 나가는 요소가 갈라질 수 없다.
     var observedProcessID: pid_t? { focusedElement.observedProcessID }
+
+    /// 인디케이터 재앵커 훅의 통로 — 리졸버가 포커스·앱·창 변화를 알린다. 저장 상태 없이
+    /// 그대로 넘기는 것이 요점이다(`observedProcessID`와 같은 형태): 리졸버는 컨트롤러가
+    /// 소유하고 `AppState`는 컨트롤러만 보므로, 배선 하나를 위해 리졸버를 밖으로 내보이거나
+    /// 훅을 두 벌로 들고 있을 이유가 없다.
+    var onFocusGeometryChanged: (() -> Void)? {
+        get { focusedElement.onFocusGeometryChanged }
+        set { focusedElement.onFocusGeometryChanged = newValue }
+    }
 
     /// 탭 워치독 — 콜백 재활성화가 못 덮는 실패 모드(완전 정지/장기 스톨은 `tapDisabledBy*`
     /// 통지 자체가 유실됨) 대응으로 탭 활성 여부를 백그라운드에서 주기 폴링한다.

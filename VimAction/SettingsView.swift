@@ -92,6 +92,7 @@ private struct GeneralTab: View {
 
     var body: some View {
         @Bindable var eventTap = appState.eventTap
+        @Bindable var modeIndicator = appState.modeIndicator
         Form {
             // 미허용이면 최상단 — 이 상태에서는 다른 무엇보다 이것부터 해결해야 한다.
             // 허용된 뒤에는 한 줄짜리 확인 표시라 Behavior 아래로 내려간다.
@@ -118,6 +119,13 @@ private struct GeneralTab: View {
                 Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
                 Text(
                     "After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked. When off, those shortcuts still pass through to the app — you just stay in Normal mode."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                // 값·영속·표시 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 위 토글과 동일 모델.
+                Toggle("Show on-screen mode indicator", isOn: $modeIndicator.isEnabled)
+                Text(
+                    "A label appears next to the focused text field when the mode changes, and a small badge stays while you're in Normal or Visual mode."
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)

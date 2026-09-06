@@ -6,8 +6,9 @@
 import Foundation
 import VimEngine
 
-/// UserDefaults 키 — 두 키 모두 EventTapController가 로드(init)·저장(didSet)하는
-/// 단일 소유다. (단수형 `PreferenceKey`는 SwiftUI 프로토콜과 이름이 충돌해 피한다.)
+/// UserDefaults 키 — 가로채기·탈출 두 키는 EventTapController가, 온스크린 인디케이터
+/// 토글은 ModeIndicatorController가 로드(init)·저장(didSet)하는 단일 소유다.
+/// (단수형 `PreferenceKey`는 SwiftUI 프로토콜과 이름이 충돌해 피한다.)
 /// `nonisolated` — 프로젝트 기본이 MainActor 격리라 키 상수까지 메인 격리가 붙는데,
 /// 킬스위치 발동은 전용 스레드에서 이 키로 영속하므로 격리 밖에서 읽을 수 있어야 한다.
 nonisolated enum PreferenceKeys {
@@ -15,11 +16,17 @@ nonisolated enum PreferenceKeys {
     static let interceptionEnabled = "interceptionEnabled"
     /// Normal 모드 cmd/opt 콤보 자동 탈출 옵션.
     static let normalModeEscapeEnabled = "normalModeEscapeEnabled"
-    /// 최초 실행 온보딩(설정 창 자동 오픈)을 이미 띄웠는가. 위 둘과 달리 AppState가 소유한다.
+    /// 온스크린 모드 인디케이터(순간 표시 + 상시 배지) on/off. 기본 on.
+    static let onScreenModeIndicatorEnabled = "onScreenModeIndicatorEnabled"
+    /// 최초 실행 온보딩(설정 창 자동 오픈)을 이미 띄웠는가. 위 셋과 달리 AppState가 소유한다.
     static let didShowOnboarding = "didShowOnboarding"
 
     /// 탈출 옵션의 제품 기본값 — EventTapController init이 읽는다.
     static let normalModeEscapeEnabledDefault = true
+    /// 인디케이터의 제품 기본값 — ModeIndicatorController init이 읽는다. **on인 것이 결정이다**:
+    /// 이 기능은 "모드를 모르고 타이핑하는 사고"를 막는 안전 장치라 첫 실행 사용자를 보호해야
+    /// 한다 (`20260906_mode-indicator-settings-in-userdefaults.md`).
+    static let onScreenModeIndicatorEnabledDefault = true
 }
 
 /// 런치 시 설정 창을 밀어 올릴지 — 미허용 + 아직 한 번도 안 띄운 경우만.

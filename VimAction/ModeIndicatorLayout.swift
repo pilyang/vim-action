@@ -18,6 +18,24 @@ nonisolated enum ModeIndicatorLayout {
     /// 창 단 배지가 창 안쪽 오른쪽 위에 붙을 때의 인셋 (오른쪽, 위).
     private static let windowInset = (horizontal: CGFloat(12), vertical: CGFloat(6))
 
+    /// 화면 하나 (전부 AppKit 좌표). **고르는 축과 놓는 축이 다르다**: `frame`은 앵커가 어느
+    /// 디스플레이에 속하는지 판정하고, `visibleFrame`은 알약을 실제로 놓을 수 있는 범위다.
+    ///
+    /// 두 축을 가른 이유는 메뉴바 띠다. 텍스트 뷰가 창 전체인 앱(TextEdit)을 최대화하면
+    /// "요소 위쪽 바깥" 규칙이 알약을 화면 맨 위, 즉 **메뉴바·노치 뒤**로 보낸다 — 그래서
+    /// 앉히는 범위는 `visibleFrame`이어야 한다. 반대로 포함 판정까지 `visibleFrame`으로 하면
+    /// 메뉴바 띠 안에 있는 앵커가 자기 디스플레이를 못 찾고 주 화면으로 떨어져 알약이 화면
+    /// 하나만큼 튄다. 호출자가 메인에서 `NSScreen`을 읽어 채운다.
+    struct Screen: Sendable, Equatable {
+        var frame: CGRect
+        var visibleFrame: CGRect
+
+        init(frame: CGRect, visibleFrame: CGRect) {
+            self.frame = frame
+            self.visibleFrame = visibleFrame
+        }
+    }
+
     /// 기하 리더가 읽어 오는 것 — **AX 좌표계**(좌상단 원점, y는 아래로 증가)의 rect들이다.
     /// 캐럿 단은 PR 3에서 이 위에 얹힌다.
     struct Anchors: Sendable, Equatable {
@@ -92,22 +110,26 @@ nonisolated enum ModeIndicatorLayout {
             width: rect.width, height: rect.height)
     }
 
-    /// 배지를 **앵커가 있는 화면** 안으로 민다 (전부 AppKit 좌표).
+    /// 알약을 **앵커가 있는 화면의 `visibleFrame`** 안으로 민다 (전부 AppKit 좌표).
     ///
     /// 주 화면 기준이 아닌 것이 요점이다: 보조 디스플레이의 창 모서리에 있는 앵커를 주 화면으로
-    /// 클램프하면 배지가 앵커에서 화면 하나만큼 떨어진 곳에 뜬다. 앵커와 겹치는 화면이 없으면
-    /// (앵커가 화면 밖) 배지와 겹치는 화면, 그것도 없으면 주 화면으로 내려간다.
-    static func clamp(_ frame: CGRect, nearAnchor anchor: CGRect, screens: [CGRect]) -> CGRect {
+    /// 클램프하면 알약이 앵커에서 화면 하나만큼 떨어진 곳에 뜬다. 앵커와 겹치는 화면이 없으면
+    /// (앵커가 화면 밖) 알약과 겹치는 화면, 그것도 없으면 주 화면으로 내려간다.
+    ///
+    /// **화면 선택은 세 단 전부 `frame` 축이고, 미는 범위만 `visibleFrame`이다** —
+    /// `Screen` 주석의 메뉴바 띠 사유 참고.
+    static func clamp(_ frame: CGRect, nearAnchor anchor: CGRect, screens: [Screen]) -> CGRect {
         guard
-            let screen = screens.first(where: { $0.intersects(anchor) })
-                ?? screens.first(where: { $0.intersects(frame) }) ?? screens.first
+            let screen = screens.first(where: { $0.frame.intersects(anchor) })
+                ?? screens.first(where: { $0.frame.intersects(frame) }) ?? screens.first
         else {
             // 화면 목록이 비는 것은 실기기에서 일어나지 않지만, 순수 함수라 답이 정의돼야 한다.
             return frame
         }
+        let bounds = screen.visibleFrame
         return CGRect(
-            x: min(max(frame.minX, screen.minX), max(screen.maxX - frame.width, screen.minX)),
-            y: min(max(frame.minY, screen.minY), max(screen.maxY - frame.height, screen.minY)),
+            x: min(max(frame.minX, bounds.minX), max(bounds.maxX - frame.width, bounds.minX)),
+            y: min(max(frame.minY, bounds.minY), max(bounds.maxY - frame.height, bounds.minY)),
             width: frame.width, height: frame.height)
     }
 
@@ -115,8 +137,10 @@ nonisolated enum ModeIndicatorLayout {
     /// 앵커가 없으면 `nil`이고, 그때 오버레이는 표시하지 않는다 (사다리의 마지막 단 "없음").
     ///
     /// `screens`·`primaryScreenMaxY`는 호출자가 메인에서 `NSScreen`을 읽어 넘긴다.
+    /// `primaryScreenMaxY`는 **`frame`의 maxY**다 — 좌표계를 뒤집는 기준이지 배치 범위가
+    /// 아니라서, 여기에 `visibleFrame`을 넣으면 전 좌표가 메뉴바 높이만큼 밀린다.
     static func panelFrame(
-        anchors: Anchors, size: CGSize, screens: [CGRect], primaryScreenMaxY: CGFloat
+        anchors: Anchors, size: CGSize, screens: [Screen], primaryScreenMaxY: CGFloat
     ) -> CGRect? {
         guard let anchor = anchor(anchors) else { return nil }
         let badge = flip(

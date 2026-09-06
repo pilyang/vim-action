@@ -81,6 +81,13 @@ final class FocusedElementResolver {
     /// 나온 `family`와 짝이라 둘이 서로 다른 앱을 가리킬 수 없다.
     private(set) var observedProcessID: pid_t?
 
+    /// 포커스 요소·앱·창이 움직였을 수 있다 — 온스크린 인디케이터의 재앵커 트리거다.
+    /// **메인에서만 불린다**(워크스페이스 알림은 `queue: .main`, AX 런루프 소스는 메인).
+    ///
+    /// 리졸버가 인디케이터를 모르는 채로 남는 것이 요점이다: 여기서 하는 일은 "기하가 변했다"를
+    /// 알리는 것뿐이고, 무엇을 어떻게 그릴지는 전부 소비자 몫이다 (`onModeChange`와 같은 배선).
+    var onFocusGeometryChanged: (() -> Void)?
+
     /// `frontmostProcessID`가 `@autoclosure`인 것은 `FrontmostAppGate`와 같다 — 테스트가
     /// `NSWorkspace` 조회 없이 값을 넣는다. 격리된 `NotificationCenter`를 함께 주입하면
     /// 라이브 구독도 피한다.
@@ -100,6 +107,11 @@ final class FocusedElementResolver {
             // queue: .main 배달이라 항상 메인 스레드다 — assumeIsolated의 근거.
             MainActor.assumeIsolated {
                 self?.attach(to: app?.processIdentifier)
+                // `attach` **안이 아니라 여기서** 무조건 알린다: `attach`는 pid가 같으면
+                // 조기 반환하므로, 같은 앱으로 돌아왔는데 그동안 창이 움직인 경우에 훅이
+                // 걸리지 않는다. 이 자리면 pid가 nil이 되는 경로(대상 앱 종료)까지 한 번에
+                // 덮인다 — 그때 인디케이터는 붙을 곳이 없어 스스로 감춘다.
+                self?.onFocusGeometryChanged?()
             }
         }
         attach(to: frontmostProcessID())
@@ -254,6 +266,20 @@ final class FocusedElementResolver {
             )
             return nil
         }
+        // 창 이동·리사이즈는 **온스크린 인디케이터 전용**이다 (계열 캐시는 창이 움직여도
+        // 그대로다). 앱 요소에 걸면 그 앱의 모든 창에 대해 배달되므로 창마다 재등록할 필요가
+        // 없다. **포커스 요소 등록 뒤이고 실패해도 계속하는 것이 계약이다** — 계열 등록은 키
+        // 디스패치가 의존하는 것이라, 장식용 배지 때문에 그것을 잃으면 안 된다.
+        for notification in [kAXWindowMovedNotification, kAXWindowResizedNotification] {
+            let windowStatus = AXObserverAddNotification(
+                observer, application, notification as CFString,
+                Unmanaged.passUnretained(resolver).toOpaque())
+            if windowStatus != .success {
+                Logger.eventTap.notice(
+                    "AXObserver 창 알림 등록 실패 (pid \(processID, privacy: .public), \(notification as String, privacy: .public), AXError \(windowStatus.rawValue, privacy: .public)) — 인디케이터가 창 이동을 못 따라간다"
+                )
+            }
+        }
         CFRunLoopAddSource(
             CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
         return observer
@@ -266,19 +292,31 @@ final class FocusedElementResolver {
     }
 }
 
-/// `AXObserver` C 콜백 — 포커스 요소가 바뀌었다는 신호만 받는다.
+/// `AXObserver` C 콜백 — 포커스 요소·창이 바뀌었다는 신호를 받는다.
 ///
 /// 넘어온 `element`를 쓰지 않고 pid로 다시 읽는 것이 의도다: 비-`Sendable` 값을 큐로 넘기지
 /// 않아도 되고, 웜 상태의 재조회는 실측 1ms 미만이라 왕복 한 번의 값이 그 대가보다 작다.
 /// `nonisolated`는 필수다 — 프로젝트 기본 격리가 MainActor라 그냥 두면 이 함수가 MainActor에
 /// 묶이고, 격리된 함수는 C 함수 포인터로 변환되지 않는다 (`eventTapCallback`과 같은 이유).
+///
+/// **알림 이름으로 갈린다**: 창 이동·리사이즈는 기하만 바꾸므로 인디케이터 훅만 부르고
+/// 계열은 다시 읽지 않는다 — 창 드래그마다 리졸버 읽기 큐에 AX 왕복이 얹히면 그 큐가 먹이는
+/// 포커스 계열 캐시가 밀린다. **모르는 이름의 기본값이 "둘 다"인 것이 계약이다**: 나중에
+/// 알림을 추가한 사람이 계열 갱신을 조용히 잃지 않는다.
 private nonisolated func focusedElementChanged(
     _ observer: AXObserver, _ element: AXUIElement, _ notification: CFString,
     _ refcon: UnsafeMutableRawPointer?
 ) {
     guard let refcon else { return }
     let resolver = Unmanaged<FocusedElementResolver>.fromOpaque(refcon).takeUnretainedValue()
+    let name = notification as String
+    let isWindowGeometry =
+        name == (kAXWindowMovedNotification as String)
+        || name == (kAXWindowResizedNotification as String)
     // 런루프 소스를 메인에 붙였으므로 항상 메인 스레드다 — assumeIsolated의 근거
     // (`eventTapCallback`과 같은 패턴).
-    MainActor.assumeIsolated { resolver.refresh() }
+    MainActor.assumeIsolated {
+        if !isWindowGeometry { resolver.refresh() }
+        resolver.onFocusGeometryChanged?()
+    }
 }

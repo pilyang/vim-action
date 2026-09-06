@@ -16,6 +16,20 @@ struct ModeIndicatorLayoutTests {
     /// 주 화면 **왼쪽**에 붙은 보조 디스플레이 — 이 배치에서 AX x가 음수가 된다.
     private let secondaryOnLeft = CGRect(x: -1200, y: 0, width: 1200, height: 1000)
     private var primaryMaxY: CGFloat { primary.maxY }
+    /// 메뉴바가 먹는 띠 — `visibleFrame`이 `frame`보다 이만큼 낮다.
+    private let menuBarHeight: CGFloat = 25
+
+    /// 화면 fixture. 고르는 축(`frame`)과 앉히는 축(`visibleFrame`)이 갈린 것을 재현한다.
+    private func screen(_ frame: CGRect) -> ModeIndicatorLayout.Screen {
+        .init(
+            frame: frame,
+            visibleFrame: CGRect(
+                x: frame.minX, y: frame.minY,
+                width: frame.width, height: frame.height - menuBarHeight))
+    }
+
+    private var primaryScreen: ModeIndicatorLayout.Screen { screen(primary) }
+    private var secondaryScreen: ModeIndicatorLayout.Screen { screen(secondaryOnLeft) }
 
     private let badge = CGSize(width: 80, height: 22)
 
@@ -102,7 +116,7 @@ struct ModeIndicatorLayoutTests {
     /// 디스플레이의 배지가 앵커에서 화면 하나만큼 떨어진 곳에 뜬다.
     @Test("클램프는 앵커가 있는 화면 안으로 민다")
     func clampUsesScreenContainingAnchor() {
-        let screens = [primary, secondaryOnLeft]
+        let screens = [primaryScreen, secondaryScreen]
         // 보조 화면 오른쪽 끝에 걸친 앵커와, 그 밖으로 삐져나간 배지.
         let anchor = CGRect(x: -200, y: 500, width: 180, height: 40)
         let frame = CGRect(x: -40, y: 500, width: badge.width, height: badge.height)
@@ -119,10 +133,31 @@ struct ModeIndicatorLayoutTests {
         let anchor = CGRect(x: 100, y: 960, width: 300, height: 40)
         let frame = CGRect(x: 100, y: 990, width: badge.width, height: badge.height)
 
-        let clamped = ModeIndicatorLayout.clamp(frame, nearAnchor: anchor, screens: [primary])
+        let clamped = ModeIndicatorLayout.clamp(frame, nearAnchor: anchor, screens: [primaryScreen])
 
-        #expect(clamped.maxY == primary.maxY)
+        // 화면 **위 경계**가 아니라 `visibleFrame`의 위 경계다 — 메뉴바 뒤로 들어간 알약은
+        // 보이지 않아 기능이 고장 난 것으로 읽힌다.
+        #expect(clamped.maxY == primaryScreen.visibleFrame.maxY)
         #expect(clamped.minX == frame.minX)
+    }
+
+    /// 고르는 축과 앉히는 축이 갈린 이유 그 자체 — 메뉴바 띠 안의 앵커는 그 화면의
+    /// `visibleFrame`과 교차하지 않으므로, 포함 판정까지 `visibleFrame`으로 하면 앵커가
+    /// 자기 디스플레이를 못 찾고 `screens.first`(주 화면)로 떨어져 알약이 화면 하나만큼 튄다.
+    @Test("메뉴바 띠 안의 앵커도 자기 디스플레이에 남고 띠 아래로 밀린다")
+    func clampKeepsMenuBarBandAnchorOnItsOwnScreen() {
+        // 보조 화면의 메뉴바 띠(975~1000) 안에 있는 앵커 — 주 화면과는 겹치지 않는다.
+        let anchor = CGRect(x: -600, y: 980, width: 300, height: 18)
+        let frame = CGRect(x: -400, y: 985, width: badge.width, height: badge.height)
+
+        let clamped = ModeIndicatorLayout.clamp(
+            frame, nearAnchor: anchor, screens: [primaryScreen, secondaryScreen])
+
+        // ⓐ 주 화면(`screens.first`)으로 튀지 않는다.
+        #expect(clamped.minX == frame.minX)
+        #expect(secondaryOnLeft.contains(clamped))
+        // ⓑ 그 화면의 메뉴바 띠 바로 아래에 앉는다.
+        #expect(clamped.maxY == secondaryScreen.visibleFrame.maxY)
     }
 
     // MARK: - 전체 파이프라인
@@ -132,7 +167,7 @@ struct ModeIndicatorLayoutTests {
     func noAnchorMeansNoPanel() {
         #expect(
             ModeIndicatorLayout.panelFrame(
-                anchors: .init(), size: badge, screens: [primary],
+                anchors: .init(), size: badge, screens: [primaryScreen],
                 primaryScreenMaxY: primaryMaxY) == nil)
     }
 
@@ -140,7 +175,7 @@ struct ModeIndicatorLayoutTests {
     func panelFrameEndToEnd() {
         let element = CGRect(x: 100, y: 200, width: 300, height: 40)
         let frame = ModeIndicatorLayout.panelFrame(
-            anchors: .init(element: element), size: badge, screens: [primary],
+            anchors: .init(element: element), size: badge, screens: [primaryScreen],
             primaryScreenMaxY: primaryMaxY)
 
         let expected = ModeIndicatorLayout.clamp(
@@ -148,8 +183,8 @@ struct ModeIndicatorLayoutTests {
                 ModeIndicatorLayout.badgeFrameInAXSpace(anchor: .element(element), size: badge),
                 primaryScreenMaxY: primaryMaxY),
             nearAnchor: ModeIndicatorLayout.flip(element, primaryScreenMaxY: primaryMaxY),
-            screens: [primary])
+            screens: [primaryScreen])
         #expect(frame == expected)
-        #expect(primary.contains(frame!))
+        #expect(primaryScreen.visibleFrame.contains(frame!))
     }
 }
