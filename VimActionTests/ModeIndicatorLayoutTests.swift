@@ -33,41 +33,127 @@ struct ModeIndicatorLayoutTests {
 
     private let badge = CGSize(width: 80, height: 22)
 
+    /// 실측표의 전형 — 요소 안의 캐럿 (AX 좌표).
+    private let element = CGRect(x: 100, y: 200, width: 300, height: 40)
+    private let window = CGRect(x: 50, y: 100, width: 800, height: 600)
+    private let caret = CGRect(x: 150, y: 210, width: 1, height: 18)
+
     // MARK: - 사다리
 
-    @Test("사다리는 요소 → 창 → 없음 순이다")
-    func ladderPrefersElementThenWindow() {
-        let element = CGRect(x: 100, y: 200, width: 300, height: 40)
-        let window = CGRect(x: 50, y: 100, width: 800, height: 600)
-
+    @Test("flash 사다리는 캐럿 → 요소 → 창 → 없음 순이다")
+    func caretFirstLadderPrefersCaretThenElementThenWindow() {
         #expect(
-            ModeIndicatorLayout.anchor(.init(element: element, window: window))
+            ModeIndicatorLayout.anchor(
+                .init(element: element, window: window, caret: caret), for: .caretFirst)
+                == .caret(caret))
+        #expect(
+            ModeIndicatorLayout.anchor(.init(element: element, window: window), for: .caretFirst)
                 == .element(element))
-        #expect(ModeIndicatorLayout.anchor(.init(element: nil, window: window)) == .window(window))
-        #expect(ModeIndicatorLayout.anchor(.init(element: nil, window: nil)) == nil)
+        #expect(
+            ModeIndicatorLayout.anchor(.init(window: window), for: .caretFirst) == .window(window))
+        #expect(ModeIndicatorLayout.anchor(.init(), for: .caretFirst) == nil)
+    }
+
+    /// 배지가 캐럿을 따라다니면 키마다·스크롤마다 다시 읽어야 한다 — 배지는 캐럿을 보지 않는다.
+    @Test("배지 사다리는 요소 → 창 → 없음 순이고 캐럿을 보지 않는다")
+    func elementFirstLadderIgnoresCaret() {
+        #expect(
+            ModeIndicatorLayout.anchor(
+                .init(element: element, window: window, caret: caret), for: .elementFirst)
+                == .element(element))
+        #expect(
+            ModeIndicatorLayout.anchor(.init(window: window, caret: caret), for: .elementFirst)
+                == .window(window))
+        #expect(ModeIndicatorLayout.anchor(.init(caret: caret), for: .elementFirst) == nil)
     }
 
     /// 요소가 0×0을 보고하는 앱이 있다 — 그 rect에 배지를 붙이면 화면 구석에 떠 있는 것처럼
     /// 보이므로 한 단으로 인정하지 않고 창으로 내려가야 한다.
     @Test("면적 없는 rect는 한 단으로 안 친다")
     func degenerateRectFallsThrough() {
-        let window = CGRect(x: 50, y: 100, width: 800, height: 600)
         let empty = CGRect(x: 100, y: 200, width: 0, height: 0)
         let zeroHeight = CGRect(x: 100, y: 200, width: 300, height: 0)
 
-        #expect(ModeIndicatorLayout.anchor(.init(element: empty, window: window)) == .window(window))
         #expect(
-            ModeIndicatorLayout.anchor(.init(element: zeroHeight, window: window))
+            ModeIndicatorLayout.anchor(.init(element: empty, window: window), for: .elementFirst)
                 == .window(window))
-        #expect(ModeIndicatorLayout.anchor(.init(element: empty, window: empty)) == nil)
+        #expect(
+            ModeIndicatorLayout.anchor(
+                .init(element: zeroHeight, window: window), for: .elementFirst)
+                == .window(window))
+        #expect(
+            ModeIndicatorLayout.anchor(.init(element: empty, window: empty), for: .elementFirst)
+                == nil)
+    }
+
+    // MARK: - 캐럿 유효성
+
+    /// Slack 컴포저는 캐럿을 0×18로 보고하고 그것이 정확한 캐럿이다 — 폭은 보지 않는다.
+    @Test("폭 0 캐럿도 쓸 만하다")
+    func zeroWidthCaretIsUsable() {
+        let slack = CGRect(x: 150, y: 210, width: 0, height: 18)
+        #expect(ModeIndicatorLayout.isUsableCaret(slack, element: element))
+        #expect(
+            ModeIndicatorLayout.anchor(.init(element: element, caret: slack), for: .caretFirst)
+                == .caret(slack))
+    }
+
+    @Test("높이 0 캐럿은 안 친다")
+    func zeroHeightCaretIsRejected() {
+        let flat = CGRect(x: 150, y: 210, width: 1, height: 0)
+        #expect(ModeIndicatorLayout.isUsableCaret(flat, element: element) == false)
+        #expect(
+            ModeIndicatorLayout.anchor(.init(element: element, caret: flat), for: .caretFirst)
+                == .element(element))
+    }
+
+    /// 마커 경로는 선택이 내용 끝에 있으면 캐럿 대신 요소 전체 rect를 돌려준다 — 그 퇴화를
+    /// 캐럿으로 쓰면 알약이 입력칸 아래에 뜬다.
+    @Test("요소 rect와 같은 캐럿은 안 친다")
+    func caretEqualToElementIsRejected() {
+        #expect(ModeIndicatorLayout.isUsableCaret(element, element: element) == false)
+        #expect(
+            ModeIndicatorLayout.anchor(.init(element: element, caret: element), for: .caretFirst)
+                == .element(element))
+    }
+
+    /// 스크롤로 시야 밖에 나간 캐럿·쓰레기값이 입력칸 밖에 떠 있으면 안 된다.
+    @Test("요소 밖 캐럿은 안 친다")
+    func caretOutsideElementIsRejected() {
+        let scrolledOut = CGRect(x: 150, y: 500, width: 1, height: 18)
+        #expect(ModeIndicatorLayout.isUsableCaret(scrolledOut, element: element) == false)
+        #expect(
+            ModeIndicatorLayout.anchor(
+                .init(element: element, caret: scrolledOut), for: .caretFirst)
+                == .element(element))
+    }
+
+    /// 요소 rect가 없거나 면적이 없으면 "안에 있는가"를 물을 수 없다 — 높이만 본다.
+    @Test("요소 rect가 쓸 만하지 않으면 캐럿은 높이만 본다")
+    func caretWithUnusableElementNeedsOnlyHeight() {
+        let empty = CGRect(x: 100, y: 200, width: 0, height: 0)
+        #expect(ModeIndicatorLayout.isUsableCaret(caret, element: nil))
+        #expect(ModeIndicatorLayout.isUsableCaret(caret, element: empty))
+        #expect(
+            ModeIndicatorLayout.anchor(.init(element: empty, caret: caret), for: .caretFirst)
+                == .caret(caret))
     }
 
     // MARK: - 배치 (AX 좌표: y는 아래로 증가)
 
+    /// macOS가 입력 소스 전환 때 캐럿 아래에 띄우는 인디케이터와 같은 자리다.
+    @Test("캐럿 단은 캐럿 바로 아래, 왼쪽 정렬")
+    func caretPillSitsBelowCaretLeftAligned() {
+        let frame = ModeIndicatorLayout.badgeFrameInAXSpace(anchor: .caret(caret), size: badge)
+
+        #expect(frame.minX == caret.minX)
+        #expect(frame.minY == caret.maxY + 4)
+        #expect(frame.size == badge)
+    }
+
     /// 텍스트 영역 안에 겹치면 사용자가 쓰고 있는 글자를 가린다 — 그래서 요소 **바깥** 위다.
     @Test("요소 단은 요소 바깥 오른쪽 위")
     func elementBadgeSitsOutsideTopRight() {
-        let element = CGRect(x: 100, y: 200, width: 300, height: 40)
         let frame = ModeIndicatorLayout.badgeFrameInAXSpace(anchor: .element(element), size: badge)
 
         #expect(frame.maxX == element.maxX)  // 오른쪽 정렬
@@ -78,7 +164,6 @@ struct ModeIndicatorLayoutTests {
     /// 창 밖으로 나가면 어느 창의 상태인지 읽히지 않는다.
     @Test("창 단은 창 안쪽 오른쪽 위")
     func windowBadgeSitsInsideTopRight() {
-        let window = CGRect(x: 50, y: 100, width: 800, height: 600)
         let frame = ModeIndicatorLayout.badgeFrameInAXSpace(anchor: .window(window), size: badge)
 
         #expect(frame.maxX < window.maxX)
@@ -167,16 +252,15 @@ struct ModeIndicatorLayoutTests {
     func noAnchorMeansNoPanel() {
         #expect(
             ModeIndicatorLayout.panelFrame(
-                anchors: .init(), size: badge, screens: [primaryScreen],
+                anchors: .init(), ladder: .caretFirst, size: badge, screens: [primaryScreen],
                 primaryScreenMaxY: primaryMaxY) == nil)
     }
 
     @Test("요소 앵커의 전체 파이프라인이 화면 안 프레임을 낸다")
     func panelFrameEndToEnd() {
-        let element = CGRect(x: 100, y: 200, width: 300, height: 40)
         let frame = ModeIndicatorLayout.panelFrame(
-            anchors: .init(element: element), size: badge, screens: [primaryScreen],
-            primaryScreenMaxY: primaryMaxY)
+            anchors: .init(element: element), ladder: .elementFirst, size: badge,
+            screens: [primaryScreen], primaryScreenMaxY: primaryMaxY)
 
         let expected = ModeIndicatorLayout.clamp(
             ModeIndicatorLayout.flip(
@@ -186,5 +270,91 @@ struct ModeIndicatorLayoutTests {
             screens: [primaryScreen])
         #expect(frame == expected)
         #expect(primaryScreen.visibleFrame.contains(frame!))
+    }
+
+    /// 보조 디스플레이의 폭 0 캐럿(Slack) — 화면 선택이 폭 0 앵커에서도 자기 디스플레이를
+    /// 찾아야 알약이 주 화면으로 튀지 않는다 (`CGRect.intersects`의 폭 0 동작에 기댄다).
+    @Test("보조 디스플레이의 폭 0 캐럿도 그 화면 안에 앉는다")
+    func caretPanelFrameEndToEnd() {
+        let element = CGRect(x: -900, y: 300, width: 300, height: 40)
+        let caret = CGRect(x: -800, y: 310, width: 0, height: 18)
+        let frame = ModeIndicatorLayout.panelFrame(
+            anchors: .init(element: element, caret: caret), ladder: .caretFirst, size: badge,
+            screens: [primaryScreen, secondaryScreen], primaryScreenMaxY: primaryMaxY)
+
+        let expected = ModeIndicatorLayout.flip(
+            ModeIndicatorLayout.badgeFrameInAXSpace(anchor: .caret(caret), size: badge),
+            primaryScreenMaxY: primaryMaxY)
+        #expect(frame == expected)  // 이미 화면 안이라 클램프가 움직이지 않는다
+        #expect(secondaryScreen.visibleFrame.contains(frame!))
+    }
+
+    // MARK: - 화면 테두리
+
+    @Test("테두리는 앵커가 있는 화면의 visibleFrame을 두른다")
+    func borderCoversVisibleFrameOfAnchorScreen() {
+        let layout = ModeIndicatorLayout.borderLayout(
+            anchors: .init(element: element), labelSize: badge,
+            screens: [primaryScreen, secondaryScreen], primaryScreenMaxY: primaryMaxY)
+
+        // `frame`이 아니라 `visibleFrame` — 위 변이 메뉴바 뒤에 숨으면 세 변짜리로 보인다.
+        #expect(layout?.frame == primaryScreen.visibleFrame)
+    }
+
+    @Test("모서리 라벨은 테두리 안쪽 오른쪽 위")
+    func borderLabelSitsInsideTopRightCorner() {
+        let layout = ModeIndicatorLayout.borderLayout(
+            anchors: .init(element: element), labelSize: badge,
+            screens: [primaryScreen], primaryScreenMaxY: primaryMaxY)!
+
+        #expect(layout.labelFrame.size == badge)
+        #expect(layout.frame.contains(layout.labelFrame))
+        // 선 굵기보다 안쪽이라 선과 겹치지 않는다.
+        #expect(layout.frame.maxX - layout.labelFrame.maxX > ModeIndicatorLayout.borderStrokeWidth)
+        #expect(layout.frame.maxY - layout.labelFrame.maxY > ModeIndicatorLayout.borderStrokeWidth)
+        // 왼쪽·아래로는 멀리 떨어져 있다 — 오른쪽 위 모서리다.
+        #expect(layout.labelFrame.minX > layout.frame.midX)
+        #expect(layout.labelFrame.minY > layout.frame.midY)
+    }
+
+    /// 요소는 창 안에 있으므로 요소 단이든 창 단이든 같은 디스플레이다 — AX를 더 읽지 않고
+    /// 앵커 rect로만 화면을 고른다.
+    @Test("테두리는 보조 디스플레이의 앵커를 따라간다")
+    func borderFollowsAnchorToSecondaryDisplay() {
+        let element = CGRect(x: -900, y: 300, width: 300, height: 40)
+        let byElement = ModeIndicatorLayout.borderLayout(
+            anchors: .init(element: element), labelSize: badge,
+            screens: [primaryScreen, secondaryScreen], primaryScreenMaxY: primaryMaxY)
+        let window = CGRect(x: -1100, y: 100, width: 800, height: 600)
+        let byWindow = ModeIndicatorLayout.borderLayout(
+            anchors: .init(window: window), labelSize: badge,
+            screens: [primaryScreen, secondaryScreen], primaryScreenMaxY: primaryMaxY)
+
+        #expect(byElement?.frame == secondaryScreen.visibleFrame)
+        #expect(byWindow?.frame == secondaryScreen.visibleFrame)
+    }
+
+    /// 앵커가 어느 화면과도 겹치지 않으면(화면 밖) 첫 화면이다 — 순수 함수라 답이 정의돼야 한다.
+    @Test("겹치는 화면이 없으면 첫 화면으로 내려간다")
+    func borderFallsBackToFirstScreenWhenNoneIntersects() {
+        let offScreen = CGRect(x: 5000, y: 5000, width: 300, height: 40)
+        let layout = ModeIndicatorLayout.borderLayout(
+            anchors: .init(element: offScreen), labelSize: badge,
+            screens: [secondaryScreen, primaryScreen], primaryScreenMaxY: primaryMaxY)
+
+        #expect(layout?.frame == secondaryScreen.visibleFrame)
+    }
+
+    /// 배지와 같은 사다리(요소 → 창)라 캐럿만으로는 테두리도 없다.
+    @Test("앵커가 없으면 테두리도 없다")
+    func borderWithoutAnchorIsNil() {
+        #expect(
+            ModeIndicatorLayout.borderLayout(
+                anchors: .init(), labelSize: badge, screens: [primaryScreen],
+                primaryScreenMaxY: primaryMaxY) == nil)
+        #expect(
+            ModeIndicatorLayout.borderLayout(
+                anchors: .init(caret: caret), labelSize: badge, screens: [primaryScreen],
+                primaryScreenMaxY: primaryMaxY) == nil)
     }
 }

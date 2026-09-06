@@ -6,12 +6,17 @@
 import AppKit
 
 /// 알약 두 겹의 외양 차이. 크기·모서리·창 층만 다르고 나머지(비활성화 패널 설정, 표시 경로)는
-/// 같아서 값 하나로 갈라 둔다.
+/// 같아서 값 하나로 갈라 둔다. (상시 표시를 배지로 할지 화면 테두리로 할지는 다른 축 —
+/// `ModeIndicatorPresentationStyle`이다.)
 ///
 /// **배지가 한 층 아래인 것이 "flash가 배지 위에 그려진다"의 유일한 보장이다.** 같은 층이면
 /// 마지막 `orderFrontRegardless()` 순서에 의존하는데, 창이 움직여 배지가 나중에 재배치되면
-/// 뒤집힌다. 두 알약은 요소 오른쪽 위 모서리에 오른쪽·아래 정렬로 붙고 flash가 양방향으로 더
-/// 커서 배지를 완전히 덮는다 — 전환 직후 1초간 flash만 보이고 페이드아웃하며 배지가 드러난다.
+/// 뒤집힌다. 캐럿이 없는 앱에서는 두 알약이 요소 오른쪽 위 모서리에 오른쪽·아래 정렬로 붙고
+/// flash가 양방향으로 더 커서 배지를 완전히 덮는다 — 전환 직후 1초간 flash만 보이고
+/// 페이드아웃하며 배지가 드러난다. 캐럿이 있는 앱에서는 flash가 캐럿 아래, 배지가 요소 모서리라
+/// 전환 직후 1초간 같은 라벨 둘이 함께 보인다 — flash는 캐럿부터, 배지는 요소부터라는 결정의
+/// 직접 결과다 (`20260906_mode-indicator-anchor-ladder-event-driven.md` 결정 2). 화면 테두리
+/// 스타일의 모서리 라벨도 배지 스타일이고 같은 층이다.
 enum ModeIndicatorStyle {
     /// 모드 전환 순간 표시. 한 단계 크고 진하다.
     case flash
@@ -52,7 +57,10 @@ enum ModeIndicatorStyle {
 /// 모드 라벨을 그리는 알약. 색만으로 구분하지 않는다는 PRD 접근성 NFR 때문에 **항상 텍스트가
 /// 동반**되며, 그래서 배경은 라벨 폭에 맞춰 늘어난다 (`size(for:style:)`가 그 폭의 소유자다).
 /// 같은 이유로 글씨 색은 고정이 아니라 강조색에서 파생된다 (`textColor(on:)`).
-private final class ModeIndicatorPillView: NSView {
+///
+/// `private`이 아닌 것은 화면 테두리 패널이 모서리 라벨로 같은 뷰를 쓰기 때문이다 — 알약
+/// 그리기(강조색·글씨색·크기)가 두 벌이 되면 한쪽만 고쳐도 컴파일이 통과한다.
+final class ModeIndicatorPillView: NSView {
     private let style: ModeIndicatorStyle
 
     var label = "" {
@@ -109,8 +117,9 @@ private final class ModeIndicatorPillView: NSView {
 /// 순환시켜 검증한 것 그대로다 (플랜 `20260906_onscreen-mode-indicator.md`).
 ///
 /// 인스턴스는 둘이다 — 순간 표시용과 상시 배지용. 스타일만 다르고 나머지는 같아서 타입을
-/// 나누지 않는다: 위 패널 설정이 이 타입의 섬세한 부분이라 두 벌이 되면 한쪽만 고쳐도
-/// 컴파일이 통과한다.
+/// 나누지 않는다. 화면 테두리 패널(`ModeIndicatorBorderPanel`)만 내용이 달라 타입이 다르지만,
+/// 패널 설정은 아래 `makeOverlayPanel` 하나에서 받는다 — 그 설정이 이 파일의 섬세한 부분이라
+/// 두 벌이 되면 한쪽만 고쳐도 컴파일이 통과한다.
 @MainActor
 final class ModeIndicatorPanel {
     /// 페이드인 → 홀드 → 페이드아웃. 합이 대략 1초다 (`flash`만 쓴다).
@@ -125,22 +134,30 @@ final class ModeIndicatorPanel {
 
     init(style: ModeIndicatorStyle) {
         pill = ModeIndicatorPillView(style: style)
-        panel = NSPanel(
+        panel = Self.makeOverlayPanel(level: style.windowLevel)
+        panel.contentView = pill
+    }
+
+    /// 비활성화 오버레이 패널의 **유일한** 생성 지점 — 알약 둘과 화면 테두리가 전부 여기서 받는다.
+    /// 설정 조합은 스파이크에서 검증한 것 그대로이며, 어느 하나가 빠지면 증상이 조용하다
+    /// (최전면을 빼앗거나, 뜨자마자 사라지거나, 다른 Space에서 안 보인다).
+    static func makeOverlayPanel(level: NSWindow.Level) -> NSPanel {
+        let panel = NSPanel(
             contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
             defer: false)
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
-        panel.level = style.windowLevel
+        panel.level = level
         panel.ignoresMouseEvents = true
         // 우리가 활성화되지 않으므로 `hidesOnDeactivate`가 켜져 있으면 뜨자마자 사라진다.
         panel.hidesOnDeactivate = false
-        // 배지도 flash와 같은 조합이다 — Space를 옮기면 앱 활성화 알림이 재앵커를 걸어 새
-        // Space의 요소로 즉시 옮겨 붙으므로, 검증된 조합을 배지 때문에 갈라 놓지 않는다.
+        // 배지·테두리도 flash와 같은 조합이다 — Space를 옮기면 앱 활성화 알림이 재앵커를 걸어 새
+        // Space의 요소로 즉시 옮겨 붙으므로, 검증된 조합을 상시 표시 때문에 갈라 놓지 않는다.
         panel.collectionBehavior = [
             .canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle,
         ]
-        panel.contentView = pill
+        return panel
     }
 
     static func size(for label: String, style: ModeIndicatorStyle) -> CGSize {
