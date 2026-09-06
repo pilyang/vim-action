@@ -1,0 +1,27 @@
+.claude/skills/decisions/references/20260906_mode-indicator-hybrid-display-policy.md
+  s_092985fccd9750::t_42e439403afff2 1-39
+.claude/skills/decisions/SKILL.md
+  s_092985fccd9750::t_42e439403afff2 97-105
+.claude/skills/decisions/references/20260906_mode-indicator-anchor-ladder-event-driven.md
+  s_092985fccd9750::t_42e439403afff2 1-54
+.claude/skills/decisions/references/20260906_mode-indicator-settings-in-userdefaults.md
+  s_092985fccd9750::t_42e439403afff2 1-26
+.claude/skills/decisions/references/20260906_no-forced-chromium-screen-reader-mode.md
+  s_092985fccd9750::t_42e439403afff2 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "b972943b3fe2f133a2c0662cb243f8eb4bed5f59",
+  "prompts": {},
+  "sessions": {
+    "s_092985fccd9750": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5a495d1a-662b-4860-8013-80adb0cf37d0",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
