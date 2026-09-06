@@ -1,7 +1,7 @@
 # 온스크린 모드 인디케이터 (HUD)
 
 - **생성일**: 2026-09-06
-- **갱신일**: 2026-09-06 (PR 2 구현·도그푸딩 완료, PR #67 오픈)
+- **갱신일**: 2026-09-06 (PR 2 구현·도그푸딩 완료, PR #67 오픈, 외양 커스텀 후속 항목 추가)
 
 ## 목표
 
@@ -21,6 +21,7 @@
 
 - [ ] [PR #67](https://github.com/pilyang/vim-action/pull/67) 머지 확인 (CI 3잡 required).
 - [ ] **PR 3 — 캐럿 정밀도 + 화면 테두리 스타일.** 순간 표시 앵커를 캐럿부터 시작: `AXBoundsForRange (loc,1)` → 문서 끝 `(loc-1,1)` → `AXSelectedTextMarkerRange`+`AXBoundsForTextMarkerRange`, 마커 결과가 요소 rect와 같으면 무효. 스타일 선택(배지 / 화면 테두리 — 포커스 창이 있는 `NSScreen` frame 패널 + 모서리 라벨). 검증: 실측표 앱들(TextEdit·Notes·Safari·Slack·Notion은 캐럿 아래, Chrome·Arc는 요소 모서리 폴백).
+- [ ] **후속 — 인디케이터 외양 커스텀(색상·투명도).** 모드 라벨 알약(flash·배지)의 **색상**과 **투명도**를 사용자가 고를 수 있게 한다. 시점은 PR 3(캐럿 위치 지정) **이후**, 또는 작업 크기가 작으면 PR 3에 **함께**. 이러면서 설정 항목이 늘어나면(on/off·스타일·색상·투명도) 설정 창에 별도 **Visual 탭**을 두는 것도 함께 검토 — 탭 구성은 [20260809_settings-window-three-tabs.md](../../decisions/references/20260809_settings-window-three-tabs.md)의 결정이라 바꾸면 decisions로 기록하고 app-shell reference를 갱신한다. 색상 커스텀에서도 라벨 텍스트는 항상 동반(색만으로 구분하지 않음 — PRD NFR)하고, 글씨색은 PR 2의 luminance 파생을 사용자 색에 그대로 적용한다. 설정 소유권은 UserDefaults([20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md)).
 - [ ] 마무리: 로드맵 Stage 4 항목 체크, 플랜 완료 처리.
 - [ ] 후속 검토(별도 PR 후보): **막 실행된 앱의 AXObserver 등록 실패.** 앱을 실행하며 동시에 활성화하면 리졸버의 `AXObserverCreate`/`AddNotification`이 `cannotComplete`(−25204)로 실패하고, 리졸버는 다음 pid 전환까지 재시도하지 않는다(PR 2 도그푸딩에서 TextEdit·Chrome·Terminal 콜드 실행 3건 전부 재현, 다른 앱에 갔다 오면 정상). PR 2 이전부터 있던 동작이지만 배지가 생기며 체감이 커졌다 — 그 앱에서는 앱 전환 전까지 포커스·창 이벤트 재앵커가 없고 모드 전환만 배지를 옮긴다. 후보: 등록 실패 시 짧은 지연 뒤 1회 재시도.
 
