@@ -1,0 +1,39 @@
+.claude/skills/decisions/references/20260915_settings-window-indicator-tab.md
+  s_08d968ad8c2a1a::t_14dde3f2198719 1-34
+.claude/skills/architecture/references/mode-indicator-overlay.md
+  s_08d968ad8c2a1a::t_52aa8bb0c0a2eb 7
+.claude/skills/decisions/SKILL.md
+  s_08d968ad8c2a1a::t_80ae97b7253cc0 70
+  s_08d968ad8c2a1a::t_def873f1479792 106
+.claude/skills/decisions/references/20260809_settings-window-three-tabs.md
+  s_08d968ad8c2a1a::t_e57b56616c0317 1-2
+.claude/skills/architecture/SKILL.md
+  s_08d968ad8c2a1a::t_cdb0aec0f2c47b 47
+.claude/skills/plans/SKILL.md
+  s_08d968ad8c2a1a::t_6f5baa1735cbba 54
+.claude/skills/plans/references/20260906_onscreen-mode-indicator.md
+  s_08d968ad8c2a1a::t_1f37920259805d 18
+  s_08d968ad8c2a1a::t_32865a9b2c60e8 27
+  s_08d968ad8c2a1a::t_372e10f8c6e9e4 4
+  s_08d968ad8c2a1a::t_5d287e6943e69b 25
+.claude/skills/architecture/references/app-shell.md
+  s_08d968ad8c2a1a::t_f5c56b7f236dd1 21
+  s_08d968ad8c2a1a::t_cc6608aacd40f2 23
+  s_08d968ad8c2a1a::t_bddf721556a71d 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4e54732348ebac6d7c5844a19629015d73dfbccd",
+  "prompts": {},
+  "sessions": {
+    "s_08d968ad8c2a1a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7413f14d-caff-4d65-ba18-37a55c638980",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
