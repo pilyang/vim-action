@@ -1,0 +1,37 @@
+VimAction/Preferences.swift
+  s_69fb08abb10739::t_1cfdbe785d11c2 10
+  s_69fb08abb10739::t_a0e41bd4ab2d6c 21-23,27
+  s_69fb08abb10739::t_3c7586c9e7d4c9 36-39
+VimActionTests/ModeIndicatorControllerTests.swift
+  s_69fb08abb10739::t_351e80330ad4eb 194-257
+  s_69fb08abb10739::t_3c16dc0e9ec0e6 112-114
+  s_69fb08abb10739::t_de176a6f649e1c 25,28-29
+  s_69fb08abb10739::t_e79e6b24c810bb 62-74,77-82
+VimAction/SettingsView.swift
+  s_69fb08abb10739::t_39fd3b740dd438 130-138,143
+VimAction/ModeIndicatorController.swift
+  s_69fb08abb10739::t_022f546e58c06a 68-71
+  s_69fb08abb10739::t_dd97601fbfabab 122-123,135-145
+  s_69fb08abb10739::t_83eefadc3c7e51 252-254
+  s_69fb08abb10739::t_12d976677acc92 30-35
+  s_69fb08abb10739::t_763bbc2889065c 86-87,94
+  s_69fb08abb10739::t_d9ab7a8c5544fb 210-212
+  s_69fb08abb10739::t_27947c72b6c75c 146-148
+  s_69fb08abb10739::t_642c68fc564197 149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "87e7529c7be380ce0f9e10036b0a7dc9ec227557",
+  "prompts": {},
+  "sessions": {
+    "s_69fb08abb10739": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "262bc035-2df8-4dcb-8ec5-5eaa4d2fa0f5",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
