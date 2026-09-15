@@ -11,7 +11,8 @@ import VimEngine
 @testable import VimAction
 
 /// 온스크린 인디케이터의 **표시 판정**(순수 계층)과 **토글·스타일 영속**. 패널도 AX도 만들지
-/// 않는다 — 판정은 순수 함수라 값만 오가고, 컨트롤러 테스트는 트리거를 부르지 않는다.
+/// 않는다 — 판정은 순수 함수라 값만 오가고, 컨트롤러 테스트가 부르는 트리거는 자기 pid
+/// 경로 하나뿐이다 (그 경로는 읽지도 그리지도 않는다 — `ModeIndicatorSelfProcessTests`).
 struct ModeIndicatorPresentationTests {
     private func inputs(
         _ mode: Mode, _ indicator: MenuBarIndicator, pid: pid_t? = 42
@@ -212,6 +213,43 @@ struct ModeIndicatorToggleTests {
             controller.isEnabled = false
             controller.isEnabled = true
             #expect(controller.isEnabled)
+        }
+    }
+}
+
+/// 자기 pid 경로 — VimAction이 최전면일 때(메뉴바 아이콘 클릭·설정 창) 리졸버가 우리 pid에
+/// 붙는데, 그 경로는 읽지도 그리지도 않지만 **떠 있던 읽기는 무효화해야 한다**. 아니면 이전
+/// 앱을 향해 떠 있던 읽기가 착지해 방금 감춘 옛 배지·테두리를 다시 그린다 (PR #68 리뷰).
+///
+/// 이 경로가 테스트에서 무해한 근거: 패널 셋은 첫 표시에서야 만들어지고(전부 nil), AX도
+/// `NSScreen`도 부르지 않는다 — 관측 가능한 부수효과가 토큰뿐이라 토큰을 단언한다.
+@MainActor
+struct ModeIndicatorSelfProcessTests {
+    private var selfInputs: ModeIndicatorController.Inputs {
+        .init(
+            mode: .normal, indicator: .mode(.normal),
+            processID: ProcessInfo.processInfo.processIdentifier)
+    }
+
+    @Test("자기 pid의 앵커 이벤트는 진행 중 읽기를 무효화한다")
+    func selfProcessAnchorEventInvalidatesInFlightReads() {
+        withTemporaryDefaults { defaults in
+            let controller = ModeIndicatorController(defaults: defaults)
+            let before = controller.token
+            controller.anchorDidChange(selfInputs)
+            #expect(controller.token != before)
+        }
+    }
+
+    /// 설정 창에서 스타일을 바꾸는 경로 — didSet → reconcile이 자기 pid 가지를 탄다.
+    @Test("자기 pid 상태에서 스타일 변경도 진행 중 읽기를 무효화한다")
+    func styleChangeWhileSelfFrontmostInvalidatesInFlightReads() {
+        withTemporaryDefaults { defaults in
+            let controller = ModeIndicatorController(defaults: defaults)
+            controller.anchorDidChange(selfInputs)
+            let before = controller.token
+            controller.style = .screenBorder
+            #expect(controller.token != before)
         }
     }
 }

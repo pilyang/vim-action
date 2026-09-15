@@ -169,7 +169,10 @@ final class ModeIndicatorController {
     /// 사다리를 벗어날 때 `pending`을 비우는 것만으로는 부족하다: 이미 떠 있는 읽기가 착지해
     /// "가로채지 않는데 NORMAL이라고 말하는" 라벨을 띄운다
     /// (`FocusedElementResolver.refreshToken`과 같은 장치·같은 이유).
-    @ObservationIgnored private var token = 0
+    ///
+    /// 읽기만 열려 있는 것은 회귀 테스트 때문이다 — 자기 pid 경로가 토큰을 올리는지는 화면
+    /// 없이 이 값으로만 관측된다 (`ModeIndicatorSelfProcessTests`).
+    @ObservationIgnored private(set) var token = 0
 
     /// 패널은 첫 표시에서야 만든다 — 런치 시 `NSPanel`을 만들지 않고, 표시할 일이 없는
     /// 실행(권한 미허용, 계속 Insert, 토글 off)에서는 끝까지 만들어지지 않는다. 테두리 패널은
@@ -246,6 +249,17 @@ final class ModeIndicatorController {
             // 설정 창이 열려 있으면 우리가 최전면이다 — 그래서 이전 스타일의 패널은 여기서
             // 즉시 감추고, 새 스타일은 사용자가 앱으로 돌아가는 앵커 이벤트가 그린다
             // (토글을 켤 때와 같은 수렴).
+            //
+            // **떠 있는 읽기도 무효화한다.** 토큰을 올리지 않으면 이전 앱을 향해 이미 떠 있던
+            // 읽기가 여기서 감춘 뒤에 착지해 옛 배지·테두리를 다시 그린다 — 방금 바꾼 스타일이
+            // 다음 앵커 이벤트까지 되돌아간 채로 보인다. 밀린 flash는 **만료**한다: 이 guard가
+            // `pendingFlash`를 세우는 줄보다 앞이라 우리가 최전면인 동안의 전환은 애초에 flash를
+            // 세우지 않으므로, 여기서 지우는 것은 언제나 "이전 앱에서 시작돼 순간을 놓친" flash다
+            // (`finish`가 앵커 없는 flash를 버리는 것과 같은 계약). `inFlight`는 비우지 않는다 —
+            // `finish`만 비워야 `pump()`의 1-in-flight 가드가 유지된다.
+            token &+= 1
+            pending = nil
+            pendingFlash = false
             hidePersistentPanels(keeping: desired.showsBadge ? desired.style : nil)
             return
         }
