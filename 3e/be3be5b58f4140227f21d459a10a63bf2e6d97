@@ -1,0 +1,50 @@
+.claude/skills/decisions/references/20260914_mode-indicator-optin-flash-only-and-window-border.md
+  s_69fb08abb10739::t_93adb2cf7a144e 1-38
+.claude/skills/plans/SKILL.md
+  s_69fb08abb10739::t_af2c38f9404526 54
+.claude/skills/architecture/references/app-shell.md
+  s_69fb08abb10739::t_b36c5721686276 23
+.claude/skills/architecture/references/mode-indicator-overlay.md
+  s_69fb08abb10739::t_57e804dda79c57 28
+  s_69fb08abb10739::t_0ff3e4e56f2dcb 31
+  s_69fb08abb10739::t_85a97b79f1d43e 40
+  s_69fb08abb10739::t_ff4abb0bedc118 70-71
+  s_69fb08abb10739::t_8a6fd7fde1b1f3 77,79
+  s_69fb08abb10739::t_78f9c387296998 50-51
+  s_69fb08abb10739::t_a825a58662a06d 47
+  s_69fb08abb10739::t_16f27e42c612ad 14,17-18
+  s_69fb08abb10739::t_ce0e3c1e928b21 3,7
+  s_69fb08abb10739::t_75f406b202b1a9 63-64
+  s_69fb08abb10739::t_2198978faf9d74 24-25
+  s_69fb08abb10739::t_54536c3c55bb6b 83
+  s_69fb08abb10739::t_8f877e4518aa5f 52
+  s_69fb08abb10739::t_2c5c7b1f6230ff 26
+  s_69fb08abb10739::t_bff5d48278a281 59
+.claude/skills/architecture/references/profiles-and-config.md
+  s_69fb08abb10739::t_c510dcc1646c03 99
+VimAction/ModeIndicatorBorderPanel.swift
+  s_69fb08abb10739::t_fb353285ba8327 53-54
+.claude/skills/plans/references/20260906_onscreen-mode-indicator.md
+  s_69fb08abb10739::t_8543b9019f15c1 4
+  s_69fb08abb10739::t_4093bd30c75e24 24-25
+  s_69fb08abb10739::t_bf61dbd252eb57 67
+  s_69fb08abb10739::t_5d6ecb8613da80 17
+.claude/skills/decisions/SKILL.md
+  s_69fb08abb10739::t_9a879434312f86 105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3ebe3be5b58f4140227f21d459a10a63bf2e6d97",
+  "prompts": {},
+  "sessions": {
+    "s_69fb08abb10739": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "262bc035-2df8-4dcb-8ec5-5eaa4d2fa0f5",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
