@@ -27,11 +27,12 @@ nonisolated enum ModeIndicatorPresentationStyle: String, Sendable {
 ///
 /// 겹은 둘이다. **순간 표시(flash)** 는 모드가 바뀔 때마다 ~1초 떴다 사라지고, **상시 표시**는
 /// 비-Insert 모드 동안 계속 붙어 있는다 (`20260906_mode-indicator-hybrid-display-policy.md`).
-/// 상시 표시의 형태는 둘 중 하나다 — 요소 모서리의 배지(기본) 또는 화면 테두리
-/// (`ModeIndicatorPresentationStyle`). 갱신은 **이벤트 기반만**이다 — 타이머 폴링도, 키마다
-/// 재배치도 없다 (`20260906_mode-indicator-anchor-ladder-event-driven.md` 결정 3). 트리거는
-/// 다섯이고 전부 아래 `reconcile` 하나로 모인다: 모드 전환 / 앵커 이벤트(포커스·앱 활성화·창
-/// 이동·리사이즈·디스플레이 재구성) / 사다리 변화 / 설정(토글·스타일).
+/// 상시 표시는 설정으로 끌 수 있고(그러면 flash만 남는다 — `isPersistentEnabled`), 형태는
+/// 둘 중 하나다 — 요소 모서리의 배지(기본) 또는 화면 테두리 (`ModeIndicatorPresentationStyle`).
+/// 갱신은 **이벤트 기반만**이다 — 타이머 폴링도, 키마다 재배치도 없다
+/// (`20260906_mode-indicator-anchor-ladder-event-driven.md` 결정 3). 트리거는 다섯이고 전부
+/// 아래 `reconcile` 하나로 모인다: 모드 전환 / 앵커 이벤트(포커스·앱 활성화·창 이동·리사이즈·
+/// 디스플레이 재구성) / 사다리 변화 / 설정(토글·상시 표시·스타일).
 @MainActor
 @Observable
 final class ModeIndicatorController {
@@ -64,8 +65,10 @@ final class ModeIndicatorController {
     /// 않는다.
     nonisolated struct Presentation: Equatable {
         var label: String
-        /// Insert만 `false`다 — flash는 뜨되 상시 표시는 남지 않는다. 상시 표시가 "지금 위험한
-        /// 모드다"를 뜻하려면 기본 상태(Insert)에는 없어야 한다.
+        /// Insert는 항상 `false`다 — flash는 뜨되 상시 표시는 남지 않는다. 상시 표시가 "지금
+        /// 위험한 모드다"를 뜻하려면 기본 상태(Insert)에는 없어야 한다. 상시 표시를 끈
+        /// 설정(`isPersistentEnabled == false`)에서는 모든 모드가 `false`다 — Insert 경로가
+        /// 곧 "순간 표시만"의 경로라 그 아래 코드는 설정을 모른다.
         var showsBadge: Bool
         var processID: pid_t
         /// 상시 표시의 형태. 여기 실리는 이유는 `desired != current`가 스타일 변경에도 참이
@@ -80,14 +83,15 @@ final class ModeIndicatorController {
     /// 띄우면 메뉴바에서 없앤 "가로채지 않는데 Normal이라고 말하는" 거짓말을 화면 한가운데서
     /// 되풀이하게 된다 (`20260906_mode-indicator-hybrid-display-policy.md` 결정 3).
     nonisolated static func presentation(
-        isEnabled: Bool, style: ModeIndicatorPresentationStyle, inputs: Inputs
+        isEnabled: Bool, isPersistentEnabled: Bool, style: ModeIndicatorPresentationStyle,
+        inputs: Inputs
     ) -> Presentation? {
         guard isEnabled, case .mode = inputs.indicator, let processID = inputs.processID else {
             return nil
         }
         return Presentation(
             label: inputs.mode.overlayLabel,
-            showsBadge: inputs.mode.showsPersistentBadge,
+            showsBadge: inputs.mode.showsPersistentBadge && isPersistentEnabled,
             processID: processID,
             style: style)
     }
@@ -115,8 +119,8 @@ final class ModeIndicatorController {
 
     /// 온스크린 인디케이터 on/off. **런타임 SSOT는 이 프로퍼티**이고 didSet이 저장을
     /// 책임진다 — 실행 중 외부 `defaults write`는 재시작까지 무시된다 (탈출 옵션과 같은
-    /// 소유 모델). `style`과 함께 `@ObservationIgnored`가 아닌 단 둘의 저장 프로퍼티다:
-    /// Settings 토글이 여기 바인딩된다.
+    /// 소유 모델). `isPersistentEnabled`·`style`과 함께 `@ObservationIgnored`가 아닌 단 셋의
+    /// 저장 프로퍼티다: Settings 토글이 여기 바인딩된다.
     var isEnabled: Bool {
         didSet {
             guard oldValue != isEnabled else { return }
@@ -124,6 +128,21 @@ final class ModeIndicatorController {
             // 마지막으로 받은 상태에서 다시 판정한다 — off면 즉시 사라지고, on이면 지금
             // Normal·Visual인 경우 배지가 바로 뜬다. 자기 상태 변경을 관찰 그래프로
             // 우회시킬 이유가 없다.
+            reconcile(flashes: false, rereadGeometry: false)
+        }
+    }
+
+    /// 상시 표시 on/off — off면 모드 전환 때의 flash만 남는다. `isEnabled`와 같은 소유
+    /// 모델(런타임 SSOT는 이 프로퍼티, didSet이 저장). Settings의 "Show" Picker가 여기
+    /// 바인딩된다. 판정에서는 `showsBadge`를 접을 뿐이라 그 아래(읽기 코얼레싱·숨김)는 Insert와
+    /// 같은 경로를 탄다 — off 상태의 앵커 이벤트는 AX 왕복 0건이다.
+    var isPersistentEnabled: Bool {
+        didSet {
+            guard oldValue != isPersistentEnabled else { return }
+            defaults.set(
+                isPersistentEnabled, forKey: PreferenceKeys.onScreenModeIndicatorPersistentEnabled)
+            // off면 떠 있던 상시 표시가 즉시 사라지고, on이면 지금 Normal·Visual인 경우
+            // `desired != current`로 다시 읽어 그린다 (토글과 같은 수렴).
             reconcile(flashes: false, rereadGeometry: false)
         }
     }
@@ -188,6 +207,9 @@ final class ModeIndicatorController {
         self.isEnabled = defaults.bool(
             forKey: PreferenceKeys.onScreenModeIndicatorEnabled,
             default: PreferenceKeys.onScreenModeIndicatorEnabledDefault)
+        self.isPersistentEnabled = defaults.bool(
+            forKey: PreferenceKeys.onScreenModeIndicatorPersistentEnabled,
+            default: PreferenceKeys.onScreenModeIndicatorPersistentEnabledDefault)
         // 없는 키도 모르는 raw 값도 기본으로 접힌다 — 스타일이 늘거나 이름이 바뀌어도 저장된
         // 값 때문에 아무것도 안 뜨는 일은 없다.
         self.style =
@@ -227,7 +249,9 @@ final class ModeIndicatorController {
     /// 늘지 않는다.
     private func reconcile(flashes: Bool, rereadGeometry: Bool) {
         guard let inputs = lastInputs,
-            let desired = Self.presentation(isEnabled: isEnabled, style: style, inputs: inputs)
+            let desired = Self.presentation(
+                isEnabled: isEnabled, isPersistentEnabled: isPersistentEnabled, style: style,
+                inputs: inputs)
         else {
             // 표시가 통째로 막힌 모든 사유(사다리 이탈·토글 off·pid 없음·아직 아무 입력도
             // 받지 않음)가 이 한 자리로 모인다. 페이드 없이 즉시 감춘다.

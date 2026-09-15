@@ -127,13 +127,20 @@ private struct GeneralTab: View {
                 Text("A label flashes near the caret (or the focused field) whenever the mode changes.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                // 상시 표시의 형태 — 토글과 같은 소유 모델(컨트롤러 프로퍼티 didSet). 표시 문구는
-                // 탭의 다른 항목처럼 뷰에 둔다. 인디케이터가 꺼져 있으면 고를 이유가 없어 비활성.
+                // 상시 표시 on/off — 토글과 같은 소유 모델(컨트롤러 프로퍼티 didSet). 상시 표시가
+                // 소음인 사용자의 opt-out이고 기본은 on. 인디케이터가 꺼져 있으면 고를 이유가 없어 비활성.
+                Picker("Show", selection: $modeIndicator.isPersistentEnabled) {
+                    Text("Only when the mode changes").tag(false)
+                    Text("Also while in Normal or Visual mode").tag(true)
+                }
+                .disabled(!modeIndicator.isEnabled)
+                // 상시 표시의 형태 — 같은 소유 모델. 표시 문구는 탭의 다른 항목처럼 뷰에 둔다.
+                // 상시 표시가 없으면(인디케이터 off 또는 순간 표시만) 형태를 고를 이유가 없어 비활성.
                 Picker("Indicator style", selection: $modeIndicator.style) {
                     Text("Badge near the focused field").tag(ModeIndicatorPresentationStyle.badge)
                     Text("Screen border").tag(ModeIndicatorPresentationStyle.screenBorder)
                 }
-                .disabled(!modeIndicator.isEnabled)
+                .disabled(!modeIndicator.isEnabled || !modeIndicator.isPersistentEnabled)
                 Text(
                     "While you're in Normal or Visual mode, a small badge stays next to the field — or a colored frame surrounds the screen with the mode label in its top-right corner."
                 )

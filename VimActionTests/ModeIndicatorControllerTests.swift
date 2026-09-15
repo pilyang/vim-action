@@ -22,10 +22,11 @@ struct ModeIndicatorPresentationTests {
 
     private func presentation(
         _ mode: Mode, _ indicator: MenuBarIndicator, pid: pid_t? = 42, isEnabled: Bool = true,
-        style: ModeIndicatorPresentationStyle = .badge
+        isPersistentEnabled: Bool = true, style: ModeIndicatorPresentationStyle = .badge
     ) -> ModeIndicatorController.Presentation? {
         ModeIndicatorController.presentation(
-            isEnabled: isEnabled, style: style, inputs: inputs(mode, indicator, pid: pid))
+            isEnabled: isEnabled, isPersistentEnabled: isPersistentEnabled, style: style,
+            inputs: inputs(mode, indicator, pid: pid))
     }
 
     @Test("비-Insert 모드는 라벨 + 상시 배지")
@@ -58,10 +59,27 @@ struct ModeIndicatorPresentationTests {
         }
     }
 
-    @Test("토글 off면 모드·사다리와 무관하게 아무것도 표시하지 않는다")
+    /// 상시 표시를 끈 설정 — 순간 표시만 남는다. 결과가 `nil`이 아니어야 한다: `nil`이면
+    /// flash까지 사라져 "인디케이터 off"와 구분이 없다.
+    @Test("상시 표시 off면 비-Insert도 라벨만 있고 배지는 없다")
+    func persistentOffFlashesWithoutBadge() {
+        for mode in [Mode.normal, .visualChar, .visualLine] {
+            let result = presentation(mode, .mode(mode), isPersistentEnabled: false)
+            #expect(result != nil)
+            #expect(result?.label == mode.overlayLabel)
+            #expect(result?.showsBadge == false)
+        }
+    }
+
+    @Test("토글 off면 모드·사다리·상시 표시 설정과 무관하게 아무것도 표시하지 않는다")
     func disabledShowsNothing() {
         for mode in [Mode.insert, .normal, .visualChar, .visualLine] {
-            #expect(presentation(mode, .mode(mode), isEnabled: false) == nil)
+            for persistent in [true, false] {
+                #expect(
+                    presentation(
+                        mode, .mode(mode), isEnabled: false, isPersistentEnabled: persistent)
+                        == nil)
+            }
         }
     }
 
@@ -91,6 +109,9 @@ struct ModeIndicatorReadCoalescingTests {
         label: "NORMAL", showsBadge: true, processID: 42, style: .screenBorder)
     private let insertBorder = ModeIndicatorController.Presentation(
         label: "INSERT", showsBadge: false, processID: 42, style: .screenBorder)
+    /// 상시 표시를 끈 설정의 Normal — 판정 결과는 Insert와 같은 모양(배지 없음)이다.
+    private let normalFlashOnly = ModeIndicatorController.Presentation(
+        label: "NORMAL", showsBadge: false, processID: 42, style: .badge)
 
     private func needsRead(
         desired: ModeIndicatorController.Presentation,
@@ -169,6 +190,70 @@ struct ModeIndicatorReadCoalescingTests {
     @Test("Insert에서 스타일 변경은 읽지 않는다")
     func styleSwitchInInsertDoesNotRead() {
         #expect(needsRead(desired: insertBorder, current: insert) == false)
+    }
+
+    /// 상시 표시를 끈 설정은 Insert와 같은 비용이어야 한다 — 앵커 이벤트에 AX 왕복 0건.
+    @Test("상시 표시 off의 앵커 이벤트는 읽지 않는다")
+    func persistentOffAnchorEventsDoNotRead() {
+        #expect(
+            needsRead(desired: normalFlashOnly, current: normalFlashOnly, rereadGeometry: true)
+                == false)
+    }
+
+    /// on→off는 읽을 것이 없고(숨김은 `hidePersistentPanels`의 몫), off→on은 그려야 하니 읽는다.
+    @Test("상시 표시 토글은 켤 때만 읽는다")
+    func persistentToggleReadsOnlyWhenTurningOn() {
+        #expect(needsRead(desired: normalFlashOnly, current: normal) == false)
+        #expect(needsRead(desired: normal, current: normalFlashOnly))
+    }
+}
+
+/// 상시 표시 on/off의 영속 — 토글과 같은 소유 모델이고 같은 단언 함정을 지킨다.
+@MainActor
+struct ModeIndicatorPersistentVisibilityTests {
+    @Test("미설정 키 → 제품 기본값 on")
+    func defaultsToEnabled() {
+        withTemporaryDefaults { defaults in
+            #expect(ModeIndicatorController(defaults: defaults).isPersistentEnabled)
+        }
+    }
+
+    @Test("저장된 false는 init에서 로드된다")
+    func storedFalseLoadsAtInit() {
+        withTemporaryDefaults { defaults in
+            defaults.set(false, forKey: PreferenceKeys.onScreenModeIndicatorPersistentEnabled)
+            #expect(ModeIndicatorController(defaults: defaults).isPersistentEnabled == false)
+        }
+    }
+
+    @Test("상시 표시 영속: didSet 저장 → 새 컨트롤러 init 로드")
+    func persistsAcrossControllers() {
+        withTemporaryDefaults { defaults in
+            let first = ModeIndicatorController(defaults: defaults)
+            first.isPersistentEnabled = false
+            // 존재 확인이 먼저 — `bool(forKey:)`는 미설정 키에도 false라 이것 없이는
+            // 영속을 통째로 지워도 통과한다.
+            #expect(
+                defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorPersistentEnabled)
+                    != nil)
+            #expect(
+                defaults.bool(forKey: PreferenceKeys.onScreenModeIndicatorPersistentEnabled)
+                    == false)
+
+            let second = ModeIndicatorController(defaults: defaults)
+            #expect(second.isPersistentEnabled == false)
+        }
+    }
+
+    /// 토글과 같은 근거 — 입력이 밀린 적 없으면 화면에도 AX에도 닿지 않는다.
+    @Test("입력이 밀린 적 없으면 상시 표시 변경은 무해하다")
+    func togglingWithoutInputsIsHarmless() {
+        withTemporaryDefaults { defaults in
+            let controller = ModeIndicatorController(defaults: defaults)
+            controller.isPersistentEnabled = false
+            controller.isPersistentEnabled = true
+            #expect(controller.isPersistentEnabled)
+        }
     }
 }
 
