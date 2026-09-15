@@ -1,0 +1,46 @@
+VimAction/ModeIndicatorController.swift
+  s_69fb08abb10739::t_1a88f06eb2ac7a 20-23,28-37
+  s_69fb08abb10739::t_73241c98290fa8 341-345,348-349
+  s_69fb08abb10739::t_d9913f2137164c 213,217-221
+  s_69fb08abb10739::t_acbdfd21dcc562 416-426,429-431,433,442-444,447-450
+  s_69fb08abb10739::t_e5cf69dccc57a3 45-46
+VimAction/ModeIndicatorLayout.swift
+  s_69fb08abb10739::t_636ddda282b2cf 187-195
+  s_69fb08abb10739::t_a5844dc1bed57d 22,25
+  s_69fb08abb10739::t_46b113ee8ed30c 217-218,224-231,241,250-268
+  s_69fb08abb10739::t_1067894d56fc34 48
+VimAction/ModeIndicatorGeometryReader.swift
+  s_69fb08abb10739::t_3ce4eb8f0984ce 19-23,35-41,44,46-54
+VimActionTests/ModeIndicatorLayoutTests.swift
+  s_69fb08abb10739::t_5b3a12c11c7793 360-435
+  s_69fb08abb10739::t_20101162e15070 296,306,325,329,341,352,356
+VimAction/SettingsView.swift
+  s_69fb08abb10739::t_dc96f531bbd350 141,146
+VimAction/ModeIndicatorBorderPanel.swift
+  s_69fb08abb10739::t_f6c6c5f02b1717 8-10
+VimAction/Preferences.swift
+  s_69fb08abb10739::t_c963bb37d15609 40-42
+VimActionTests/ModeIndicatorControllerTests.swift
+  s_69fb08abb10739::t_c48a719509e3de 95-97
+  s_69fb08abb10739::t_1e377ce8da1013 183,186-187,190
+  s_69fb08abb10739::t_11d66968b7e04c 404-412,414-416
+  s_69fb08abb10739::t_13dc9c475a16b7 366-392
+VimAction/ModeIndicatorPanel.swift
+  s_69fb08abb10739::t_be4edb7a783cb5 9,18,61,120,141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2d2b738ed810a76de4f294cb5a7c2712590f7a0e",
+  "prompts": {},
+  "sessions": {
+    "s_69fb08abb10739": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "262bc035-2df8-4dcb-8ec5-5eaa4d2fa0f5",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
