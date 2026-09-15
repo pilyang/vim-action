@@ -17,10 +17,24 @@ import VimEngine
 nonisolated enum ModeIndicatorPresentationStyle: String, Sendable {
     /// 포커스 요소 모서리의 작은 알약 (기본).
     case badge
+    /// 포커스 창을 두르는 강조색 테두리 + 창 안쪽 모서리 라벨 — 설정에서 고르는 대체 스타일이다.
+    /// 창 단위 표시는 어느 입력칸인지 말하지 못해 기본이 아니다
+    /// (`20260914_mode-indicator-optin-flash-only-and-window-border.md`).
+    case windowBorder
     /// 포커스 창이 있는 디스플레이를 두르는 강조색 테두리 + 모서리 라벨 — 설정에서 고르는
     /// 대체 스타일이다. 계속 켜진 색 프레임은 피로가 커서 기본이 아니다
     /// (`20260906_mode-indicator-hybrid-display-policy.md` 결정 5).
     case screenBorder
+
+    /// 두 테두리 스타일은 패널 하나(`ModeIndicatorBorderPanel`)를 나눠 쓴다. 숨김 판정이 이
+    /// 술어를 보므로 스타일이 늘면 컴파일러가 여기서 잡는다 — `!= .screenBorder` 같은 비교로
+    /// 두면 새 스타일이 조용히 "테두리 아님"이 되어 표시 직후 감춰진다.
+    var usesBorderPanel: Bool {
+        switch self {
+        case .badge: false
+        case .windowBorder, .screenBorder: true
+        }
+    }
 }
 
 /// 모드·사다리·기하를 잇는 조율자 — 화면에 떠 있는 것의 단일 소유자.
@@ -28,7 +42,8 @@ nonisolated enum ModeIndicatorPresentationStyle: String, Sendable {
 /// 겹은 둘이다. **순간 표시(flash)** 는 모드가 바뀔 때마다 ~1초 떴다 사라지고, **상시 표시**는
 /// 비-Insert 모드 동안 계속 붙어 있는다 (`20260906_mode-indicator-hybrid-display-policy.md`).
 /// 상시 표시는 설정으로 끌 수 있고(그러면 flash만 남는다 — `isPersistentEnabled`), 형태는
-/// 둘 중 하나다 — 요소 모서리의 배지(기본) 또는 화면 테두리 (`ModeIndicatorPresentationStyle`).
+/// 셋 중 하나다 — 요소 모서리의 배지(기본), 포커스 창 테두리, 화면 테두리
+/// (`ModeIndicatorPresentationStyle`).
 /// 갱신은 **이벤트 기반만**이다 — 타이머 폴링도, 키마다 재배치도 없다
 /// (`20260906_mode-indicator-anchor-ladder-event-driven.md` 결정 3). 트리거는 다섯이고 전부
 /// 아래 `reconcile` 하나로 모인다: 모드 전환 / 앵커 이벤트(포커스·앱 활성화·창 이동·리사이즈·
@@ -195,10 +210,15 @@ final class ModeIndicatorController {
 
     /// 패널은 첫 표시에서야 만든다 — 런치 시 `NSPanel`을 만들지 않고, 표시할 일이 없는
     /// 실행(권한 미허용, 계속 Insert, 토글 off)에서는 끝까지 만들어지지 않는다. 테두리 패널은
-    /// 그 스타일을 고른 적이 있어야 생긴다.
+    /// 테두리 스타일을 고른 적이 있어야 생긴다.
     @ObservationIgnored private var flashPanel: ModeIndicatorPanel?
     @ObservationIgnored private var badgePanel: ModeIndicatorPanel?
     @ObservationIgnored private var borderPanel: ModeIndicatorBorderPanel?
+    /// 테두리 패널이 지금 어느 스타일로 떠 있는가 — 창·화면 테두리가 패널 하나를 나눠 쓰므로
+    /// `keeping`만으로는 "같은 패널, 다른 형태"를 가릴 수 없다. 이것 없이는 화면 테두리에서 창
+    /// 테두리로 바꿔도 설정 창이 열린 동안 화면 크기 테두리가 그대로 남았다가 복귀 때 창 크기로
+    /// 점프한다 — 배지↔테두리는 즉시 사라지는데 이 전환만 "설정이 안 먹은 것"처럼 보인다.
+    @ObservationIgnored private var borderPanelStyle: ModeIndicatorPresentationStyle?
 
     /// `defaults` 주입은 테스트용이다 — `.standard`를 쓰면 TEST_HOST가 앱 프로세스라
     /// 실기기에서 영속된 값이 새어 들어온다 (`EventTapController`와 같은 이유).
@@ -318,9 +338,15 @@ final class ModeIndicatorController {
         // `pendingFlash`로 다시 들어온다. flash를 세우는 유일한 경로(`modeDidChange`)가 항상
         // 토큰을 올려 새 읽기를 띄우므로, 캐럿 없이 띄운 읽기로 flash가 그려지는 일은 없다.
         let includesCaret = pendingFlash
+        // 창 rect는 창 테두리 스타일의 상시 표시만 쓴다 — 조건이 소비자(`finish`의 `showsBadge`
+        // guard와 스타일 switch)와 같아야 Insert·순간 표시만인 요청에서 창 왕복 셋을 낭비하지
+        // 않는다. `inFlight.request == desired` 비교에 스타일이 실려 있으므로 창 없이 띄운 읽기가
+        // 창 테두리 요청에 재사용되는 일은 없다 (캐럿과 같은 불변식).
+        let includesWindow = request.showsBadge && request.style == .windowBorder
         Self.geometryQueue.async { [weak self] in
             let anchors = ModeIndicatorGeometryReader.read(
-                processID: request.processID, includesCaret: includesCaret)
+                processID: request.processID, includesCaret: includesCaret,
+                includesWindow: includesWindow)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     self?.finish(request, token: token, anchors: anchors)
@@ -387,16 +413,24 @@ final class ModeIndicatorController {
             } else {
                 hidePersistentPanels(keeping: nil)
             }
-        case .screenBorder:
-            if let layout = ModeIndicatorLayout.borderLayout(
-                anchors: anchors,
-                labelSize: ModeIndicatorPanel.size(for: request.label, style: .badge),
-                screens: layoutScreens, primaryScreenMaxY: primary.frame.maxY)
-            {
+        case .windowBorder, .screenBorder:
+            let labelSize = ModeIndicatorPanel.size(for: request.label, style: .badge)
+            let layout =
+                request.style == .windowBorder
+                ? ModeIndicatorLayout.windowBorderLayout(
+                    anchors: anchors, labelSize: labelSize, screens: layoutScreens,
+                    primaryScreenMaxY: primary.frame.maxY)
+                : ModeIndicatorLayout.screenBorderLayout(
+                    anchors: anchors, labelSize: labelSize, screens: layoutScreens,
+                    primaryScreenMaxY: primary.frame.maxY)
+            if let layout {
                 let panel = borderPanel ?? ModeIndicatorBorderPanel()
                 borderPanel = panel
+                // 형태를 먼저 적는다 — 아래 `keeping`이 방금 그린 패널을 "다른 형태"로 보고
+                // 감추면 안 된다.
+                borderPanelStyle = request.style
                 panel.show(request.label, at: layout.frame, labelFrame: layout.labelFrame)
-                hidePersistentPanels(keeping: .screenBorder)
+                hidePersistentPanels(keeping: request.style)
             } else {
                 hidePersistentPanels(keeping: nil)
             }
@@ -405,10 +439,15 @@ final class ModeIndicatorController {
 
     /// 상시 표시 패널 중 `style`이 아닌 것을 감춘다 (`nil`이면 전부). **숨김 규칙의 단일
     /// 지점이다** — 배지에 적용되는 모든 숨김 사유(Insert·사다리 이탈·토글 off·pid 없음·
-    /// 자기 pid·앵커 없음·스타일 변경)가 테두리에도 같은 자리에서 같이 적용된다.
+    /// 자기 pid·앵커 없음·스타일 변경)가 테두리에도 같은 자리에서 같이 적용된다. 테두리 패널은
+    /// 두 테두리 스타일이 나눠 쓰므로, 유지할 스타일이 테두리라도 **지금 떠 있는 형태와 다르면**
+    /// 감춘다 — 그래야 창↔화면 테두리 전환에서도 이전 형태가 즉시 사라진다.
     private func hidePersistentPanels(keeping style: ModeIndicatorPresentationStyle?) {
         if style != .badge { badgePanel?.hide() }
-        if style != .screenBorder { borderPanel?.hide() }
+        if style?.usesBorderPanel != true || style != borderPanelStyle {
+            borderPanel?.hide()
+            borderPanelStyle = nil
+        }
     }
 
     /// VimAction 자신의 pid — 앵커로 삼지 않기 위한 비교값이다.

@@ -37,8 +37,9 @@ nonisolated enum PreferenceKeys {
     /// 기본이고, 순간 표시만 남기는 것은 설정에서 고르는 opt-out이다
     /// (`20260914_mode-indicator-optin-flash-only-and-window-border.md`).
     static let onScreenModeIndicatorPersistentEnabledDefault = true
-    /// 스타일의 제품 기본값 — 배지다. 화면 테두리는 설정에서 고르는 대체 스타일이다
-    /// (`20260906_mode-indicator-hybrid-display-policy.md` 결정 5). 없는 값·모르는 값도 이것이다.
+    /// 스타일의 제품 기본값 — 배지다. 창·화면 테두리는 설정에서 고르는 대체 스타일이다
+    /// (`20260906_mode-indicator-hybrid-display-policy.md` 결정 5,
+    /// `20260914_mode-indicator-optin-flash-only-and-window-border.md`). 없는 값·모르는 값도 이것이다.
     static let onScreenModeIndicatorStyleDefault = ModeIndicatorPresentationStyle.badge
 }
 

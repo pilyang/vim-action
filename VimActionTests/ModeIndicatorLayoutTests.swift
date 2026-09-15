@@ -293,7 +293,7 @@ struct ModeIndicatorLayoutTests {
 
     @Test("테두리는 앵커가 있는 화면의 visibleFrame을 두른다")
     func borderCoversVisibleFrameOfAnchorScreen() {
-        let layout = ModeIndicatorLayout.borderLayout(
+        let layout = ModeIndicatorLayout.screenBorderLayout(
             anchors: .init(element: element), labelSize: badge,
             screens: [primaryScreen, secondaryScreen], primaryScreenMaxY: primaryMaxY)
 
@@ -303,7 +303,7 @@ struct ModeIndicatorLayoutTests {
 
     @Test("모서리 라벨은 테두리 안쪽 오른쪽 위")
     func borderLabelSitsInsideTopRightCorner() {
-        let layout = ModeIndicatorLayout.borderLayout(
+        let layout = ModeIndicatorLayout.screenBorderLayout(
             anchors: .init(element: element), labelSize: badge,
             screens: [primaryScreen], primaryScreenMaxY: primaryMaxY)!
 
@@ -322,11 +322,11 @@ struct ModeIndicatorLayoutTests {
     @Test("테두리는 보조 디스플레이의 앵커를 따라간다")
     func borderFollowsAnchorToSecondaryDisplay() {
         let element = CGRect(x: -900, y: 300, width: 300, height: 40)
-        let byElement = ModeIndicatorLayout.borderLayout(
+        let byElement = ModeIndicatorLayout.screenBorderLayout(
             anchors: .init(element: element), labelSize: badge,
             screens: [primaryScreen, secondaryScreen], primaryScreenMaxY: primaryMaxY)
         let window = CGRect(x: -1100, y: 100, width: 800, height: 600)
-        let byWindow = ModeIndicatorLayout.borderLayout(
+        let byWindow = ModeIndicatorLayout.screenBorderLayout(
             anchors: .init(window: window), labelSize: badge,
             screens: [primaryScreen, secondaryScreen], primaryScreenMaxY: primaryMaxY)
 
@@ -338,7 +338,7 @@ struct ModeIndicatorLayoutTests {
     @Test("겹치는 화면이 없으면 첫 화면으로 내려간다")
     func borderFallsBackToFirstScreenWhenNoneIntersects() {
         let offScreen = CGRect(x: 5000, y: 5000, width: 300, height: 40)
-        let layout = ModeIndicatorLayout.borderLayout(
+        let layout = ModeIndicatorLayout.screenBorderLayout(
             anchors: .init(element: offScreen), labelSize: badge,
             screens: [secondaryScreen, primaryScreen], primaryScreenMaxY: primaryMaxY)
 
@@ -349,12 +349,88 @@ struct ModeIndicatorLayoutTests {
     @Test("앵커가 없으면 테두리도 없다")
     func borderWithoutAnchorIsNil() {
         #expect(
-            ModeIndicatorLayout.borderLayout(
+            ModeIndicatorLayout.screenBorderLayout(
                 anchors: .init(), labelSize: badge, screens: [primaryScreen],
                 primaryScreenMaxY: primaryMaxY) == nil)
         #expect(
-            ModeIndicatorLayout.borderLayout(
+            ModeIndicatorLayout.screenBorderLayout(
                 anchors: .init(caret: caret), labelSize: badge, screens: [primaryScreen],
                 primaryScreenMaxY: primaryMaxY) == nil)
+    }
+
+    // MARK: - 창 테두리
+
+    /// 사다리를 타지 않는다 — 요소가 있어도 창 rect 자체를 두른다.
+    @Test("창 테두리는 요소가 있어도 창 rect를 그대로 두른다")
+    func windowBorderCoversWindowFrameEvenWithElement() {
+        let layout = ModeIndicatorLayout.windowBorderLayout(
+            anchors: .init(element: element, window: window, caret: caret), labelSize: badge,
+            screens: [primaryScreen], primaryScreenMaxY: primaryMaxY)
+
+        #expect(layout?.frame == ModeIndicatorLayout.flip(window, primaryScreenMaxY: primaryMaxY))
+    }
+
+    /// "창 테두리"인데 창이 없으면 아무것도 없다 — 요소나 화면으로 내려가지 않는다.
+    @Test("창이 없거나 면적이 없으면 창 테두리도 없다")
+    func windowBorderWithoutUsableWindowIsNil() {
+        let flat = CGRect(x: 50, y: 100, width: 0, height: 600)
+        for anchors in [
+            ModeIndicatorLayout.Anchors(), .init(element: element), .init(element: element, window: flat),
+        ] {
+            #expect(
+                ModeIndicatorLayout.windowBorderLayout(
+                    anchors: anchors, labelSize: badge, screens: [primaryScreen],
+                    primaryScreenMaxY: primaryMaxY) == nil)
+        }
+    }
+
+    @Test("창 테두리의 라벨은 창 안쪽 오른쪽 위")
+    func windowBorderLabelSitsInsideTopRightCorner() {
+        let layout = ModeIndicatorLayout.windowBorderLayout(
+            anchors: .init(window: window), labelSize: badge,
+            screens: [primaryScreen], primaryScreenMaxY: primaryMaxY)!
+
+        #expect(layout.labelFrame.size == badge)
+        #expect(layout.frame.contains(layout.labelFrame))
+        #expect(layout.frame.maxX - layout.labelFrame.maxX > ModeIndicatorLayout.borderStrokeWidth)
+        #expect(layout.frame.maxY - layout.labelFrame.maxY > ModeIndicatorLayout.borderStrokeWidth)
+        #expect(layout.labelFrame.minX > layout.frame.midX)
+        #expect(layout.labelFrame.minY > layout.frame.midY)
+    }
+
+    /// 보조 디스플레이(AX x 음수)의 창 — 전역 flip 그대로이고, 라벨 클램프가 주 화면으로 튀지 않는다.
+    @Test("보조 디스플레이의 창 테두리는 그 화면 안에 앉는다")
+    func windowBorderOnSecondaryDisplay() {
+        let window = CGRect(x: -1100, y: 100, width: 800, height: 600)
+        let layout = ModeIndicatorLayout.windowBorderLayout(
+            anchors: .init(window: window), labelSize: badge,
+            screens: [primaryScreen, secondaryScreen], primaryScreenMaxY: primaryMaxY)!
+
+        #expect(layout.frame == ModeIndicatorLayout.flip(window, primaryScreenMaxY: primaryMaxY))
+        #expect(secondaryScreen.visibleFrame.contains(layout.labelFrame))
+    }
+
+    /// 창이 메뉴바 띠까지 올라가 있어도(AX y=0) 라벨은 메뉴바 뒤로 들어가지 않는다.
+    @Test("메뉴바 띠에 걸친 창의 라벨은 띠 아래로 내려온다")
+    func windowBorderLabelStaysBelowMenuBar() {
+        let tall = CGRect(x: 50, y: 0, width: 800, height: 1000)
+        let layout = ModeIndicatorLayout.windowBorderLayout(
+            anchors: .init(window: tall), labelSize: badge,
+            screens: [primaryScreen], primaryScreenMaxY: primaryMaxY)!
+
+        #expect(layout.labelFrame.maxY <= primaryScreen.visibleFrame.maxY)
+        #expect(layout.frame.contains(layout.labelFrame))
+    }
+
+    /// 라벨보다 조금 넓은 작은 창 — 인셋을 지키면 라벨이 창 밖으로 나가 패널 경계에서 잘린다.
+    /// 화면 클램프는 이것을 못 막으므로 창 frame으로 한 번 더 민다.
+    @Test("작은 창에서는 라벨이 창 안으로 밀린다")
+    func windowBorderLabelIsClampedIntoSmallWindow() {
+        let small = CGRect(x: 300, y: 300, width: 90, height: 50)
+        let layout = ModeIndicatorLayout.windowBorderLayout(
+            anchors: .init(window: small), labelSize: badge,
+            screens: [primaryScreen], primaryScreenMaxY: primaryMaxY)!
+
+        #expect(layout.frame.contains(layout.labelFrame))
     }
 }

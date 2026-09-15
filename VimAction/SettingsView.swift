@@ -138,11 +138,12 @@ private struct GeneralTab: View {
                 // 상시 표시가 없으면(인디케이터 off 또는 순간 표시만) 형태를 고를 이유가 없어 비활성.
                 Picker("Indicator style", selection: $modeIndicator.style) {
                     Text("Badge near the focused field").tag(ModeIndicatorPresentationStyle.badge)
+                    Text("Focused window border").tag(ModeIndicatorPresentationStyle.windowBorder)
                     Text("Screen border").tag(ModeIndicatorPresentationStyle.screenBorder)
                 }
                 .disabled(!modeIndicator.isEnabled || !modeIndicator.isPersistentEnabled)
                 Text(
-                    "While you're in Normal or Visual mode, a small badge stays next to the field — or a colored frame surrounds the screen with the mode label in its top-right corner."
+                    "While you're in Normal or Visual mode, a small badge stays next to the field — or a colored frame surrounds the focused window or the whole screen, with the mode label in its top-right corner."
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)

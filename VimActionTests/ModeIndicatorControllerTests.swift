@@ -92,9 +92,9 @@ struct ModeIndicatorPresentationTests {
     /// 스타일이 판정 결과에 실려야 `desired != current`가 스타일 변경을 잡는다.
     @Test("판정 결과가 스타일을 싣는다")
     func presentationCarriesStyle() {
-        #expect(presentation(.normal, .mode(.normal), style: .badge)?.style == .badge)
-        #expect(
-            presentation(.normal, .mode(.normal), style: .screenBorder)?.style == .screenBorder)
+        for style in [ModeIndicatorPresentationStyle.badge, .windowBorder, .screenBorder] {
+            #expect(presentation(.normal, .mode(.normal), style: style)?.style == style)
+        }
     }
 }
 
@@ -180,10 +180,14 @@ struct ModeIndicatorReadCoalescingTests {
     }
 
     /// 스타일 변경은 라벨·pid가 같아도 다른 상태다 — 새 형태로 그리려면 앵커를 다시 읽어야 한다.
+    /// 창 테두리는 창 rect까지 필요해 테두리끼리의 전환도 새 읽기다.
     @Test("상시 표시가 떠 있는 채로 스타일이 바뀌면 읽는다")
     func styleSwitchWithBadgeShowingReads() {
+        let normalWindowBorder = ModeIndicatorController.Presentation(
+            label: "NORMAL", showsBadge: true, processID: 42, style: .windowBorder)
         #expect(needsRead(desired: normalBorder, current: normal))
         #expect(needsRead(desired: normal, current: normalBorder))
+        #expect(needsRead(desired: normalWindowBorder, current: normalBorder))
     }
 
     /// Insert는 상시 표시가 없으니 형태가 바뀌어도 읽을 것이 없다.
@@ -359,6 +363,33 @@ struct ModeIndicatorStyleTests {
         }
     }
 
+    @Test("저장된 창 테두리는 init에서 로드된다")
+    func storedWindowBorderLoadsAtInit() {
+        withTemporaryDefaults { defaults in
+            defaults.set(
+                ModeIndicatorPresentationStyle.windowBorder.rawValue,
+                forKey: PreferenceKeys.onScreenModeIndicatorStyle)
+            #expect(ModeIndicatorController(defaults: defaults).style == .windowBorder)
+        }
+    }
+
+    /// 영속 문자열이 바뀌면 사용자 설정이 조용히 기본값으로 돌아간다 — `.rawValue`끼리 비교하는
+    /// 다른 테스트는 그 회귀를 못 잡으므로 리터럴로 고정한다.
+    @Test("raw 값은 영속 계약이다")
+    func rawValuesArePersistenceContract() {
+        #expect(ModeIndicatorPresentationStyle.badge.rawValue == "badge")
+        #expect(ModeIndicatorPresentationStyle.windowBorder.rawValue == "windowBorder")
+        #expect(ModeIndicatorPresentationStyle.screenBorder.rawValue == "screenBorder")
+    }
+
+    /// 숨김 판정의 전제 — 테두리 패널을 나눠 쓰는 스타일이 어느 것인지.
+    @Test("창·화면 테두리만 테두리 패널을 쓴다")
+    func borderStylesShareTheBorderPanel() {
+        #expect(ModeIndicatorPresentationStyle.badge.usesBorderPanel == false)
+        #expect(ModeIndicatorPresentationStyle.windowBorder.usesBorderPanel)
+        #expect(ModeIndicatorPresentationStyle.screenBorder.usesBorderPanel)
+    }
+
     /// 스타일이 늘거나 이름이 바뀌어도 저장된 값 때문에 아무것도 안 뜨는 일은 없어야 한다.
     @Test("모르는 raw 값은 기본값으로 접힌다")
     func unknownRawValueFallsBackToBadge() {
@@ -370,17 +401,19 @@ struct ModeIndicatorStyleTests {
 
     @Test("스타일 영속: didSet 저장 → 새 컨트롤러 init 로드")
     func stylePersistsAcrossControllers() {
-        withTemporaryDefaults { defaults in
-            let first = ModeIndicatorController(defaults: defaults)
-            first.style = .screenBorder
-            // 존재 확인이 먼저 — 이것 없이는 영속을 통째로 지워도 "기본값 배지"로 통과한다.
-            #expect(defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorStyle) != nil)
-            #expect(
-                defaults.string(forKey: PreferenceKeys.onScreenModeIndicatorStyle)
-                    == ModeIndicatorPresentationStyle.screenBorder.rawValue)
+        for style in [ModeIndicatorPresentationStyle.windowBorder, .screenBorder] {
+            withTemporaryDefaults { defaults in
+                let first = ModeIndicatorController(defaults: defaults)
+                first.style = style
+                // 존재 확인이 먼저 — 이것 없이는 영속을 통째로 지워도 "기본값 배지"로 통과한다.
+                #expect(defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorStyle) != nil)
+                #expect(
+                    defaults.string(forKey: PreferenceKeys.onScreenModeIndicatorStyle)
+                        == style.rawValue)
 
-            let second = ModeIndicatorController(defaults: defaults)
-            #expect(second.style == .screenBorder)
+                let second = ModeIndicatorController(defaults: defaults)
+                #expect(second.style == style)
+            }
         }
     }
 

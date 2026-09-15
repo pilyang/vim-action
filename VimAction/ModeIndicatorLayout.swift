@@ -19,10 +19,10 @@ nonisolated enum ModeIndicatorLayout {
     private static let elementGap: CGFloat = 4
     /// 창 단 배지가 창 안쪽 오른쪽 위에 붙을 때의 인셋 (오른쪽, 위).
     private static let windowInset = (horizontal: CGFloat(12), vertical: CGFloat(6))
-    /// 화면 테두리의 선 굵기. 패널이 그릴 때도 이 값을 읽는다 — 라벨 인셋이 선 굵기에서
+    /// 테두리(창·화면)의 선 굵기. 패널이 그릴 때도 이 값을 읽는다 — 라벨 인셋이 선 굵기에서
     /// 파생되므로 두 값이 따로 살면 라벨이 선에 겹친다.
     static let borderStrokeWidth: CGFloat = 4
-    /// 화면 테두리의 모서리 라벨이 테두리 안쪽 모서리에서 떨어지는 거리 (선 굵기 + 여백).
+    /// 테두리의 모서리 라벨이 테두리 안쪽 모서리에서 떨어지는 거리 (선 굵기 + 여백).
     private static let borderLabelInset: CGFloat = borderStrokeWidth + 8
 
     /// 화면 하나 (전부 AppKit 좌표). **고르는 축과 놓는 축이 다르다**: `frame`은 앵커가 어느
@@ -45,6 +45,7 @@ nonisolated enum ModeIndicatorLayout {
 
     /// 기하 리더가 읽어 오는 것 — **AX 좌표계**(좌상단 원점, y는 아래로 증가)의 rect들이다.
     /// `caret`은 flash가 있는 요청에서만 읽힌다 — 배지만 다시 놓는 앵커 이벤트는 `nil`로 온다.
+    /// `window`는 요소가 쓸 만하지 않을 때, 그리고 창 테두리 스타일의 요청에서 읽힌다.
     struct Anchors: Sendable, Equatable {
         var element: CGRect?
         var window: CGRect?
@@ -183,11 +184,15 @@ nonisolated enum ModeIndicatorLayout {
             // 화면 목록이 비는 것은 실기기에서 일어나지 않지만, 순수 함수라 답이 정의돼야 한다.
             return frame
         }
-        let bounds = screen.visibleFrame
-        return CGRect(
-            x: min(max(frame.minX, bounds.minX), max(bounds.maxX - frame.width, bounds.minX)),
-            y: min(max(frame.minY, bounds.minY), max(bounds.maxY - frame.height, bounds.minY)),
-            width: frame.width, height: frame.height)
+        return clamp(frame, into: screen.visibleFrame)
+    }
+
+    /// rect를 `bounds` 안으로 민다 — `bounds`가 rect보다 작으면 왼쪽·아래 변에 맞춘다.
+    private static func clamp(_ rect: CGRect, into bounds: CGRect) -> CGRect {
+        CGRect(
+            x: min(max(rect.minX, bounds.minX), max(bounds.maxX - rect.width, bounds.minX)),
+            y: min(max(rect.minY, bounds.minY), max(bounds.maxY - rect.height, bounds.minY)),
+            width: rect.width, height: rect.height)
     }
 
     /// 컨트롤러가 부르는 알약 배치의 단일 진입점 — 사다리 → 배치 → 좌표 변환 → 클램프.
@@ -209,11 +214,19 @@ nonisolated enum ModeIndicatorLayout {
             screens: screens)
     }
 
-    /// 화면 테두리 스타일의 배치 (전부 AppKit 화면 좌표). `frame`이 테두리 패널이 덮는 범위이고
-    /// `labelFrame`이 그 안 오른쪽 위 모서리의 라벨 알약이다.
+    /// 테두리 스타일(창·화면)의 배치 (전부 AppKit 화면 좌표). `frame`이 테두리 패널이 덮는
+    /// 범위이고 `labelFrame`이 그 안 오른쪽 위 모서리의 라벨 알약이다.
     struct BorderLayout: Equatable {
         var frame: CGRect
         var labelFrame: CGRect
+    }
+
+    /// 테두리 안쪽 오른쪽 위 모서리의 라벨 자리 — 창·화면 테두리가 같은 규칙이다.
+    private static func borderLabelFrame(in frame: CGRect, labelSize: CGSize) -> CGRect {
+        CGRect(
+            x: frame.maxX - borderLabelInset - labelSize.width,
+            y: frame.maxY - borderLabelInset - labelSize.height,
+            width: labelSize.width, height: labelSize.height)
     }
 
     /// 화면 테두리 배치 — 상시 배지의 사다리(요소 → 창)로 앵커를 고르고, **그 앵커가 속한
@@ -225,7 +238,7 @@ nonisolated enum ModeIndicatorLayout {
     ///
     /// `frame`이 아니라 `visibleFrame`인 이유: `frame`을 두르면 위 변이 메뉴바 뒤에, 아래 변이
     /// Dock 뒤에 숨어 테두리가 세 변짜리로 보인다. 라벨은 인셋만큼 안쪽이라 메뉴바와 겹치지 않는다.
-    static func borderLayout(
+    static func screenBorderLayout(
         anchors: Anchors, labelSize: CGSize, screens: [Screen], primaryScreenMaxY: CGFloat
     ) -> BorderLayout? {
         guard let anchor = anchor(anchors, for: .elementFirst) else { return nil }
@@ -234,10 +247,24 @@ nonisolated enum ModeIndicatorLayout {
             return nil
         }
         let frame = screen.visibleFrame
-        let label = CGRect(
-            x: frame.maxX - borderLabelInset - labelSize.width,
-            y: frame.maxY - borderLabelInset - labelSize.height,
-            width: labelSize.width, height: labelSize.height)
-        return BorderLayout(frame: frame, labelFrame: label)
+        return BorderLayout(frame: frame, labelFrame: borderLabelFrame(in: frame, labelSize: labelSize))
+    }
+
+    /// 창 테두리 배치 — 사다리를 타지 않고 **포커스 창 rect 자체**를 두른다. 창이 없거나 면적이
+    /// 없으면 아무것도 없다. 폴백이 없는 것이 계약이다: "창 테두리"인데 요소나 화면을 두르면
+    /// 사용자가 고른 스타일이 아니다 (배지가 앵커 없을 때와 같은 답 "없음").
+    ///
+    /// 창 frame은 클램프하지 않는다 — 화면 밖으로 나간 창은 나간 만큼 테두리도 잘리는 것이
+    /// 맞다. 라벨은 두 번 민다: 앵커 화면의 `visibleFrame` 안으로(창의 오른쪽 위가 메뉴바 뒤나
+    /// 화면 밖이어도 라벨은 보이게), 그 다음 창 frame 안으로(라벨 폭에 인셋을 더한 것보다 좁은
+    /// 창에서 라벨이 패널 밖으로 나가면 패널 경계에서 잘린다 — 화면 클램프는 이것을 못 막는다).
+    static func windowBorderLayout(
+        anchors: Anchors, labelSize: CGSize, screens: [Screen], primaryScreenMaxY: CGFloat
+    ) -> BorderLayout? {
+        guard let window = anchors.window, isUsable(window) else { return nil }
+        let frame = flip(window, primaryScreenMaxY: primaryScreenMaxY)
+        let onScreen = clamp(
+            borderLabelFrame(in: frame, labelSize: labelSize), nearAnchor: frame, screens: screens)
+        return BorderLayout(frame: frame, labelFrame: clamp(onScreen, into: frame))
     }
 }

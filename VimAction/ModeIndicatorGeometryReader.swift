@@ -16,9 +16,11 @@ import CoreGraphics
 /// 타임아웃은 새로 정하지 않는다 — 요소·앱 요소 양쪽을 `AXRead`에서 받으므로 50ms 단일
 /// 상수가 그대로 상속된다.
 ///
-/// **비용**: 요소 rect(포커스 요소 조회·position·size)에, 요소가 쓸 만하지 않을 때만 창(창
-/// 조회·position·size)이 더해진다. 캐럿은 `includesCaret`일 때만 읽고 최대 다섯 번(선택 범위·
-/// bounds 두 변형·마커 범위·마커 bounds)이라, 콜드 앱의 flash 한 번이 AX 왕복 최대 열한 번이다.
+/// **비용**: 요소 rect(포커스 요소 조회·position·size)에, 요소가 쓸 만하지 않거나 창 테두리가
+/// 물었을 때 창(창 조회·position·size)이 더해진다. 캐럿은 `includesCaret`일 때만 읽고 최대
+/// 다섯 번(선택 범위·bounds 두 변형·마커 범위·마커 bounds)이라, 콜드 앱의 flash 한 번이 AX
+/// 왕복 최대 열한 번이다 — 창은 한 번만 읽으므로 이 최악치는 창 테두리 스타일에서도 같고, 그
+/// 스타일이 더하는 것은 요소가 쓸 만한 **정상 경로**의 창 왕복 셋이다.
 nonisolated enum ModeIndicatorGeometryReader {
     /// 포커스 요소 rect·(필요하면) 포커스 창 rect·(flash면) 캐럿 rect를 한 번에 읽는다 (AX 좌표계).
     ///
@@ -30,20 +32,26 @@ nonisolated enum ModeIndicatorGeometryReader {
     /// 캐럿을 따라다니지 않는다), 앵커·사다리 이벤트의 배지 재배치는 캐럿 왕복 없이 오늘의
     /// 비용에 머문다. 컨트롤러가 명시적으로 넘긴다 — 전역 상태로 두면 어느 읽기가 캐럿을
     /// 물었는지 코드에서 보이지 않는다.
-    static func read(processID: pid_t, includesCaret: Bool) -> ModeIndicatorLayout.Anchors {
+    ///
+    /// `includesWindow`는 **창 테두리 스타일의 상시 표시가 있을 때만** 참이다 — 그 스타일은
+    /// 사다리가 아니라 창 rect 자체를 두르므로 요소가 쓸 만해도 창을 읽어야 한다. 캐럿과 같은
+    /// 이유로 컨트롤러가 명시적으로 넘긴다.
+    static func read(processID: pid_t, includesCaret: Bool, includesWindow: Bool)
+        -> ModeIndicatorLayout.Anchors
+    {
         let focused = AXRead.focusedElement(ofProcess: processID)
         let element = focused.flatMap(rect(of:))
-        // 요소 rect 다음이어야 한다 — 캐럿 유효성 판정이 요소 rect를 본다. 그리고 아래 조기
-        // 반환 **앞**이어야 한다: 요소가 쓸 만한 것이 실측표의 모든 앱에서 정상 경로다.
+        // 요소 rect 다음이어야 한다 — 캐럿 유효성 판정이 요소 rect를 본다.
         let caret = includesCaret ? focused.flatMap { caretRect(of: $0, within: element) } : nil
-        // 요소가 답했으면 창은 읽지 않는다 — 사다리가 어차피 요소를 고르므로 결과는 같고,
-        // 콜드 앱에서 AX 왕복 셋(창 조회·position·size)이 통째로 빠진다. 그래서 `window`가
-        // `nil`인 것은 "읽기 실패"가 아니라 "필요 없었다"일 수도 있다.
-        if let element, ModeIndicatorLayout.isUsable(element) {
-            return ModeIndicatorLayout.Anchors(element: element, caret: caret)
-        }
-        return ModeIndicatorLayout.Anchors(
-            element: element, window: focusedWindowRect(processID: processID), caret: caret)
+        // 창은 한 번만, 창 테두리가 물었거나 요소가 쓸 만하지 않을 때만 읽는다. 요소가 답했으면
+        // 사다리가 어차피 요소를 고르므로 창을 안 읽어도 결과는 같고, 콜드 앱에서 AX 왕복
+        // 셋(창 조회·position·size)이 통째로 빠진다 — 요소가 쓸 만한 것이 실측표의 모든 앱에서
+        // 정상 경로다. 그래서 `window`가 `nil`인 것은 "읽기 실패"만이 아니라 "필요 없었다"일
+        // 수도 있다.
+        let elementIsUsable = element.map(ModeIndicatorLayout.isUsable) ?? false
+        let window =
+            includesWindow || !elementIsUsable ? focusedWindowRect(processID: processID) : nil
+        return ModeIndicatorLayout.Anchors(element: element, window: window, caret: caret)
     }
 
     private static func focusedWindowRect(processID: pid_t) -> CGRect? {
