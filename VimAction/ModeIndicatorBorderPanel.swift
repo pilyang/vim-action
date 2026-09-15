@@ -50,6 +50,8 @@ final class ModeIndicatorBorderPanel {
 private final class ModeIndicatorBorderView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         // 선은 bounds 안쪽에 온전히 들어와야 한다 — 절반이 패널 밖으로 잘리면 굵기가 반이 된다.
+        // 모서리 반경은 창·화면 테두리가 같은 값(선 굵기의 2배)을 쓴다 — 창 테두리에서도 창
+        // 모서리와 어긋나 보이지 않아(실기기) 스타일별로 가르지 않는다.
         let width = ModeIndicatorLayout.borderStrokeWidth
         let path = NSBezierPath(
             roundedRect: bounds.insetBy(dx: width / 2, dy: width / 2),

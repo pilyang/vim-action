@@ -102,6 +102,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 09-06 | 앵커 사다리 — 캐럿→요소→창, 이벤트 기반 갱신 | 순간 표시는 캐럿부터·상시 배지는 요소부터, 키마다 재배치·폴링 없음(20260725 재검토 트리거 회피), AX는 메인 밖 50ms·pid만, 캐럿은 `(loc,1)`→`(loc-1,1)`→텍스트 마커 — 앱 계열별 실측표 포함 | [20260906_mode-indicator-anchor-ladder-event-driven.md](references/20260906_mode-indicator-anchor-ladder-event-driven.md) |
 | 09-06 | Chromium 스크린리더 모드 강제 안 함 | `AXEnhancedUserInterface`를 켜면 Chrome·Arc 캐럿이 나옴을 실측했으나 브라우저 전역 완전 모드 비용이 비례하지 않음 — 캐럿 없음 수용·요소 폴백, Electron `AXManualAccessibility` 기상은 유지 | [20260906_no-forced-chromium-screen-reader-mode.md](references/20260906_no-forced-chromium-screen-reader-mode.md) |
 | 09-06 | 인디케이터 설정은 UserDefaults | on/off·스타일은 Settings General 토글(20260801 경계 기준), config.yaml 비노출, 기본 on — PRD 초안의 YAML 스타일 항목 대체 | [20260906_mode-indicator-settings-in-userdefaults.md](references/20260906_mode-indicator-settings-in-userdefaults.md) |
+| 09-14 | 인디케이터 opt-in 확장 — 순간 표시만 + 창 테두리 | 상시 표시 on/off Bool 키 추가(off면 flash만), 상시 스타일에 포커스 창 테두리(폴백 없음) 추가, 기본값 불변 — 3단 enum 기각(마이그레이션), 자기 pid 경로는 떠 있는 읽기 무효화·flash 만료 | [20260914_mode-indicator-optin-flash-only-and-window-border.md](references/20260914_mode-indicator-optin-flash-only-and-window-border.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
