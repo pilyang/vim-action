@@ -1,0 +1,23 @@
+VimActionTests/ModeIndicatorControllerTests.swift
+  s_69fb08abb10739::t_4c2734ffd0776d 220-256
+  s_69fb08abb10739::t_114ab62412636c 14-15
+VimAction/ModeIndicatorController.swift
+  s_69fb08abb10739::t_7144c5b4ec251d 252-262
+  s_69fb08abb10739::t_f3f0776d768ed4 172-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7b92d9d791620ecdd04fa9b3bcc78a4aba4631d8",
+  "prompts": {},
+  "sessions": {
+    "s_69fb08abb10739": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "262bc035-2df8-4dcb-8ec5-5eaa4d2fa0f5",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
