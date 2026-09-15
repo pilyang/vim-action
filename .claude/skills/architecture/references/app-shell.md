@@ -1,6 +1,6 @@
 # 앱 셸
 
-- **Last updated**: 2026-09-06 (General 탭 인디케이터 스타일 Picker)
+- **Last updated**: 2026-09-15 (설정 창 Indicator 탭 — 4탭)
 
 ## 현재 구조
 
@@ -18,9 +18,9 @@
 
 열림 훅의 앱측 진입점은 `AppState.settingsWindowDidAppear()`이고 reader와 함께 **`TabView` 루트에 붙는다** — 탭 하나 안에 두면 다른 탭이 기본으로 열릴 때 훅이 뜨지 않는다. 이 메서드는 Dock 훅·온보딩 마무리·로그인 항목 상태 재조회를 겸하므로 **멱등**이다.
 
-### 설정 창 — `TabView` 3탭, 460×560 고정
+### 설정 창 — `TabView` 4탭, 460×560 고정
 
-**General**(권한 상태 + Behavior[로그인 시 자동 시작·Normal 탈출·온스크린 모드 인디케이터 토글과 그 아래 "Show" Picker(전환 시만 / Normal·Visual 동안도 — 토글이 꺼지면 `.disabled`)·"Indicator style" Picker(배지 / 창 테두리 / 화면 테두리 — 토글이 꺼지거나 상시 표시가 없으면 `.disabled`, [mode-indicator-overlay.md](mode-indicator-overlay.md))] + Updates 토글 + 접힌 `DisclosureGroup` "Diagnostics") / **Apps**(설정 파일 상태 — [profiles-and-config.md](profiles-and-config.md)) / **About**(버전 + 업데이트 확인 + 링크). 탭 순서는 General이 먼저지만 **기본 선택은 Apps**이고, 권한 섹션은 미허용이면 General 최상단·허용되면 아래쪽(Behavior·Updates 뒤)에 한 줄로 자리를 옮긴다. 높이를 명시하지 않으면 greedy한 grouped `Form` 때문에 창이 임의 높이로 굳는다 ([20260809_settings-window-three-tabs.md](../../decisions/references/20260809_settings-window-three-tabs.md)).
+**General**(권한 상태 + Behavior[로그인 시 자동 시작·Normal 탈출] + Updates 토글 + 접힌 `DisclosureGroup` "Diagnostics") / **Indicator**(탭 아이콘 `text.cursor`, 섹션 하나 — 온스크린 모드 인디케이터 토글과 그 아래 "Show" Picker(전환 시만 / Normal·Visual 동안도 — 토글이 꺼지면 `.disabled`)·"Indicator style" Picker(배지 / 창 테두리 / 화면 테두리 — 토글이 꺼지거나 상시 표시가 없으면 `.disabled`), 값·영속은 `ModeIndicatorController` 소유이고 뷰는 바인딩만, [mode-indicator-overlay.md](mode-indicator-overlay.md)) / **Apps**(설정 파일 상태 — [profiles-and-config.md](profiles-and-config.md)) / **About**(버전 + 업데이트 확인 + 링크). 탭 순서는 General이 먼저지만 **기본 선택은 Apps**이고, 권한 섹션은 미허용이면 General 최상단·허용되면 아래쪽(Behavior·Updates 뒤)에 한 줄로 자리를 옮긴다. 높이를 명시하지 않으면 greedy한 grouped `Form` 때문에 창이 임의 높이로 굳는다 ([20260809_settings-window-three-tabs.md](../../decisions/references/20260809_settings-window-three-tabs.md), [20260915_settings-window-indicator-tab.md](../../decisions/references/20260915_settings-window-indicator-tab.md)).
 
 ### 로그인 시 자동 시작 — `SMAppService.mainApp`
 
