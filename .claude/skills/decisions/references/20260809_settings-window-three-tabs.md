@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260915_settings-window-indicator-tab.md](20260915_settings-window-indicator-tab.md) — 탭 수(3탭 → General / Indicator / Apps / About 4탭) / 권한 섹션 자리 이동·Diagnostics 접기·460×560 고정·기본 선택 Apps는 유효
+
 # 설정 창은 3탭 — General / Apps / About
 
 - **결정일**: 2026-08-09

@@ -8,23 +8,56 @@ import Foundation
 import Observation
 import VimEngine
 
+/// 상시 표시의 형태 — Settings의 "Indicator style". `ModeIndicatorStyle`(알약 하나의 외양:
+/// flash/badge)과는 **다른 축**이다: 그쪽은 알약의 크기·층이고, 이쪽은 비-Insert 동안 무엇을
+/// 띄우는가다. flash는 어느 스타일에서든 캐럿/요소 사다리를 탄다 — 전환 피드백은 사용자의
+/// 시선 근처에 있어야 한다.
+///
+/// raw 값이 UserDefaults에 그대로 저장된다 — 없는 값·모르는 값은 기본(배지)이다.
+nonisolated enum ModeIndicatorPresentationStyle: String, Sendable {
+    /// 포커스 요소 모서리의 작은 알약 (기본).
+    case badge
+    /// 포커스 창을 두르는 강조색 테두리 + 창 안쪽 모서리 라벨 — 설정에서 고르는 대체 스타일이다.
+    /// 창 단위 표시는 어느 입력칸인지 말하지 못해 기본이 아니다
+    /// (`20260914_mode-indicator-optin-flash-only-and-window-border.md`).
+    case windowBorder
+    /// 포커스 창이 있는 디스플레이를 두르는 강조색 테두리 + 모서리 라벨 — 설정에서 고르는
+    /// 대체 스타일이다. 계속 켜진 색 프레임은 피로가 커서 기본이 아니다
+    /// (`20260906_mode-indicator-hybrid-display-policy.md` 결정 5).
+    case screenBorder
+
+    /// 두 테두리 스타일은 패널 하나(`ModeIndicatorBorderPanel`)를 나눠 쓴다. 숨김 판정이 이
+    /// 술어를 보므로 스타일이 늘면 컴파일러가 여기서 잡는다 — `!= .screenBorder` 같은 비교로
+    /// 두면 새 스타일이 조용히 "테두리 아님"이 되어 표시 직후 감춰진다.
+    var usesBorderPanel: Bool {
+        switch self {
+        case .badge: false
+        case .windowBorder, .screenBorder: true
+        }
+    }
+}
+
 /// 모드·사다리·기하를 잇는 조율자 — 화면에 떠 있는 것의 단일 소유자.
 ///
-/// 겹은 둘이다. **순간 표시(flash)** 는 모드가 바뀔 때마다 ~1초 떴다 사라지고, **상시 배지**는
+/// 겹은 둘이다. **순간 표시(flash)** 는 모드가 바뀔 때마다 ~1초 떴다 사라지고, **상시 표시**는
 /// 비-Insert 모드 동안 계속 붙어 있는다 (`20260906_mode-indicator-hybrid-display-policy.md`).
+/// 상시 표시는 설정으로 끌 수 있고(그러면 flash만 남는다 — `isPersistentEnabled`), 형태는
+/// 셋 중 하나다 — 요소 모서리의 배지(기본), 포커스 창 테두리, 화면 테두리
+/// (`ModeIndicatorPresentationStyle`).
 /// 갱신은 **이벤트 기반만**이다 — 타이머 폴링도, 키마다 재배치도 없다
 /// (`20260906_mode-indicator-anchor-ladder-event-driven.md` 결정 3). 트리거는 다섯이고 전부
 /// 아래 `reconcile` 하나로 모인다: 모드 전환 / 앵커 이벤트(포커스·앱 활성화·창 이동·리사이즈·
-/// 디스플레이 재구성) / 사다리 변화 / 설정 토글.
+/// 디스플레이 재구성) / 사다리 변화 / 설정(토글·상시 표시·스타일).
 @MainActor
 @Observable
 final class ModeIndicatorController {
     /// 기하 읽기 전용 직렬 큐. **리졸버의 `readQueue`를 재사용하지 않는 것이 계약이다** —
-    /// 콜드 앱에서 이 읽기는 요소·position·size·창까지 AX 호출 여섯 번(최악 50ms×6)이 될 수
-    /// 있는데, 리졸버 큐는 **키 디스패치가 의존하는 포커스 계열 캐시**를 먹인다. 표시용 읽기가
-    /// 그 캐시를 지연시키면 앱 전환 직후 `.unresolved` 창이 넓어져 첫 편집이 조용히 떨어진다.
-    /// QoS를 `.utility`로 낮춘 것도 같은 이유다(리졸버는 `.userInitiated`). ~600ms 프로브
-    /// 때문에 큐를 따로 두는 `AXTrustProber`와 같은 근거·같은 형태다.
+    /// 콜드 앱에서 이 읽기는 요소·position·size·창에 flash면 캐럿 변형까지 AX 호출 열한 번
+    /// (최악 50ms×11)이 될 수 있는데, 리졸버 큐는 **키 디스패치가 의존하는 포커스 계열 캐시**를
+    /// 먹인다. 표시용 읽기가 그 캐시를 지연시키면 앱 전환 직후 `.unresolved` 창이 넓어져 첫
+    /// 편집이 조용히 떨어진다. QoS를 `.utility`로 낮춘 것도 같은 이유다(리졸버는
+    /// `.userInitiated`). ~600ms 프로브 때문에 큐를 따로 두는 `AXTrustProber`와 같은 근거·같은
+    /// 형태다.
     private nonisolated static let geometryQueue = DispatchQueue(
         label: "dev.pilyang.VimAction.mode-indicator-geometry", qos: .utility)
 
@@ -47,10 +80,15 @@ final class ModeIndicatorController {
     /// 않는다.
     nonisolated struct Presentation: Equatable {
         var label: String
-        /// Insert만 `false`다 — flash는 뜨되 배지는 남지 않는다. 상시 배지가 "지금 위험한
-        /// 모드다"를 뜻하려면 기본 상태(Insert)에는 없어야 한다.
+        /// Insert는 항상 `false`다 — flash는 뜨되 상시 표시는 남지 않는다. 상시 표시가 "지금
+        /// 위험한 모드다"를 뜻하려면 기본 상태(Insert)에는 없어야 한다. 상시 표시를 끈
+        /// 설정(`isPersistentEnabled == false`)에서는 모든 모드가 `false`다 — Insert 경로가
+        /// 곧 "순간 표시만"의 경로라 그 아래 코드는 설정을 모른다.
         var showsBadge: Bool
         var processID: pid_t
+        /// 상시 표시의 형태. 여기 실리는 이유는 `desired != current`가 스타일 변경에도 참이
+        /// 되어 다시 그리게 하기 위해서다.
+        var style: ModeIndicatorPresentationStyle
     }
 
     /// 표시 판정 — **이 기능의 순수 계층이다.** AX도 AppKit도 부르지 않아 표로 검증된다.
@@ -59,14 +97,18 @@ final class ModeIndicatorController {
     /// 앱별 disabled·Secure Input) 아무것도 띄우지 않는다. 가로채지 않는 상태에서 모드 라벨을
     /// 띄우면 메뉴바에서 없앤 "가로채지 않는데 Normal이라고 말하는" 거짓말을 화면 한가운데서
     /// 되풀이하게 된다 (`20260906_mode-indicator-hybrid-display-policy.md` 결정 3).
-    nonisolated static func presentation(isEnabled: Bool, inputs: Inputs) -> Presentation? {
+    nonisolated static func presentation(
+        isEnabled: Bool, isPersistentEnabled: Bool, style: ModeIndicatorPresentationStyle,
+        inputs: Inputs
+    ) -> Presentation? {
         guard isEnabled, case .mode = inputs.indicator, let processID = inputs.processID else {
             return nil
         }
         return Presentation(
             label: inputs.mode.overlayLabel,
-            showsBadge: inputs.mode.showsPersistentBadge,
-            processID: processID)
+            showsBadge: inputs.mode.showsPersistentBadge && isPersistentEnabled,
+            processID: processID,
+            style: style)
     }
 
     /// 새 기하 읽기를 띄워야 하는가 — **순수 함수라 표로 검증한다.** 판정이 틀리면 증상이
@@ -84,15 +126,16 @@ final class ModeIndicatorController {
         if !rereadGeometry, let inFlight, inFlight.request == desired, inFlight.token == token {
             return false
         }
-        // 밀린 flash는 그릴 프레임이 있어야 하고, 배지는 기하가 상했거나 상태가 달라졌을 때만
-        // 다시 읽는다 — Insert에서 앵커 이벤트가 AX 왕복 0건인 것이 이 두 번째 항이다.
+        // 밀린 flash는 그릴 프레임이 있어야 하고, 상시 표시는 기하가 상했거나 상태(라벨·
+        // 스타일)가 달라졌을 때만 다시 읽는다 — Insert에서 앵커 이벤트가 AX 왕복 0건인 것이
+        // 이 두 번째 항이다.
         return pendingFlash || (desired.showsBadge && (rereadGeometry || desired != current))
     }
 
     /// 온스크린 인디케이터 on/off. **런타임 SSOT는 이 프로퍼티**이고 didSet이 저장을
     /// 책임진다 — 실행 중 외부 `defaults write`는 재시작까지 무시된다 (탈출 옵션과 같은
-    /// 소유 모델). 유일하게 `@ObservationIgnored`가 아닌 저장 프로퍼티다: Settings 토글이
-    /// 여기 바인딩된다.
+    /// 소유 모델). `isPersistentEnabled`·`style`과 함께 `@ObservationIgnored`가 아닌 단 셋의
+    /// 저장 프로퍼티다: Settings 토글이 여기 바인딩된다.
     var isEnabled: Bool {
         didSet {
             guard oldValue != isEnabled else { return }
@@ -100,6 +143,33 @@ final class ModeIndicatorController {
             // 마지막으로 받은 상태에서 다시 판정한다 — off면 즉시 사라지고, on이면 지금
             // Normal·Visual인 경우 배지가 바로 뜬다. 자기 상태 변경을 관찰 그래프로
             // 우회시킬 이유가 없다.
+            reconcile(flashes: false, rereadGeometry: false)
+        }
+    }
+
+    /// 상시 표시 on/off — off면 모드 전환 때의 flash만 남는다. `isEnabled`와 같은 소유
+    /// 모델(런타임 SSOT는 이 프로퍼티, didSet이 저장). Settings의 "Show" Picker가 여기
+    /// 바인딩된다. 판정에서는 `showsBadge`를 접을 뿐이라 그 아래(읽기 코얼레싱·숨김)는 Insert와
+    /// 같은 경로를 탄다 — off 상태의 앵커 이벤트는 AX 왕복 0건이다.
+    var isPersistentEnabled: Bool {
+        didSet {
+            guard oldValue != isPersistentEnabled else { return }
+            defaults.set(
+                isPersistentEnabled, forKey: PreferenceKeys.onScreenModeIndicatorPersistentEnabled)
+            // off면 떠 있던 상시 표시가 즉시 사라지고, on이면 지금 Normal·Visual인 경우
+            // `desired != current`로 다시 읽어 그린다 (토글과 같은 수렴).
+            reconcile(flashes: false, rereadGeometry: false)
+        }
+    }
+
+    /// 상시 표시의 형태 — `isEnabled`와 같은 소유 모델(런타임 SSOT는 이 프로퍼티, didSet이
+    /// 저장). Settings의 Picker가 여기 바인딩된다.
+    var style: ModeIndicatorPresentationStyle {
+        didSet {
+            guard oldValue != style else { return }
+            defaults.set(style.rawValue, forKey: PreferenceKeys.onScreenModeIndicatorStyle)
+            // `Presentation`에 스타일이 실려 있어 `desired != current`가 참이 된다 — 상시 표시가
+            // 떠 있어야 하면 다시 읽어 새 형태로 그리고, 이전 형태의 패널은 즉시 감춘다.
             reconcile(flashes: false, rereadGeometry: false)
         }
     }
@@ -122,7 +192,7 @@ final class ModeIndicatorController {
         var token: Int
     }
 
-    /// 마지막으로 트리거가 밀어 넣은 상태. 토글 didSet이 여기서 다시 판정한다.
+    /// 마지막으로 트리거가 밀어 넣은 상태. 토글·스타일 didSet이 여기서 다시 판정한다.
     @ObservationIgnored private var lastInputs: Inputs?
     /// 지금 그리기로 되어 있는 것. **직전 이벤트가 아니라 이 값과만 비교한다** — 사다리
     /// 관찰 루프는 레벨 트리거(중간 전이가 유실되고 현재 값으로 수렴)라 엣지 비교가 성립하지
@@ -133,12 +203,22 @@ final class ModeIndicatorController {
     /// 사다리를 벗어날 때 `pending`을 비우는 것만으로는 부족하다: 이미 떠 있는 읽기가 착지해
     /// "가로채지 않는데 NORMAL이라고 말하는" 라벨을 띄운다
     /// (`FocusedElementResolver.refreshToken`과 같은 장치·같은 이유).
-    @ObservationIgnored private var token = 0
+    ///
+    /// 읽기만 열려 있는 것은 회귀 테스트 때문이다 — 자기 pid 경로가 토큰을 올리는지는 화면
+    /// 없이 이 값으로만 관측된다 (`ModeIndicatorSelfProcessTests`).
+    @ObservationIgnored private(set) var token = 0
 
     /// 패널은 첫 표시에서야 만든다 — 런치 시 `NSPanel`을 만들지 않고, 표시할 일이 없는
-    /// 실행(권한 미허용, 계속 Insert, 토글 off)에서는 끝까지 만들어지지 않는다.
+    /// 실행(권한 미허용, 계속 Insert, 토글 off)에서는 끝까지 만들어지지 않는다. 테두리 패널은
+    /// 테두리 스타일을 고른 적이 있어야 생긴다.
     @ObservationIgnored private var flashPanel: ModeIndicatorPanel?
     @ObservationIgnored private var badgePanel: ModeIndicatorPanel?
+    @ObservationIgnored private var borderPanel: ModeIndicatorBorderPanel?
+    /// 테두리 패널이 지금 어느 스타일로 떠 있는가 — 창·화면 테두리가 패널 하나를 나눠 쓰므로
+    /// `keeping`만으로는 "같은 패널, 다른 형태"를 가릴 수 없다. 이것 없이는 화면 테두리에서 창
+    /// 테두리로 바꿔도 설정 창이 열린 동안 화면 크기 테두리가 그대로 남았다가 복귀 때 창 크기로
+    /// 점프한다 — 배지↔테두리는 즉시 사라지는데 이 전환만 "설정이 안 먹은 것"처럼 보인다.
+    @ObservationIgnored private var borderPanelStyle: ModeIndicatorPresentationStyle?
 
     /// `defaults` 주입은 테스트용이다 — `.standard`를 쓰면 TEST_HOST가 앱 프로세스라
     /// 실기기에서 영속된 값이 새어 들어온다 (`EventTapController`와 같은 이유).
@@ -147,6 +227,15 @@ final class ModeIndicatorController {
         self.isEnabled = defaults.bool(
             forKey: PreferenceKeys.onScreenModeIndicatorEnabled,
             default: PreferenceKeys.onScreenModeIndicatorEnabledDefault)
+        self.isPersistentEnabled = defaults.bool(
+            forKey: PreferenceKeys.onScreenModeIndicatorPersistentEnabled,
+            default: PreferenceKeys.onScreenModeIndicatorPersistentEnabledDefault)
+        // 없는 키도 모르는 raw 값도 기본으로 접힌다 — 스타일이 늘거나 이름이 바뀌어도 저장된
+        // 값 때문에 아무것도 안 뜨는 일은 없다.
+        self.style =
+            defaults.string(forKey: PreferenceKeys.onScreenModeIndicatorStyle)
+            .flatMap(ModeIndicatorPresentationStyle.init(rawValue:))
+            ?? PreferenceKeys.onScreenModeIndicatorStyleDefault
     }
 
     // MARK: - 트리거
@@ -160,7 +249,7 @@ final class ModeIndicatorController {
     }
 
     /// 앵커가 움직였을 수 있다 — 포커스 요소 변경·앱 활성화·창 이동·리사이즈·디스플레이
-    /// 재구성. 모드는 그대로이므로 flash는 없고, 배지가 떠 있어야 할 때만 다시 읽는다
+    /// 재구성. 모드는 그대로이므로 flash는 없고, 상시 표시가 떠 있어야 할 때만 다시 읽는다
     /// (Insert에서는 앵커 이벤트가 AX 왕복 0건이다).
     func anchorDidChange(_ inputs: Inputs) {
         lastInputs = inputs
@@ -180,7 +269,9 @@ final class ModeIndicatorController {
     /// 늘지 않는다.
     private func reconcile(flashes: Bool, rereadGeometry: Bool) {
         guard let inputs = lastInputs,
-            let desired = Self.presentation(isEnabled: isEnabled, inputs: inputs)
+            let desired = Self.presentation(
+                isEnabled: isEnabled, isPersistentEnabled: isPersistentEnabled, style: style,
+                inputs: inputs)
         else {
             // 표시가 통째로 막힌 모든 사유(사다리 이탈·토글 off·pid 없음·아직 아무 입력도
             // 받지 않음)가 이 한 자리로 모인다. 페이드 없이 즉시 감춘다.
@@ -189,7 +280,7 @@ final class ModeIndicatorController {
             pendingFlash = false
             current = nil
             flashPanel?.hide()
-            badgePanel?.hide()
+            hidePersistentPanels(keeping: nil)
             return
         }
         // 우리 자신이 최전면이 되면(메뉴바 아이콘 클릭·설정 창) 리졸버가 우리 pid에 붙는데,
@@ -198,8 +289,22 @@ final class ModeIndicatorController {
         guard desired.processID != Self.ownProcessID else {
             // 읽지도 `current`를 건드리지도 않지만 **거짓말은 지운다**: 우리가 최전면인 동안
             // Insert로 바뀌면(우리 창에서 Esc·i) 이전 앱 요소에 남은 "NORMAL" 배지가 다음
-            // 앵커 이벤트까지 사실이 아닌 채로 붙어 있다.
-            if !desired.showsBadge { badgePanel?.hide() }
+            // 앵커 이벤트까지 사실이 아닌 채로 붙어 있다. 스타일 변경도 바로 이 경로다 —
+            // 설정 창이 열려 있으면 우리가 최전면이다 — 그래서 이전 스타일의 패널은 여기서
+            // 즉시 감추고, 새 스타일은 사용자가 앱으로 돌아가는 앵커 이벤트가 그린다
+            // (토글을 켤 때와 같은 수렴).
+            //
+            // **떠 있는 읽기도 무효화한다.** 토큰을 올리지 않으면 이전 앱을 향해 이미 떠 있던
+            // 읽기가 여기서 감춘 뒤에 착지해 옛 배지·테두리를 다시 그린다 — 방금 바꾼 스타일이
+            // 다음 앵커 이벤트까지 되돌아간 채로 보인다. 밀린 flash는 **만료**한다: 이 guard가
+            // `pendingFlash`를 세우는 줄보다 앞이라 우리가 최전면인 동안의 전환은 애초에 flash를
+            // 세우지 않으므로, 여기서 지우는 것은 언제나 "이전 앱에서 시작돼 순간을 놓친" flash다
+            // (`finish`가 앵커 없는 flash를 버리는 것과 같은 계약). `inFlight`는 비우지 않는다 —
+            // `finish`만 비워야 `pump()`의 1-in-flight 가드가 유지된다.
+            token &+= 1
+            pending = nil
+            pendingFlash = false
+            hidePersistentPanels(keeping: desired.showsBadge ? desired.style : nil)
             return
         }
         if flashes { pendingFlash = true }
@@ -209,7 +314,7 @@ final class ModeIndicatorController {
         // **판정보다 뒤여야 한다**: 앞으로 옮기면 `desired != current`가 영원히 거짓이라
         // 상태가 달라져도 다시 읽지 않는다.
         current = desired
-        if !desired.showsBadge { badgePanel?.hide() }
+        hidePersistentPanels(keeping: desired.showsBadge ? desired.style : nil)
         guard needsRead else {
             // 아무것도 달라지지 않았다 — **토큰을 올리지 않는다.** 올리면 진행 중인 읽기가
             // 폐기돼 방금 요청한 flash가 화면에 닿지 못한다.
@@ -228,8 +333,20 @@ final class ModeIndicatorController {
         pending = nil
         let token = self.token
         inFlight = InFlight(request: request, token: token)
+        // 캐럿은 flash만 쓴다 — 밀린 flash가 있을 때만 읽어 앵커·사다리 이벤트의 재배치는
+        // 오늘의 비용에 머문다. **여기서** 잡아야 한다: `finish`의 낡은 토큰 경로가 더 새로운
+        // `pendingFlash`로 다시 들어온다. flash를 세우는 유일한 경로(`modeDidChange`)가 항상
+        // 토큰을 올려 새 읽기를 띄우므로, 캐럿 없이 띄운 읽기로 flash가 그려지는 일은 없다.
+        let includesCaret = pendingFlash
+        // 창 rect는 창 테두리 스타일의 상시 표시만 쓴다 — 조건이 소비자(`finish`의 `showsBadge`
+        // guard와 스타일 switch)와 같아야 Insert·순간 표시만인 요청에서 창 왕복 셋을 낭비하지
+        // 않는다. `inFlight.request == desired` 비교에 스타일이 실려 있으므로 창 없이 띄운 읽기가
+        // 창 테두리 요청에 재사용되는 일은 없다 (캐럿과 같은 불변식).
+        let includesWindow = request.showsBadge && request.style == .windowBorder
         Self.geometryQueue.async { [weak self] in
-            let anchors = ModeIndicatorGeometryReader.read(processID: request.processID)
+            let anchors = ModeIndicatorGeometryReader.read(
+                processID: request.processID, includesCaret: includesCaret,
+                includesWindow: includesWindow)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     self?.finish(request, token: token, anchors: anchors)
@@ -255,23 +372,23 @@ final class ModeIndicatorController {
         let layoutScreens = screens.map {
             ModeIndicatorLayout.Screen(frame: $0.frame, visibleFrame: $0.visibleFrame)
         }
-        // 읽기 한 번의 앵커로 두 프레임을 만든다 — 크기만 다르고 사다리·배치·클램프는 같다.
-        func frame(for style: ModeIndicatorStyle) -> NSRect? {
+        // 읽기 한 번의 앵커로 flash와 상시 표시의 프레임을 만든다 — 사다리의 첫 단만 다르다.
+        func frame(ladder: ModeIndicatorLayout.Ladder, style: ModeIndicatorStyle) -> NSRect? {
             ModeIndicatorLayout.panelFrame(
-                anchors: anchors,
+                anchors: anchors, ladder: ladder,
                 size: ModeIndicatorPanel.size(for: request.label, style: style),
                 screens: layoutScreens, primaryScreenMaxY: primary.frame.maxY)
         }
-        guard let badgeFrame = frame(for: .badge), let flashFrame = frame(for: .flash) else {
-            // 사다리의 마지막 단 — 붙일 곳이 없으면 표시하지 않는다. **재시도는 없다**:
-            // 앵커가 없다는 것이 답이고, 다음 앵커 이벤트가 이 경로를 다시 부른다.
-            //
+        // flash 사다리(캐럿 → 요소 → 창)가 배지 사다리를 포함하므로, flash 프레임이 없으면
+        // 앵커가 아예 없다 — 사다리의 마지막 단이고, 붙일 곳이 없으면 표시하지 않는다.
+        // **재시도는 없다**: 앵커가 없다는 것이 답이고, 다음 앵커 이벤트가 이 경로를 다시 부른다.
+        guard let flashFrame = frame(ladder: .caretFirst, style: .flash) else {
             // 여기서 flash 요청을 **버리는 것**이 계약이다. 들고 있으면 그 요청이 다음 앵커
             // 이벤트(창 이동 등)에 얹혀 살아나, 한참 전에 끝난 전환의 라벨이 엉뚱한 때 번쩍인다.
             // 순간 표시는 그 순간에 매인 알림이라 놓쳤으면 만료되는 것이 맞다.
             pendingFlash = false
             flashPanel?.hide()
-            badgePanel?.hide()
+            hidePersistentPanels(keeping: nil)
             return
         }
         if pendingFlash {
@@ -280,12 +397,56 @@ final class ModeIndicatorController {
             flashPanel = panel
             panel.flash(request.label, at: flashFrame)
         }
-        if request.showsBadge {
-            let panel = badgePanel ?? ModeIndicatorPanel(style: .badge)
-            badgePanel = panel
-            panel.show(request.label, at: badgeFrame)
-        } else {
-            badgePanel?.hide()
+        guard request.showsBadge else {
+            hidePersistentPanels(keeping: nil)
+            return
+        }
+        // 상시 표시는 요소부터 시작하는 사다리다 — 캐럿만 있고 요소·창이 없는 경우(이론상)
+        // flash는 뜨되 상시 표시는 붙일 곳이 없어 감춘다.
+        switch request.style {
+        case .badge:
+            if let badgeFrame = frame(ladder: .elementFirst, style: .badge) {
+                let panel = badgePanel ?? ModeIndicatorPanel(style: .badge)
+                badgePanel = panel
+                panel.show(request.label, at: badgeFrame)
+                hidePersistentPanels(keeping: .badge)
+            } else {
+                hidePersistentPanels(keeping: nil)
+            }
+        case .windowBorder, .screenBorder:
+            let labelSize = ModeIndicatorPanel.size(for: request.label, style: .badge)
+            let layout =
+                request.style == .windowBorder
+                ? ModeIndicatorLayout.windowBorderLayout(
+                    anchors: anchors, labelSize: labelSize, screens: layoutScreens,
+                    primaryScreenMaxY: primary.frame.maxY)
+                : ModeIndicatorLayout.screenBorderLayout(
+                    anchors: anchors, labelSize: labelSize, screens: layoutScreens,
+                    primaryScreenMaxY: primary.frame.maxY)
+            if let layout {
+                let panel = borderPanel ?? ModeIndicatorBorderPanel()
+                borderPanel = panel
+                // 형태를 먼저 적는다 — 아래 `keeping`이 방금 그린 패널을 "다른 형태"로 보고
+                // 감추면 안 된다.
+                borderPanelStyle = request.style
+                panel.show(request.label, at: layout.frame, labelFrame: layout.labelFrame)
+                hidePersistentPanels(keeping: request.style)
+            } else {
+                hidePersistentPanels(keeping: nil)
+            }
+        }
+    }
+
+    /// 상시 표시 패널 중 `style`이 아닌 것을 감춘다 (`nil`이면 전부). **숨김 규칙의 단일
+    /// 지점이다** — 배지에 적용되는 모든 숨김 사유(Insert·사다리 이탈·토글 off·pid 없음·
+    /// 자기 pid·앵커 없음·스타일 변경)가 테두리에도 같은 자리에서 같이 적용된다. 테두리 패널은
+    /// 두 테두리 스타일이 나눠 쓰므로, 유지할 스타일이 테두리라도 **지금 떠 있는 형태와 다르면**
+    /// 감춘다 — 그래야 창↔화면 테두리 전환에서도 이전 형태가 즉시 사라진다.
+    private func hidePersistentPanels(keeping style: ModeIndicatorPresentationStyle?) {
+        if style != .badge { badgePanel?.hide() }
+        if style?.usesBorderPanel != true || style != borderPanelStyle {
+            borderPanel?.hide()
+            borderPanelStyle = nil
         }
     }
 

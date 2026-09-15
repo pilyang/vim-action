@@ -67,7 +67,7 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 08-02 | App Icon은 Icon Composer `.icon` | legacy는 macOS 26이 회색 컨테이너에 강제 합성(실측) — appiconset 제거, 소스 벡터는 stroke가 아닌 외곽선 fill이어야 함 (26.5 전제는 20260812 배포 타깃 결정으로 부분 supersede) | [20260802_app-icon-icon-composer.md](references/20260802_app-icon-icon-composer.md) |
 | 08-02 | 설정 창 열린 동안만 Dock 아이콘 | `.regular` 승격(앱 메뉴 동반 수용) — 열림=`onAppear`(창이 key가 안 됨, 실측)·닫힘=`willClose` (닫힘 판정 술어는 20260812 창 동일성으로 부분 supersede) | [20260802_dock-icon-while-settings-open.md](references/20260802_dock-icon-while-settings-open.md) |
 | 08-09 | UI 쓰기는 라인 편집만 | 재직렬화 금지는 유지, 값 토큰 교체·한 줄 삽입은 허용 — 안전 계약 3종(에러 상태 거부/애매하면 nil+결과 자가검증/파일 열기 폴백) | [20260809_config-yaml-line-edit-writes.md](references/20260809_config-yaml-line-edit-writes.md) |
-| 08-09 | 설정 창은 3탭 | General(권한·Behavior·접힌 Diagnostics)/Apps(기본 선택)/About, 460×560 고정 — 권한 섹션은 신뢰 상태에 따라 자리 이동 | [20260809_settings-window-three-tabs.md](references/20260809_settings-window-three-tabs.md) |
+| 08-09 | 설정 창은 3탭 | General(권한·Behavior·접힌 Diagnostics)/Apps(기본 선택)/About, 460×560 고정 — 권한 섹션은 신뢰 상태에 따라 자리 이동 (탭 수는 20260915 Indicator 탭으로 부분 supersede) | [20260809_settings-window-three-tabs.md](references/20260809_settings-window-three-tabs.md) |
 | 08-09 | 미허용 발견성은 push 2종 | 런치 1회 자동 오픈(`openSettings`를 `MenuBarExtra` label에서 — `sendAction`은 macOS 14부터 사망) + 메뉴 상시 경고 행 (26.5 전제는 20260812 배포 타깃 결정으로 부분 supersede — 결론 유지) | [20260809_permission-discoverability-push.md](references/20260809_permission-discoverability-push.md) |
 | 08-10 | 자동 업데이트는 Sparkle 2.x | appcast + EdDSA·코드서명 이중 검증, 샌드박스 해제라 XPC 불필요 — 자체 구현 기각 | [20260810_sparkle-auto-update.md](references/20260810_sparkle-auto-update.md) |
 | 08-10 | 배포 패키징은 DMG | 첫 설치 UX·설치 위치 안정성 — Sparkle·cask 공용, zip 기각 | [20260810_dmg-packaging.md](references/20260810_dmg-packaging.md) |
@@ -102,6 +102,8 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 09-06 | 앵커 사다리 — 캐럿→요소→창, 이벤트 기반 갱신 | 순간 표시는 캐럿부터·상시 배지는 요소부터, 키마다 재배치·폴링 없음(20260725 재검토 트리거 회피), AX는 메인 밖 50ms·pid만, 캐럿은 `(loc,1)`→`(loc-1,1)`→텍스트 마커 — 앱 계열별 실측표 포함 | [20260906_mode-indicator-anchor-ladder-event-driven.md](references/20260906_mode-indicator-anchor-ladder-event-driven.md) |
 | 09-06 | Chromium 스크린리더 모드 강제 안 함 | `AXEnhancedUserInterface`를 켜면 Chrome·Arc 캐럿이 나옴을 실측했으나 브라우저 전역 완전 모드 비용이 비례하지 않음 — 캐럿 없음 수용·요소 폴백, Electron `AXManualAccessibility` 기상은 유지 | [20260906_no-forced-chromium-screen-reader-mode.md](references/20260906_no-forced-chromium-screen-reader-mode.md) |
 | 09-06 | 인디케이터 설정은 UserDefaults | on/off·스타일은 Settings General 토글(20260801 경계 기준), config.yaml 비노출, 기본 on — PRD 초안의 YAML 스타일 항목 대체 | [20260906_mode-indicator-settings-in-userdefaults.md](references/20260906_mode-indicator-settings-in-userdefaults.md) |
+| 09-14 | 인디케이터 opt-in 확장 — 순간 표시만 + 창 테두리 | 상시 표시 on/off Bool 키 추가(off면 flash만), 상시 스타일에 포커스 창 테두리(폴백 없음) 추가, 기본값 불변 — 3단 enum 기각(마이그레이션), 자기 pid 경로는 떠 있는 읽기 무효화·flash 만료 | [20260914_mode-indicator-optin-flash-only-and-window-border.md](references/20260914_mode-indicator-optin-flash-only-and-window-border.md) |
+| 09-15 | 설정 창에 Indicator 탭 | General / Indicator / Apps / About 4탭 — 인디케이터 항목 셋을 General > Behavior에서 옮기기만(키·문구 불변), "Visual" 이름·About 앞 배치 기각, 08-09 3탭 결정은 탭 수만 대체 | [20260915_settings-window-indicator-tab.md](references/20260915_settings-window-indicator-tab.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 

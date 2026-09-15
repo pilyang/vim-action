@@ -7,10 +7,10 @@ import Sparkle
 import SwiftUI
 import VimActionConfig
 
-/// 설정 창 탭. 성격이 다른 세 가지를 분리한다 — 자주 보는 것(앱별 설정 접근), 한 번 보고 마는
-/// 것(권한), 참조용(버전·링크).
+/// 설정 창 탭. 성격이 다른 네 가지를 분리한다 — 자주 보는 것(앱별 설정 접근), 한 번 보고 마는
+/// 것(권한), 화면 표시 취향(온스크린 인디케이터), 참조용(버전·링크).
 private enum SettingsTab: Hashable {
-    case general, apps, about
+    case general, indicator, apps, about
 }
 
 /// 설정 창. 탭 전환만 하고 내용은 각 탭이 소유한다.
@@ -33,6 +33,9 @@ struct SettingsView: View {
             GeneralTab(appState: appState)
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(SettingsTab.general)
+            IndicatorTab(appState: appState)
+                .tabItem { Label("Indicator", systemImage: "text.cursor") }
+                .tag(SettingsTab.indicator)
             AppsTab(appState: appState)
                 .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
                 .tag(SettingsTab.apps)
@@ -92,7 +95,6 @@ private struct GeneralTab: View {
 
     var body: some View {
         @Bindable var eventTap = appState.eventTap
-        @Bindable var modeIndicator = appState.modeIndicator
         Form {
             // 미허용이면 최상단 — 이 상태에서는 다른 무엇보다 이것부터 해결해야 한다.
             // 허용된 뒤에는 한 줄짜리 확인 표시라 Behavior 아래로 내려간다.
@@ -119,13 +121,6 @@ private struct GeneralTab: View {
                 Toggle("Exit Normal mode on ⌘/⌥ shortcuts", isOn: $eventTap.isNormalModeEscapeEnabled)
                 Text(
                     "After a Command or Option shortcut (Spotlight, Raycast, …), VimAction returns to Insert mode so your next typing isn't blocked. When off, those shortcuts still pass through to the app — you just stay in Normal mode."
-                )
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                // 값·영속·표시 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 위 토글과 동일 모델.
-                Toggle("Show on-screen mode indicator", isOn: $modeIndicator.isEnabled)
-                Text(
-                    "A label appears next to the focused text field when the mode changes, and a small badge stays while you're in Normal or Visual mode."
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -187,6 +182,46 @@ private extension GeneralTab {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+/// 온스크린 모드 인디케이터 — 켜기·표시 시점·상시 표시 형태. 시스템 동작(General의 로그인·탈출)과
+/// 성격이 달라 탭을 나눴고, 외양 옵션이 늘어나면 이 탭에 더한다.
+private struct IndicatorTab: View {
+    let appState: AppState
+
+    var body: some View {
+        @Bindable var modeIndicator = appState.modeIndicator
+        Form {
+            Section {
+                // 값·영속·표시 반영 모두 컨트롤러 프로퍼티(didSet)가 책임진다 — 뷰는 바인딩만 한다.
+                Toggle("Show on-screen mode indicator", isOn: $modeIndicator.isEnabled)
+                Text("A label flashes near the caret (or the focused field) whenever the mode changes.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                // 상시 표시 on/off — 토글과 같은 소유 모델(컨트롤러 프로퍼티 didSet). 상시 표시가
+                // 소음인 사용자의 opt-out이고 기본은 on. 인디케이터가 꺼져 있으면 고를 이유가 없어 비활성.
+                Picker("Show", selection: $modeIndicator.isPersistentEnabled) {
+                    Text("Only when the mode changes").tag(false)
+                    Text("Also while in Normal or Visual mode").tag(true)
+                }
+                .disabled(!modeIndicator.isEnabled)
+                // 상시 표시의 형태 — 같은 소유 모델. 표시 문구는 탭의 다른 항목처럼 뷰에 둔다.
+                // 상시 표시가 없으면(인디케이터 off 또는 순간 표시만) 형태를 고를 이유가 없어 비활성.
+                Picker("Indicator style", selection: $modeIndicator.style) {
+                    Text("Badge near the focused field").tag(ModeIndicatorPresentationStyle.badge)
+                    Text("Focused window border").tag(ModeIndicatorPresentationStyle.windowBorder)
+                    Text("Screen border").tag(ModeIndicatorPresentationStyle.screenBorder)
+                }
+                .disabled(!modeIndicator.isEnabled || !modeIndicator.isPersistentEnabled)
+                Text(
+                    "While you're in Normal or Visual mode, a small badge stays next to the field — or a colored frame surrounds the focused window or the whole screen, with the mode label in its top-right corner."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
