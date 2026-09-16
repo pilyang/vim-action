@@ -1,0 +1,25 @@
+.claude/skills/decisions/SKILL.md
+  s_90e40fcfa7c141::t_fe20a220625d1f 107-108
+.claude/skills/decisions/references/20260916_mode-indicator-insert-color.md
+  s_90e40fcfa7c141::t_9bd30967487e33 1-31
+.claude/skills/decisions/references/20260916_mode-indicator-per-mode-colors.md
+  s_90e40fcfa7c141::t_d137533aec31eb 1-2
+.claude/skills/plans/references/20260906_onscreen-mode-indicator.md
+  s_90e40fcfa7c141::t_d55b2eddbbb952 26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "dd57ffbc63e2c298b5100f0658aea3d88affe11b",
+  "prompts": {},
+  "sessions": {
+    "s_90e40fcfa7c141": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0a81d14-4098-4a70-8231-2cbdb639080a",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
