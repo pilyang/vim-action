@@ -1,3 +1,5 @@
+> Superseded (부분) by [20260916_mode-indicator-insert-color.md](20260916_mode-indicator-insert-color.md) — INSERT flash 강조색 고정(설정 없음)은 뒤집힘 / 두 색의 형식·기본값·저장·UI·재도색 규칙은 유효
+
 # 인디케이터 모드별 색상·투명도 — Normal/Visual 두 색, 기본은 시스템 강조색
 
 <!-- 파일명 규칙: yyyymmdd_<kebab-case-title>.md — 날짜는 결정일. 이 문서는 결정의 불변 스냅샷이며, 기록 후 수정하지 않습니다 (Superseded 마킹 1줄 제외). -->

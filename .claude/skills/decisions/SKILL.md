@@ -104,7 +104,8 @@ description: VimAction 프로젝트의 기술 결정 히스토리 SSOT — 아�
 | 09-06 | 인디케이터 설정은 UserDefaults | on/off·스타일은 Settings General 토글(20260801 경계 기준), config.yaml 비노출, 기본 on — PRD 초안의 YAML 스타일 항목 대체 | [20260906_mode-indicator-settings-in-userdefaults.md](references/20260906_mode-indicator-settings-in-userdefaults.md) |
 | 09-14 | 인디케이터 opt-in 확장 — 순간 표시만 + 창 테두리 | 상시 표시 on/off Bool 키 추가(off면 flash만), 상시 스타일에 포커스 창 테두리(폴백 없음) 추가, 기본값 불변 — 3단 enum 기각(마이그레이션), 자기 pid 경로는 떠 있는 읽기 무효화·flash 만료 | [20260914_mode-indicator-optin-flash-only-and-window-border.md](references/20260914_mode-indicator-optin-flash-only-and-window-border.md) |
 | 09-15 | 설정 창에 Indicator 탭 | General / Indicator / Apps / About 4탭 — 인디케이터 항목 셋을 General > Behavior에서 옮기기만(키·문구 불변), "Visual" 이름·About 앞 배치 기각, 08-09 3탭 결정은 탭 수만 대체 | [20260915_settings-window-indicator-tab.md](references/20260915_settings-window-indicator-tab.md) |
-| 09-16 | 인디케이터 모드별 색상·투명도 | Normal/Visual 두 색(알파 포함)을 UserDefaults `#RRGGBBAA` 키 둘로, 기본 미설정=강조색·INSERT flash는 강조색 유지, Indicator 탭 ColorPicker 둘+Reset, 색 변경은 재읽기 없이 즉시 재도색 — 단일 색·Insert 키·아카이브 저장·강조색 토글 기각 | [20260916_mode-indicator-per-mode-colors.md](references/20260916_mode-indicator-per-mode-colors.md) |
+| 09-16 | 인디케이터 모드별 색상·투명도 | 모드별 색(알파 포함)을 UserDefaults `#RRGGBBAA` 문자열로, 기본 미설정=강조색, Indicator 탭 ColorPicker+Reset, 색 변경은 재읽기 없이 즉시 재도색 — 단일 색·아카이브 저장·강조색 토글 기각 (INSERT 강조색 고정은 같은 날 Insert 색 결정으로 부분 supersede) | [20260916_mode-indicator-per-mode-colors.md](references/20260916_mode-indicator-per-mode-colors.md) |
+| 09-16 | 인디케이터 Insert 색 추가 | Normal / Insert / Visual 셋 — INSERT flash도 사용자 색(상시 표시 없음은 유지), 키 하나 additive·같은 규칙, Picker 순서 Normal/Insert/Visual, Reset은 셋 다 — Insert를 Normal 색으로 그리기 기각 | [20260916_mode-indicator-insert-color.md](references/20260916_mode-indicator-insert-color.md) |
 
 ### 이벤트 탭 — 진입·번역·수명
 
