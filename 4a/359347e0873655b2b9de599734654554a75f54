@@ -1,0 +1,19 @@
+CLAUDE.md
+  s_d5739a384ea66e::t_5e2c29176a001b 63,65-71,74-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4a359347e0873655b2b9de599734654554a75f54",
+  "prompts": {},
+  "sessions": {
+    "s_d5739a384ea66e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "48aa9a43-e7a6-479e-ba5b-37b94ab60fbe",
+        "model": "claude-opus-5"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
