@@ -7,7 +7,7 @@ import Foundation
 import VimEngine
 
 /// UserDefaults 키 — 가로채기·탈출 두 키는 EventTapController가, 온스크린 인디케이터
-/// 토글·상시 표시·스타일·모드별 색 두 개까지 다섯 키는 ModeIndicatorController가
+/// 토글·상시 표시·스타일·모드별 색 셋까지 여섯 키는 ModeIndicatorController가
 /// 로드(init)·저장(didSet)하는 단일 소유다.
 /// (단수형 `PreferenceKey`는 SwiftUI 프로토콜과 이름이 충돌해 피한다.)
 /// `nonisolated` — 프로젝트 기본이 MainActor 격리라 키 상수까지 메인 격리가 붙는데,
@@ -30,6 +30,10 @@ nonisolated enum PreferenceKeys {
     /// 외양 변화가 없다. 못 읽는 값도 부재로 접힌다
     /// (`20260916_mode-indicator-per-mode-colors.md`).
     static let onScreenModeIndicatorNormalColor = "onScreenModeIndicatorNormalColor"
+    /// Insert 모드 인디케이터 색 — 위와 같은 형식·같은 기본값 규칙. Insert에는 상시 표시가
+    /// 없으므로 이 색이 보이는 곳은 전환 순간의 INSERT flash뿐이다
+    /// (`20260916_mode-indicator-insert-color.md`).
+    static let onScreenModeIndicatorInsertColor = "onScreenModeIndicatorInsertColor"
     /// Visual 모드(VISUAL·V-LINE 공유) 인디케이터 색 — 위와 같은 형식·같은 기본값 규칙.
     static let onScreenModeIndicatorVisualColor = "onScreenModeIndicatorVisualColor"
     /// 최초 실행 온보딩(설정 창 자동 오픈)을 이미 띄웠는가. 위 키들과 달리 AppState가 소유한다.

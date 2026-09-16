@@ -142,8 +142,9 @@ final class ModeIndicatorController {
 
     /// 온스크린 인디케이터 on/off. **런타임 SSOT는 이 프로퍼티**이고 didSet이 저장을
     /// 책임진다 — 실행 중 외부 `defaults write`는 재시작까지 무시된다 (탈출 옵션과 같은
-    /// 소유 모델). `isPersistentEnabled`·`style`과 함께 `@ObservationIgnored`가 아닌 단 셋의
-    /// 저장 프로퍼티다: Settings 토글이 여기 바인딩된다.
+    /// 소유 모델). `isPersistentEnabled`·`style`·모드별 색 셋과 함께 `@ObservationIgnored`가
+    /// 아닌 저장 프로퍼티다 — Settings가 바인딩하는 것이 그 여섯뿐이고, 나머지 내부 상태가 전부
+    /// ignored인 덕에 사다리 관찰 루프가 읽기 진행 상태까지 추적하지 않는다.
     var isEnabled: Bool {
         didSet {
             guard oldValue != isEnabled else { return }
@@ -192,6 +193,16 @@ final class ModeIndicatorController {
     var normalColor: NSColor? {
         didSet {
             persist(normalColor, forKey: PreferenceKeys.onScreenModeIndicatorNormalColor)
+            repaintColors()
+        }
+    }
+
+    /// Insert 모드 인디케이터 색 — `normalColor`와 같은 소유 모델·같은 규칙. Insert에는 상시
+    /// 표시가 없으므로 이 색이 보이는 곳은 전환 순간의 INSERT flash뿐이다
+    /// (`20260916_mode-indicator-insert-color.md`).
+    var insertColor: NSColor? {
+        didSet {
+            persist(insertColor, forKey: PreferenceKeys.onScreenModeIndicatorInsertColor)
             repaintColors()
         }
     }
@@ -270,6 +281,8 @@ final class ModeIndicatorController {
         // 경로를 만들지 않는다.
         self.normalColor = Self.storedColor(
             defaults, forKey: PreferenceKeys.onScreenModeIndicatorNormalColor)
+        self.insertColor = Self.storedColor(
+            defaults, forKey: PreferenceKeys.onScreenModeIndicatorInsertColor)
         self.visualColor = Self.storedColor(
             defaults, forKey: PreferenceKeys.onScreenModeIndicatorVisualColor)
     }
@@ -435,7 +448,7 @@ final class ModeIndicatorController {
         // 사용자 색(미설정이면 `nil` → 패널이 강조색으로 그린다). 한 번 구해 flash·상시 표시가
         // 같은 값을 쓴다 — 둘은 같은 요청의 같은 모드다.
         let color = ModeIndicatorColor.color(
-            for: request.mode, normal: normalColor, visual: visualColor)
+            for: request.mode, normal: normalColor, insert: insertColor, visual: visualColor)
         // flash 사다리(캐럿 → 요소 → 창)가 배지 사다리를 포함하므로, flash 프레임이 없으면
         // 앵커가 아예 없다 — 사다리의 마지막 단이고, 붙일 곳이 없으면 표시하지 않는다.
         // **재시도는 없다**: 앵커가 없다는 것이 답이고, 다음 앵커 이벤트가 이 경로를 다시 부른다.
@@ -505,7 +518,8 @@ final class ModeIndicatorController {
     /// 패널은 첫 표시에서야 만들어지므로 아무것도 뜬 적 없으면 통째로 no-op이다.
     private func repaintColors() {
         let color = current.flatMap {
-            ModeIndicatorColor.color(for: $0.mode, normal: normalColor, visual: visualColor)
+            ModeIndicatorColor.color(
+                for: $0.mode, normal: normalColor, insert: insertColor, visual: visualColor)
         }
         flashPanel?.setColor(color)
         badgePanel?.setColor(color)

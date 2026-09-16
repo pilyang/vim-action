@@ -224,16 +224,20 @@ private struct IndicatorTab: View {
             // 축이 다르다. 인디케이터가 꺼져 있으면 셋 다 고를 이유가 없어 통째로 비활성.
             Section("Colors") {
                 ColorPicker("Normal", selection: colorBinding(\.normalColor), supportsOpacity: true)
+                ColorPicker("Insert", selection: colorBinding(\.insertColor), supportsOpacity: true)
                 ColorPicker("Visual", selection: colorBinding(\.visualColor), supportsOpacity: true)
                 // 미설정으로 되돌린다 — 컨트롤러가 키를 지우고 다시 강조색으로 그린다.
-                // 이미 둘 다 미설정이면 할 일이 없다.
+                // 이미 셋 다 미설정이면 할 일이 없다.
                 Button("Reset to system accent") {
                     modeIndicator.normalColor = nil
+                    modeIndicator.insertColor = nil
                     modeIndicator.visualColor = nil
                 }
-                .disabled(modeIndicator.normalColor == nil && modeIndicator.visualColor == nil)
+                .disabled(
+                    modeIndicator.normalColor == nil && modeIndicator.insertColor == nil
+                        && modeIndicator.visualColor == nil)
                 Text(
-                    "VISUAL and V-LINE share the Visual color, and INSERT always uses the system accent color. The mode label stays fully opaque, so it still reads on a translucent background."
+                    "VISUAL and V-LINE share the Visual color. Insert mode has no persistent indicator, so its color only shows in the flash when you switch modes. The mode label stays fully opaque, so it still reads on a translucent background."
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)

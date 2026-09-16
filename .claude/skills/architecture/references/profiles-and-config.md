@@ -1,6 +1,6 @@
 # 프로파일과 설정
 
-- **Last updated**: 2026-09-16 (온스크린 인디케이터 모드별 색 키 둘 추가)
+- **Last updated**: 2026-09-16 (온스크린 인디케이터 모드별 색 키 셋 추가)
 
 ## 현재 구조
 
@@ -96,7 +96,7 @@ actions:                          # 명령 계열: 그 액션 자신의 키 교�
 
 **"사용자가 파일로 관리하고 싶은 설정"은 YAML, "앱이 스스로 쓰는 상태"는 UserDefaults.**
 
-- UserDefaults 잔류: `interceptionEnabled`(마스터 토글 — 킬스위치가 전용 스레드에서 직접 영속하는 안전 경로라 파일 IO에 의존시키지 않는다), `normalModeEscapeEnabled`(기존 Settings UI 토글 유지), `onScreenModeIndicatorEnabled`(온스크린 모드 인디케이터 on/off, 기본 on)·`onScreenModeIndicatorPersistentEnabled`(상시 표시 on/off — off면 순간 표시만, 기본 on)·`onScreenModeIndicatorStyle`(상시 표시 스타일 — `ModeIndicatorPresentationStyle`의 raw 문자열 `badge`/`windowBorder`/`screenBorder`, 기본 `badge`, 없는 값·모르는 값은 기본)·`onScreenModeIndicatorNormalColor`·`onScreenModeIndicatorVisualColor`(모드별 인디케이터 색 — sRGB `#RRGGBBAA` 대문자 8자리, **키 부재가 기본**이고 그것이 "시스템 강조색"을 뜻한다; 못 읽는 값도 부재로 접히고, 미설정으로 되돌리면 키를 지운다) — 다섯 다 표시 취향이지 앱별 동작 정의가 아니고, YAML로 두면 Settings UI가 YAML을 써야 한다. 소유자는 `ModeIndicatorController` ([20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md), [20260914_mode-indicator-optin-flash-only-and-window-border.md](../../decisions/references/20260914_mode-indicator-optin-flash-only-and-window-border.md), [20260916_mode-indicator-per-mode-colors.md](../../decisions/references/20260916_mode-indicator-per-mode-colors.md)).
+- UserDefaults 잔류: `interceptionEnabled`(마스터 토글 — 킬스위치가 전용 스레드에서 직접 영속하는 안전 경로라 파일 IO에 의존시키지 않는다), `normalModeEscapeEnabled`(기존 Settings UI 토글 유지), `onScreenModeIndicatorEnabled`(온스크린 모드 인디케이터 on/off, 기본 on)·`onScreenModeIndicatorPersistentEnabled`(상시 표시 on/off — off면 순간 표시만, 기본 on)·`onScreenModeIndicatorStyle`(상시 표시 스타일 — `ModeIndicatorPresentationStyle`의 raw 문자열 `badge`/`windowBorder`/`screenBorder`, 기본 `badge`, 없는 값·모르는 값은 기본)·`onScreenModeIndicatorNormalColor`·`onScreenModeIndicatorInsertColor`·`onScreenModeIndicatorVisualColor`(모드별 인디케이터 색 — sRGB `#RRGGBBAA` 대문자 8자리, **키 부재가 기본**이고 그것이 "시스템 강조색"을 뜻한다; 못 읽는 값도 부재로 접히고, 미설정으로 되돌리면 키를 지운다) — 여섯 다 표시 취향이지 앱별 동작 정의가 아니고, YAML로 두면 Settings UI가 YAML을 써야 한다. 소유자는 `ModeIndicatorController` ([20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md), [20260914_mode-indicator-optin-flash-only-and-window-border.md](../../decisions/references/20260914_mode-indicator-optin-flash-only-and-window-border.md), [20260916_mode-indicator-per-mode-colors.md](../../decisions/references/20260916_mode-indicator-per-mode-colors.md), [20260916_mode-indicator-insert-color.md](../../decisions/references/20260916_mode-indicator-insert-color.md)).
 - YAML: 앱별 on/off, 프로파일 전부.
 - **어느 쪽도 아닌 셋째 칸이 있다 — 시스템이 소유하는 상태.** 로그인 시 자동 시작은 `SMAppService.mainApp.status`가 SSOT이고 앱은 값을 저장하지 않는다(사용자가 시스템 설정에서 통지 없이 바꾸므로 미러는 반드시 어긋난다 — [app-shell.md](app-shell.md)). Sparkle 자동 확인도 같은 성격으로, 값의 영속은 Sparkle이 소유한다.
 

@@ -46,14 +46,17 @@ nonisolated enum ModeIndicatorColor {
 
     /// 모드 → 사용자 색. `nil`이면 시스템 강조색으로 그린다(미설정의 표현이다).
     ///
-    /// Insert는 설정 대상이 아니다 — 기본 상태(상시 표시 없음)라 flash의 강조색이 "평소 타이핑으로
-    /// 돌아왔다"는 중립 신호로 남아야 한다. VISUAL·V-LINE은 한 색을 나눠 쓴다: 둘은 같은 모드
-    /// 계열이고, 색은 모드 계열을 가르는 두 번째 신호다(첫째는 항상 동반되는 라벨).
-    static func color(for mode: Mode, normal: NSColor?, visual: NSColor?) -> NSColor? {
+    /// 세 모드가 같은 규칙을 탄다 — 모델에 예외가 없다("모드별 색, 미설정은 강조색").
+    /// Insert에는 상시 표시가 없으므로 그 색이 보이는 곳은 전환 순간의 INSERT flash뿐이고
+    /// (`20260916_mode-indicator-insert-color.md`), VISUAL·V-LINE은 한 색을 나눠 쓴다: 둘은 같은
+    /// 모드 계열이고, 색은 모드 계열을 가르는 두 번째 신호다(첫째는 항상 동반되는 라벨).
+    static func color(for mode: Mode, normal: NSColor?, insert: NSColor?, visual: NSColor?)
+        -> NSColor?
+    {
         switch mode {
         case .normal: normal
+        case .insert: insert
         case .visualChar, .visualLine: visual
-        case .insert: nil
         }
     }
 }

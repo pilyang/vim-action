@@ -66,33 +66,32 @@ struct ModeIndicatorColorHexTests {
     }
 }
 
-/// 모드 → 색 표. Insert가 설정 대상이 아닌 것과 VISUAL·V-LINE이 한 색을 나눠 쓰는 것이 결정이다
-/// (`20260916_mode-indicator-per-mode-colors.md`).
+/// 모드 → 색 표. 세 모드가 같은 규칙을 타고(모델에 예외가 없다) VISUAL·V-LINE만 한 색을 나눠
+/// 쓰는 것이 결정이다 (`20260916_mode-indicator-per-mode-colors.md`,
+/// `20260916_mode-indicator-insert-color.md`).
 struct ModeIndicatorColorForModeTests {
     private let normal = NSColor(srgbRed: 1, green: 0, blue: 0, alpha: 1)
+    private let insert = NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1)
     private let visual = NSColor(srgbRed: 0, green: 0, blue: 1, alpha: 1)
 
     private func color(_ mode: Mode) -> NSColor? {
-        ModeIndicatorColor.color(for: mode, normal: normal, visual: visual)
+        ModeIndicatorColor.color(for: mode, normal: normal, insert: insert, visual: visual)
     }
 
-    @Test("Normal은 Normal 색, Visual 둘은 Visual 색")
+    /// 색이 섞이면 전환이 색으로 보이지 않는다 — 셋이 각자의 색을 받는지가 표의 핵심이다.
+    @Test("모드마다 자기 색, Visual 둘만 한 색을 나눠 쓴다")
     func modesMapToTheirColor() {
         #expect(color(.normal) == normal)
+        #expect(color(.insert) == insert)
         #expect(color(.visualChar) == visual)
         #expect(color(.visualLine) == visual)
-    }
-
-    /// Insert는 "평소 타이핑으로 돌아왔다"는 중립 신호라 계속 강조색이다.
-    @Test("Insert는 언제나 nil(강조색)")
-    func insertNeverTakesAUserColor() {
-        #expect(color(.insert) == nil)
     }
 
     @Test("미설정이면 모든 모드가 nil")
     func unsetColorsFallBackForEveryMode() {
         for mode in [Mode.normal, .insert, .visualChar, .visualLine] {
-            #expect(ModeIndicatorColor.color(for: mode, normal: nil, visual: nil) == nil)
+            #expect(
+                ModeIndicatorColor.color(for: mode, normal: nil, insert: nil, visual: nil) == nil)
         }
     }
 }
@@ -110,6 +109,7 @@ struct ModeIndicatorColorPersistenceTests {
         withTemporaryDefaults { defaults in
             let controller = ModeIndicatorController(defaults: defaults)
             #expect(controller.normalColor == nil)
+            #expect(controller.insertColor == nil)
             #expect(controller.visualColor == nil)
         }
     }
@@ -129,6 +129,25 @@ struct ModeIndicatorColorPersistenceTests {
             let second = ModeIndicatorController(defaults: defaults)
             #expect(
                 second.normalColor.flatMap(ModeIndicatorColor.hex(from:)) == "#FF8000CC")
+        }
+    }
+
+    /// Insert에는 상시 표시가 없지만 색은 다른 둘과 같은 규칙으로 산다 — flash가 그 색을 쓴다.
+    @Test("Insert 색은 별도 키에 영속된다")
+    func insertColorUsesItsOwnKey() {
+        withTemporaryDefaults { defaults in
+            let first = ModeIndicatorController(defaults: defaults)
+            first.insertColor = orange
+            // 존재 확인이 먼저 — 이것 없이는 영속을 통째로 지워도 "미설정"으로 통과한다.
+            #expect(
+                defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorInsertColor) != nil)
+            #expect(
+                defaults.string(forKey: PreferenceKeys.onScreenModeIndicatorInsertColor)
+                    == "#FF8000CC")
+            #expect(defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorNormalColor) == nil)
+
+            let second = ModeIndicatorController(defaults: defaults)
+            #expect(second.insertColor.flatMap(ModeIndicatorColor.hex(from:)) == "#FF8000CC")
         }
     }
 
@@ -155,14 +174,18 @@ struct ModeIndicatorColorPersistenceTests {
         withTemporaryDefaults { defaults in
             let controller = ModeIndicatorController(defaults: defaults)
             controller.normalColor = orange
+            controller.insertColor = orange
             controller.visualColor = orange
             controller.normalColor = nil
+            controller.insertColor = nil
             controller.visualColor = nil
             #expect(defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorNormalColor) == nil)
+            #expect(defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorInsertColor) == nil)
             #expect(defaults.object(forKey: PreferenceKeys.onScreenModeIndicatorVisualColor) == nil)
 
             let second = ModeIndicatorController(defaults: defaults)
             #expect(second.normalColor == nil)
+            #expect(second.insertColor == nil)
             #expect(second.visualColor == nil)
         }
     }
