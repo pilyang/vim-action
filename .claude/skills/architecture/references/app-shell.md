@@ -1,6 +1,6 @@
 # 앱 셸
 
-- **Last updated**: 2026-09-15 (설정 창 Indicator 탭 — 4탭)
+- **Last updated**: 2026-09-16 (Indicator 탭 색 항목 — 모드 셋)
 
 ## 현재 구조
 
@@ -20,7 +20,7 @@
 
 ### 설정 창 — `TabView` 4탭, 460×560 고정
 
-**General**(권한 상태 + Behavior[로그인 시 자동 시작·Normal 탈출] + Updates 토글 + 접힌 `DisclosureGroup` "Diagnostics") / **Indicator**(탭 아이콘 `text.cursor`, 섹션 하나 — 온스크린 모드 인디케이터 토글과 그 아래 "Show" Picker(전환 시만 / Normal·Visual 동안도 — 토글이 꺼지면 `.disabled`)·"Indicator style" Picker(배지 / 창 테두리 / 화면 테두리 — 토글이 꺼지거나 상시 표시가 없으면 `.disabled`), 값·영속은 `ModeIndicatorController` 소유이고 뷰는 바인딩만, [mode-indicator-overlay.md](mode-indicator-overlay.md)) / **Apps**(설정 파일 상태 — [profiles-and-config.md](profiles-and-config.md)) / **About**(버전 + 업데이트 확인 + 링크). 탭 순서는 General이 먼저지만 **기본 선택은 Apps**이고, 권한 섹션은 미허용이면 General 최상단·허용되면 아래쪽(Behavior·Updates 뒤)에 한 줄로 자리를 옮긴다. 높이를 명시하지 않으면 greedy한 grouped `Form` 때문에 창이 임의 높이로 굳는다 ([20260809_settings-window-three-tabs.md](../../decisions/references/20260809_settings-window-three-tabs.md), [20260915_settings-window-indicator-tab.md](../../decisions/references/20260915_settings-window-indicator-tab.md)).
+**General**(권한 상태 + Behavior[로그인 시 자동 시작·Normal 탈출] + Updates 토글 + 접힌 `DisclosureGroup` "Diagnostics") / **Indicator**(탭 아이콘 `text.cursor`, 섹션 둘 — 무엇을 언제 띄우는가: 온스크린 모드 인디케이터 토글과 그 아래 "Show" Picker(전환 시만 / Normal·Visual 동안도 — 토글이 꺼지면 `.disabled`)·"Indicator style" Picker(배지 / 창 테두리 / 화면 테두리 — 토글이 꺼지거나 상시 표시가 없으면 `.disabled`) / "Colors": Normal·Insert·Visual `ColorPicker`(그 순서, `supportsOpacity: true`, 미설정이면 그 시점 강조색의 sRGB 해석을 보여 준다 — **실효 색과 같은 값은 컨트롤러에 대입하지 않아** 패널을 열기만 해서는 강조색이 스냅샷으로 굳지 않는다)와 "Reset to system accent" 버튼(셋을 모두 지우고, 셋 다 미설정이면 `.disabled`), 섹션 통째로 토글에 `.disabled`. 값·영속·화면 반영은 `ModeIndicatorController` 소유이고 뷰는 바인딩만, [mode-indicator-overlay.md](mode-indicator-overlay.md)) / **Apps**(설정 파일 상태 — [profiles-and-config.md](profiles-and-config.md)) / **About**(버전 + 업데이트 확인 + 링크). 탭 순서는 General이 먼저지만 **기본 선택은 Apps**이고, 권한 섹션은 미허용이면 General 최상단·허용되면 아래쪽(Behavior·Updates 뒤)에 한 줄로 자리를 옮긴다. 높이를 명시하지 않으면 greedy한 grouped `Form` 때문에 창이 임의 높이로 굳는다 ([20260809_settings-window-three-tabs.md](../../decisions/references/20260809_settings-window-three-tabs.md), [20260915_settings-window-indicator-tab.md](../../decisions/references/20260915_settings-window-indicator-tab.md)).
 
 ### 로그인 시 자동 시작 — `SMAppService.mainApp`
 

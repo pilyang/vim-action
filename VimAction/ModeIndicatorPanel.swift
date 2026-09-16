@@ -70,6 +70,12 @@ final class ModeIndicatorPillView: NSView {
         }
     }
 
+    /// 사용자가 고른 모드 색. `nil`은 미설정 — 그때는 시스템 강조색으로 그린다
+    /// (`20260916_mode-indicator-per-mode-colors.md`).
+    var fillColor: NSColor? {
+        didSet { needsDisplay = true }
+    }
+
     init(style: ModeIndicatorStyle) {
         self.style = style
         super.init(frame: .zero)
@@ -91,8 +97,9 @@ final class ModeIndicatorPillView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         // 강조색은 동적 색이라 **그리는 시점의 외양에서** 해석돼야 한다 — 그래서 배경색과
-        // 글씨색 결정이 둘 다 여기 있다.
-        let background = NSColor.controlAccentColor
+        // 글씨색 결정이 둘 다 여기 있다. 사용자 색은 고정 sRGB라 그 해석이 필요 없지만, 아래
+        // 글씨색 파생은 두 경우 모두 같은 자리에서 돈다.
+        let background = fillColor ?? NSColor.controlAccentColor
         background.setFill()
         NSBezierPath(
             roundedRect: bounds, xRadius: style.cornerRadius, yRadius: style.cornerRadius
@@ -178,6 +185,10 @@ final class ModeIndicatorPanel {
     /// 해석되고 이 판정도 그 값으로 내려가므로 그것이 맞는 동작이다. 다만 **테스트는 동적
     /// 시스템 색을 쓰면 안 된다** — 답이 테스트를 돌린 머신의 외양에 묶인다.
     ///
+    /// 사용자가 모드 색을 고른 경우도 같은 함수가 판정한다 — 밝은 색을 고르면 글씨가 검게
+    /// 뒤집힌다. **알파는 보지 않는다**: 성분 셋으로만 휘도를 내므로 반투명 배경이어도 글씨는
+    /// 불투명한 흑·백이고, 그래서 배경을 아무리 투명하게 해도 라벨은 남는다.
+    ///
     /// 뷰가 아니라 여기 있는 것은 뷰가 `private`이라 테스트가 닿지 않아서다.
     static func textColor(on background: NSColor) -> NSColor {
         guard let srgb = background.usingColorSpace(.sRGB) else { return .white }
@@ -194,9 +205,9 @@ final class ModeIndicatorPanel {
     /// 라벨을 `frame`에 띄우고 ~1초 뒤 페이드아웃한다. 표시 중 다시 부르면 **라벨·위치를 갈아
     /// 끼우고 타이머를 재시작**한다 — 연속 전환에서 앞 라벨이 사라지는 도중에 뒤 라벨이 겹쳐
     /// 뜨면 어느 쪽이 현재인지 읽히지 않는다.
-    func flash(_ label: String, at frame: NSRect) {
+    func flash(_ label: String, at frame: NSRect, color: NSColor?) {
         fadeOutWork?.cancel()
-        place(label, at: frame)
+        place(label, at: frame, color: color)
         // 이미 떠 있으면 알파를 0으로 되돌리지 않는다 — 연속 전환마다 깜빡인다. 페이드아웃
         // 도중이면 현재 알파에서 1로 되올라가 끊김 없이 이어진다.
         if !panel.isVisible { panel.alphaValue = 0 }
@@ -226,10 +237,10 @@ final class ModeIndicatorPanel {
     /// 애니메이션도 타이머도 없는 것이 요점이다: 배지는 포커스·창 이벤트마다 다시 놓이는데
     /// 그때마다 페이드가 걸리면 창을 옮길 때 배지가 출렁이고, 페이드아웃이 예약되면 가만히
     /// 있는 동안 배지가 사라진다. 멱등이라 같은 위치로 다시 불러도 안전하다.
-    func show(_ label: String, at frame: NSRect) {
+    func show(_ label: String, at frame: NSRect, color: NSColor?) {
         fadeOutWork?.cancel()
         fadeOutWork = nil
-        place(label, at: frame)
+        place(label, at: frame, color: color)
         panel.alphaValue = 1
         panel.orderFrontRegardless()
     }
@@ -242,8 +253,15 @@ final class ModeIndicatorPanel {
         panel.orderOut(nil)
     }
 
-    private func place(_ label: String, at frame: NSRect) {
+    /// 떠 있는 채로 **색만** 갈아 끼운다 — Settings에서 색을 바꾸는 경로다. 기하를 건드리지
+    /// 않으므로 AX 재읽기가 필요 없다.
+    func setColor(_ color: NSColor?) {
+        pill.fillColor = color
+    }
+
+    private func place(_ label: String, at frame: NSRect, color: NSColor?) {
         pill.label = label
+        pill.fillColor = color
         panel.setFrame(frame, display: true)
     }
 }

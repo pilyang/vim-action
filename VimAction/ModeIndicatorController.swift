@@ -79,7 +79,12 @@ final class ModeIndicatorController {
     /// 지금 화면에 있어야 할 것. `nil`(= `presentation`이 답하지 않음)이면 아무것도 표시하지
     /// 않는다.
     nonisolated struct Presentation: Equatable {
-        var label: String
+        /// 라벨이 아니라 **모드**를 싣는다 — 떠 있는 패널에 색을 밀어 넣으려면 그것이 지금 어느
+        /// 모드를 보여 주는지 알아야 한다. `mode → label`은 단사라(NORMAL·INSERT·VISUAL·V-LINE)
+        /// 동등성 의미는 라벨을 실었을 때와 같다. **색 자체는 싣지 않는다**: 실으면
+        /// `desired != current`가 색 변경에도 참이 되어 기하가 그대로인데 AX 재읽기가 난다
+        /// (`20260916_mode-indicator-per-mode-colors.md`).
+        var mode: Mode
         /// Insert는 항상 `false`다 — flash는 뜨되 상시 표시는 남지 않는다. 상시 표시가 "지금
         /// 위험한 모드다"를 뜻하려면 기본 상태(Insert)에는 없어야 한다. 상시 표시를 끈
         /// 설정(`isPersistentEnabled == false`)에서는 모든 모드가 `false`다 — Insert 경로가
@@ -89,6 +94,9 @@ final class ModeIndicatorController {
         /// 상시 표시의 형태. 여기 실리는 이유는 `desired != current`가 스타일 변경에도 참이
         /// 되어 다시 그리게 하기 위해서다.
         var style: ModeIndicatorPresentationStyle
+
+        /// 알약에 찍히는 글자 — 모드에서 파생된다(두 벌이 되면 어긋난다).
+        var label: String { mode.overlayLabel }
     }
 
     /// 표시 판정 — **이 기능의 순수 계층이다.** AX도 AppKit도 부르지 않아 표로 검증된다.
@@ -105,7 +113,7 @@ final class ModeIndicatorController {
             return nil
         }
         return Presentation(
-            label: inputs.mode.overlayLabel,
+            mode: inputs.mode,
             showsBadge: inputs.mode.showsPersistentBadge && isPersistentEnabled,
             processID: processID,
             style: style)
@@ -134,8 +142,9 @@ final class ModeIndicatorController {
 
     /// 온스크린 인디케이터 on/off. **런타임 SSOT는 이 프로퍼티**이고 didSet이 저장을
     /// 책임진다 — 실행 중 외부 `defaults write`는 재시작까지 무시된다 (탈출 옵션과 같은
-    /// 소유 모델). `isPersistentEnabled`·`style`과 함께 `@ObservationIgnored`가 아닌 단 셋의
-    /// 저장 프로퍼티다: Settings 토글이 여기 바인딩된다.
+    /// 소유 모델). `isPersistentEnabled`·`style`·모드별 색 셋과 함께 `@ObservationIgnored`가
+    /// 아닌 저장 프로퍼티다 — Settings가 바인딩하는 것이 그 여섯뿐이고, 나머지 내부 상태가 전부
+    /// ignored인 덕에 사다리 관찰 루프가 읽기 진행 상태까지 추적하지 않는다.
     var isEnabled: Bool {
         didSet {
             guard oldValue != isEnabled else { return }
@@ -171,6 +180,38 @@ final class ModeIndicatorController {
             // `Presentation`에 스타일이 실려 있어 `desired != current`가 참이 된다 — 상시 표시가
             // 떠 있어야 하면 다시 읽어 새 형태로 그리고, 이전 형태의 패널은 즉시 감춘다.
             reconcile(flashes: false, rereadGeometry: false)
+        }
+    }
+
+    /// Normal 모드 인디케이터 색 — `nil`이 미설정(시스템 강조색)이다. `isEnabled`·`style`과 같은
+    /// 소유 모델(런타임 SSOT는 이 프로퍼티, didSet이 영속)이고, Settings의 `ColorPicker`가 여기
+    /// 바인딩된다.
+    ///
+    /// **`oldValue != new` 가드가 없는 것이 의도다**: 영속과 재도색은 AX도 기하도 건드리지 않아
+    /// 반복 호출이 무해하고(Picker 드래그 중 연속 호출이 곧 라이브 프리뷰다), `NSColor` 동등성은
+    /// 같은 색이라도 색공간 인스턴스에 따라 거짓 음성이 나 가드 쪽이 오히려 신뢰할 수 없다.
+    var normalColor: NSColor? {
+        didSet {
+            persist(normalColor, forKey: PreferenceKeys.onScreenModeIndicatorNormalColor)
+            repaintColors()
+        }
+    }
+
+    /// Insert 모드 인디케이터 색 — `normalColor`와 같은 소유 모델·같은 규칙. Insert에는 상시
+    /// 표시가 없으므로 이 색이 보이는 곳은 전환 순간의 INSERT flash뿐이다
+    /// (`20260916_mode-indicator-insert-color.md`).
+    var insertColor: NSColor? {
+        didSet {
+            persist(insertColor, forKey: PreferenceKeys.onScreenModeIndicatorInsertColor)
+            repaintColors()
+        }
+    }
+
+    /// Visual 모드(VISUAL·V-LINE 공유) 인디케이터 색 — `normalColor`와 같은 소유 모델·같은 규칙.
+    var visualColor: NSColor? {
+        didSet {
+            persist(visualColor, forKey: PreferenceKeys.onScreenModeIndicatorVisualColor)
+            repaintColors()
         }
     }
 
@@ -236,6 +277,31 @@ final class ModeIndicatorController {
             defaults.string(forKey: PreferenceKeys.onScreenModeIndicatorStyle)
             .flatMap(ModeIndicatorPresentationStyle.init(rawValue:))
             ?? PreferenceKeys.onScreenModeIndicatorStyleDefault
+        // 없는 키도 못 읽는 값도 `nil`(미설정 = 강조색)이다 — 색 때문에 인디케이터가 안 뜨는
+        // 경로를 만들지 않는다.
+        self.normalColor = Self.storedColor(
+            defaults, forKey: PreferenceKeys.onScreenModeIndicatorNormalColor)
+        self.insertColor = Self.storedColor(
+            defaults, forKey: PreferenceKeys.onScreenModeIndicatorInsertColor)
+        self.visualColor = Self.storedColor(
+            defaults, forKey: PreferenceKeys.onScreenModeIndicatorVisualColor)
+    }
+
+    private nonisolated static func storedColor(_ defaults: UserDefaults, forKey key: String)
+        -> NSColor?
+    {
+        defaults.string(forKey: key).flatMap(ModeIndicatorColor.color(fromHex:))
+    }
+
+    /// 색 하나의 영속 — **저장할 hex가 나올 때만 쓰고 그 밖은 전부 키를 지운다.** 미설정으로
+    /// 되돌린 경우(`nil`)와 sRGB로 옮길 수 없는 색이 한 규칙으로 닫혀, 어느 쪽에서도 낡은 값이
+    /// 키에 남지 않는다.
+    private func persist(_ color: NSColor?, forKey key: String) {
+        if let color, let hex = ModeIndicatorColor.hex(from: color) {
+            defaults.set(hex, forKey: key)
+        } else {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     // MARK: - 트리거
@@ -379,6 +445,10 @@ final class ModeIndicatorController {
                 size: ModeIndicatorPanel.size(for: request.label, style: style),
                 screens: layoutScreens, primaryScreenMaxY: primary.frame.maxY)
         }
+        // 사용자 색(미설정이면 `nil` → 패널이 강조색으로 그린다). 한 번 구해 flash·상시 표시가
+        // 같은 값을 쓴다 — 둘은 같은 요청의 같은 모드다.
+        let color = ModeIndicatorColor.color(
+            for: request.mode, normal: normalColor, insert: insertColor, visual: visualColor)
         // flash 사다리(캐럿 → 요소 → 창)가 배지 사다리를 포함하므로, flash 프레임이 없으면
         // 앵커가 아예 없다 — 사다리의 마지막 단이고, 붙일 곳이 없으면 표시하지 않는다.
         // **재시도는 없다**: 앵커가 없다는 것이 답이고, 다음 앵커 이벤트가 이 경로를 다시 부른다.
@@ -395,7 +465,7 @@ final class ModeIndicatorController {
             pendingFlash = false
             let panel = flashPanel ?? ModeIndicatorPanel(style: .flash)
             flashPanel = panel
-            panel.flash(request.label, at: flashFrame)
+            panel.flash(request.label, at: flashFrame, color: color)
         }
         guard request.showsBadge else {
             hidePersistentPanels(keeping: nil)
@@ -408,7 +478,7 @@ final class ModeIndicatorController {
             if let badgeFrame = frame(ladder: .elementFirst, style: .badge) {
                 let panel = badgePanel ?? ModeIndicatorPanel(style: .badge)
                 badgePanel = panel
-                panel.show(request.label, at: badgeFrame)
+                panel.show(request.label, at: badgeFrame, color: color)
                 hidePersistentPanels(keeping: .badge)
             } else {
                 hidePersistentPanels(keeping: nil)
@@ -429,12 +499,31 @@ final class ModeIndicatorController {
                 // 형태를 먼저 적는다 — 아래 `keeping`이 방금 그린 패널을 "다른 형태"로 보고
                 // 감추면 안 된다.
                 borderPanelStyle = request.style
-                panel.show(request.label, at: layout.frame, labelFrame: layout.labelFrame)
+                panel.show(
+                    request.label, at: layout.frame, labelFrame: layout.labelFrame, color: color)
                 hidePersistentPanels(keeping: request.style)
             } else {
                 hidePersistentPanels(keeping: nil)
             }
         }
+    }
+
+    /// 떠 있는 패널을 **기하 재읽기 없이** 다시 칠한다 — 색은 기하와 무관하므로 색 변경이 AX
+    /// 왕복을 내면 안 된다(`20260916_mode-indicator-per-mode-colors.md`).
+    ///
+    /// **`reconcile`을 타지 않는 별도 경로인 것이 요점이다**: 색을 바꾸는 자리는 설정 창이고,
+    /// 그때는 우리가 최전면이라 `reconcile`이 자기 pid 가지에서 읽지도 `current`를 건드리지도
+    /// 않는다. 그 덕에 `current`는 **화면에 남아 있는 이전 앱의 표시 그대로**여서, 여기서 그
+    /// 모드의 색을 밀어 넣으면 사용자가 보고 있는 배지·테두리가 그 자리에서 바뀐다.
+    /// 패널은 첫 표시에서야 만들어지므로 아무것도 뜬 적 없으면 통째로 no-op이다.
+    private func repaintColors() {
+        let color = current.flatMap {
+            ModeIndicatorColor.color(
+                for: $0.mode, normal: normalColor, insert: insertColor, visual: visualColor)
+        }
+        flashPanel?.setColor(color)
+        badgePanel?.setColor(color)
+        borderPanel?.setColor(color)
     }
 
     /// 상시 표시 패널 중 `style`이 아닌 것을 감춘다 (`nil`이면 전부). **숨김 규칙의 단일

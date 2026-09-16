@@ -20,10 +20,11 @@ import AppKit
 @MainActor
 final class ModeIndicatorBorderPanel {
     private let panel: NSPanel
+    private let border: ModeIndicatorBorderView
     private let pill: ModeIndicatorPillView
 
     init() {
-        let border = ModeIndicatorBorderView(frame: .zero)
+        border = ModeIndicatorBorderView(frame: .zero)
         pill = ModeIndicatorPillView(style: .badge)
         border.addSubview(pill)
         panel = ModeIndicatorPanel.makeOverlayPanel(level: ModeIndicatorStyle.badge.windowLevel)
@@ -33,11 +34,19 @@ final class ModeIndicatorBorderPanel {
     /// 테두리를 `frame`에, 라벨을 `labelFrame`에 띄우고 **그대로 둔다** — 배지의 `show`와 같은
     /// 계약이다(애니메이션도 타이머도 없고 멱등). 둘 다 화면 좌표이고, 라벨은 패널 안 좌표로
     /// 옮겨 앉힌다.
-    func show(_ label: String, at frame: NSRect, labelFrame: NSRect) {
+    func show(_ label: String, at frame: NSRect, labelFrame: NSRect, color: NSColor?) {
+        setColor(color)
         pill.label = label
         pill.frame = labelFrame.offsetBy(dx: -frame.minX, dy: -frame.minY)
         panel.setFrame(frame, display: true)
         panel.orderFrontRegardless()
+    }
+
+    /// 떠 있는 채로 **색만** 갈아 끼운다 — 선과 모서리 라벨이 같은 색이라 한 자리에서 세운다
+    /// (알약의 `setColor`와 같은 계약: 기하를 건드리지 않는다).
+    func setColor(_ color: NSColor?) {
+        border.strokeColor = color
+        pill.fillColor = color
     }
 
     /// 즉시 감춘다 — 배지의 `hide`와 같은 사유·같은 계약이다.
@@ -46,8 +55,13 @@ final class ModeIndicatorBorderPanel {
     }
 }
 
-/// 강조색 테두리. 색은 알약과 같은 이유로 그리는 시점의 외양에서 해석한다.
+/// 테두리 선. 색은 알약과 같은 규칙이다 — 사용자가 고른 모드 색, 미설정(`nil`)이면 그리는 시점의
+/// 외양에서 해석한 시스템 강조색.
 private final class ModeIndicatorBorderView: NSView {
+    var strokeColor: NSColor? {
+        didSet { needsDisplay = true }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         // 선은 bounds 안쪽에 온전히 들어와야 한다 — 절반이 패널 밖으로 잘리면 굵기가 반이 된다.
         // 모서리 반경은 창·화면 테두리가 같은 값(선 굵기의 2배)을 쓴다 — 창 테두리에서도 창
@@ -57,7 +71,7 @@ private final class ModeIndicatorBorderView: NSView {
             roundedRect: bounds.insetBy(dx: width / 2, dy: width / 2),
             xRadius: width * 2, yRadius: width * 2)
         path.lineWidth = width
-        NSColor.controlAccentColor.setStroke()
+        (strokeColor ?? NSColor.controlAccentColor).setStroke()
         path.stroke()
     }
 }
