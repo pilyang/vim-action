@@ -102,16 +102,16 @@ struct ModeIndicatorPresentationTests {
 /// 자리에 남고, 넘치면 전환마다 AX 왕복이 곱해진다)는 것이 표로 고정하는 이유다.
 struct ModeIndicatorReadCoalescingTests {
     private let normal = ModeIndicatorController.Presentation(
-        label: "NORMAL", showsBadge: true, processID: 42, style: .badge)
+        mode: .normal, showsBadge: true, processID: 42, style: .badge)
     private let insert = ModeIndicatorController.Presentation(
-        label: "INSERT", showsBadge: false, processID: 42, style: .badge)
+        mode: .insert, showsBadge: false, processID: 42, style: .badge)
     private let normalBorder = ModeIndicatorController.Presentation(
-        label: "NORMAL", showsBadge: true, processID: 42, style: .screenBorder)
+        mode: .normal, showsBadge: true, processID: 42, style: .screenBorder)
     private let insertBorder = ModeIndicatorController.Presentation(
-        label: "INSERT", showsBadge: false, processID: 42, style: .screenBorder)
+        mode: .insert, showsBadge: false, processID: 42, style: .screenBorder)
     /// 상시 표시를 끈 설정의 Normal — 판정 결과는 Insert와 같은 모양(배지 없음)이다.
     private let normalFlashOnly = ModeIndicatorController.Presentation(
-        label: "NORMAL", showsBadge: false, processID: 42, style: .badge)
+        mode: .normal, showsBadge: false, processID: 42, style: .badge)
 
     private func needsRead(
         desired: ModeIndicatorController.Presentation,
@@ -184,7 +184,7 @@ struct ModeIndicatorReadCoalescingTests {
     @Test("상시 표시가 떠 있는 채로 스타일이 바뀌면 읽는다")
     func styleSwitchWithBadgeShowingReads() {
         let normalWindowBorder = ModeIndicatorController.Presentation(
-            label: "NORMAL", showsBadge: true, processID: 42, style: .windowBorder)
+            mode: .normal, showsBadge: true, processID: 42, style: .windowBorder)
         #expect(needsRead(desired: normalBorder, current: normal))
         #expect(needsRead(desired: normal, current: normalBorder))
         #expect(needsRead(desired: normalWindowBorder, current: normalBorder))

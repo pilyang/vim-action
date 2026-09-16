@@ -1,10 +1,12 @@
 # 온스크린 모드 인디케이터 (오버레이)
 
-- **Last updated**: 2026-09-15
+- **Last updated**: 2026-09-16
 
 ## 현재 구조
 
 화면의 표시는 **두 겹**이다. 모드가 바뀌면 **순간 표시**(flash)가 **캐럿 아래**(캐럿이 없으면 포커스 요소 근처)에 약 1초 뜨고 페이드아웃하며, **Insert가 아닌 동안**에는 **상시 표시**가 계속 남는다 (Insert는 상시 표시 없음). 상시 표시는 Settings에서 끌 수도 있고("Only when the mode changes" — 그러면 flash만 남는다) 형태도 고른다 — 기본은 요소 모서리의 한 단계 작은 **배지**, 대체 스타일은 포커스 창 rect를 두르는 **창 테두리**와 포커스 창이 있는 디스플레이를 두르는 **화면 테두리**(둘 다 강조색 프레임 + 오른쪽 위 모서리 라벨). 어느 스타일이든 flash는 캐럿/요소 사다리를 탄다. 전부 Settings Indicator 탭 토글 하나로 꺼진다. 갱신은 **이벤트 기반만**이다 — 타이머 폴링도, 키마다 재배치도 없다.
+
+색은 **모드별로 고른다** — Normal 색과 Visual 색(VISUAL·V-LINE 공유) 둘이고 투명도는 색의 알파다. 둘 다 **미설정이 기본**이라 그때는 시스템 강조색으로 그린다(설정을 건드리지 않은 사용자에게 외양 변화가 없다). INSERT flash는 설정 대상이 아니라 언제나 강조색이다. 알약 배경·테두리 선·모서리 라벨이 그 색을 쓰고, 글씨는 불투명하게 남는다.
 
 ```mermaid
 graph LR
@@ -21,11 +23,12 @@ graph LR
 
 | 구성 요소 | 격리 | 역할 |
 |---|---|---|
-| `ModeIndicatorController` (`AppState` 소유) | `@MainActor @Observable` | 다섯 트리거의 합류점. 표시 판정은 순수 `presentation(isEnabled:isPersistentEnabled:style:inputs:)`, 조율은 `reconcile(flashes:rereadGeometry:)` 하나. `pending` 한 칸이 최신 요청만 들고 읽기는 동시에 하나이며, 표시를 바꾸는 트리거가 `token`을 올려 늦게 착지한 읽기를 버린다. 설정 셋(`isEnabled`·`isPersistentEnabled`·`style: ModeIndicatorPresentationStyle`)의 소유자이자 전용 큐 `dev.pilyang.VimAction.mode-indicator-geometry`(`.utility`)의 소유자. 상시 표시 패널의 숨김은 `hidePersistentPanels(keeping:)` 한 자리이고, 테두리 패널이 지금 어느 스타일로 떠 있는지(`borderPanelStyle`)를 기억해 창↔화면 테두리 전환도 이전 형태를 즉시 감춘다 |
+| `ModeIndicatorController` (`AppState` 소유) | `@MainActor @Observable` | 다섯 트리거의 합류점. 표시 판정은 순수 `presentation(isEnabled:isPersistentEnabled:style:inputs:)`, 조율은 `reconcile(flashes:rereadGeometry:)` 하나. `pending` 한 칸이 최신 요청만 들고 읽기는 동시에 하나이며, 표시를 바꾸는 트리거가 `token`을 올려 늦게 착지한 읽기를 버린다. 설정 다섯(`isEnabled`·`isPersistentEnabled`·`style: ModeIndicatorPresentationStyle`·`normalColor`·`visualColor`)의 소유자이자 전용 큐 `dev.pilyang.VimAction.mode-indicator-geometry`(`.utility`)의 소유자. 상시 표시 패널의 숨김은 `hidePersistentPanels(keeping:)` 한 자리이고, 테두리 패널이 지금 어느 스타일로 떠 있는지(`borderPanelStyle`)를 기억해 창↔화면 테두리 전환도 이전 형태를 즉시 감춘다. 색 변경만은 `reconcile`이 아니라 `repaintColors()`가 받는다 — `current.mode`의 색을 떠 있는 패널 셋에 바로 밀어 넣는다 |
+| `ModeIndicatorColor` | `nonisolated` 순수 | 색의 순수 계층 — 저장 문자열 ↔ 색(`color(fromHex:)`·`hex(from:)`, sRGB `#RRGGBBAA` 대문자 8자리, `#` 필수·8자리 hex만·대소문자 관용, 그 밖은 전부 미설정으로 접힘)과 모드→색 표(`color(for:normal:visual:)` — `.normal`→Normal, `.visualChar`/`.visualLine`→Visual, `.insert`→`nil`). 직렬화는 sRGB 변환 뒤 성분을 `0...1`로 **clamp**하고 반올림한다 |
 | `ModeIndicatorGeometryReader` | `nonisolated` | pid만 받아 `AXRead.focusedElement` → `AXPosition`+`AXSize`, 요소 rect가 쓸 만하지 않거나 **`includesWindow`(= 창 테두리 스타일의 상시 표시)** 일 때 `AXFocusedWindow`(한 번만). **`includesCaret`(= 요청에 flash가 있음)일 때만** 캐럿 rect를 추가로 읽는다 — 순서는 `AXSelectedTextRange`의 `loc`으로 `AXBoundsForRange (loc,1)` → 안 되고 `loc>0`이면 `(loc-1,1)` → `AXSelectedTextMarkerRange`(불투명 CFType, 변환 없음)+`AXBoundsForTextMarkerRange`, 첫 쓸 만한 것에서 멈춘다. 길이 0 범위는 쓰지 않고 `AXNumberOfCharacters`도 미리 묻지 않는다. 50ms 타임아웃은 `AXRead` 상속 |
 | `ModeIndicatorLayout` | `nonisolated` 순수 | 앵커 사다리는 **묻는 알약에 따라 첫 단이 다르다**(`Ladder`): flash는 `caretFirst`(캐럿 → 요소 → 창 → 없음), 상시 표시는 `elementFirst`(요소 → 창 → 없음). 면적 있는 rect만 한 단이고, 캐럿의 유효성(`isUsableCaret`)도 여기 소유 — 높이 > 0(폭 0 허용), 요소 rect와 다름, 요소 rect가 쓸 만하면 그 안에 걸침. 배치는 캐럿 단 캐럿 아래 왼쪽 정렬 4pt / 요소 단 요소 바깥 오른쪽 위 4pt / 창 단 창 안쪽 오른쪽 위 12/6pt → AX→AppKit flip → 클램프. `screenBorderLayout`은 상시 사다리의 앵커가 속한 화면의 `visibleFrame`과 그 안 오른쪽 위 라벨 프레임(인셋 = 선 굵기 4 + 8)을, `windowBorderLayout`은 사다리 없이 창 rect 자체(flip만, 클램프 없음)와 같은 규칙의 라벨을 낸다 — 라벨은 앵커 화면 `visibleFrame`으로 민 뒤 창 frame 안으로 한 번 더 민다(라벨보다 좁은 창). 창이 없거나 면적이 없으면 nil(폴백 없음). 화면은 호출자가 `Screen`(frame + visibleFrame) 배열로 넘긴다 |
-| `ModeIndicatorPanel` × 2 | `@MainActor` | flash·배지 알약. `ModeIndicatorStyle`이 폰트·여백·radius·창 층을 가른다: flash는 bold 12pt/`.statusBar`, 배지는 semibold 10pt/`.statusBar - 1`. `flash`는 0.15/0.7/0.3s 페이드, `show`는 애니메이션도 타이머도 없다. 각각 첫 표시에서 lazy 생성 |
-| `ModeIndicatorBorderPanel` × 1 | `@MainActor` | 창·화면 테두리 공용 — 호출자가 준 frame(창 rect 또는 디스플레이의 `visibleFrame`)을 덮는 패널 **하나**에 강조색 테두리(`ModeIndicatorBorderView`, 모서리 반경은 선 굵기의 2배로 두 스타일 공통)와 모서리 라벨(`ModeIndicatorPillView(style: .badge)` 서브뷰)을 함께 그린다. 층은 배지와 같다. `show`/`hide`는 배지와 같은 계약(멱등, 무애니메이션). 테두리 스타일을 고른 뒤 첫 표시에서 lazy 생성. 두 스타일이 인스턴스 하나를 나눠 쓰고 어느 형태인지는 컨트롤러가 기억한다 |
+| `ModeIndicatorPanel` × 2 | `@MainActor` | flash·배지 알약. `flash`/`show`가 색을 함께 받고, `setColor(_:)`는 기하를 건드리지 않고 색만 갈아 끼운다. `ModeIndicatorStyle`이 폰트·여백·radius·창 층을 가른다: flash는 bold 12pt/`.statusBar`, 배지는 semibold 10pt/`.statusBar - 1`. `flash`는 0.15/0.7/0.3s 페이드, `show`는 애니메이션도 타이머도 없다. 각각 첫 표시에서 lazy 생성 |
+| `ModeIndicatorBorderPanel` × 1 | `@MainActor` | 창·화면 테두리 공용 — 호출자가 준 frame(창 rect 또는 디스플레이의 `visibleFrame`)을 덮는 패널 **하나**에 테두리(`ModeIndicatorBorderView`, 모서리 반경은 선 굵기의 2배로 두 스타일 공통)와 모서리 라벨(`ModeIndicatorPillView(style: .badge)` 서브뷰)을 함께 그린다. 층은 배지와 같다. `show`/`hide`는 배지와 같은 계약(멱등, 무애니메이션)이고 `setColor(_:)`가 선과 라벨의 색을 한 자리에서 세운다. 테두리 스타일을 고른 뒤 첫 표시에서 lazy 생성. 두 스타일이 인스턴스 하나를 나눠 쓰고 어느 형태인지는 컨트롤러가 기억한다 |
 | `ModeIndicatorPanel.makeOverlayPanel(level:)` | `@MainActor` | 비활성화 패널 설정의 **유일한** 생성 지점 — `NSPanel(.borderless, .nonactivatingPanel)`, `ignoresMouseEvents`, `hidesOnDeactivate = false`, `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]`. 알약 둘과 테두리가 전부 여기서 받는다 |
 
 라벨 문자열은 `Mode.overlayLabel`, 모드별 상시 표시 여부는 `Mode.showsPersistentBadge`(Insert만 false)로 둘 다 `AppState.swift`에 있다 — 설정의 상시 표시 off는 판정(`presentation`)에서 이 값에 AND될 뿐 모드 속성을 건드리지 않는다. 스타일 enum `ModeIndicatorPresentationStyle`(`badge`/`windowBorder`/`screenBorder`, raw 문자열이 UserDefaults 값, `usesBorderPanel`이 테두리 둘을 묶는다)은 `ModeIndicatorController.swift`에 있다 — 알약 외양 enum `ModeIndicatorStyle`(flash/badge)과는 다른 축이다.
@@ -37,7 +40,7 @@ graph LR
 | ① | 모드 전환 | `updateMode` → `onModeChange` → `modeDidChange` | flash + 상시 표시, 항상 읽는다 (캐럿 포함) |
 | ② | 포커스 요소 변경·앱 활성화·창 이동·리사이즈 | `FocusedElementResolver.onFocusGeometryChanged` → (`EventTapController` 통로) → `anchorDidChange` | 상시 표시가 보여야 할 때만 읽는다 (캐럿 없이) |
 | ③ | 사다리 변화 (탭 고장·마스터 off·킬스위치·앱별 disabled·Secure Input·설정 리로드) | `AppState.trackIndicatorLadder()`의 `withObservationTracking` 재무장 루프 → `stateDidChange` | 표시할 것이 실제로 달라졌을 때만 읽는다 |
-| ④ | Settings 토글·상시 표시·스타일 | `isEnabled.didSet`·`isPersistentEnabled.didSet`·`style.didSet` | 마지막 입력으로 다시 판정 (off는 즉시 숨김, on은 즉시 복귀; 상시 표시 off는 `showsBadge`가 접혀 Insert와 같은 경로 — 앵커 이벤트에 AX 왕복 0건; 스타일 변경은 `Presentation`에 실린 스타일로 `desired != current`가 되어 상시 표시가 있으면 다시 읽어 새 형태로 그리고, 이전 형태는 즉시 감춘다) |
+| ④ | Settings 토글·상시 표시·스타일 | `isEnabled.didSet`·`isPersistentEnabled.didSet`·`style.didSet` (색 둘은 여기 없다 — `reconcile`을 타지 않는다) | 마지막 입력으로 다시 판정 (off는 즉시 숨김, on은 즉시 복귀; 상시 표시 off는 `showsBadge`가 접혀 Insert와 같은 경로 — 앵커 이벤트에 AX 왕복 0건; 스타일 변경은 `Presentation`에 실린 스타일로 `desired != current`가 되어 상시 표시가 있으면 다시 읽어 새 형태로 그리고, 이전 형태는 즉시 감춘다) |
 | ⑤ | 디스플레이 재구성 | `NSApplication.didChangeScreenParametersNotification` → `anchorDidChange` | ②와 같다 |
 
 ## 불변식·계약
@@ -58,9 +61,11 @@ graph LR
 - **좌표 변환은 전역 flip 하나**: `y' = NSScreen.screens[0].frame.maxY - (y + h)`. 보조 디스플레이(AX x 음수)에서도 그대로다.
 - **클램프는 `visibleFrame`, 화면 선택은 `frame`.** 텍스트 뷰가 창 전체인 앱을 최대화하면 "요소 위쪽 바깥" 규칙이 알약을 메뉴바·노치 뒤로 보낸다. 반대로 화면 선택까지 `visibleFrame`으로 하면 메뉴바 띠 안의 앵커가 자기 디스플레이를 못 찾고 주 화면으로 튄다. 화면 테두리도 같은 축이다 — 앵커 rect(요소 또는 창)와 `frame`이 겹치는 화면을 고르고(AX를 더 읽지 않는다 — 요소는 창 안에 있어 같은 디스플레이다, 없으면 첫 화면), 그 화면의 **`visibleFrame`**을 두른다(`frame`을 두르면 위 변이 메뉴바 뒤, 아래 변이 Dock 뒤에 숨는다). 창 테두리는 이 축을 타지 않는다 — 창 rect를 그대로 두르고(화면 밖으로 나간 만큼 잘린다), 라벨만 앵커 화면의 `visibleFrame`과 창 frame 안으로 민다.
 - **앵커가 없으면 재시도하지 않는다** — 그것이 답이고, 다음 앵커 이벤트가 다시 부른다.
-- **글씨 색은 강조색에서 파생된다** — 흰 글씨 대비가 3:1 아래로 떨어지는 밝은 강조색(노랑 1.41:1·초록·주황·그래파이트)에서만 검은 글씨다. 색만으로 구분하지 않는다는 PRD NFR 때문에 라벨 텍스트는 항상 동반된다 — 화면 테두리도 모서리 라벨이 같은 알약 뷰라 규칙이 하나다.
+- **색 변경은 기하 재읽기를 내지 않는다.** 색은 `Presentation`에 싣지 않고(실으면 `desired != current`가 참이 되어 기하가 그대로인데 AX 왕복이 난다) `needsGeometryRead`도 보지 않는다 — `normalColor`·`visualColor`의 didSet은 영속 + `repaintColors()`뿐이다. 그래서 **자기 pid 경로(설정 창이 열린 상태)에서도 색이 즉시 반영된다**: 그 경로는 읽지도 `current`를 건드리지도 않아 `current`가 화면에 남아 있는 이전 앱의 표시 그대로이고, 재도색은 그 값으로 돈다.
+- **`Presentation`은 라벨이 아니라 모드를 싣는다.** 떠 있는 패널에 색을 밀어 넣으려면 그것이 어느 모드를 보여 주는지 알아야 한다 — `label`은 `mode.overlayLabel` 파생이라 동등성 의미는 라벨을 실었을 때와 같다.
+- **글씨 색은 실효 배경색(사용자 색, 미설정이면 강조색)에서 파생된다** — 흰 글씨 대비가 3:1 아래로 떨어지는 밝은 색(노랑 1.41:1·초록·주황·그래파이트)에서만 검은 글씨다. **판정은 알파를 보지 않는다** — 성분 셋으로만 휘도를 내므로 반투명 배경이어도 라벨은 불투명한 흑·백으로 남는다. 색만으로 구분하지 않는다는 PRD NFR 때문에 라벨 텍스트는 항상 동반된다 — 화면 테두리도 모서리 라벨이 같은 알약 뷰라 규칙이 하나다.
 - **flash가 배지 위에 그려지는 것은 창 층의 차이로 보장된다**(flash `.statusBar`, 상시 표시 `.statusBar - 1`). 캐럿이 없는 앱에서는 flash가 배지를 완전히 덮고, 캐럿이 있는 앱에서는 flash가 캐럿 아래·배지가 요소 모서리라 **전환 직후 1초간 같은 라벨 둘이 함께 보인다** — flash는 캐럿부터라는 결정의 직접 결과다.
-- **순수 계층은 테스트로 고정된다**: `ModeIndicatorLayoutTests`(알약별 사다리·퇴화 rect·캐럿 유효성 4종·배치·flip·보조 디스플레이·클램프·메뉴바 띠·nil·화면 테두리 5종·창 테두리 6종), `ModeIndicatorControllerTests`(표시 판정 표(상시 표시 off 행 포함)·읽기 코얼레싱 판정 표(스타일 변경·상시 표시 토글 행 포함)·토글 영속·상시 표시 영속·스타일 영속(raw 값 리터럴 포함)·자기 pid 토큰 무효화·대비).
+- **순수 계층은 테스트로 고정된다**: `ModeIndicatorLayoutTests`(알약별 사다리·퇴화 rect·캐럿 유효성 4종·배치·flip·보조 디스플레이·클램프·메뉴바 띠·nil·화면 테두리 5종·창 테두리 6종), `ModeIndicatorControllerTests`(표시 판정 표(상시 표시 off 행 포함)·읽기 코얼레싱 판정 표(스타일 변경·상시 표시 토글 행 포함)·토글 영속·상시 표시 영속·스타일 영속(raw 값 리터럴 포함)·자기 pid 토큰 무효화·대비), `ModeIndicatorColorTests`(hex 왕복·대소문자·잘못된 입력·색역 밖 색·모드→색 표·색 영속(키 둘 분리)·미설정 기본·Reset의 키 삭제·못 읽는 값·사용자 색 글씨 대비와 알파 무시).
 - 테스트에서는 아무 일도 하지 않는다 — 배선이 `bootstrap()`의 XCTest 가드 뒤이고, 입력이 밀린 적 없으면 판정이 통째로 막히며, 패널은 첫 표시에서야 만들어진다. 자기 pid 경로는 그 전제 위에서 테스트가 직접 부른다(읽지도 그리지도 않아 `token`만 관측된다 — 그래서 `token`은 `private(set)`).
 
 ### 알려진 한계
@@ -74,13 +79,13 @@ graph LR
 
 ## 근거 요약
 
-메뉴바 글리프는 시야 밖이라 모드 인지 문제를 풀지 못한다. 표시 정책(전환 시 순간 표시 + 비-Insert 상시 표시, 창·화면 테두리는 대체 스타일, 순간 표시만은 opt-out), 앵커 사다리(flash는 캐럿부터·상시 표시는 요소부터)와 이벤트 기반 갱신, Chromium 스크린리더 모드 미강제, 설정 소유권은 각각 결정 문서에 있다.
+메뉴바 글리프는 시야 밖이라 모드 인지 문제를 풀지 못한다. 표시 정책(전환 시 순간 표시 + 비-Insert 상시 표시, 창·화면 테두리는 대체 스타일, 순간 표시만은 opt-out), 앵커 사다리(flash는 캐럿부터·상시 표시는 요소부터)와 이벤트 기반 갱신, Chromium 스크린리더 모드 미강제, 설정 소유권, 모드별 색(모드 구분은 Vim 상태줄 관례대로 색이 거드는 신호이고 라벨이 항상 동반된다)은 각각 결정 문서에 있다.
 
-- 관련 결정: [20260906_mode-indicator-hybrid-display-policy.md](../../decisions/references/20260906_mode-indicator-hybrid-display-policy.md), [20260914_mode-indicator-optin-flash-only-and-window-border.md](../../decisions/references/20260914_mode-indicator-optin-flash-only-and-window-border.md), [20260906_mode-indicator-anchor-ladder-event-driven.md](../../decisions/references/20260906_mode-indicator-anchor-ladder-event-driven.md), [20260906_no-forced-chromium-screen-reader-mode.md](../../decisions/references/20260906_no-forced-chromium-screen-reader-mode.md), [20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md), [20260725_callback-light-invariant.md](../../decisions/references/20260725_callback-light-invariant.md), [20260725_tap-main-runloop-retention.md](../../decisions/references/20260725_tap-main-runloop-retention.md)
+- 관련 결정: [20260906_mode-indicator-hybrid-display-policy.md](../../decisions/references/20260906_mode-indicator-hybrid-display-policy.md), [20260914_mode-indicator-optin-flash-only-and-window-border.md](../../decisions/references/20260914_mode-indicator-optin-flash-only-and-window-border.md), [20260906_mode-indicator-anchor-ladder-event-driven.md](../../decisions/references/20260906_mode-indicator-anchor-ladder-event-driven.md), [20260906_no-forced-chromium-screen-reader-mode.md](../../decisions/references/20260906_no-forced-chromium-screen-reader-mode.md), [20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md), [20260916_mode-indicator-per-mode-colors.md](../../decisions/references/20260916_mode-indicator-per-mode-colors.md), [20260725_callback-light-invariant.md](../../decisions/references/20260725_callback-light-invariant.md), [20260725_tap-main-runloop-retention.md](../../decisions/references/20260725_tap-main-runloop-retention.md)
 
 ## 관련
 
-- 코드: `VimAction/ModeIndicatorController.swift`(`ModeIndicatorPresentationStyle` 포함), `VimAction/ModeIndicatorGeometryReader.swift`, `VimAction/ModeIndicatorLayout.swift`, `VimAction/ModeIndicatorPanel.swift`(`makeOverlayPanel`·`ModeIndicatorPillView`), `VimAction/ModeIndicatorBorderPanel.swift`, `VimAction/FocusedElementResolver.swift`(`onFocusGeometryChanged`·창 알림), `VimAction/EventTapController.swift`(`updateMode`·`onModeChange`·`onFocusGeometryChanged`·`observedProcessID`), `VimAction/AppState.swift`(배선·`indicatorInputs`·`trackIndicatorLadder`·`Mode.overlayLabel`·`Mode.showsPersistentBadge`), `VimAction/SettingsView.swift`(토글·"Show" Picker·스타일 Picker), `VimAction/Preferences.swift`(키 셋)
+- 코드: `VimAction/ModeIndicatorController.swift`(`ModeIndicatorPresentationStyle` 포함), `VimAction/ModeIndicatorColor.swift`, `VimAction/ModeIndicatorGeometryReader.swift`, `VimAction/ModeIndicatorLayout.swift`, `VimAction/ModeIndicatorPanel.swift`(`makeOverlayPanel`·`ModeIndicatorPillView`), `VimAction/ModeIndicatorBorderPanel.swift`, `VimAction/FocusedElementResolver.swift`(`onFocusGeometryChanged`·창 알림), `VimAction/EventTapController.swift`(`updateMode`·`onModeChange`·`onFocusGeometryChanged`·`observedProcessID`), `VimAction/AppState.swift`(배선·`indicatorInputs`·`trackIndicatorLadder`·`Mode.overlayLabel`·`Mode.showsPersistentBadge`), `VimAction/SettingsView.swift`(토글·"Show" Picker·스타일 Picker·색 `ColorPicker` 둘·Reset 버튼), `VimAction/Preferences.swift`(키 다섯)
 - 표시 사다리: [reentrancy-and-safety.md](reentrancy-and-safety.md)(메뉴바 글리프 우선순위) — 오버레이는 그 사다리의 두 번째 소비자다
 - pid 출처·읽기 큐 규율·리졸버 알림: [focus-and-dispatch-reads.md](focus-and-dispatch-reads.md)
 - 앱 셸·설정 토글·Picker: [app-shell.md](app-shell.md), [profiles-and-config.md](profiles-and-config.md)

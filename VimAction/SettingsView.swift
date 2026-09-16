@@ -220,8 +220,55 @@ private struct IndicatorTab: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             }
+            // 색은 별도 Section이다 — 위가 "무엇을 언제 띄우는가", 여기가 "어떤 색으로"라
+            // 축이 다르다. 인디케이터가 꺼져 있으면 셋 다 고를 이유가 없어 통째로 비활성.
+            Section("Colors") {
+                ColorPicker("Normal", selection: colorBinding(\.normalColor), supportsOpacity: true)
+                ColorPicker("Visual", selection: colorBinding(\.visualColor), supportsOpacity: true)
+                // 미설정으로 되돌린다 — 컨트롤러가 키를 지우고 다시 강조색으로 그린다.
+                // 이미 둘 다 미설정이면 할 일이 없다.
+                Button("Reset to system accent") {
+                    modeIndicator.normalColor = nil
+                    modeIndicator.visualColor = nil
+                }
+                .disabled(modeIndicator.normalColor == nil && modeIndicator.visualColor == nil)
+                Text(
+                    "VISUAL and V-LINE share the Visual color, and INSERT always uses the system accent color. The mode label stays fully opaque, so it still reads on a translucent background."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+            .disabled(!modeIndicator.isEnabled)
         }
         .formStyle(.grouped)
+    }
+
+    /// 미설정일 때 Picker가 보여 줄 실효 색 — **그 시점 강조색의 sRGB 해석**이다.
+    private var accentColor: NSColor {
+        NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? .controlAccentColor
+    }
+
+    /// `ColorPicker` 바인딩. get은 실효 색(사용자 색 ?? 강조색), set은 컨트롤러 프로퍼티에
+    /// 대입한다 — 영속도 화면 반영도 컨트롤러 몫이고 뷰는 값을 나르기만 한다.
+    ///
+    /// **실효 색과 같으면 대입하지 않는 것이 계약이다**: 색 패널은 열기만 해도 현재 색을 set으로
+    /// 돌려주는데, 그대로 받으면 미설정(= 동적 강조색)이 강조색 **스냅샷**으로 굳어 강조색을
+    /// 바꿔도 따라오지 않고 Reset 버튼만 켜진다. 비교는 hex 문자열로 한다 — `NSColor` 동등성은
+    /// 같은 색이라도 색공간 인스턴스에 흔들린다. 미설정 상태에서 강조색과 똑같은 색을 일부러
+    /// 고르면 계속 미설정으로 남지만, 외양이 같아 관측되지 않는다.
+    private func colorBinding(
+        _ keyPath: ReferenceWritableKeyPath<ModeIndicatorController, NSColor?>
+    ) -> Binding<Color> {
+        let controller = appState.modeIndicator
+        return Binding(
+            get: { Color(nsColor: controller[keyPath: keyPath] ?? accentColor) },
+            set: { picked in
+                let new = NSColor(picked)
+                let effective = controller[keyPath: keyPath] ?? accentColor
+                guard ModeIndicatorColor.hex(from: new) != ModeIndicatorColor.hex(from: effective)
+                else { return }
+                controller[keyPath: keyPath] = new
+            })
     }
 }
 
