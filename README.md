@@ -61,6 +61,8 @@ The menu bar icon shows the current mode and state:
 | <img src="docs/assets/menubar-inactive.png" width="28" alt="Dashed square"> | Not running — usually the Accessibility permission is missing |
 | <img src="docs/assets/menubar-secure-input.png" width="28" alt="Square with a lock"> | Secure input active while the tap is down — keys aren't reaching VimAction |
 
+You don't have to watch the menu bar. An **on-screen mode indicator** flashes the mode name under the caret whenever the mode changes, and a small badge stays next to the focused field while you are in Normal or Visual mode (nothing stays on screen in Insert). The *Indicator* tab in Settings lets you turn it off, keep only the flash, replace the badge with a colored frame around the focused window or the whole screen, and pick a color and opacity per mode — the system accent color by default.
+
 If anything ever misbehaves, **`Ctrl-Option-Cmd-Esc` is the kill switch** — it turns interception off instantly. The menu bar toggle re-enables it.
 
 ## Keybindings

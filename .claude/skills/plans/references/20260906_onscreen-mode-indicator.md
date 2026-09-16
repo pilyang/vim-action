@@ -1,7 +1,7 @@
 # 온스크린 모드 인디케이터 (HUD)
 
 - **생성일**: 2026-09-06
-- **갱신일**: 2026-09-16 (PR 4 [#70](https://github.com/pilyang/vim-action/pull/70) 오픈 — Normal/Insert/Visual 색 구현·스크립트 도그푸딩 완료, 사용자 도그푸딩 인계; 같은 날 이전: PR #68 머지 반영·결정 기록·워커 위임)
+- **갱신일**: 2026-09-16 (PR 4 [#70](https://github.com/pilyang/vim-action/pull/70) 머지·로드맵 체크 — 남은 것은 플랜 완료 처리와 후속 검토 2건뿐)
 
 ## 목표
 
@@ -17,14 +17,15 @@
 - [x] **PR 3 확장 구현 완료** (2026-09-14~15, 도그푸딩 피드백, 같은 브랜치·PR #68에 커밋 3개 `7b92d9d`·`87e7529`·`2d2b738` + 문서 커밋; 이 세션이 직접 구현): ① 자기 pid 경로 토큰 무효화 + 밀린 flash 만료(Copilot 코멘트, `token`을 `private(set)`으로 열어 회귀 테스트) ② 상시 표시 on/off `onScreenModeIndicatorPersistentEnabled`(off면 flash만 — Insert 경로 재사용, "Show" Picker, 스타일 Picker는 상시 표시 없으면 비활성) ③ 상시 스타일 `windowBorder`(포커스 창 rect 테두리 + 창 안쪽 오른쪽 위 라벨, 창 rect는 `includesWindow`로 그 스타일에서만 읽음, 테두리 패널 공유 + `borderPanelStyle`로 창↔화면 전환도 즉시 숨김, 라벨은 화면·창 이중 클램프, `borderLayout` → `screenBorderLayout` 개명). decisions 1건([20260914_mode-indicator-optin-flash-only-and-window-border.md](../../decisions/references/20260914_mode-indicator-optin-flash-only-and-window-border.md)) + architecture 3종 갱신. 스크립트 도그푸딩(Developer ID Release 설치, 2디스플레이): 기본값 회귀(flash+배지), 창 테두리 bounds == TextEdit 창(이동·리사이즈 추종, Slack 전환, 최소화 시 숨김·복원 시 재표시, 보조 디스플레이 x=−2094 정합, 외양 스크린샷 확인), flash-only 두 스타일(flash만·Slack 전환 시 무표시), Insert 숨김 — 전부 수치 확인.
 - [x] **Settings 창 Indicator 탭 분리** (2026-09-15, PR #68에 포함): 인디케이터 항목 셋을 General > Behavior에서 새 Indicator 탭(General 바로 뒤)으로 옮기기만 — 키·문구·기본 탭 불변. decisions [20260915_settings-window-indicator-tab.md](../../decisions/references/20260915_settings-window-indicator-tab.md)(08-09 3탭 결정 탭 수만 부분 supersede) + architecture app-shell·mode-indicator-overlay 갱신.
 - [x] **PR #68 머지 완료** (→ main `b8765c8`, 2026-09-15): PR 3·확장·Indicator 탭 분리가 한 PR로 머지됐다. 사용자 직접 도그푸딩(Settings UI 경로·Indicator 탭·창 테두리 엣지)이 머지 게이트였고 별도 보고된 결함은 없다.
+- [x] **PR 4 머지 완료** ([PR #70](https://github.com/pilyang/vim-action/pull/70) → main `0fde2f0`, 2026-09-16, Herdr worktree의 Opus 워커 구현 + 감독 플랜 검토·독립 검증·스크립트 도그푸딩): Normal / Insert / Visual 세 색(알파 포함)을 UserDefaults `#RRGGBBAA` 키 셋으로, 기본 미설정=강조색, Indicator 탭 "Colors" 섹션 ColorPicker 셋 + Reset, 색 변경은 AX 재읽기 없이 즉시 재도색(`Presentation`이 라벨 대신 모드를 실음), 순수 계층 `ModeIndicatorColor`(sRGB clamp). decisions 2건([20260916_mode-indicator-per-mode-colors.md](../../decisions/references/20260916_mode-indicator-per-mode-colors.md), [20260916_mode-indicator-insert-color.md](../../decisions/references/20260916_mode-indicator-insert-color.md)) + architecture 3종 갱신. 스크립트 도그푸딩(창 캡처 픽셀): 기본 강조색 0,122,255 / Normal 빨강 / Insert flash 보라·상시 표시 0개 / VISUAL 초록 / 알파 128 / 창·화면 테두리 선+라벨 / Reset 후 강조색 — 전부 일치. 사용자 도그푸딩(Settings UI·외양) 뒤 머지.
+- [x] 로드맵 Stage 4 "선택적 온스크린 HUD 모드 인디케이터" 체크 (2026-09-16, `vim-action/docs/roadmap.md` — 부모 레포, 원격 없음).
 - [x] 방향 확정(2026-09-06, 권장안 채택) + decisions 4건 기록: 표시 정책 / 앵커 사다리·이벤트 기반 갱신(실측표 포함) / Chromium 스크린리더 모드 강제 안 함 / 설정은 UserDefaults·기본 on.
 
 ## 남은 것
 
 <!-- 다음에 할 것이 맨 위. 인계 단위(세션/마일스톤 수준)로 — 함수 단위 세부 todo는 세션 내 TodoList의 몫. -->
 
-- [ ] **PR 4 [#70](https://github.com/pilyang/vim-action/pull/70) 사용자 도그푸딩 → 머지 확인** (브랜치 `feat/mode-indicator-colors`, 커밋 `f7ec88d` Normal/Visual + `6f4679a` Insert, Herdr worktree `~/.herdr/worktrees/VimAction/feat-mode-indicator-colors`의 Opus 워커 `colors-worker`가 구현, 감독 세션이 플랜 검토·독립 검증·스크립트 도그푸딩·PR). 범위는 decisions [20260916_mode-indicator-per-mode-colors.md](../../decisions/references/20260916_mode-indicator-per-mode-colors.md) + [20260916_mode-indicator-insert-color.md](../../decisions/references/20260916_mode-indicator-insert-color.md): Normal / Insert / Visual 세 색(알파 포함) UserDefaults `#RRGGBBAA`, 기본 미설정=강조색, Indicator 탭 ColorPicker 셋 + Reset, 색 변경은 AX 재읽기 없이 즉시 재도색. **`/Applications`에 PR 4 Developer ID Release 빌드 설치됨, 설정은 제품 기본값(색 키 없음·badge)**. 사용자 체크리스트: Settings 창 열린 채 배지가 떠 있을 때 색을 고르면 그 자리에서 재도색되는지(재앵커·깜빡임 없음), 색 패널을 열고 아무것도 안 고르고 닫으면 Reset이 비활성 유지(`defaults read dev.pilyang.VimAction onScreenModeIndicatorNormalColor`가 없음), 알파 낮은 색·아주 밝은 색(노랑 → 검은 글씨)의 가독성, Insert 색 지정 후 i/Esc 전환의 INSERT flash 색, Reset 한 번에 셋 복귀, 라이트/다크 전환 시 미설정 색이 강조색을 따라오는지, 토글 off 시 Colors 섹션 비활성, 재시작 후 색 유지, Indicator 탭이 460×560 안에 들어가는지, 세 스타일(배지·창 테두리·화면 테두리) 외양. 관측 사항은 [PR #70](https://github.com/pilyang/vim-action/pull/70)에서 처리(워커 워크스페이스 w1R 유지 중). 새 항목은 설정 창의 **Indicator 탭**에 더한다([20260915_settings-window-indicator-tab.md](../../decisions/references/20260915_settings-window-indicator-tab.md)). 색상 커스텀에서도 라벨 텍스트는 항상 동반(색만으로 구분하지 않음 — PRD NFR)하고, 글씨색은 PR 2의 luminance 파생을 사용자 색에 그대로 적용한다. 설정 소유권은 UserDefaults([20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md)).
-- [ ] 마무리: 로드맵 Stage 4 항목 체크, 플랜 완료 처리.
+- [ ] 마무리: 플랜 완료 처리 (사용자 확인 필요 — 아래 후속 검토 2건의 거처를 먼저 정한다).
 - [ ] 후속 검토(별도 PR 후보): **막 실행된 앱의 AXObserver 등록 실패.** 앱을 실행하며 동시에 활성화하면 리졸버의 `AXObserverCreate`/`AddNotification`이 `cannotComplete`(−25204)로 실패하고, 리졸버는 다음 pid 전환까지 재시도하지 않는다(PR 2 도그푸딩에서 TextEdit·Chrome·Terminal 콜드 실행 3건 전부 재현, 다른 앱에 갔다 오면 정상). PR 2 이전부터 있던 동작이지만 배지가 생기며 체감이 커졌다 — 그 앱에서는 앱 전환 전까지 포커스·창 이벤트 재앵커가 없고 모드 전환만 배지를 옮긴다. 후보: 등록 실패 시 짧은 지연 뒤 1회 재시도.
 - [ ] 후속 검토: **디스플레이 간 창 이동 직후 flash 위치 관측 1건(재현 안 됨)** — PR 3 확장 도그푸딩에서 flash가 창 오른쪽 아래(1571,1082)에 한 번 떴다. 재현되면 보고·조사.
 
@@ -32,7 +33,7 @@
 
 ### 설치 상태 (2026-09-16)
 
-- `/Applications`에는 PR 3 확장 도그푸딩 빌드(1.0 (1), Developer ID Release, 설정은 제품 기본값으로 리셋한 상태)가 있다. 최신 릴리스 v0.4.1에는 인디케이터가 없으므로 되돌릴 이유가 없고, 색상 작업의 도그푸딩 빌드가 이를 교체한다.
+- `/Applications`에는 PR 4 도그푸딩 빌드(1.0 (1), Developer ID Release, 내용은 main `0fde2f0`과 동일, 설정은 제품 기본값)가 있다. 최신 릴리스 v0.4.1에는 인디케이터가 없으므로 다음 릴리스 전까지 그대로 둔다.
 
 ### 실측 — 최전면 앱의 포커스 텍스트 요소에서 읽은 기하 (2026-09-06)
 
