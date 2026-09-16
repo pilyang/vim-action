@@ -1,7 +1,7 @@
 # 온스크린 모드 인디케이터 (HUD)
 
 - **생성일**: 2026-09-06
-- **갱신일**: 2026-09-16 (PR #68 머지 반영, 다음 착수는 외양 커스텀(색상) — 이전: Settings 창 Indicator 탭 분리를 PR #68에 추가)
+- **갱신일**: 2026-09-16 (색상·투명도 PR 4 착수 — 결정 기록·Opus 워커 위임; 같은 날 이전: PR #68 머지 반영)
 
 ## 목표
 
@@ -23,7 +23,7 @@
 
 <!-- 다음에 할 것이 맨 위. 인계 단위(세션/마일스톤 수준)로 — 함수 단위 세부 todo는 세션 내 TodoList의 몫. -->
 
-- [ ] **다음 — 인디케이터 외양 커스텀(색상·투명도).** 모드 라벨 알약(flash·배지)과 테두리의 **색상**(과 투명도)을 사용자가 고를 수 있게 한다. 범위(단일 색 vs 모드별 색, 투명도 포함 여부)는 착수 시 사용자와 확정한다. 새 항목은 설정 창의 **Indicator 탭**에 더한다([20260915_settings-window-indicator-tab.md](../../decisions/references/20260915_settings-window-indicator-tab.md)). 색상 커스텀에서도 라벨 텍스트는 항상 동반(색만으로 구분하지 않음 — PRD NFR)하고, 글씨색은 PR 2의 luminance 파생을 사용자 색에 그대로 적용한다. 설정 소유권은 UserDefaults([20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md)).
+- [ ] **진행 중 — PR 4: 인디케이터 모드별 색상·투명도** (2026-09-16 착수, 브랜치 `feat/mode-indicator-colors`, Herdr worktree의 Opus 워커에 위임 — feature-dev + plan mode, 브리프는 감독 세션 scratchpad). 범위는 decisions [20260916_mode-indicator-per-mode-colors.md](../../decisions/references/20260916_mode-indicator-per-mode-colors.md)로 확정: Normal/Visual 두 색(알파 포함)을 UserDefaults `#RRGGBBAA` 키 둘로, 기본 미설정=강조색, INSERT flash는 강조색 유지, Indicator 탭 ColorPicker 둘 + Reset, 색 변경은 AX 재읽기 없이 즉시 재도색. 남은 단계: 워커 플랜 검토·승인 → 구현 → 감독 독립 검증(diff·앱 테스트·경고 0) → 실기기 도그푸딩(수치 판정은 스크립트, Settings UI·외양은 사용자 체크리스트) → PR → 머지. 새 항목은 설정 창의 **Indicator 탭**에 더한다([20260915_settings-window-indicator-tab.md](../../decisions/references/20260915_settings-window-indicator-tab.md)). 색상 커스텀에서도 라벨 텍스트는 항상 동반(색만으로 구분하지 않음 — PRD NFR)하고, 글씨색은 PR 2의 luminance 파생을 사용자 색에 그대로 적용한다. 설정 소유권은 UserDefaults([20260906_mode-indicator-settings-in-userdefaults.md](../../decisions/references/20260906_mode-indicator-settings-in-userdefaults.md)).
 - [ ] 마무리: 로드맵 Stage 4 항목 체크, 플랜 완료 처리.
 - [ ] 후속 검토(별도 PR 후보): **막 실행된 앱의 AXObserver 등록 실패.** 앱을 실행하며 동시에 활성화하면 리졸버의 `AXObserverCreate`/`AddNotification`이 `cannotComplete`(−25204)로 실패하고, 리졸버는 다음 pid 전환까지 재시도하지 않는다(PR 2 도그푸딩에서 TextEdit·Chrome·Terminal 콜드 실행 3건 전부 재현, 다른 앱에 갔다 오면 정상). PR 2 이전부터 있던 동작이지만 배지가 생기며 체감이 커졌다 — 그 앱에서는 앱 전환 전까지 포커스·창 이벤트 재앵커가 없고 모드 전환만 배지를 옮긴다. 후보: 등록 실패 시 짧은 지연 뒤 1회 재시도.
 - [ ] 후속 검토: **디스플레이 간 창 이동 직후 flash 위치 관측 1건(재현 안 됨)** — PR 3 확장 도그푸딩에서 flash가 창 오른쪽 아래(1571,1082)에 한 번 떴다. 재현되면 보고·조사.
