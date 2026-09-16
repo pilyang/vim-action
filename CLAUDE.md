@@ -60,13 +60,20 @@ CI(GitHub Actions)는 위의 엔진 테스트와 앱 빌드 두 잡을 PR·main 
 
 **단언 함정 — `defaults.bool(forKey:)`는 미설정 키에도 `false`를 돌려줍니다.** 영속을 검증할 때 `object(forKey:) != nil`을 앞세우지 않으면 영속 코드를 통째로 지워도 테스트가 통과합니다 (M1에서 실제로 4곳이 이 상태였습니다). 같은 이유로, 파일을 "덮어쓰지 않는다"를 검증할 때는 내용 비교가 아니라 **쓰기 seam 호출 여부**를 단언하세요 — 같은 바이트로 덮어쓰는 회귀는 내용 비교로 잡히지 않습니다.
 
-## Swift 6 언어 모드 — 남은 항목 1건
+## Swift 6 언어 모드 — 남은 항목 3곳
 
-`AccessibilityPermissionMonitor.swift`의 `kAXTrustedCheckOptionPrompt`(전역 `var`) 참조가 Swift 6 모드에서만 에러입니다. 나머지는 프로브에서 깨끗함을 확인했습니다. 프로브는 pbxproj를 고치지 말고 **명령줄 오버라이드**로 하면 되돌림 실수가 원천 봉쇄됩니다:
+프로브(2026-09-16)에서 앱 소스에 남은 Swift 6 엄격 동시성 위반은 다음 3곳입니다. 나머지 앱 소스는 깨끗합니다.
+
+- `AccessibilityPermissionMonitor.swift` — `kAXTrustedCheckOptionPrompt`(전역 `var`) 참조
+- `EventTapController.swift` — non-Sendable `CGEvent`를 동시성 경계 너머로 보냄 (CoreGraphics `@preconcurrency` import 권고 동반)
+- `ModeIndicatorPanel.swift` — 페이드아웃 `completionHandler`(Sendable 클로저)에서 main actor 격리 `alphaValue`·`orderOut` 접근
+
+**`SWIFT_VERSION=6.0` 오버라이드는 프로브로 쓸 수 없습니다** — 명령줄 설정은 SPM 의존성 Yams까지 Swift 6 모드로 컴파일해, Yams 에러로 앱 타깃에 닿기 전에 빌드가 멈춥니다. 대신 Swift 5 모드 그대로 `SWIFT_STRICT_CONCURRENCY=complete`를 주면 같은 문제가 경고로 나오고 빌드는 끝까지 갑니다. pbxproj를 고치지 말고 **명령줄 오버라이드**로 하면 되돌림 실수가 원천 봉쇄됩니다. `clean`이 필요합니다 — 증분 빌드는 컴파일을 건너뛰어 경고가 0건으로 보입니다:
 
 ```bash
-xcodebuild build -project VimAction.xcodeproj -scheme VimAction \
-  -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO SWIFT_VERSION=6.0
+xcodebuild clean build -project VimAction.xcodeproj -scheme VimAction \
+  -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO SWIFT_STRICT_CONCURRENCY=complete \
+  2>&1 | grep "warning:" | grep "$PWD/VimAction/" | sort -u
 ```
 
 ## Accessibility(TCC) 권한 — 로컬 개발 시 주의
