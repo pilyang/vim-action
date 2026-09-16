@@ -1,0 +1,25 @@
+.claude/skills/architecture/SKILL.md
+  s_90e40fcfa7c141::t_d3ce837af8e08e 48
+.claude/skills/plans/SKILL.md
+  s_90e40fcfa7c141::t_5bdca0ad95d523 54
+.claude/skills/plans/references/20260906_onscreen-mode-indicator.md
+  s_90e40fcfa7c141::t_02b2c36e4a9273 4,20-21,28,36
+README.md
+  s_90e40fcfa7c141::t_176615530ce06f 64-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2b097c011140c58fdb9d99751cbe54c3c7bd24d4",
+  "prompts": {},
+  "sessions": {
+    "s_90e40fcfa7c141": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e0a81d14-4098-4a70-8231-2cbdb639080a",
+        "model": "unknown"
+      },
+      "human_author": "pilyang <pilyang.dev@gmail.com>"
+    }
+  }
+}
